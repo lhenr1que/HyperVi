@@ -301,7 +301,7 @@ void CHyprBar::snapOnRelease() {
         where = "tile:left";
     else if (C.x >= M->m_position.x + MW - EDGE - 1)
         where = "tile:right";
-    else if (C.y <= M->m_position.y + EDGE)
+    else if (g_pGlobalState->config.snapTopEdge->value() && C.y <= M->m_position.y + EDGE)
         where = "tile:max";
     if (!where)
         return;
