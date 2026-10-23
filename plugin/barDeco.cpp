@@ -303,6 +303,9 @@ void CHyprBar::snapOnRelease() {
         where = "tile:right";
     else if (g_pGlobalState->config.snapTopEdge->value() && C.y <= M->m_position.y + EDGE)
         where = "tile:max";
+    const auto ACTIVE = Desktop::focusState()->window();
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
+                     M->m_name, where ? where : "none");
     if (!where)
         return;
 
