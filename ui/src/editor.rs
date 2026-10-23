@@ -43,19 +43,17 @@ fn t(en: &'static str) -> &'static str {
 
 struct Ed { fixed: Fixed, handles: Fixed, zones: RefCell<Vec<Zone>>, size: (i32, i32), origin: (i32, i32) }
 
-// The work area of the first monitor in screen pixels: minus reserved space (bars) and the outer gaps, as the core does.
-// Returns (size, origin); the plugin's title-bar height is not subtracted.
-fn work_area() -> ((i32, i32), (i32, i32)) {
-    let hc = |a: &[&str]| Command::new("hyprctl").args(a).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
-    let m: serde_json::Value = serde_json::from_str(&hc(&["monitors", "-j"])).unwrap_or_default();
-    let sc = m[0]["scale"].as_f64().unwrap_or(1.0);
-    let (w, h) = ((m[0]["width"].as_f64().unwrap_or(1920.0) / sc) as i32, (m[0]["height"].as_f64().unwrap_or(1080.0) / sc) as i32);
-    let res: Vec<i32> = (0..4).map(|i| m[0]["reserved"][i].as_i64().unwrap_or(0) as i32).collect(); // left, top, right, bottom
-    let o: serde_json::Value = serde_json::from_str(&hc(&["getoption", "general:gaps_out", "-j"])).unwrap_or_default();
+// The work area of the monitor under the pointer, in that monitor's pixels: minus reserved space (bars) and the outer
+// gaps, as the core does. Returns (size, origin) and the monitor; the plugin's title-bar height is not subtracted.
+fn work_area() -> (((i32, i32), (i32, i32)), crate::mon::Mon) {
+    let (px, py) = crate::mon::cursor();
+    let m = crate::mon::at(&crate::mon::all(), px, py);
+    let o = Command::new("hyprctl").args(["getoption", "general:gaps_out", "-j"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+    let o: serde_json::Value = serde_json::from_str(&o).unwrap_or_default();
     let go: Vec<i32> = o["css"].as_str().unwrap_or("0 0 0 0").split_whitespace().filter_map(|v| v.parse().ok()).collect(); // top, right, bottom, left
     let g = |i: usize| go.get(i).copied().unwrap_or(0);
-    let (l, t, r, b) = (res[0] + g(3), res[1] + g(0), res[2] + g(1), res[3] + g(2));
-    ((w - l - r, h - t - b), (l, t))
+    let (l, t, r, b) = (m.reserved[0] + g(3), m.reserved[1] + g(0), m.reserved[2] + g(1), m.reserved[3] + g(2));
+    (((m.w - l - r, m.h - t - b), (l, t)), m)
 }
 
 fn icon_button(label: &str, tip: &str, css: Option<&str>) -> Button {
@@ -143,7 +141,8 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         let mut known: Vec<Layout> = zones::presets();
         known.extend(saved.iter().cloned());
         let first = start.as_ref().and_then(|n| known.iter().find(|l| &l.name == n)).cloned();
-        let ed = Rc::new(Ed { fixed: Fixed::new(), handles: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: work_area().0, origin: work_area().1 });
+        let wa = work_area();
+        let ed = Rc::new(Ed { fixed: Fixed::new(), handles: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: wa.0 .0, origin: wa.0 .1 });
 
         let name = Entry::new();
         name.set_text(&first.as_ref().filter(|l| saved.iter().any(|s| s.name == l.name)).map_or(String::new(), |l| l.label.clone()));
@@ -189,6 +188,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         win.init_layer_shell();
         win.set_layer(Layer::Overlay);
         win.set_namespace(Some("kwinish-zones"));
+        if let Some(m) = crate::mon::gdk_monitor(&wa.1.name) { win.set_monitor(Some(&m)); }
         win.set_keyboard_mode(KeyboardMode::Exclusive);
         for e in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] { win.set_anchor(e, true); }
         win.set_exclusive_zone(-1);

@@ -170,17 +170,6 @@ fn build(st: &State) -> Vec<Item> {
     ]
 }
 
-fn cursor() -> (i32, i32) {
-    let text = hyprctl(&["cursorpos"]);
-    let mut it = text.trim().split(',').map(|v| v.trim().parse::<i32>().unwrap_or(0));
-    (it.next().unwrap_or(0), it.next().unwrap_or(0))
-}
-
-fn screen() -> (i32, i32) {
-    let m: serde_json::Value = serde_json::from_str(&hyprctl(&["monitors", "-j"])).unwrap_or_default();
-    (m[0]["width"].as_f64().unwrap_or(1920.0) as i32, m[0]["height"].as_f64().unwrap_or(1080.0) as i32)
-}
-
 fn run_action(addr: &str, action: &str) {
     // addr and action come from our own tables and Hyprland, but keep the Lua string safe anyway
     let clean = |s: &str| s.chars().filter(|c| c.is_ascii_alphanumeric() || ":+-_".contains(*c)).collect::<String>();
@@ -188,7 +177,7 @@ fn run_action(addr: &str, action: &str) {
     let _ = Command::new("hyprctl").args(["eval", &code]).status();
 }
 
-struct Ctx { app: Application, fixed: Fixed, addr: String, open: RefCell<Vec<(GtkBox, Button)>>, screen: (i32, i32) }
+struct Ctx { app: Application, fixed: Fixed, addr: String, open: RefCell<Vec<(GtkBox, Button)>>, screen: (i32, i32) }  // screen: size of the monitor the menu is on
 
 // One menu level; `level` 0 is the root. Hovering a row removes deeper levels, and a submenu row opens its own.
 fn make_box(items: &[Item], ctx: &Rc<Ctx>, level: usize) -> GtkBox {
@@ -316,10 +305,13 @@ fn run_inner(addr: String, args: Vec<String>, layouts_only: bool) -> glib::ExitC
         gtk4::style_context_add_provider_for_display(&gtk4::gdk::Display::default().expect("no display"), &provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
         let fixed = Fixed::new();
-        let ctx = Rc::new(Ctx { app: app.clone(), fixed: fixed.clone(), addr: addr.clone(), open: RefCell::new(vec![]), screen: screen() });
+        // the point (global layout coordinates) decides the monitor; the menu is placed relative to that monitor
+        let (px, py) = at.unwrap_or_else(crate::mon::cursor);
+        let mon = crate::mon::at(&crate::mon::all(), px, py);
+        let ctx = Rc::new(Ctx { app: app.clone(), fixed: fixed.clone(), addr: addr.clone(), open: RefCell::new(vec![]), screen: (mon.w, mon.h) });
         let items = if layouts_only { layout_items() } else { build(&read_state(&addr)) };
         let root = make_box(&items, &ctx, 0);
-        let (cx, cy) = at.unwrap_or_else(cursor);
+        let (cx, cy) = (px - mon.x, py - mon.y);
         let (_, nat) = root.preferred_size();
         fixed.put(&root, cx.min(ctx.screen.0 - nat.width() - 6).max(6) as f64, cy.min(ctx.screen.1 - nat.height() - 6).max(6) as f64);
 
@@ -328,6 +320,7 @@ fn run_inner(addr: String, args: Vec<String>, layouts_only: bool) -> glib::ExitC
         win.init_layer_shell();
         win.set_layer(Layer::Overlay);
         win.set_namespace(Some("kwinish-menu"));
+        if let Some(m) = crate::mon::gdk_monitor(&mon.name) { win.set_monitor(Some(&m)); }
         win.set_keyboard_mode(KeyboardMode::Exclusive);
         for e in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] { win.set_anchor(e, true); }
         win.set_exclusive_zone(-1);

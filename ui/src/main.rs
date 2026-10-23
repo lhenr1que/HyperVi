@@ -10,6 +10,7 @@ mod editor;
 mod zones;
 mod mode;
 mod menu;
+mod mon;
 
 const CSS: &str = "
 window.kw { background: transparent; }
