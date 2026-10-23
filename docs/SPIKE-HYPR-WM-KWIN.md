@@ -229,3 +229,11 @@ Capturas do KDE: (1) **menu de janela** com submenus (Áreas de trabalho, Mais a
 - O núcleo Lua publica ao plugin as zonas `left`, `right` e `top` de cada monitor (`hl.plugin.kwinish.set_zone`, já com a barra incluída: `y - altura`, `h + altura`) ao carregar, e de novo em `monitor.layout_changed`, `monitor.added`, `config.reloaded` e `window.active`. Uma só fonte da geometria: o que a prévia mostra é o que o encaixe faz.
 - O plugin desenha a prévia como um elemento de render próprio (`PreviewPassElement`: retângulo translúcido arredondado com contorno), adicionado no `draw()` da barra enquanto a janela flutuante é arrastada pela barra e o ponteiro está numa borda (mesmo teste de 3 px do encaixe, exige 10 px de movimento desde o clique). Fica na pilha logo abaixo da janela arrastada, como no KDE. Config: `snap_preview` (padrão ligado), `preview_color` (padrão `#7aa2f7` a 25 %).
 - Não testado: tudo (precisa carregar o plugin de `plugin/` no lugar do instalado).
+
+## Pré-visualização do encaixe: testada (24/10/2026)
+Plugin de `plugin/` carregado, núcleo da pasta do projeto, workspace 9, arrasto segurado com o ponteiro na borda (`spike/hold-drag.py`) e captura de tela durante a espera:
+- **esquerda:** retângulo azul translúcido com contorno cobrindo (78, 28)..(979, 1052), barra incluída, por baixo da janela arrastada; ao soltar a janela ficou em (78, 56) 901x996, dentro da área mostrada.
+- **direita:** retângulo na metade direita; ao soltar (991, 56) 901x996.
+- **topo:** retângulo cobrindo toda a área útil; ao soltar (78, 56) 1814x996. (O painel Dashboard da Caelestia abre sozinho no topo, por hover; é do Ryoku e não atrapalhou.)
+- **sumiço:** depois de soltar a prévia desaparece (captura sem sobra).
+- Não testado: arrasto lento com troca de zona (esquerda para topo), vários monitores, janela com `rounding > 0` (o canto da prévia usa o arredondamento da janela, mas só vi com 0), temas de cor.
