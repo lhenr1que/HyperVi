@@ -280,6 +280,9 @@ end
 -- Open the layout picker (kwinish-ui layouts) at the pointer.
 function M.layouts() hl.exec_cmd("kwinish-ui layouts") end
 
+-- Open the zone editor (kwinish-ui zones).
+function M.zone_editor() hl.exec_cmd("kwinish-ui zones") end
+
 -- Open the window menu for the focused window at the pointer.
 function M.menu(opts)
   local w = (opts and opts.window) or hl.get_active_window()
@@ -332,23 +335,34 @@ local function load_layout()
   return (name == "off" or layouts.find(name)) and name or "grid"
 end
 
+local function load_user_layouts()
+  local dir = layout_file()
+  local f = io.open(dir .. "/layouts.json", "r")
+  layouts.load_user(f and f:read("*a") or nil)
+  if f then f:close() end
+end
+load_user_layouts()
+
 M.layout = M.layout or load_layout()
 M.layout_gap = M.layout_gap -- padding between layout zones; nil: the compositor's gaps_in
 
 layout_rects = function(mon)
   local preset = layouts.find(M.layout)
   if not preset then return {} end
-  local gap = M.layout_gap or num(hl.get_config("general.gaps_in"), "left")
+  local gap = preset.gap or M.layout_gap or num(hl.get_config("general.gaps_in"), "left")
   return layouts.zone_rects(preset.zones, work_area(mon), gap)
 end
 
 function M.layout_names()
   local out = { { name = "off", label = "Off (screen edges only)" } }
-  for _, p in ipairs(layouts.presets) do out[#out + 1] = { name = p.name, label = p.label } end
+  for _, list in ipairs({ layouts.presets, layouts.user }) do
+    for _, p in ipairs(list) do out[#out + 1] = { name = p.name, label = p.label } end
+  end
   return out
 end
 
 function M.set_layout(name)
+  load_user_layouts() -- the editor may have just saved
   if name ~= "off" and not layouts.find(name) then return end
   M.layout = name
   local dir, file = layout_file()

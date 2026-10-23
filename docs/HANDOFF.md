@@ -18,7 +18,7 @@ repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido 
   Versão instalada pelo dono: `0.0.0.r50.babd9b8-1`. Arquivos em `dist/` (fora do git).
 
 ## Pendências, em ordem sugerida
-1. Editor visual de zonas (o dono mostrou o do KDE: dividir esquerda/direita ou superior/inferior, bloco flutuante, preenchimento).
+1. ~~Editor visual de zonas~~ feito (`ui/src/editor.rs`, lógica em `ui/src/zones.rs`, arquivo `~/.config/kwinish/layouts.json` lido por `core/layouts.lua`). Falta: arrastar os divisores (hoje só divide ao meio), desenhar sobre a área útil em vez da tela inteira, teste ao vivo de salvar → Shift ao arrastar com um layout do usuário.
 2. Menu: Mover e Redimensionar (o Hyprland só inicia por bind de mouse; talvez o plugin consiga), atalho da janela, regras da janela/app.
 3. Duplo clique no ícone fecha a janela (KDE faz; não implementado).
 4. Vários monitores (nada foi testado; as coordenadas do menu são globais e só valem para o monitor na origem).

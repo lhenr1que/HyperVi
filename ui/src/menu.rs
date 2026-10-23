@@ -24,6 +24,7 @@ enum Item {
     Act { label: String, check: Option<bool>, action: String },
     Sub { label: String, items: Vec<Item> },
     Sep,
+    Spawn { label: String }, // launches the zone editor
 }
 
 fn act(label: &str, action: &str) -> Item {
@@ -101,6 +102,7 @@ fn t(en: &'static str) -> &'static str {
         "Maximize horizontally" => "Maximizar na horizontal",
         "Maximize vertically" => "Maximizar na vertical",
         "Close" => "Fechar",
+        "Edit zones..." => "Editar zonas...",
         other => other,
     }
 }
@@ -122,7 +124,14 @@ fn active_layout() -> String {
 
 fn layout_items() -> Vec<Item> {
     let now = active_layout();
-    LAYOUTS.iter().map(|(name, label)| tog(t(label), *name == now, &format!("layout:{name}"))).collect()
+    let mut items: Vec<Item> = LAYOUTS.iter().map(|(name, label)| tog(t(label), *name == now, &format!("layout:{name}"))).collect();
+    // layouts made in the zone editor, then the editor itself
+    let user = crate::zones::load();
+    if !user.is_empty() { items.push(Item::Sep); }
+    items.extend(user.iter().map(|l| tog(&l.label, l.name == now, &format!("layout:{}", l.name))));
+    items.push(Item::Sep);
+    items.push(Item::Spawn { label: t("Edit zones...").into() });
+    items
 }
 
 fn build(st: &State) -> Vec<Item> {
@@ -211,6 +220,19 @@ fn make_box(items: &[Item], ctx: &Rc<Ctx>, level: usize) -> GtkBox {
                 let ctx3 = ctx.clone();
                 motion.connect_enter(move |_, _, _| close_below(&ctx3, level));
                 row.add_controller(motion);
+                menu.append(&row);
+            }
+            Item::Spawn { label } => {
+                let row = Button::new();
+                row.add_css_class("row");
+                let text = Label::new(Some(label));
+                text.set_xalign(0.0);
+                row.set_child(Some(&text));
+                let ctx2 = ctx.clone();
+                row.connect_clicked(move |_| {
+                    let _ = Command::new("kwinish-ui").arg("zones").spawn();
+                    ctx2.app.quit();
+                });
                 menu.append(&row);
             }
             Item::Sub { label, items: sub } => {

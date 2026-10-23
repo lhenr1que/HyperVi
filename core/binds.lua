@@ -15,6 +15,7 @@ M.rows = {
   { "D",           "show_desktop" },
   { "ALT + T",     "keep_above" },
   { "T",           "layouts" },
+  { "CTRL + E",    "zone_editor" },
 }
 
 function M.list(mod)

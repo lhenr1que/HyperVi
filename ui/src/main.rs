@@ -6,6 +6,8 @@ use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::path::PathBuf;
 
 mod bars;
+mod editor;
+mod zones;
 mod mode;
 mod menu;
 
@@ -100,11 +102,12 @@ fn main() -> glib::ExitCode {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("bars") => bars::run(args[2..].to_vec()),
+        Some("zones") => editor::run(args.get(2..).unwrap_or(&[]).to_vec()),
         Some("layouts") => menu::run_layouts(args.get(2..).unwrap_or(&[]).to_vec()),
         Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default(), args.get(3..).unwrap_or(&[]).to_vec()),
         None => run_switcher(),
         Some(other) => {
-            eprintln!("usage: kwinish-ui [layouts | menu <window address> [--at X,Y] | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
+            eprintln!("usage: kwinish-ui [layouts | zones [--edit NAME] | menu <window address> [--at X,Y] | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
             glib::ExitCode::FAILURE
         }
     }

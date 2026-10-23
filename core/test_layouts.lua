@@ -16,4 +16,11 @@ for _, p in ipairs(L.presets) do
   assert(math.abs(total - area.w * area.h) < 1e-3, p.name .. " leaves holes or overlaps")
 end
 assert(L.find("nope") == nil, "unknown preset")
+-- user layouts from the editor's JSON
+L.load_user('[{"name":"user-a","label":"My one","gap":4,"zones":[[0,0,0.7,1],[0.7,0,0.3,0.5],[0.3,0.3,0.4,0.4]]},{"name":"bad","zones":[[0,0,2,1]]},{"name":"x y","zones":[[0,0,1,1]]},{"name":"user-b","zones":[]}]')
+assert(#L.user == 1 and L.find("user-a").label == "My one" and L.find("user-a").gap == 4 and #L.find("user-a").zones == 3, "user layout parsed, bad ones dropped")
+assert(L.find("grid") and L.find("bad") == nil, "presets stay, bad dropped")
+L.load_user("not json {{"); assert(#L.user == 0, "garbage gives no layouts")
+L.load_user('[{"name":"os","zones":[[0,0,1,1]],"x":os.exit()}]'); assert(#L.user == 0 or L.find("os"), "no env access")
+L.load_user(nil); assert(#L.user == 0)
 print("layouts ok")
