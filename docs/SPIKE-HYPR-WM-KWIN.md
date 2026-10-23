@@ -152,3 +152,13 @@ Decisões do dono: barras em todas as janelas (como o KWin), `floating_only` opc
 
 ## Glifos padronizados (24/10/2026)
 Teste do dono com o plugin carregado: ícone do app (Claude) e título apareceram certo; os ícones de minimizar, maximizar e fechar não ficaram padronizados (glifos Unicode de fontes diferentes, tamanhos distintos: `−` e `□` pequenos, `✕` grande). Corrigido desenhando os glifos com traços de cairo (`KwIcon::glyph`, `icon = "builtin:<nome>"`), todos com a mesma caixa (44 % do botão) e a mesma espessura; conferido offline em PNG (fixar, minimizar, maximizar, fechar). Precisa recarregar o plugin para ver na tela.
+
+## kwinish-bars carregado de novo, resultados (24/10/2026)
+Com o plugin recarregado pelo dono e o `kwinish.lua` carregado por eval (kitty descartável de classe `kwa`):
+- **Glifos:** minimizar, maximizar e fechar saem com o mesmo tamanho e peso (captura ampliada); ícone do app do Claude e o título aparecem certo.
+- **Fixar:** clicar no botão deixou a janela `pinned = true` e o botão ganhou o círculo azul de destaque.
+- **Clique direito:** abriu o menu da janela (`kwinish-ui menu`) no ponteiro; Esc fechou.
+- **Arrasto pela barra:** move a janela (comportamento do hyprbars).
+- **Defeito achado: o encaixe ao soltar não disparou.** Soltei a barra em x = 1 e a janela ficou onde o arrasto parou (-139, 330). Causa: a validação de entrada (`inputIsValid`) rejeita eventos com o ponteiro sobre outra camada (o painel esquerdo do Ryoku é uma camada Top), então o soltar nunca chegava ao `handleUpEvent`. Corrigido: um soltar chega ao `handleUpEvent` se havia arrasto, clique pendente ou clique cancelado, sem validar a posição. Compilado; precisa recarregar para testar.
+- **Ajuste:** quando a busca de ícone falha para uma classe (como `kwa`, sem `.desktop`), não se reserva mais o espaço do ícone antes do título.
+- Não testado: ícone de um app comum com `.desktop` (além do Claude), `floating_only`, encaixe à direita e no topo.

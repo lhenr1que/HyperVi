@@ -125,6 +125,13 @@ bool CHyprBar::inputIsValid() {
 }
 
 void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
+    // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
+    // screen edge, which input validation would reject)
+    if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
+        handleUpEvent(info);
+        return;
+    }
+
     if (!inputIsValid())
         return;
 
@@ -380,6 +387,9 @@ float CHyprBar::iconSlot() {
         return 0;
     const auto W = m_pWindow.lock();
     if (!W || W->m_class.empty())
+        return 0;
+    // an icon lookup that already failed for this class must not leave a gap before the title
+    if (m_szIconClass == W->m_class && !m_pIconTex)
         return 0;
     return std::max(12, (int)g_pGlobalState->config.barHeight->value() - 12);
 }
