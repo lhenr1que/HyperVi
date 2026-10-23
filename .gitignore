@@ -4,3 +4,5 @@ ui/target/
 spike/ui.log
 spike/menu.log
 spike/bars.log
+plugin/*.so
+plugin/*.o

@@ -12,6 +12,8 @@ use std::os::unix::net::UnixStream;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::mode::{decide, emergency_text, Facts, Mode, PLUGIN_NAME};
+
 const BAR_H: i32 = 28;
 const SNAP_PX: f64 = 3.0;
 
@@ -123,6 +125,21 @@ fn json(cmd: &str) -> serde_json::Value {
 fn cursor() -> (f64, f64) {
     let v = json("j/cursorpos");
     (v["x"].as_f64().unwrap_or(0.0), v["y"].as_f64().unwrap_or(0.0))
+}
+
+fn plugin_dir() -> String {
+    std::env::var("KWINISH_PLUGIN_DIR").unwrap_or_else(|_| "/usr/lib/hyprland/plugins".into())
+}
+
+fn current_mode() -> Mode {
+    let loaded: Vec<String> = json("j/plugin list").as_array()
+        .map(|a| a.iter().filter_map(|p| p["name"].as_str().map(String::from)).collect()).unwrap_or_default();
+    let dir = plugin_dir();
+    let installed = std::path::Path::new(&format!("{dir}/{PLUGIN_NAME}.so")).exists();
+    let abi = std::fs::read_to_string(format!("{dir}/{PLUGIN_NAME}.abi")).ok();
+    let abi_commit = abi.as_deref().and_then(|a| a.trim().split('_').next()).filter(|c| !c.is_empty());
+    let running = json("j/version")["commit"].as_str().unwrap_or("").to_string();
+    decide(&Facts { loaded: &loaded, installed, abi_commit, running_commit: &running })
 }
 
 fn action(addr: &str, act: &str) {
@@ -429,8 +446,37 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         gtk4::style_context_add_provider_for_display(&gtk4::gdk::Display::default().expect("no display"), &provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
         let st = Rc::new(State { bars: RefCell::new(HashMap::new()), border: Rc::new(Cell::new(style.border)), style: RefCell::new(style), provider, tick: Cell::new(0) });
         let (a, o) = (app.clone(), o.clone());
+        let notified = Cell::new(false);
+        let mut ticks = 0u32;
+        let mut idle = false;
         glib::timeout_add_local(Duration::from_millis(80), move || {
-            reconcile(&a, &st, &o);
+            // re-check who owns the title bars about every 2 s; while the plugin (or hyprbars) draws them, keep no bars
+            if ticks % 25 == 0 {
+                match current_mode() {
+                    Mode::Plugin | Mode::OtherBars(_) => idle = true,
+                    Mode::Emergency { built, running } => {
+                        idle = false;
+                        if !notified.replace(true) {
+                            let text = emergency_text(&built, &running);
+                            eprintln!("{text}");
+                            hypr(&format!("eval hl.notification.create({{ text = [[{text}]], timeout = 20000, icon = \"warning\" }})"));
+                        }
+                    }
+                    Mode::TryLoad => {
+                        idle = false;
+                        let dir = plugin_dir();
+                        hypr(&format!("plugin load {dir}/{PLUGIN_NAME}.so"));
+                    }
+                    Mode::Fallback => idle = false,
+                }
+            }
+            ticks = ticks.wrapping_add(1);
+            if idle {
+                let gone: Vec<String> = st.bars.borrow().keys().cloned().collect();
+                for k in gone { if let Some(b) = st.bars.borrow_mut().remove(&k) { b.win.close(); } }
+            } else {
+                reconcile(&a, &st, &o);
+            }
             glib::ControlFlow::Continue
         });
         std::mem::forget(app.hold());

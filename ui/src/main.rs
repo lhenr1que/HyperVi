@@ -6,6 +6,7 @@ use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::path::PathBuf;
 
 mod bars;
+mod mode;
 mod menu;
 
 const CSS: &str = "
