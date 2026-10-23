@@ -171,3 +171,7 @@ Com o plugin recarregado pelo dono e o `kwinish.lua` carregado por eval (kitty d
 
 ## Topo do encaixe: desligado por padrão (24/10/2026)
 O dono avisou que o Ryoku tem a barra Caelestia ativada por hover e deixou a escolha de desativá-la comigo; **não desativei** (é parte do desktop do dono, não sei o efeito colateral, e o encaixe esquerdo/direito funciona com ela). O Ryoku instalado não tem o encaixe de borda por timer que eu suspeitava (`grep` em `~/.config/hypr` não achou), então a causa de o Claude ter flutuado ao soltar no topo continua desconhecida. Decisão: encaixe no topo vira opção `plugin:kwinish:snap_top_edge` (padrão `false`); esquerda e direita seguem ligados. Compilado; precisa recarregar. Para achar a causa seria preciso ligar o log de depuração do Hyprland durante o teste.
+
+## Ícone de app comum e floating_only (24/10/2026)
+- **Ícone:** um kitty de classe `kitty` (com `kitty.desktop`, `Icon=kitty`) mostrou o ícone do gato na barra, ao lado do botão de fixar e do título. Junto com o do Claude, são dois apps com ícone resolvido por desktop entry + tema.
+- **floating_only:** a barra passou a reposicionar sozinha quando a opção muda sem recarregar a config (compara o valor a cada quadro, como já era feito com `enabled`). Compilado, **precisa recarregar o plugin para testar**.

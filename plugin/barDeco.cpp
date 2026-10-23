@@ -581,6 +581,13 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
         g_pDecorationPositioner->repositionDeco(this);
     }
 
+    // floating_only changed without a config reload (e.g. set at runtime): re-place the bar
+    const auto FLOATINGONLY = g_pGlobalState->config.floatingOnly->value();
+    if (m_bLastFloatingOnly != FLOATINGONLY) {
+        m_bLastFloatingOnly = FLOATINGONLY;
+        g_pDecorationPositioner->repositionDeco(this);
+    }
+
     if (!barActive() || !validMapped(m_pWindow) || !ENABLED)
         return;
 
