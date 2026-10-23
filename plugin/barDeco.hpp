@@ -108,6 +108,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                  updateIcon(float scale);
     void                  runAction(const std::string& action);
     void                  snapOnRelease();
+    void                  maybeUnsnap();
     void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
     bool doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, bool BUTTONSRIGHT);
 
@@ -127,6 +128,7 @@ class CHyprBar : public IHyprWindowDecoration {
     int                 m_iIconPx = 0;
     Vector2D            m_dragStart;
     Vector2D            m_pressCursor;
+    bool                m_bUnsnapChecked = false;
 
     bool                m_bDraggingThis  = false;
     bool                m_bTouchEv       = false;

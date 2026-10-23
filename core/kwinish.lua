@@ -11,6 +11,29 @@ local hot_started = false
 
 local function xy(v, a, b) return v[a] or v[1], v[b] or v[2] end
 
+-- Height of the title bar drawn above a floating window: the kwinish-bars plugin's own setting while it is loaded,
+-- else M.bar_height (set it to 28 when the fallback layer-shell bars are in use), else 0.
+local function bar_height()
+  local ok, plugins = pcall(hl.get_loaded_plugins)
+  if ok and type(plugins) == "table" then
+    for _, p in ipairs(plugins) do
+      if p.name == "kwinish-bars" then
+        local on = select(2, pcall(hl.get_config, "plugin:kwinish:enabled"))
+        if on == false then return 0 end
+        local ok2, h = pcall(hl.get_config, "plugin:kwinish:bar_height")
+        if ok2 and type(h) == "number" then return h end
+      end
+    end
+  end
+  return M.bar_height or 0
+end
+
+-- The plugin keeps the pre-snap size so that dragging the bar of a snapped window gives the old size back.
+local function plugin_call(name, ...)
+  local p = hl.plugin and hl.plugin.kwinish
+  if p and p[name] then pcall(p[name], ...) end
+end
+
 local function num(v, side)
   if type(v) == "table" then return v[side] or 0 end
   return v or 0
@@ -25,7 +48,8 @@ local function work_area(mon)
   local go = hl.get_config("general.gaps_out")
   local l, t = num(r.left or r[1], "left") + num(go, "left"), num(r.top or r[2], "top") + num(go, "top")
   local rr, b = num(r.right or r[3], "right") + num(go, "right"), num(r.bottom or r[4], "bottom") + num(go, "bottom")
-  return { x = mon.x + l, y = mon.y + t, w = mw - l - rr, h = mh - t - b }
+  local bh = bar_height() -- the bar sits above the window, so the window starts below it
+  return { x = mon.x + l, y = mon.y + t + bh, w = mw - l - rr, h = mh - t - b - bh }
 end
 
 local function rect_of(w)
@@ -51,6 +75,7 @@ local function place(w, r, key)
   local s = saved[w.address]
   if s and s.key == key and geometry.same(rect_of(w), r) then
     saved[w.address] = nil
+    plugin_call("forget", w.address)
     put(w, s.rect)
     if not s.was_floating then hl.dispatch(hl.dsp.window.float({ action = "disable", window = "address:" .. w.address })) end
     return
@@ -59,6 +84,8 @@ local function place(w, r, key)
   else s.key = key end
   if not w.floating then hl.dispatch(hl.dsp.window.float({ action = "enable", window = "address:" .. w.address })) end
   put(w, r)
+  local o = saved[w.address].rect
+  plugin_call("remember", w.address, o.x, o.y, o.w, o.h, r.x, r.y, r.w, r.h)
 end
 
 -- where: left right top bottom topleft topright bottomleft bottomright max

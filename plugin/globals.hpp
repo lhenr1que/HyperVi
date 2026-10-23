@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Texture.hpp>
 #include <hyprland/src/config/values/types/BoolValue.hpp>
@@ -24,11 +26,17 @@ struct SHyprButton {
     CHyprColor           hoverCol = CHyprColor(0, 0, 0, 0);
 };
 
+struct SRestore {
+    Vector2D pos, size;         // geometry before the window was snapped
+    Vector2D snapPos, snapSize; // geometry the snap gave it
+};
+
 class CHyprBar;
 
 struct SGlobalState {
     std::vector<SHyprButton>  buttons;
     std::vector<WP<CHyprBar>> bars;
+    std::unordered_map<uintptr_t, SRestore> restores; // by window pointer, filled by the Lua core
     uint32_t                  nobarRuleIdx      = 0;
     uint32_t                  barColorRuleIdx   = 0;
     uint32_t                  titleColorRuleIdx = 0;

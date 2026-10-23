@@ -255,6 +255,29 @@ int newLuaButton(lua_State* L) {
     return 0;
 }
 
+// hl.plugin.kwinish.remember(address, ox, oy, ow, oh, sx, sy, sw, sh): the core tells us the geometry a window had before
+// it was snapped (o*) and the one the snap gave it (s*). Dragging the snapped window's bar then restores the old size.
+int luaRemember(lua_State* L) {
+    if (!lua_isstring(L, 1))
+        return Config::Lua::Bindings::Internal::configError(L, "remember: expected (address, ox, oy, ow, oh, sx, sy, sw, sh)");
+    double v[8];
+    for (int i = 0; i < 8; ++i) {
+        if (!lua_isnumber(L, 2 + i))
+            return Config::Lua::Bindings::Internal::configError(L, "remember: geometry values must be numbers");
+        v[i] = lua_tonumber(L, 2 + i);
+    }
+    const auto key                      = (uintptr_t)std::strtoull(lua_tostring(L, 1), nullptr, 0);
+    g_pGlobalState->restores[key] = SRestore{{v[0], v[1]}, {v[2], v[3]}, {v[4], v[5]}, {v[6], v[7]}};
+    return 0;
+}
+
+int luaForget(lua_State* L) {
+    if (!lua_isstring(L, 1))
+        return Config::Lua::Bindings::Internal::configError(L, "forget: expected (address)");
+    g_pGlobalState->restores.erase((uintptr_t)std::strtoull(lua_tostring(L, 1), nullptr, 0));
+    return 0;
+}
+
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
@@ -336,6 +359,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
     else
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+    if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+    }
     static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
         // active/inactive colours: every bar repaints and re-renders its title when focus moves
         for (auto& b : g_pGlobalState->bars)

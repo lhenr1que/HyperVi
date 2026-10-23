@@ -186,6 +186,9 @@ void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEven
 }
 
 void CHyprBar::onMouseMove(Vector2D coords) {
+    if (m_bDraggingThis && !m_bTouchEv)
+        maybeUnsnap();
+
     // ensure proper redraws of button icons on hover when using hardware cursors
     damageOnButtonHover();
 
@@ -289,6 +292,46 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
     }
 }
 
+// Dragging a snapped window by its bar gives back the size it had before the snap (as KWin does): once the pointer has
+// moved a few pixels, resize to the remembered size, keep the pointer at the same fraction of the bar, and restart the
+// compositor's move so its grab offset matches the new geometry.
+void CHyprBar::maybeUnsnap() {
+    if (m_bUnsnapChecked)
+        return;
+
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+
+    const auto C = g_pInputManager->getMouseCoordsInternal();
+    if ((C - m_pressCursor).size() < 6)
+        return;
+    m_bUnsnapChecked = true;
+
+    const auto IT = g_pGlobalState->restores.find((uintptr_t)W.get());
+    if (IT == g_pGlobalState->restores.end())
+        return;
+
+    const auto R    = IT->second;
+    const auto POS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    const auto SIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    g_pGlobalState->restores.erase(IT);
+
+    // only a window still sitting where the snap put it is "snapped"
+    if (std::abs(POS.x - R.snapPos.x) > 4 || std::abs(POS.y - R.snapPos.y) > 4 || std::abs(SIZE.x - R.snapSize.x) > 4 || std::abs(SIZE.y - R.snapSize.y) > 4)
+        return;
+
+    const double RATIO = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    const Vector2D NEWPOS = {C.x - RATIO * R.size.x, C.y - (m_pressCursor.y - R.snapPos.y)};
+
+    (void)Config::Actions::resize(R.size, false, W);
+    (void)Config::Actions::move(NEWPOS, false, W);
+    m_dragStart = NEWPOS;
+
+    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+}
+
 // Releasing a drag with the pointer on a screen edge snaps the window (left/right: half, top: maximized), like KWin's
 // edge tiling. The window first goes back to where the drag began so "restore" returns there, then the Lua core
 // (kwinish.lua, loaded by the user's config) does the placement. Without the core this is a no-op.
@@ -349,6 +392,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
 }
 
 void CHyprBar::handleMovement() {
+    m_bUnsnapChecked = false;
     if (const auto W = m_pWindow.lock()) {
         m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
         // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window
