@@ -15,14 +15,42 @@ use std::time::Duration;
 const BAR_H: i32 = 28;
 const SNAP_PX: f64 = 3.0;
 
-const CSS: &str = "
-.kwbar { background: alpha(#1c1c22, 0.88); color: #b8b8c4; border-radius: 10px 10px 0 0; padding: 0 6px 0 12px; }
-.kwbar.active { background: alpha(#26262e, 0.97); color: #f0f0f6; }
-.kwbar label { font-size: 12px; font-weight: 600; }
-.kwbar button { background: transparent; border: none; box-shadow: none; min-width: 26px; min-height: 22px; padding: 0; color: inherit; border-radius: 6px; }
-.kwbar button:hover { background: alpha(#ffffff, 0.14); }
-.kwbar button.close:hover { background: #e5484d; color: white; }
-";
+#[derive(Clone, PartialEq)]
+struct Style { border: i32, radius: i32, active: String, inactive: String }
+
+// Hyprland prints gradients as "aarrggbb 0deg"; the first stop is enough for a flat border.
+fn css_color(g: &str, fallback: &str) -> String {
+    let h = g.split_whitespace().next().unwrap_or("");
+    if h.len() == 8 && h.chars().all(|c| c.is_ascii_hexdigit()) {
+        let v = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0);
+        format!("rgba({}, {}, {}, {:.2})", v(2), v(4), v(6), v(0) as f64 / 255.0)
+    } else {
+        fallback.to_string()
+    }
+}
+
+fn read_style() -> Style {
+    let int = |o: &str, d: i64| json(&format!("j/getoption {o}"))["int"].as_i64().unwrap_or(d) as i32;
+    let col = |o: &str, d: &str| css_color(json(&format!("j/getoption {o}"))["gradient"].as_str().unwrap_or(""), d);
+    Style {
+        border: int("general:border_size", 1).max(0),
+        radius: int("decoration:rounding", 0).max(0),
+        active: col("general:col.active_border", "#c8c3dc"),
+        inactive: col("general:col.inactive_border", "#141318"),
+    }
+}
+
+fn css(st: &Style) -> String {
+    format!(
+        ".kwbar {{ background: alpha(#1c1c22, 0.88); color: #b8b8c4; padding: 0 6px 0 12px; border: {b}px solid {i}; border-bottom: none; border-radius: {r}px {r}px 0 0; }}
+.kwbar.active {{ background: alpha(#26262e, 0.97); color: #f0f0f6; border-color: {a}; }}
+.kwbar label {{ font-size: 12px; font-weight: 600; }}
+.kwbar button {{ background: transparent; border: none; box-shadow: none; min-width: 26px; min-height: 22px; padding: 0; color: inherit; border-radius: {br}px; }}
+.kwbar button:hover {{ background: alpha(#ffffff, 0.14); }}
+.kwbar button.close:hover {{ background: #e5484d; color: white; }}",
+        b = st.border, r = st.radius, i = st.inactive, a = st.active, br = st.radius.min(6)
+    )
+}
 
 fn hypr(cmd: &str) -> String {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
@@ -69,26 +97,25 @@ struct Bar {
     root: GtkBox,
     title: Label,
     pos: Cell<(i32, i32, i32)>, // window x, y, width as last placed
-    mon: Cell<(i32, i32)>,      // monitor origin
+    mon: Cell<(i32, i32, i32)>, // monitor origin and logical width
     drag: RefCell<Option<Drag>>,
 }
 
 impl Bar {
-    fn place(&self, x: i32, y: i32, w: i32) {
-        let (mx, my) = self.mon.get();
-        self.win.set_margin(Edge::Left, x - mx);
-        self.win.set_margin(Edge::Top, (y - BAR_H - my).max(0));
-        if self.pos.get().2 != w {
-            self.root.set_size_request(w, BAR_H);
-            self.win.set_default_size(w, BAR_H);
-        }
+    // x, y, w: the window. `clip` limits the bar to an absolute x range (when another window covers part of it).
+    fn place(&self, x: i32, y: i32, w: i32, border: i32, clip: Option<(i32, i32)>) {
+        let (mx, my, mw) = self.mon.get();
+        let (bx0, bx1) = clip.unwrap_or((x - border, x + w + border));
+        self.win.set_margin(Edge::Left, (bx0 - mx).max(0));
+        self.win.set_margin(Edge::Right, (mx + mw - bx1).max(0));
+        self.win.set_margin(Edge::Top, (y - border - BAR_H - my).max(0));
         self.pos.set((x, y, w));
     }
 }
 
 struct Opts { only: Option<String>, skip: Vec<String> }
 
-fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
+fn make_bar(app: &Application, addr: &str, mon: (i32, i32, i32), border: Rc<Cell<i32>>) -> Rc<Bar> {
     let root = GtkBox::new(Orientation::Horizontal, 0);
     root.add_css_class("kwbar");
     let title_box = GtkBox::new(Orientation::Horizontal, 0);
@@ -105,6 +132,7 @@ fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
     root.append(&close_b);
 
     let win = ApplicationWindow::builder().application(app).child(&root).default_height(BAR_H).build();
+    root.set_size_request(-1, BAR_H);
     win.init_layer_shell();
     win.set_layer(Layer::Top);
     win.set_namespace(Some("kwinish-bar"));
@@ -112,7 +140,8 @@ fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
     win.set_exclusive_zone(-1); // margins count from the output corner, not the bar-reserved area
     win.set_anchor(Edge::Top, true);
     win.set_anchor(Edge::Left, true);
-    let bar = Rc::new(Bar { win, root, title, pos: Cell::new((0, 0, -1)), mon: Cell::new((mon.x, mon.y)), drag: RefCell::new(None) });
+    win.set_anchor(Edge::Right, true);
+    let bar = Rc::new(Bar { win, root, title, pos: Cell::new((0, 0, -1)), mon: Cell::new(mon), drag: RefCell::new(None) });
 
     let a = addr.to_string();
     max_b.connect_clicked({ let a = a.clone(); move |_| action(&a, "tile:max") });
@@ -145,9 +174,7 @@ fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
             // the compositor never reports a drag end to Lua; this release is the only signal
             let (cx, cy) = cursor();
             let m = bar.mon.get();
-            let mons = json("j/monitors");
-            let mw = mons.as_array().and_then(|v| v.iter().find(|o| o["x"].as_i64() == Some(m.0 as i64) && o["y"].as_i64() == Some(m.1 as i64)))
-                .map(|o| (o["width"].as_f64().unwrap_or(0.0) / o["scale"].as_f64().unwrap_or(1.0), o["height"].as_f64().unwrap_or(0.0)));
+            let mw = Some((m.2 as f64, 0.0));
             if let Some((w, _)) = mw {
                 let snap = if cx <= m.0 as f64 + SNAP_PX { Some("tile:left") }
                     else if cx >= m.0 as f64 + w - SNAP_PX { Some("tile:right") }
@@ -164,7 +191,7 @@ fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
 
     let motion = gtk4::EventControllerMotion::new();
     motion.connect_motion({
-        let (bar, a) = (bar.clone(), a.clone());
+        let (bar, a, border) = (bar.clone(), a.clone(), border.clone());
         move |_, _, _| {
             let st = bar.drag.borrow();
             let Some(d) = st.as_ref() else { return };
@@ -173,7 +200,7 @@ fn make_bar(app: &Application, addr: &str, mon: Rect) -> Rc<Bar> {
             hypr(&format!("dispatch hl.dsp.window.move({{ x = {nx}, y = {ny}, window = \"address:{a}\" }})"));
             let w = bar.pos.get().2;
             drop(st);
-            bar.place(nx, ny, w);
+            bar.place(nx, ny, w, border.get(), None);
         }
     });
     title_box.add_controller(motion);
@@ -195,7 +222,34 @@ fn root_add(bar: &Bar, c: EventControllerScroll) {
     bar.root.add_controller(c);
 }
 
-fn reconcile(app: &Application, bars: &RefCell<HashMap<String, Rc<Bar>>>, o: &Opts) {
+// Largest stretch of [x0, x1) not covered by any of `covers` (each [start, end)); None if nothing wide enough remains.
+fn widest_gap(x0: i32, x1: i32, covers: &[(i32, i32)], min_w: i32) -> Option<(i32, i32)> {
+    let mut cs: Vec<(i32, i32)> = covers.iter().map(|&(a, b)| (a.max(x0), b.min(x1))).filter(|&(a, b)| a < b).collect();
+    cs.sort();
+    let (mut best, mut cur) = (None::<(i32, i32)>, x0);
+    for (a, b) in cs.into_iter().chain(std::iter::once((x1, x1))) {
+        if a > cur && best.map_or(true, |(s, e)| a - cur > e - s) { best = Some((cur, a)) }
+        cur = cur.max(b);
+    }
+    best.filter(|&(a, b)| b - a >= min_w)
+}
+
+struct State { bars: RefCell<HashMap<String, Rc<Bar>>>, style: RefCell<Style>, provider: CssProvider, border: Rc<Cell<i32>>, tick: Cell<u32> }
+
+fn reconcile(app: &Application, st: &State, o: &Opts) {
+    // border colours and rounding follow the compositor config; re-read about once a second
+    let n = st.tick.get();
+    st.tick.set(n.wrapping_add(1));
+    if n % 12 == 0 {
+        let now = read_style();
+        if now != *st.style.borrow() {
+            st.provider.load_from_data(&css(&now));
+            st.border.set(now.border);
+            *st.style.borrow_mut() = now;
+        }
+    }
+    let border = st.border.get();
+    let bars = &st.bars;
     let clients = json("j/clients");
     let mons = json("j/monitors");
     let active = json("j/activewindow")["address"].as_str().unwrap_or("").to_string();
@@ -205,12 +259,14 @@ fn reconcile(app: &Application, bars: &RefCell<HashMap<String, Rc<Bar>>>, o: &Op
         x: c["at"][0].as_i64().unwrap_or(0) as i32, y: c["at"][1].as_i64().unwrap_or(0) as i32,
         w: c["size"][0].as_i64().unwrap_or(0) as i32, h: c["size"][1].as_i64().unwrap_or(0) as i32,
     };
-    let visible = |c: &serde_json::Value| -> Option<Rect> {
+    // monitor origin and logical width for a window on a visible, normal workspace
+    let visible = |c: &serde_json::Value| -> Option<(i32, i32, i32)> {
         let ws = c["workspace"]["id"].as_i64()?;
         let m = ms.iter().find(|m| m["id"] == c["monitor"])?;
-        (c["mapped"] == true && c["hidden"] == false && ws > 0 && m["activeWorkspace"]["id"].as_i64() == Some(ws)).then(|| Rect {
-            x: m["x"].as_i64().unwrap_or(0) as i32, y: m["y"].as_i64().unwrap_or(0) as i32, w: 0, h: 0,
-        })
+        (c["mapped"] == true && c["hidden"] == false && ws > 0 && m["activeWorkspace"]["id"].as_i64() == Some(ws)).then(|| (
+            m["x"].as_i64().unwrap_or(0) as i32, m["y"].as_i64().unwrap_or(0) as i32,
+            (m["width"].as_f64().unwrap_or(0.0) / m["scale"].as_f64().unwrap_or(1.0)) as i32,
+        ))
     };
     let wants = |c: &serde_json::Value| -> bool {
         let class = c["class"].as_str().unwrap_or("");
@@ -225,18 +281,28 @@ fn reconcile(app: &Application, bars: &RefCell<HashMap<String, Rc<Bar>>>, o: &Op
         let addr = c["address"].as_str().unwrap_or("").to_string();
         let mon = visible(c).unwrap();
         let r = rect(c);
-        let bar = bars.borrow_mut().entry(addr.clone()).or_insert_with(|| make_bar(app, &addr, mon)).clone();
+        let bar = bars.borrow_mut().entry(addr.clone()).or_insert_with(|| make_bar(app, &addr, mon, st.border.clone())).clone();
         seen.push(addr.clone());
-        bar.mon.set((mon.x, mon.y));
+        bar.mon.set(mon);
         bar.title.set_text(c["title"].as_str().unwrap_or(""));
         if addr == active { bar.root.add_css_class("active") } else { bar.root.remove_css_class("active") }
-        if bar.drag.borrow().is_none() { bar.place(r.x, r.y, r.w) }
-        // `j/clients` lists windows bottom to top, so a bar is hidden while a later floating window overlaps its strip
-        let strip = Rect { x: r.x, y: r.y - BAR_H, w: r.w, h: BAR_H };
+        let dragging = bar.drag.borrow().is_some();
+        // `j/clients` lists windows bottom to top: windows later in the list can cover this bar's strip,
+        // so the bar is clipped to the widest stretch they leave free (hidden if too narrow)
+        let strip = Rect { x: r.x - border, y: r.y - border - BAR_H, w: r.w + 2 * border, h: BAR_H };
         let idx = cl.iter().position(|d| d["address"] == c["address"]).unwrap_or(0);
-        let covered = cl.iter().skip(idx + 1).any(|d| d["floating"] == true && visible(d).is_some()
-            && d["workspace"]["id"] == c["workspace"]["id"] && rect(d).hits(&strip));
-        bar.win.set_visible(!covered || bar.drag.borrow().is_some());
+        let covers: Vec<(i32, i32)> = cl.iter().skip(idx + 1)
+            .filter(|d| d["floating"] == true && visible(d).is_some() && d["workspace"]["id"] == c["workspace"]["id"])
+            .map(|d| { let dr = rect(d); (dr, Rect { x: dr.x - border, y: dr.y - border, w: dr.w + 2 * border, h: dr.h + 2 * border }) })
+            .filter(|(_, e)| e.hits(&strip)).map(|(_, e)| (e.x, e.x + e.w)).collect();
+        let gap = if dragging { Some((strip.x, strip.x + strip.w)) } else { widest_gap(strip.x, strip.x + strip.w, &covers, 48) };
+        match gap {
+            Some(g) => {
+                if !dragging { bar.place(r.x, r.y, r.w, border, Some(g)) }
+                bar.win.set_visible(true);
+            }
+            None => bar.win.set_visible(false),
+        }
     }
     let gone: Vec<String> = bars.borrow().keys().filter(|k| !seen.contains(k)).cloned().collect();
     for k in gone {
@@ -258,12 +324,13 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
     let o = Rc::new(o);
     app.connect_activate(move |app| {
         let provider = CssProvider::new();
-        provider.load_from_data(CSS);
+        let style = read_style();
+        provider.load_from_data(&css(&style));
         gtk4::style_context_add_provider_for_display(&gtk4::gdk::Display::default().expect("no display"), &provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
-        let bars: Rc<RefCell<HashMap<String, Rc<Bar>>>> = Rc::new(RefCell::new(HashMap::new()));
-        let (a, b, o) = (app.clone(), bars.clone(), o.clone());
+        let st = Rc::new(State { bars: RefCell::new(HashMap::new()), border: Rc::new(Cell::new(style.border)), style: RefCell::new(style), provider, tick: Cell::new(0) });
+        let (a, o) = (app.clone(), o.clone());
         glib::timeout_add_local(Duration::from_millis(80), move || {
-            reconcile(&a, &b, &o);
+            reconcile(&a, &st, &o);
             glib::ControlFlow::Continue
         });
         std::mem::forget(app.hold());
@@ -273,7 +340,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::Rect;
+    use super::{widest_gap, Rect};
 
     #[test]
     fn rect_hits() {
@@ -281,5 +348,16 @@ mod tests {
         assert!(a.hits(&Rect { x: 5, y: 5, w: 10, h: 10 }));
         assert!(!a.hits(&Rect { x: 10, y: 0, w: 5, h: 5 })); // touching edges do not overlap
         assert!(!a.hits(&Rect { x: 20, y: 20, w: 5, h: 5 }));
+    }
+
+    #[test]
+    fn gaps() {
+        assert_eq!(widest_gap(0, 100, &[], 10), Some((0, 100)));
+        assert_eq!(widest_gap(0, 100, &[(0, 60)], 10), Some((60, 100))); // covered from the left
+        assert_eq!(widest_gap(0, 100, &[(70, 200)], 10), Some((0, 70))); // covered from the right
+        assert_eq!(widest_gap(0, 100, &[(40, 50)], 10), Some((50, 100))); // middle cut: the wider side
+        assert_eq!(widest_gap(0, 100, &[(0, 95)], 10), None); // too narrow to show
+        assert_eq!(widest_gap(0, 100, &[(-5, 120)], 10), None); // fully covered
+        assert_eq!(widest_gap(0, 100, &[(10, 40), (30, 80)], 10), Some((80, 100))); // overlapping covers merge
     }
 }
