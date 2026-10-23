@@ -35,5 +35,6 @@ package() {
   install -d "$pkgdir/usr/share/kwinish/core" "$pkgdir/usr/share/kwinish/recipes"
   install -m644 core/{kwinish,geometry,binds,switcher}.lua "$pkgdir/usr/share/kwinish/core/"
   install -m644 recipes/*.lua "$pkgdir/usr/share/kwinish/recipes/"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README.md "$pkgdir/usr/share/doc/kwinish/README.md"
 }

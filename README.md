@@ -20,3 +20,6 @@ lua5.4 core/test_binds.lua
 lua5.4 core/test_switcher.lua
 ```
 Restore state, show-desktop origins and the keep-above list live in Lua tables and are lost on a config reload.
+
+## License
+MIT, see `LICENSE`.
