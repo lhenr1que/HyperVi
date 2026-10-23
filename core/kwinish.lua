@@ -3,6 +3,7 @@
 --   local kw = require("kwinish")
 --   hl.bind("SUPER + Left", function() kw.tile("left") end)
 local geometry = require("geometry")
+local layouts = require("layouts")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -241,12 +242,15 @@ function M.setup(opts)
   end
 end
 
+local layout_rects -- defined below, with the layout state
+
 -- Entry point for the window menu (kwinish-ui): action is "tile:left", "axis:h", "pack:up", "above", "float",
 -- "fullscreen", "close" or "workspace:N", applied to the window with that address.
 function M.window_action(addr, action)
+  local kind, arg = action:match("^(%w+):?(.*)$")
+  if kind == "layout" then M.set_layout(arg) return end -- needs no window
   local w = hl.get_window("address:" .. addr)
   if not w then return end
-  local kind, arg = action:match("^(%w+):?(.*)$")
   local sel = "address:" .. addr
   if kind == "tile" then M.tile(arg, { window = w })
   elseif kind == "axis" then M.maximize_axis(arg, { window = w })
@@ -260,6 +264,10 @@ function M.window_action(addr, action)
     for _, ws in ipairs(hl.get_workspaces()) do if ws.id and ws.id > top then top = ws.id end end
     hl.dispatch(hl.dsp.window.move({ workspace = tostring(top + 1), window = sel }))
   elseif kind == "workspace" then hl.dispatch(hl.dsp.window.move({ workspace = arg, window = sel }))
+  elseif kind == "zone" then
+    local rects = layout_rects(w.monitor)
+    local r = rects[tonumber(arg) or 0]
+    if r then place(w, r, "zone:" .. arg) end
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
@@ -268,6 +276,9 @@ function M.window_action(addr, action)
   elseif kind == "nocapture" then toggle_nocapture(w)
   end
 end
+
+-- Open the layout picker (kwinish-ui layouts) at the pointer.
+function M.layouts() hl.exec_cmd("kwinish-ui layouts") end
 
 -- Open the window menu for the focused window at the pointer.
 function M.menu(opts)
@@ -306,6 +317,47 @@ function M.hotcorners(opts)
   end, { timeout = tick, type = "repeat" })
 end
 
+-- Active tiling layout (a preset name from layouts.lua, or "off"), kept in ~/.config/kwinish/layout.
+local function layout_file()
+  local base = os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config")
+  return base .. "/kwinish", base .. "/kwinish/layout"
+end
+
+local function load_layout()
+  local _, file = layout_file()
+  local f = io.open(file, "r")
+  if not f then return "grid" end
+  local name = (f:read("*l") or ""):gsub("%s+", "")
+  f:close()
+  return (name == "off" or layouts.find(name)) and name or "grid"
+end
+
+M.layout = M.layout or load_layout()
+M.layout_gap = M.layout_gap -- padding between layout zones; nil: the compositor's gaps_in
+
+layout_rects = function(mon)
+  local preset = layouts.find(M.layout)
+  if not preset then return {} end
+  local gap = M.layout_gap or num(hl.get_config("general.gaps_in"), "left")
+  return layouts.zone_rects(preset.zones, work_area(mon), gap)
+end
+
+function M.layout_names()
+  local out = { { name = "off", label = "Off (screen edges only)" } }
+  for _, p in ipairs(layouts.presets) do out[#out + 1] = { name = p.name, label = p.label } end
+  return out
+end
+
+function M.set_layout(name)
+  if name ~= "off" and not layouts.find(name) then return end
+  M.layout = name
+  local dir, file = layout_file()
+  os.execute("mkdir -p '" .. dir .. "'")
+  local f = io.open(file, "w")
+  if f then f:write(name, "\n"); f:close() end
+  M.publish_zones()
+end
+
 -- Tell the plugin where each snap zone (left, right, top) puts a window, title bar included, so its drag preview shows
 -- exactly what releasing the window there will do.
 function M.publish_zones()
@@ -319,6 +371,10 @@ function M.publish_zones()
     for zone, where in pairs({ left = "left", right = "right", top = "max" }) do
       local r = geometry.tile_rect(area, where, gi)
       pcall(p.set_zone, mon.name, zone, r.x, r.y - bh, r.w, r.h + bh)
+    end
+    -- the active layout's zones, shown while Shift is held during a drag
+    for i, r in ipairs(layout_rects(mon)) do
+      pcall(p.set_zone, mon.name, "z:" .. i, r.x, r.y - bh, r.w, r.h + bh)
     end
   end
 end

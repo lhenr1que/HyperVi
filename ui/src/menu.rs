@@ -83,6 +83,13 @@ fn t(en: &'static str) -> &'static str {
         "Hide from captures and recordings" => "Ocultar de capturas e gravações",
         "Float / tile" => "Flutuar / ladrilhar",
         "Snap" => "Encaixar",
+        "Tiling layout" => "Layout de tiling",
+        "Off (screen edges only)" => "Desligado (só as bordas da tela)",
+        "Two columns" => "Duas colunas",
+        "Three columns" => "Três colunas",
+        "Grid 2x2" => "Grade 2x2",
+        "Main and side" => "Principal e lateral",
+        "Wide centre" => "Centro largo",
         "Left half" => "Metade esquerda",
         "Right half" => "Metade direita",
         "Top half" => "Metade de cima",
@@ -96,6 +103,26 @@ fn t(en: &'static str) -> &'static str {
         "Close" => "Fechar",
         other => other,
     }
+}
+
+// The presets of core/layouts.lua (keep the names in step with it); the active one is in ~/.config/kwinish/layout.
+const LAYOUTS: &[(&str, &str)] = &[
+    ("off", "Off (screen edges only)"),
+    ("halves", "Two columns"),
+    ("thirds", "Three columns"),
+    ("grid", "Grid 2x2"),
+    ("main-side", "Main and side"),
+    ("wide-center", "Wide centre"),
+];
+
+fn active_layout() -> String {
+    let base = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{}/.config", std::env::var("HOME").unwrap_or_default()));
+    std::fs::read_to_string(format!("{base}/kwinish/layout")).map(|s| s.trim().to_string()).unwrap_or_else(|_| "grid".into())
+}
+
+fn layout_items() -> Vec<Item> {
+    let now = active_layout();
+    LAYOUTS.iter().map(|(name, label)| tog(t(label), *name == now, &format!("layout:{name}"))).collect()
 }
 
 fn build(st: &State) -> Vec<Item> {
@@ -114,6 +141,7 @@ fn build(st: &State) -> Vec<Item> {
     ];
     let more = vec![
         Item::Sub { label: t("Snap").into(), items: snap },
+        Item::Sub { label: t("Tiling layout").into(), items: layout_items() },
         tog(t("Keep below others"), st.below, "below"),
         tog(t("Fullscreen"), st.fullscreen, "fullscreen"),
         act(t("Float / tile"), "float"),
@@ -243,6 +271,15 @@ fn close_below(ctx: &Rc<Ctx>, level: usize) {
 }
 
 pub fn run(addr: String, args: Vec<String>) -> glib::ExitCode {
+    run_inner(addr, args, false)
+}
+
+// `kwinish-ui layouts`: only the tiling layout picker.
+pub fn run_layouts(args: Vec<String>) -> glib::ExitCode {
+    run_inner(String::new(), args, true)
+}
+
+fn run_inner(addr: String, args: Vec<String>, layouts_only: bool) -> glib::ExitCode {
     // `--at X,Y`: open with the top-left corner there (global layout coordinates); without it, at the pointer
     let at: Option<(i32, i32)> = args.iter().position(|a| a == "--at").and_then(|i| args.get(i + 1)).and_then(|v| {
         let mut it = v.split(',').map(|n| n.trim().parse::<i32>().ok());
@@ -256,7 +293,7 @@ pub fn run(addr: String, args: Vec<String>) -> glib::ExitCode {
 
         let fixed = Fixed::new();
         let ctx = Rc::new(Ctx { app: app.clone(), fixed: fixed.clone(), addr: addr.clone(), open: RefCell::new(vec![]), screen: screen() });
-        let items = build(&read_state(&addr));
+        let items = if layouts_only { layout_items() } else { build(&read_state(&addr)) };
         let root = make_box(&items, &ctx, 0);
         let (cx, cy) = at.unwrap_or_else(cursor);
         let (_, nat) = root.preferred_size();

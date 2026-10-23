@@ -44,6 +44,7 @@ switcher (`ALT + F3` window menu). They clash with some Ryoku binds: use `mod` a
 lua5.4 core/test_geometry.lua
 lua5.4 core/test_binds.lua
 lua5.4 core/test_switcher.lua
+lua5.4 core/test_layouts.lua
 cargo test --manifest-path ui/Cargo.toml
 ```
 The plugin and the UI are checked by running them on a live session (see `docs/SPIKE-HYPR-WM-KWIN.md` for what was

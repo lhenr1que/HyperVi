@@ -14,6 +14,7 @@ M.rows = {
   { "CTRL + ALT + Up",    "pack", "up" },   { "CTRL + ALT + Down",  "pack", "down" },
   { "D",           "show_desktop" },
   { "ALT + T",     "keep_above" },
+  { "T",           "layouts" },
 }
 
 function M.list(mod)

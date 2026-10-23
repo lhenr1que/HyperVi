@@ -314,52 +314,71 @@ const char* CHyprBar::edgeZone(const Vector2D& C, PHLMONITOR M) {
     return nullptr;
 }
 
-// While a floating window is dragged by its bar, shade the area the snap would give it.
+// The layout zone (published by the core as "z:N") under the pointer, or "" ; the smallest wins where zones overlap.
+static std::string layoutZoneAt(const Vector2D& C, const std::unordered_map<std::string, SZone>& zones) {
+    std::string best;
+    double      bestArea = 1e18;
+    for (const auto& [name, z] : zones) {
+        if (!name.starts_with("z:"))
+            continue;
+        if (C.x >= z.pos.x && C.x < z.pos.x + z.size.x && C.y >= z.pos.y && C.y < z.pos.y + z.size.y && z.size.x * z.size.y < bestArea) {
+            best     = name;
+            bestArea = z.size.x * z.size.y;
+        }
+    }
+    return best;
+}
+
+// While a floating window is dragged by its bar, shade where releasing it would put it: the screen-edge zone under
+// the pointer, or - with Shift held - every zone of the active layout, the one under the pointer filled.
 void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
-    std::string zoneName;
-    const SZone* zone = nullptr;
-    if (m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() && (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
+    const auto MIT = g_pGlobalState->zones.find(pMonitor->m_name);
+    std::string signature;
+    std::vector<std::pair<const SZone*, bool>> shown; // zone, hovered
+
+    if (MIT != g_pGlobalState->zones.end() && m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() &&
+        (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
         const auto M = Desktop::focusState()->monitor();
+        const auto C = g_pInputManager->getMouseCoordsInternal();
         if (M && M == pMonitor) {
-            if (const char* z = edgeZone(g_pInputManager->getMouseCoordsInternal(), M)) {
-                const auto MIT = g_pGlobalState->zones.find(M->m_name);
-                if (MIT != g_pGlobalState->zones.end())
-                    if (const auto ZIT = MIT->second.find(z); ZIT != MIT->second.end()) {
-                        zone     = &ZIT->second;
-                        zoneName = z;
-                    }
+            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+                const auto HOVER = layoutZoneAt(C, MIT->second);
+                for (const auto& [name, z] : MIT->second)
+                    if (name.starts_with("z:"))
+                        shown.emplace_back(&z, name == HOVER);
+                signature = shown.empty() ? "" : "L:" + HOVER;
+            } else if (const char* z = edgeZone(C, M)) {
+                if (const auto ZIT = MIT->second.find(z); ZIT != MIT->second.end()) {
+                    shown.emplace_back(&ZIT->second, true);
+                    signature = z;
+                }
             }
         }
     }
 
-    if (zoneName != m_szPreviewZone) {
-        // repaint what the preview covered, and what it will cover
-        for (const auto* name : {&m_szPreviewZone, &zoneName}) {
-            const auto MIT = g_pGlobalState->zones.find(pMonitor->m_name);
-            if (name->empty() || MIT == g_pGlobalState->zones.end())
-                continue;
-            if (const auto ZIT = MIT->second.find(*name); ZIT != MIT->second.end())
-                g_pHyprRenderer->damageBox(CBox{ZIT->second.pos.x, ZIT->second.pos.y, ZIT->second.size.x, ZIT->second.size.y});
-        }
-        m_szPreviewZone = zoneName;
+    if (signature != m_szPreviewZone) {
+        // repaint everything the preview covered or covers: the whole monitor is simplest and only happens on a change
+        g_pHyprRenderer->damageBox(CBox{pMonitor->m_position.x, pMonitor->m_position.y, pMonitor->m_size.x / pMonitor->m_scale, pMonitor->m_size.y / pMonitor->m_scale});
+        m_szPreviewZone = signature;
     }
-
-    if (!zone)
-        return;
 
     const auto  W     = m_pWindow.lock();
     const float SCALE = pMonitor->m_scale;
-    CHyprColor  fill  = configColor(g_pGlobalState->config.previewColor->value());
-    CHyprColor  line  = fill;
-    line.a            = std::min(1.0, fill.a * 2.5);
+    for (const auto& [zone, hovered] : shown) {
+        CHyprColor fill = configColor(g_pGlobalState->config.previewColor->value());
+        CHyprColor line = fill;
+        line.a          = std::min(1.0, fill.a * 2.5);
+        if (!hovered)
+            fill.a *= 0.25; // zones you are not on: an outline and a hint of fill
 
-    CPreviewPassElement::SPreviewData data;
-    data.box    = CBox{zone->pos.x - pMonitor->m_position.x, zone->pos.y - pMonitor->m_position.y, zone->size.x, zone->size.y}.scale(SCALE).round();
-    data.round  = W ? std::round(W->rounding() * SCALE) : 0;
-    data.border = std::max(1, (int)std::round(2 * SCALE));
-    data.fill   = fill;
-    data.line   = line;
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+        CPreviewPassElement::SPreviewData data;
+        data.box    = CBox{zone->pos.x - pMonitor->m_position.x, zone->pos.y - pMonitor->m_position.y, zone->size.x, zone->size.y}.scale(SCALE).round();
+        data.round  = W ? std::round(W->rounding() * SCALE) : 0;
+        data.border = std::max(1, (int)std::round(2 * SCALE));
+        data.fill   = fill;
+        data.line   = line;
+        g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+    }
 }
 
 // Dragging a snapped window by its bar gives back the size it had before the snap (as KWin does): once the pointer has
@@ -414,14 +433,20 @@ void CHyprBar::snapOnRelease() {
     if (!M)
         return;
 
-    const auto  C     = g_pInputManager->getMouseCoordsInternal();
-    const char* zone  = edgeZone(C, M);
-    const char* where = !zone ? nullptr : std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
+    const auto  C = g_pInputManager->getMouseCoordsInternal();
+    std::string where;
+    if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+        // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
+        if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
+            if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())
+                where = "zone:" + Z.substr(2);
+    } else if (const char* zone = edgeZone(C, M))
+        where = std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
     const auto ACTIVE = Desktop::focusState()->window();
     Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
-                     M->m_name, where ? where : "none");
+                     M->m_name, where.empty() ? "none" : where);
     // a plain click on the bar must not snap
-    if (!where || (C - m_pressCursor).size() < 10)
+    if (where.empty() || (C - m_pressCursor).size() < 10)
         return;
 
     (void)Config::Actions::move(m_dragStart, false, W);
