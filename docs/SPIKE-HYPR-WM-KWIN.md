@@ -199,3 +199,6 @@ Com o arrasto começando no clique para janelas flutuantes, testado no workspace
 
 ## Cores de barra ativa e inativa (24/10/2026, compila, a testar)
 Plugin: `bar_color` e `col.text` valem para a janela em foco; `inactive_bar_color` e `inactive_col.text` para as outras. O evento `window.active` repinta todas as barras e re-renderiza os títulos. Padrões iguais aos das barras de reserva. Não carregado ainda.
+
+## Cores ativa e inativa, testadas (24/10/2026)
+Com o plugin recarregado, duas kitties no workspace 9: a janela em foco tem barra mais clara, título claro e a borda clara do compositor; a outra tem barra mais escura e título cinza, sem borda clara. Ao trocar o foco (`hl.dsp.focus`) as duas barras trocaram de aparência na hora (captura de tela das duas situações). `snap_top_edge` aparece `true` por padrão. Não testado: troca de foco entre workspaces diferentes, temas de cor customizados e o desvanecimento da cor em câmera lenta.
