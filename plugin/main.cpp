@@ -293,6 +293,26 @@ int luaSetZone(lua_State* L) {
     return 0;
 }
 
+// hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
+// next button press ends it. Escape is not handled: a click always is.
+int luaGrab(lua_State* L) {
+    if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
+        return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
+    const std::string mode = lua_tostring(L, 1);
+    const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+    if (mode != "move" && mode != "resize")
+        return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
+    for (auto& w : Desktop::windowState()->windows()) {
+        if ((uintptr_t)w.get() != key || !w->m_isMapped || w->isHidden())
+            continue;
+        Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+        g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+        g_pGlobalState->grabActive = true;
+        break;
+    }
+    return 0;
+}
+
 // hl.plugin.kwinish.set_bar_hidden(address, hidden): the window menu's "no title bar and frame".
 int luaSetBarHidden(lua_State* L) {
     if (!lua_isstring(L, 1) || !lua_isboolean(L, 2))
@@ -404,7 +424,21 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
     }
+    // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
+    static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
+        auto& g = *g_pGlobalState;
+        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+            g.grabActive       = false;
+            g.grabSwallowPress = true;
+            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+            info.cancelled = true;
+        } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+            g.grabSwallowPress = false;
+            info.cancelled     = true;
+        }
+    });
     static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
         // active/inactive colours: every bar repaints and re-renders its title when focus moves
         for (auto& b : g_pGlobalState->bars)

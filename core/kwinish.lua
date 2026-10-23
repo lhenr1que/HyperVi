@@ -312,6 +312,7 @@ function M.window_action(addr, action)
     local rects = layout_rects(w.monitor)
     local r = rects[tonumber(arg) or 0]
     if r then place(w, r, "zone:" .. arg) end
+  elseif kind == "grab" then plugin_call("grab", arg, addr) -- "grab:move" / "grab:resize", needs the plugin
   elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))

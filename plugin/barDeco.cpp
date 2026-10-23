@@ -126,6 +126,10 @@ bool CHyprBar::inputIsValid() {
 }
 
 void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
+    // a menu Move/Resize is in progress or just ended with this click: the bars stay out of it
+    if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+        return;
+
     // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
     // screen edge, which input validation would reject)
     if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {

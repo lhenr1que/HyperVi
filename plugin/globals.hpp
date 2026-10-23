@@ -42,6 +42,9 @@ struct SGlobalState {
     std::vector<SHyprButton>  buttons;
     std::vector<WP<CHyprBar>> bars;
     std::unordered_map<std::string, std::unordered_map<std::string, SZone>> zones; // monitor name -> zone name, filled by the Lua core
+    // Move/Resize from the window menu: the compositor's mouse-bind drag follows the pointer until the next button press
+    bool                      grabActive       = false;
+    bool                      grabSwallowPress = false; // the press that ended a grab is hidden from the bars and the app, and so is its release
     bool                      warnedNoCore = false; // told the user once that the Lua core never published zones
     std::unordered_set<uintptr_t> hiddenBars; // windows whose bar the menu turned off ("no title bar and frame")
     std::unordered_map<uintptr_t, SRestore> restores; // by window pointer, filled by the Lua core
