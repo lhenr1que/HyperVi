@@ -18,4 +18,13 @@ eq(g.pack_rect(area, c, "right"), { x = 710, y = 200, w = 300, h = 150 }, "pack 
 eq(g.pack_rect(area, c, "up"),    { x = 100, y = 20,  w = 300, h = 150 }, "pack up")
 eq(g.pack_rect(area, c, "down"),  { x = 100, y = 470, w = 300, h = 150 }, "pack down")
 assert(g.pack_rect(area, c, "x") == nil, "pack unknown")
+local sz = { w = 200, h = 100 }
+local x, y = g.place(area, sz, "center"); assert(x == 410 and y == 270, "center")
+x, y = g.place(area, sz, "cursor", { pos = { x = 0, y = 0 } }); assert(x == 10 and y == 20, "cursor clamps to area")
+x, y = g.place(area, sz, "cursor", { pos = { x = 500, y = 300 } }); assert(x == 400 and y == 250, "cursor")
+x, y = g.place(area, sz, "cascade", { n = 2, step = 30 }); assert(x == 70 and y == 80, "cascade")
+x, y = g.place(area, sz, "smart", { others = {} }); assert(x == 10 and y == 20, "smart empty goes top-left")
+-- a window covering the left half pushes the new one to the right half, with zero overlap
+x, y = g.place(area, sz, "smart", { others = { { x = 10, y = 20, w = 500, h = 600 } } })
+assert(x >= 510, "smart avoids overlap, got " .. x)
 print("geometry ok")

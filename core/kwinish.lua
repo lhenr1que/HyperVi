@@ -115,21 +115,50 @@ function M.keep_above(opts)
   above[w.address] = (not above[w.address]) or nil
   if above[w.address] then hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address })) end
 end
-function M.setup()
+-- opts.filter(w) limits both features to matching windows (tests use it).
+-- opts: placement = "smart"|"cascade"|"center"|"cursor" (new floating windows), autoraise_ms = delay before a focused floating window is raised.
+function M.setup(opts)
   if hooked then return end
   hooked = true
+  opts = opts or {}
+  local function raise(addr)
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
+  end
   -- the event fires before the newly focused window is raised, so raise on a short timer
   hl.on("window.active", function()
+    local cur = hl.get_active_window()
+    local cur_addr = cur and cur.address
     hl.timer(function()
       for addr in pairs(above) do
-        if hl.get_window("address:" .. addr) then
-          hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
-        else
-          above[addr] = nil
-        end
+        if hl.get_window("address:" .. addr) then raise(addr) else above[addr] = nil end
       end
     end, { timeout = 30, type = "oneshot" })
+    if opts.autoraise_ms and cur_addr then
+      hl.timer(function()
+        local now = hl.get_active_window()
+        if now and now.address == cur_addr and now.floating and (not opts.filter or opts.filter(now)) then raise(cur_addr) end
+      end, { timeout = opts.autoraise_ms, type = "oneshot" })
+    end
   end)
+  if opts.placement then
+    hl.on("window.open", function(w)
+      local addr = w.address -- re-fetched below: the window may be gone when the timer fires
+      hl.timer(function()
+        local win = hl.get_window("address:" .. addr)
+        if not win or not win.mapped or not win.floating or not win.monitor or not win.workspace then return end
+        if opts.filter and not opts.filter(win) then return end
+        if win.xwayland and win.class == "" and win.title == "" then return end -- popups position themselves
+        local size, others = rect_of(win), {}
+        for _, o in ipairs(hl.get_workspace_windows(win.workspace.id)) do
+          if o.address ~= addr and o.mapped and not o.hidden then others[#others + 1] = rect_of(o) end
+        end
+        local pos = hl.get_cursor_pos()
+        local x, y = geometry.place(work_area(win.monitor), size, opts.placement,
+          { others = others, n = #others, pos = pos and { x = pos.x or pos[1], y = pos.y or pos[2] } })
+        if x then hl.dispatch(hl.dsp.window.move({ x = math.floor(x + 0.5), y = math.floor(y + 0.5), window = "address:" .. addr })) end
+      end, { timeout = 30, type = "oneshot" })
+    end)
+  end
 end
 
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests

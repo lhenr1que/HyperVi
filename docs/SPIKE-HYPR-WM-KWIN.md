@@ -36,3 +36,9 @@ Plano aprovado pelo dono: Lua no núcleo, Rust na UI (layer-shell), repo novo lo
 - Testado ao vivo com dois kitties descartáveis (vermelho e azul): empacotar, esconder e restaurar pela workspace especial `special:kwinish_desktop`, e manter acima (o vermelho continuou sobre o azul focado, conferido por captura de tela).
 - **Achados:** `hl.dsp.window.bring_to_top` não eleva a janela de forma visível; o que funciona é `alter_zorder({mode="top"})`, e só depois do evento `window.active` (timer de 30 ms, porque o evento dispara antes de a nova janela focada ser elevada). Cuidado ao recarregar o módulo: `package.loaded` zera o estado (a tabela de restaurar).
 - Limites: estado em tabelas Lua (perde-se no reload); `show_desktop` guarda a workspace de origem, não o foco; "manter abaixo" não feito; grow/shrink fica com o dispatcher nativo `resize relative` (sem código novo).
+
+## Fase 1, fatia 3 (23/10/2026)
+- `kw.setup{placement="smart"|"cascade"|"center"|"cursor", autoraise_ms=N, filter=fn}`. Colocação roda em `window.open` (timer de 30 ms, relê a janela por endereço para não segurar objeto destruído); auto-raise reeleva a janela flutuante focada depois de N ms se ela continuar focada.
+- Testes puros (`lua5.4 core/test_geometry.lua`) cobrem center, cursor, cascade e smart. **Ao vivo:** colocação inteligente testada com dois kitties (o segundo foi para a direita, sem sobrepor o primeiro).
+- **Não verificado ao vivo: auto-raise.** Com `follow_mouse=1` o ponteiro virtual do teste não trocou o foco (a janela ativa continuou kwb com o cursor sobre a kwa), então o caminho de reelevação não foi exercitado. Testar com mouse de verdade ou revisar o motivo (possível `float_switch_override_focus`).
+- Os listeners de `setup` ficam registrados até o próximo reload da config; no teste foram limitados a janelas de classe `kw*` pelo `filter`.

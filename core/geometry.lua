@@ -40,6 +40,49 @@ function M.pack_rect(area, cur, dir)
   return r
 end
 
+local function clamp(v, lo, hi) if hi < lo then return lo end return math.max(lo, math.min(hi, v)) end
+
+local function overlap(a, b)
+  local w = math.min(a.x + a.w, b.x + b.w) - math.max(a.x, b.x)
+  local h = math.min(a.y + a.h, b.y + b.h) - math.max(a.y, b.y)
+  if w <= 0 or h <= 0 then return 0 end
+  return w * h
+end
+
+-- Top-left for a window of `size` {w,h}. Policies: center, cursor (needs pos {x,y}), cascade (n = index), smart (others = rects).
+function M.place(area, size, policy, o)
+  o = o or {}
+  local maxx, maxy = area.x + area.w - size.w, area.y + area.h - size.h
+  if policy == "center" then
+    return clamp(area.x + (area.w - size.w) / 2, area.x, maxx), clamp(area.y + (area.h - size.h) / 2, area.y, maxy)
+  elseif policy == "cursor" then
+    return clamp(o.pos.x - size.w / 2, area.x, maxx), clamp(o.pos.y - size.h / 2, area.y, maxy)
+  elseif policy == "cascade" then
+    local step = o.step or 32
+    local nx = math.max(1, math.floor((maxx - area.x) / step) + 1)
+    local ny = math.max(1, math.floor((maxy - area.y) / step) + 1)
+    local n = (o.n or 0)
+    return area.x + (n % nx) * step, area.y + (n % ny) * step
+  elseif policy == "smart" then
+    local step = math.max(20, math.floor(math.max(maxx - area.x, maxy - area.y) / 24))
+    local best, bx, by = nil, area.x, area.y
+    local y = area.y
+    while true do
+      local x = area.x
+      while true do
+        local r, cost = { x = x, y = y, w = size.w, h = size.h }, 0
+        for _, other in ipairs(o.others or {}) do cost = cost + overlap(r, other) end
+        if not best or cost < best then best, bx, by = cost, x, y end
+        if x >= maxx then break end
+        x = math.min(x + step, maxx)
+      end
+      if y >= maxy then break end
+      y = math.min(y + step, maxy)
+    end
+    return bx, by
+  end
+end
+
 function M.same(a, b, tol)
   tol = tol or 2
   return math.abs(a.x - b.x) <= tol and math.abs(a.y - b.y) <= tol
