@@ -49,6 +49,7 @@ class CHyprBar : public IHyprWindowDecoration {
     PHLWINDOW                          getOwner();
 
     void                               updateRules();
+    void                               onFloatingChanged();
     void                               onConfigReloaded();
 
     WP<CHyprBar>                       m_self;
@@ -93,7 +94,18 @@ class CHyprBar : public IHyprWindowDecoration {
     void handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent);
     void handleUpEvent(Event::SCallbackInfo& info);
     void handleMovement();
-    void runAction(const std::string& action);
+    struct SBtnSlot {
+        size_t idx;
+        float  x;      // hit-test left edge, bar-local, unscaled
+        float  drawDx; // offset from x to the drawn circle
+        bool   left;
+    };
+    std::vector<SBtnSlot> layoutButtons(float barW, float& leftEnd, float& rightStart);
+    float                 iconSlot();
+    bool                  barActive();
+    void                  updateIcon(float scale);
+    void                  runAction(const std::string& action);
+    void                  snapOnRelease();
     void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
     bool doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, bool BUTTONSRIGHT);
 
@@ -108,6 +120,10 @@ class CHyprBar : public IHyprWindowDecoration {
     CHyprSignalListener m_pMouseAxisCallback;
 
     std::string         m_szLastTitle;
+    SP<Render::ITexture> m_pIconTex;
+    std::string         m_szIconClass;
+    int                 m_iIconPx = 0;
+    Vector2D            m_dragStart;
 
     bool                m_bDraggingThis  = false;
     bool                m_bTouchEv       = false;

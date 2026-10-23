@@ -48,7 +48,39 @@ static void onPreConfigReload() {
     g_pGlobalState->buttons.clear();
 }
 
+// Breeze-like defaults when the config adds no button: pin at the left, close/maximize/minimize at the right
+// (the first button added sits outermost on the right).
+static void installDefaultButtons() {
+    if (!g_pGlobalState->buttons.empty() || !g_pGlobalState->config.defaultButtons->value())
+        return;
+
+    const auto none = CHyprColor(0, 0, 0, 0);
+    const auto fg   = CHyprColor(0.94, 0.94, 0.96, 1.0);
+    auto       add  = [&](std::string icon, std::string cmd, bool left, std::optional<CHyprColor> hover = std::nullopt) {
+        SHyprButton b;
+        b.icon = std::move(icon);
+        b.cmd = std::move(cmd);
+        b.bgcol = none;
+        b.fgcol = fg;
+        b.userfg = true;
+        b.size = 16;
+        b.alignSet = true;
+        b.left = left;
+        if (hover) {
+            b.hasHover = true;
+            b.hoverCol = *hover;
+        }
+        g_pGlobalState->buttons.push_back(std::move(b));
+    };
+    add("\u25C6", "pin", true);
+    add("\u2715", "close", false, CHyprColor(0.90, 0.28, 0.30, 1.0));
+    add("\u25A1", "maximize", false);
+    add("\u2212", "minimize", false);
+}
+
 static void onConfigReloaded() {
+    installDefaultButtons();
+
     for (auto& b : g_pGlobalState->bars) {
         if (!b)
             continue;
@@ -182,6 +214,34 @@ int newLuaButton(lua_State* L) {
         button.cmd = lua_tostring(L, -1);
     }
 
+    {
+        Hyprutils::Utils::CScopeGuard x([L] { lua_pop(L, 1); });
+
+        lua_getfield(L, 1, "align");
+
+        if (lua_isstring(L, -1)) {
+            const std::string a = lua_tostring(L, -1);
+            button.alignSet     = a == "left" || a == "right";
+            button.left         = a == "left";
+        }
+    }
+
+    {
+        Hyprutils::Utils::CScopeGuard x([L] { lua_pop(L, 1); });
+
+        lua_getfield(L, 1, "hover_color");
+
+        if (!lua_isnil(L, -1)) {
+            Config::Lua::CLuaConfigColor parser(0);
+            auto                         err = parser.parse(L);
+            if (err.errorCode != Config::Lua::PARSE_ERROR_OK)
+                return Config::Lua::Bindings::Internal::configError(L, "add_button: failed to parse hover_color");
+
+            button.hasHover = true;
+            button.hoverCol = parser.parsed();
+        }
+    }
+
     // applying the same settings twice (live apply plus a reload) must not stack identical buttons
     if (std::ranges::any_of(g_pGlobalState->buttons, [&](const auto& b) { return b.icon == button.icon && b.cmd == button.cmd; }))
         return 0;
@@ -235,6 +295,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pGlobalState->config.barButtonPadding    = makeShared<Config::Values::CIntValue>("plugin:kwinish:bar_button_padding", "Padding of the bar buttons", 5);
     g_pGlobalState->config.enabled             = makeShared<Config::Values::CBoolValue>("plugin:kwinish:enabled", "Whether bars are enabled", true);
     g_pGlobalState->config.iconOnHover         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:icon_on_hover", "Whether to use an icon on hover of the buttons", false);
+    g_pGlobalState->config.floatingOnly        = makeShared<Config::Values::CBoolValue>("plugin:kwinish:floating_only", "Draw bars on floating windows only", false);
+    g_pGlobalState->config.showIcon            = makeShared<Config::Values::CBoolValue>("plugin:kwinish:show_icon", "Show the app icon at the left of the bar", true);
+    g_pGlobalState->config.defaultButtons      = makeShared<Config::Values::CBoolValue>("plugin:kwinish:default_buttons", "Install the default buttons (pin, minimize, maximize, close) when none are configured", true);
+    g_pGlobalState->config.buttonHoverColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:button_hover_color", "Background of a hovered button", 0x33ffffff);
+    g_pGlobalState->config.pinnedColor         = makeShared<Config::Values::CColorValue>("plugin:kwinish:pinned_color", "Background of the pin button while the window is pinned", 0x667aa2f7);
     g_pGlobalState->config.onDoubleClick       = makeShared<Config::Values::CStringValue>("plugin:kwinish:on_double_click", "Action on double click of the bar (same names as button actions)", "maximize");
 
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.barColor);
@@ -255,11 +320,22 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.enabled);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.iconOnHover);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.onDoubleClick);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.floatingOnly);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.showIcon);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.defaultButtons);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonHoverColor);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.pinnedColor);
 
     if (Config::mgr()->type() == Config::CONFIG_LEGACY)
         HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
     else
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+    static auto P6 = Event::bus()->m_events.window.floating.listen([&](PHLWINDOW w) {
+        // floating_only: a bar appears or disappears when the window changes mode
+        for (auto& b : g_pGlobalState->bars)
+            if (b && b->getOwner() == w)
+                b->onFloatingChanged();
+    });
     static auto P4 = Event::bus()->m_events.config.preReload.listen([&] { onPreConfigReload(); });
     static auto P5 = Event::bus()->m_events.config.reloaded.listen([&] { onConfigReloaded(); });
 

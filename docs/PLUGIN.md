@@ -45,6 +45,24 @@ every Hyprland update needs a rebuild. Options for the user, all compatible with
 - Unverified without loading: that `fullscreen`, `movetoworkspacesilent` and `exec` exist in the dispatcher table under
   those names (each call is guarded with `contains`, so a missing one does nothing instead of crashing), and the look.
 
+## KWin-style bar (24/10/2026, compiled, not yet loaded)
+Decisions from the owner: bars on **all** windows like KWin, with `plugin:kwinish:floating_only` to restrict them; copy
+KWin's bar: app icon and a pin button as well as the title.
+- Layout (one function, `layoutButtons`, shared by drawing, hover and hit tests): `[app icon][left buttons] title ...
+  [right buttons]`. Buttons take an optional `align = "left"|"right"` and `hover_color` in `add_button`.
+- App icon: found from the window class through the desktop entries (`StartupWMClass`, file name), then the icon themes
+  and pixmaps; PNG through cairo, SVG through librsvg (new dependency `librsvg`). `show_icon = false` turns it off. The
+  first icon lookup scans the desktop entries once, inside the compositor.
+- Default buttons when the config adds none (`default_buttons`, on): pin at the left, close, maximize, minimize at the
+  right, flat Breeze-style glyphs with a hover background (red for close). The pin button shows a highlight while the
+  window is pinned. The pin glyph is a plain diamond for now (no font-independent pin shape).
+- **Edge snap on drag release**: releasing a bar drag with the pointer within 3 px of a screen edge snaps the window
+  (left/right half, top maximized). The window goes back to where the drag began first, so restore returns there. The
+  placement itself is done by the Lua core (`kwinish.lua`, `window_action`), spawned through `hyprctl eval`; without the
+  core it does nothing.
+- **Right click on the bar** opens the window menu (`kwinish-ui menu`).
+- Not verified: everything above (compiles only).
+
 ## Open work, in order
 1. Load it once, with the owner's ok, and check the look, the buttons and the wheel.
 2. Edge snap on drag release (the plugin sees the release in `handleUpEvent`), right-click menu, active/inactive colours,

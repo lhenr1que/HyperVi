@@ -7,10 +7,10 @@ endif
 
 CXXFLAGS ?= -O2
 CXXFLAGS += -shared -fPIC -std=c++2b -Wno-c++11-narrowing
-INCLUDES = `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon`
-LIBS =
+INCLUDES = `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0`
+LIBS = `pkg-config --libs cairo librsvg-2.0`
 
-SRC = main.cpp barDeco.cpp BarPassElement.cpp
+SRC = main.cpp barDeco.cpp BarPassElement.cpp icon.cpp
 TARGET = kwinish-bars.so
 
 all: $(TARGET)
