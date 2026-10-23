@@ -1,0 +1,39 @@
+# Maintainer: lhen <lhenriqueds99@gmail.com>
+# Local build recipe; point `url` and `source` at the public repository before submitting anywhere.
+pkgname=kwinish-git
+pkgver=0.0.0
+pkgrel=1
+pkgdesc='KWin-style window management for Hyprland 0.55+ (Lua core, GTK4 layer-shell UI)'
+arch=('x86_64')
+url='https://example.invalid/kwinish'
+license=('MIT')
+depends=('hyprland' 'gtk4' 'gtk4-layer-shell')
+makedepends=('git' 'cargo')
+provides=('kwinish')
+conflicts=('kwinish')
+source=("kwinish::git+file://${KWINISH_SRC:-$PWD/..}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd kwinish
+  printf '0.0.0.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd kwinish/ui
+  cargo build --release --locked
+}
+
+check() {
+  cd kwinish
+  for t in geometry binds switcher; do lua core/test_$t.lua; done
+}
+
+package() {
+  cd kwinish
+  install -Dm755 ui/target/release/kwinish-ui "$pkgdir/usr/bin/kwinish-ui"
+  install -d "$pkgdir/usr/share/kwinish/core" "$pkgdir/usr/share/kwinish/recipes"
+  install -m644 core/{kwinish,geometry,binds,switcher}.lua "$pkgdir/usr/share/kwinish/core/"
+  install -m644 recipes/*.lua "$pkgdir/usr/share/kwinish/recipes/"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/kwinish/README.md"
+}
