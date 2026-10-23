@@ -1,8 +1,8 @@
 // `kwinish-ui zones`: the tiling-zone editor. A full-screen layer-shell overlay draws the layout's zones; each zone has
 // buttons to split it (left/right, top/bottom), add a floating block or delete it. The top bar holds the name, the
 // padding between zones, "Load layout..." (presets and saved layouts as a starting point), Save and Cancel.
-// Save writes ~/.config/kwinish/layouts.json and activates the layout through the core. Zones are drawn over the whole
-// screen, not the work area (bars and outer gaps are applied by the core when the layout is used).
+// Save writes ~/.config/kwinish/layouts.json and activates the layout through the core. Zones are drawn over the work area
+// (screen minus bars and outer gaps).
 use crate::zones::{self, Layout, Zone};
 use gtk4::prelude::*;
 use gtk4::{gio, glib, Application, ApplicationWindow, Box as GtkBox, Button, CssProvider, Entry, Fixed, Label, MenuButton, Orientation, Popover, SpinButton};
@@ -41,13 +41,21 @@ fn t(en: &'static str) -> &'static str {
     }
 }
 
-struct Ed { fixed: Fixed, handles: Fixed, zones: RefCell<Vec<Zone>>, size: (i32, i32) }
+struct Ed { fixed: Fixed, handles: Fixed, zones: RefCell<Vec<Zone>>, size: (i32, i32), origin: (i32, i32) }
 
-fn screen() -> (i32, i32) {
-    let o = Command::new("hyprctl").args(["monitors", "-j"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
-    let m: serde_json::Value = serde_json::from_str(&o).unwrap_or_default();
+// The work area of the first monitor in screen pixels: minus reserved space (bars) and the outer gaps, as the core does.
+// Returns (size, origin); the plugin's title-bar height is not subtracted.
+fn work_area() -> ((i32, i32), (i32, i32)) {
+    let hc = |a: &[&str]| Command::new("hyprctl").args(a).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+    let m: serde_json::Value = serde_json::from_str(&hc(&["monitors", "-j"])).unwrap_or_default();
     let sc = m[0]["scale"].as_f64().unwrap_or(1.0);
-    ((m[0]["width"].as_f64().unwrap_or(1920.0) / sc) as i32, (m[0]["height"].as_f64().unwrap_or(1080.0) / sc) as i32)
+    let (w, h) = ((m[0]["width"].as_f64().unwrap_or(1920.0) / sc) as i32, (m[0]["height"].as_f64().unwrap_or(1080.0) / sc) as i32);
+    let res: Vec<i32> = (0..4).map(|i| m[0]["reserved"][i].as_i64().unwrap_or(0) as i32).collect(); // left, top, right, bottom
+    let o: serde_json::Value = serde_json::from_str(&hc(&["getoption", "general:gaps_out", "-j"])).unwrap_or_default();
+    let go: Vec<i32> = o["css"].as_str().unwrap_or("0 0 0 0").split_whitespace().filter_map(|v| v.parse().ok()).collect(); // top, right, bottom, left
+    let g = |i: usize| go.get(i).copied().unwrap_or(0);
+    let (l, t, r, b) = (res[0] + g(3), res[1] + g(0), res[2] + g(1), res[3] + g(2));
+    ((w - l - r, h - t - b), (l, t))
 }
 
 fn icon_button(label: &str, tip: &str, css: Option<&str>) -> Button {
@@ -87,7 +95,7 @@ fn redraw(ed: &Rc<Ed>) {
         mk("✕", "Delete", Some("del"), Box::new(move |v| zones::delete(v, i)));
         boxw.append(&num);
         boxw.append(&row);
-        ed.fixed.put(&boxw, x as f64 + 2.0, y as f64 + 2.0);
+        ed.fixed.put(&boxw, (x + ed.origin.0) as f64 + 2.0, (y + ed.origin.1) as f64 + 2.0);
     }
 }
 
@@ -98,7 +106,8 @@ fn rebuild_handles(ed: &Rc<Ed>) {
     let base = ed.zones.borrow().clone();
     for e in zones::edges(&base) {
         let (w, h) = (ed.size.0 as f64, ed.size.1 as f64);
-        let (x, y, bw, bh) = if e.vertical { (e.pos * w - 6.0, e.from * h, 12, ((e.to - e.from) * h) as i32) } else { (e.from * w, e.pos * h - 6.0, ((e.to - e.from) * w) as i32, 12) };
+        let (ox, oy) = (ed.origin.0 as f64, ed.origin.1 as f64);
+        let (x, y, bw, bh) = if e.vertical { (e.pos * w - 6.0 + ox, e.from * h + oy, 12, ((e.to - e.from) * h) as i32) } else { (e.from * w + ox, e.pos * h - 6.0 + oy, ((e.to - e.from) * w) as i32, 12) };
         let hd = GtkBox::new(Orientation::Horizontal, 0);
         hd.add_css_class("handle");
         hd.set_size_request(bw, bh);
@@ -134,7 +143,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         let mut known: Vec<Layout> = zones::presets();
         known.extend(saved.iter().cloned());
         let first = start.as_ref().and_then(|n| known.iter().find(|l| &l.name == n)).cloned();
-        let ed = Rc::new(Ed { fixed: Fixed::new(), handles: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: screen() });
+        let ed = Rc::new(Ed { fixed: Fixed::new(), handles: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: work_area().0, origin: work_area().1 });
 
         let name = Entry::new();
         name.set_text(&first.as_ref().filter(|l| saved.iter().any(|s| s.name == l.name)).map_or(String::new(), |l| l.label.clone()));
