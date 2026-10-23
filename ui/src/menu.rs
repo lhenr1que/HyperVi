@@ -242,7 +242,12 @@ fn close_below(ctx: &Rc<Ctx>, level: usize) {
     }
 }
 
-pub fn run(addr: String) -> glib::ExitCode {
+pub fn run(addr: String, args: Vec<String>) -> glib::ExitCode {
+    // `--at X,Y`: open with the top-left corner there (global layout coordinates); without it, at the pointer
+    let at: Option<(i32, i32)> = args.iter().position(|a| a == "--at").and_then(|i| args.get(i + 1)).and_then(|v| {
+        let mut it = v.split(',').map(|n| n.trim().parse::<i32>().ok());
+        Some((it.next()??, it.next()??))
+    });
     let app = Application::builder().application_id("dev.kwinish.menu").flags(gio::ApplicationFlags::NON_UNIQUE).build();
     app.connect_activate(move |app| {
         let provider = CssProvider::new();
@@ -253,7 +258,7 @@ pub fn run(addr: String) -> glib::ExitCode {
         let ctx = Rc::new(Ctx { app: app.clone(), fixed: fixed.clone(), addr: addr.clone(), open: RefCell::new(vec![]), screen: screen() });
         let items = build(&read_state(&addr));
         let root = make_box(&items, &ctx, 0);
-        let (cx, cy) = cursor();
+        let (cx, cy) = at.unwrap_or_else(cursor);
         let (_, nat) = root.preferred_size();
         fixed.put(&root, cx.min(ctx.screen.0 - nat.width() - 6).max(6) as f64, cy.min(ctx.screen.1 - nat.height() - 6).max(6) as f64);
 

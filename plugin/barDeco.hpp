@@ -107,6 +107,7 @@ class CHyprBar : public IHyprWindowDecoration {
     bool                  barActive();
     void                  updateIcon(float scale);
     void                  runAction(const std::string& action);
+    void                  openMenu(double x, double y);
     void                  snapOnRelease();
     void                  maybeUnsnap();
     const char*           edgeZone(const Vector2D& cursor, PHLMONITOR monitor);

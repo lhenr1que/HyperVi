@@ -100,10 +100,10 @@ fn main() -> glib::ExitCode {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("bars") => bars::run(args[2..].to_vec()),
-        Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default()),
+        Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default(), args.get(3..).unwrap_or(&[]).to_vec()),
         None => run_switcher(),
         Some(other) => {
-            eprintln!("usage: kwinish-ui [menu <window address> | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
+            eprintln!("usage: kwinish-ui [menu <window address> [--at X,Y] | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
             glib::ExitCode::FAILURE
         }
     }

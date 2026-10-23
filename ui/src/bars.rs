@@ -256,7 +256,10 @@ fn make_bar(app: &Application, addr: &str, mon: (i32, i32, i32), border: Rc<Cell
                 }
                 3 => {
                     if let Ok(exe) = std::env::current_exe() {
-                        let _ = std::process::Command::new(exe).args(["menu", &a]).spawn();
+                        // under the bar, at the pointer's x
+                        let (x, _) = cursor();
+                        let (_, wy, _) = bar.pos.get();
+                        let _ = std::process::Command::new(exe).args(["menu", &a, "--at", &format!("{},{}", x as i32, wy)]).spawn();
                     }
                 }
                 _ => {}

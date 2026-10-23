@@ -275,6 +275,14 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
     if (doButtonPress(BARPADDING, BARBUTTONPADDING, HEIGHT, COORDS, BUTTONSRIGHT))
         return;
 
+    // click on the app icon: the window menu, under the icon
+    if (const float ICON = iconSlot(); ICON > 0 && VECINRECT(COORDS, BARPADDING, (HEIGHT - ICON) / 2.0, BARPADDING + ICON, (HEIGHT + ICON) / 2.0)) {
+        const auto BOX = assignedBoxGlobal();
+        openMenu(BOX.x + BARPADDING, BOX.y + BOX.h);
+        m_bDragPending = false;
+        return;
+    }
+
     if (!ON_DOUBLE_CLICK.empty() &&
         std::chrono::duration_cast<std::chrono::milliseconds>(Time::steadyNow() - m_lastMouseDown).count() < 400 /* Arbitrary delay I found suitable */) {
         runAction(ON_DOUBLE_CLICK);
@@ -492,7 +500,7 @@ void CHyprBar::runAction(const std::string& action) {
     else if (action == "minimize")
         dispatchIfKnown("movetoworkspacesilent", "special:minimized");
     else if (action == "menu")
-        dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x}", (uintptr_t)W.get()));
+        openMenu(g_pInputManager->getMouseCoordsInternal().x, assignedBoxGlobal().y + assignedBoxGlobal().h);
     else if (action.starts_with("exec:"))
         dispatchIfKnown("exec", action.substr(5));
 }
@@ -577,6 +585,15 @@ void CHyprBar::updateIcon(float scale) {
         m_pIconTex = g_pHyprRenderer->createTexture(surface);
         cairo_surface_destroy(surface);
     }
+}
+
+// The window menu is born from the bar, as in KWin: its top-left corner goes to (x, y), global layout coordinates
+// (the bar's bottom edge, under the icon or under the pointer).
+void CHyprBar::openMenu(double x, double y) {
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+    dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
 }
 
 bool CHyprBar::doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, const bool BUTTONSRIGHT) {
