@@ -125,6 +125,7 @@ class CHyprBar : public IHyprWindowDecoration {
     std::string         m_szIconClass;
     int                 m_iIconPx = 0;
     Vector2D            m_dragStart;
+    Vector2D            m_pressCursor;
 
     bool                m_bDraggingThis  = false;
     bool                m_bTouchEv       = false;

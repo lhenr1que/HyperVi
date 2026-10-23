@@ -277,7 +277,15 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
         m_bDragPending = false;
     } else {
         m_lastMouseDown = Time::steadyNow();
-        m_bDragPending  = true;
+        m_pressCursor   = g_pInputManager->getMouseCoordsInternal();
+        // The compositor grabs the window under the pointer when the move starts. Waiting for the first motion (as
+        // upstream does) lets a fast move leave the bar and grab whatever is below, so a floating window's drag
+        // starts right at the press, while the pointer is still on its bar. Tiled windows keep the lazy start.
+        if (PWINDOW->m_isFloating && !m_bTouchEv) {
+            m_bDragPending = false;
+            handleMovement();
+        } else
+            m_bDragPending = true;
     }
 }
 
@@ -306,7 +314,8 @@ void CHyprBar::snapOnRelease() {
     const auto ACTIVE = Desktop::focusState()->window();
     Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
                      M->m_name, where ? where : "none");
-    if (!where)
+    // a plain click on the bar must not snap
+    if (!where || (C - m_pressCursor).size() < 10)
         return;
 
     (void)Config::Actions::move(m_dragStart, false, W);
