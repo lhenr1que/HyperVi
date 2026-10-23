@@ -117,3 +117,10 @@ Teste ao vivo com `decoration:rounding = 12` (via `hyprctl eval hl.config`, reve
 - **Testes:** `cargo test` (4): trecho livre, retângulos, curva do canto (circular passa por `R(1-cos 45°)`), parse de cor.
 - **Não testado:** `rounding_power` diferente de 4 na tela (a curva é a mesma fórmula, mas só olhei visualmente o 4); corte lateral com arredondamento; raio grande (> altura da barra); vários monitores. A região de entrada fixa em 32767 px de largura.
 - Nome do projeto: **Kwinish** mantido por enquanto (decisão do dono, sem conflito no AUR nem no GitHub).
+
+## Comparação com o hyprbars (24/10/2026)
+O dono ligou o plugin pelo Hub do Ryoku (página Plugins > Barras de título; `ryoku-hypr-plugins`, mesmo commit do Hyprland); eu só abri dois kitties flutuantes e tirei capturas, sem carregar nada (carregar plugin pelo meu lado foi bloqueado pelo classificador de segurança).
+- **hyprbars:** a barra é parte da janela, então o empilhamento é o real (a barra da janela B some atrás da A, sem recorte nem gambiarra), acompanha animações sem atraso e não precisa de poll. Título centralizado, altura 26, botões em bolinhas coloridas.
+- **Problema visto:** os botões aparecem **duplicados** (verde, vermelho, verde, vermelho) na captura ampliada: `add_button` roda duas vezes. O comentário do Ryoku (`config_plugins.go`) já diz que o hyprbars apaga os botões a cada reload da config, e o Hub aplica ao vivo; provável duplicação ao aplicar e recarregar. Não investiguei a causa nem toquei no Ryoku.
+- Com `rounding = 0` e `bar_precedence_over_border = false` não há contorno da cor da borda em volta da barra (a borda do compositor não envolve a barra).
+- Não testado: hyprbars com `rounding > 0`.
