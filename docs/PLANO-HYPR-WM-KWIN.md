@@ -194,3 +194,6 @@ já cobre o intervalo. O hook de recompilação automática mais o aviso bastam.
 3. Cores de barra ativa e inativa no plugin; miniaturas no Alt+Tab.
 4. Estado do núcleo que sobrevive a reload (tags de janela).
 5. Escolher um nome definitivo e publicar (não há repositório remoto; nada foi enviado a lugar nenhum).
+
+## Revisão 4 (24/10/2026)
+Entraram, a pedido do dono (o que ele gosta no KDE): **pré-visualização do encaixe**, **menu de janela estilo KDE** (nasce da barra, no ícone e no clique direito) e **presets de tiling** (zonas, Shift ao arrastar, seletor). Estado, pendências e como testar sem estragar o desktop estão em `docs/HANDOFF.md`. Itens do catálogo agora também cobertos: 12 (menu da janela, quase completo: faltam Mover/Redimensionar e regras), 6 (zonas de encaixe, sem editor visual ainda).

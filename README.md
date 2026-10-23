@@ -18,6 +18,10 @@ double click maximizes, the wheel over the bar raises or lowers the window, and 
 right screen edge snaps it to a half, and on the top edge maximizes it (`snap_top_edge`, on by default). Bars show on every window; `floating_only`
 limits them to floating ones.
 
+**Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + CTRL + T`) or in the window menu. Dragging a snapped window by its bar gives back its old size.
+
+**Window menu.** KWin-style, born from the bar: click the app icon or right-click the bar. Workspaces, maximize, minimize, keep above or below, fullscreen, no frame, hide from captures, snap, tiling layout, close. State shows as check marks.
+
 A plugin is locked to one Hyprland build, so after a Hyprland update the plugin can be stale. Then Kwinish runs in
 **emergency mode**: it does not load the plugin, shows a notification, and `kwinish-ui bars` draws fallback bars
 (layer-shell surfaces that sit above all windows, so they hide or clip when another window covers them). The pacman hook
@@ -36,7 +40,7 @@ Packages (drafts, `makepkg --nodeps` works, nothing published): `packaging/PKGBU
 `packaging/plugin/PKGBUILD` (plugin, rebuild script, pacman hook).
 
 Default binds (`recipes/hyprland-snippet.lua`): `SUPER + ALT + arrows` halves, top and bottom; `Q W A S` corners;
-`Return` maximize; `H`/`V` one axis; `CTRL + ALT + arrows` pack; `SUPER + D` show desktop; `ALT + T` keep above; `ALT + Tab`
+`Return` maximize; `H`/`V` one axis; `CTRL + ALT + arrows` pack; `SUPER + D` show desktop; `ALT + T` keep above; `SUPER + CTRL + T` layout picker; `ALT + Tab`
 switcher (`ALT + F3` window menu). They clash with some Ryoku binds: use `mod` and `override`.
 
 ## Tests
