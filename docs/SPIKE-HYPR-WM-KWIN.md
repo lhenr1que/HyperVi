@@ -124,3 +124,8 @@ O dono ligou o plugin pelo Hub do Ryoku (página Plugins > Barras de título; `r
 - **Problema visto:** os botões aparecem **duplicados** (verde, vermelho, verde, vermelho) na captura ampliada: `add_button` roda duas vezes. O comentário do Ryoku (`config_plugins.go`) já diz que o hyprbars apaga os botões a cada reload da config, e o Hub aplica ao vivo; provável duplicação ao aplicar e recarregar. Não investiguei a causa nem toquei no Ryoku.
 - Com `rounding = 0` e `bar_precedence_over_border = false` não há contorno da cor da borda em volta da barra (a borda do compositor não envolve a barra).
 - Não testado: hyprbars com `rounding > 0`.
+
+## Por que os botões do hyprbars não funcionam no Ryoku do dono (24/10/2026)
+- O `~/.config/hypr/settings.lua` (gerado pelo Hub) tem `add_button` com `action = "hyprctl dispatch killactive"` e `"hyprctl dispatch fullscreen 1"`: sintaxe **hyprlang**, que o Hyprland 0.56 em Lua não entende (o `hyprctl dispatch` recebe uma expressão Lua, como `hl.dsp.window.close()`). Cliquei nos botões (posições conferidas na captura ampliada): nada aconteceu.
+- O código-fonte atual do Ryoku (`config_plugins.go`) já gera `hyprctl dispatch "hl.dsp.window.close()"`; o `settings.lua` instalado é de uma versão antiga. Provável correção: salvar de novo a página no Hub ou `ryoku doctor`. Não toquei nos arquivos do dono.
+- A duplicação dos botões: o Hub aplica ao vivo e o reload carrega o `settings.lua`, que chama `add_button` de novo.
