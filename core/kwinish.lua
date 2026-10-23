@@ -161,5 +161,29 @@ function M.setup(opts)
   end
 end
 
+-- Entry point for the window menu (kwinish-ui): action is "tile:left", "axis:h", "pack:up", "above", "float",
+-- "fullscreen", "close" or "workspace:N", applied to the window with that address.
+function M.window_action(addr, action)
+  local w = hl.get_window("address:" .. addr)
+  if not w then return end
+  local kind, arg = action:match("^(%w+):?(.*)$")
+  local sel = "address:" .. addr
+  if kind == "tile" then M.tile(arg, { window = w })
+  elseif kind == "axis" then M.maximize_axis(arg, { window = w })
+  elseif kind == "pack" then M.pack(arg, { window = w })
+  elseif kind == "above" then M.keep_above({ window = w })
+  elseif kind == "float" then hl.dispatch(hl.dsp.window.float({ action = "toggle", window = sel }))
+  elseif kind == "fullscreen" then hl.dispatch(hl.dsp.window.fullscreen({ window = sel }))
+  elseif kind == "close" then hl.dispatch(hl.dsp.window.close({ window = sel }))
+  elseif kind == "workspace" then hl.dispatch(hl.dsp.window.move({ workspace = arg, window = sel }))
+  end
+end
+
+-- Open the window menu for the focused window at the pointer.
+function M.menu(opts)
+  local w = (opts and opts.window) or hl.get_active_window()
+  if w then hl.exec_cmd("kwinish-ui menu " .. w.address) end
+end
+
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests
 return M

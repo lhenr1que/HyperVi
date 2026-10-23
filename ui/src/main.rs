@@ -5,6 +5,8 @@ use gtk4::{gio, glib, Application, ApplicationWindow, Box as GtkBox, CssProvider
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::path::PathBuf;
 
+mod menu;
+
 const CSS: &str = "
 window.kw { background: transparent; }
 .panel { background: alpha(#1c1c22, 0.92); border-radius: 18px; padding: 14px; }
@@ -54,7 +56,7 @@ fn render(win: &ApplicationWindow, row: &GtkBox, path: &PathBuf) {
     win.set_visible(true);
 }
 
-fn main() -> glib::ExitCode {
+fn run_switcher() -> glib::ExitCode {
     let app = Application::builder().application_id("dev.kwinish.ui").build();
     app.connect_activate(|app| {
         let provider = CssProvider::new();
@@ -89,5 +91,17 @@ fn main() -> glib::ExitCode {
         render(&win, &row, &path);
         std::mem::forget(app.hold());
     });
-    app.run()
+    app.run_with_args::<&str>(&[])
+}
+
+fn main() -> glib::ExitCode {
+    let args: Vec<String> = std::env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default()),
+        None => run_switcher(),
+        Some(other) => {
+            eprintln!("usage: kwinish-ui [menu <window address>]  (got {other})");
+            glib::ExitCode::FAILURE
+        }
+    }
 }

@@ -29,6 +29,7 @@ function M.install(kw, opts)
     hl.bind("ALT + Tab", function() opts.switcher.step(1) end)
     hl.bind("ALT + SHIFT + Tab", function() opts.switcher.step(-1) end)
   end
+  if opts.menu then hl.bind(opts.menu, function() kw.menu() end) end -- e.g. menu = "ALT + F3"; needs kwinish-ui on PATH
   for _, b in ipairs(M.list(opts.mod)) do
     local keys = b.keys
     if opts.override and opts.override[keys] ~= nil then keys = opts.override[keys] end

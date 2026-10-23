@@ -48,3 +48,8 @@ Plano aprovado pelo dono: Lua no núcleo, Rust na UI (layer-shell), repo novo lo
 - **Testado ao vivo** (3 kitties descartáveis, `step` por eval, soltura e Esc por uinput): o overlay apareceu centralizado com a segunda janela destacada; soltar o Alt focou a janela escolhida e fechou o overlay; Esc cancelou sem mudar o foco; dois passos selecionaram o terceiro. Segurança: timeout de 15 s fecha sem focar.
 - **Não testado:** o bind `ALT + Tab` real (não registrado na sessão por causa do crash do `hl.bind`), key-repeat segurando Tab, miniaturas (hoje cartões com classe e título), janelas em outros workspaces/monitores, ordem MRU depois de reload (parte vazia, completa com a ordem do compositor).
 - Testes puros: `lua5.4 core/test_switcher.lua`.
+
+## Menu da janela (24/10/2026)
+- `kwinish-ui menu <endereço>` (processo de uma vez só, `ui/src/menu.rs`): camada transparente em tela cheia pega clique fora e Esc, menu no ponteiro, cada item roda `hyprctl eval "require('kwinish').window_action(addr, ação)"`. Ações: maximizar, metades, eixo h/v, manter acima, flutuar/ladrilhar, tela cheia, mover de workspace, fechar. Segurança: foco de teclado exclusivo, mas sai sozinho em 20 s.
+- **Testado ao vivo** (kitty descartável): o menu abriu no ponteiro, clicar em "Tile left" ladrilhou a janela (902x1024) e o processo saiu; Esc fechou; clique fora fechou (checado pela ausência do processo depois).
+- **Não testado:** bind `ALT + F3` real, vários monitores (posição usa `hyprctl cursorpos` em coordenadas globais, sem deslocar pelo monitor), submenus, "criar regra" (item 12 do catálogo), mover/redimensionar pelo menu, teclado (setas) dentro do menu, tema claro. Rótulos alinhados à esquerda no último build, sem nova captura.
