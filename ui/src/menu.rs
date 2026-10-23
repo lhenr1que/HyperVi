@@ -37,7 +37,7 @@ fn tog(label: &str, on: bool, action: &str) -> Item {
 
 // What the menu needs to know about the window; read from `hyprctl clients`, where the core also leaves tags.
 #[derive(Default)]
-struct State { pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
+struct State { floating: bool, pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
 
 fn hyprctl(args: &[&str]) -> String {
     Command::new("hyprctl").args(args).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
@@ -48,6 +48,7 @@ fn read_state(addr: &str) -> State {
     let clients: serde_json::Value = serde_json::from_str(&hyprctl(&["clients", "-j"])).unwrap_or_default();
     if let Some(c) = clients.as_array().and_then(|a| a.iter().find(|c| c["address"] == addr)) {
         let tag = |t: &str| c["tags"].as_array().map_or(false, |v| v.iter().any(|x| x == t));
+        st.floating = c["floating"] == true;
         st.pinned = c["pinned"] == true;
         st.maximized = c["fullscreen"].as_i64() == Some(1);
         st.fullscreen = c["fullscreen"].as_i64() == Some(2);
@@ -148,15 +149,16 @@ fn build(st: &State) -> Vec<Item> {
         Item::Sep,
         act(t("Maximize horizontally"), "axis:h"), act(t("Maximize vertically"), "axis:v"),
     ];
-    let more = vec![
-        Item::Sub { label: t("Snap").into(), items: snap },
+    // snapping only acts on floating windows (the core ignores tiled ones), so tiled windows do not get the submenu
+    let mut more = if st.floating { vec![Item::Sub { label: t("Snap").into(), items: snap }] } else { vec![] };
+    more.extend(vec![
         Item::Sub { label: t("Tiling layout").into(), items: layout_items() },
         tog(t("Keep below others"), st.below, "below"),
         tog(t("Fullscreen"), st.fullscreen, "fullscreen"),
         act(t("Float / tile"), "float"),
         tog(t("No title bar and frame"), st.noframe, "noframe"),
         tog(t("Hide from captures and recordings"), st.nocapture, "nocapture"),
-    ];
+    ]);
     vec![
         Item::Sub { label: t("Workspaces").into(), items: ws },
         tog(t("Maximize"), st.maximized, "maximize"),

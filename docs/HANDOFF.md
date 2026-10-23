@@ -17,6 +17,8 @@ repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido 
 - **Pacotes** (`packaging/`, rascunhos): `kwinish-git` e `kwinish-bars-plugin-git` (hook do pacman que recompila o plugin).
   Versão instalada pelo dono: `0.0.0.r50.babd9b8-1`. Arquivos em `dist/` (fora do git).
 
+**Decisão (24/10):** snap, zonas, pack e eixo só agem em janelas **flutuantes**; janelas ladrilhadas são ignoradas (`place()` no núcleo) e o menu esconde "Encaixar" nelas. Verificado ao vivo.
+
 ## Pendências, em ordem sugerida
 1. ~~Editor visual de zonas~~ feito (`ui/src/editor.rs`, lógica em `ui/src/zones.rs`, arquivo `~/.config/kwinish/layouts.json` lido por `core/layouts.lua`). Os divisores arrastam (`zones::edges`/`move_edge`; visto desenhado, arraste não testado com mouse). Falta: desenhar sobre a área útil em vez da tela inteira, Verificado ao vivo (ws 9): layout do usuário no `layouts.json` → `set_layout` → `window_action(addr,"zone:N")` (inclusive bloco flutuante) e o seletor mostra o layout marcado. Não verificado ao vivo: o clique em Salvar do editor e o Shift ao arrastar com layout do usuário (mesma rota `z:N` dos presets).
 2. Menu: Mover e Redimensionar (o Hyprland só inicia por bind de mouse; talvez o plugin consiga), atalho da janela, regras da janela/app.

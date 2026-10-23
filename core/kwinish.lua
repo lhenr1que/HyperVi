@@ -72,7 +72,9 @@ local function target(opts)
 end
 
 -- Apply `r`; the same request again on an already-placed window restores the original rect.
+-- Tiled windows are the compositor's: snapping, zones, pack and axis leave them alone.
 local function place(w, r, key)
+  if not w.floating then return end
   local s = saved[w.address]
   if s and s.key == key and geometry.same(rect_of(w), r) then
     saved[w.address] = nil
@@ -87,7 +89,6 @@ local function place(w, r, key)
     if s.snap and not geometry.same(rect_of(w), s.snap) then s.rect, s.was_floating = rect_of(w), w.floating end
     s.key = key
   end
-  if not w.floating then hl.dispatch(hl.dsp.window.float({ action = "enable", window = "address:" .. w.address })) end
   put(w, r)
   saved[w.address].snap = r
   local o = saved[w.address].rect
