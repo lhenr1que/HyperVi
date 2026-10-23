@@ -58,3 +58,12 @@ Plano aprovado pelo dono: Lua no núcleo, Rust na UI (layer-shell), repo novo lo
 - `packaging/PKGBUILD` (rascunho local, `url` é placeholder, licença declarada MIT **sem arquivo LICENSE: o dono ainda não escolheu**): `makepkg --nodeps` gerou `kwinish-git` com `/usr/bin/kwinish-ui`, `/usr/share/kwinish/{core,recipes}`, README. Os testes Lua rodam no `check()`. Não instalei o pacote.
 - **Colisão com o Ryoku do dono (conferido com `hyprctl binds`):** com `mod = "SUPER"`, 10 dos 17 binds padrão já existem (SUPER+ALT+setas, SUPER+ALT+H, SUPER+CTRL+ALT+setas, SUPER+D) e `ALT + Tab` também. Com `SUPER + CTRL` colidem só as 4 setas. Para quem usa Ryoku, a instalação precisa trocar `mod`/`override`; para um Hyprland comum (exemplo oficial) não deve haver colisão, mas não conferi a lista oficial.
 - `spike/verify/live-test.lua` é um arquivo para o dono testar os binds reais sem colisão (`SUPER + CTRL + …`, `ALT + grave` para o switcher, `ALT + F3` para o menu). `--verify-config` aceita.
+
+## Teste com binds reais na sessão do dono (24/10/2026)
+Feito com autorização do dono ("Teste"): bloco temporário no `~/.config/hypr/user.lua` (backup, `pcall(dofile, live-test.lua)`), `hyprctl reload`, teclas por uinput; ao final o `user.lua` foi restaurado do backup (0 linhas com "kwinish"), recarregado, symlink e processos removidos.
+- **ALT + F3 (menu):** abriu `kwinish-ui menu` para a janela ativa; Esc fechou. OK.
+- **Alt+Tab real:** com o bind `ALT + code:49` + Alt segurado, o overlay abriu (cartões kwc, Claude, kwa, kwb, o segundo destacado) e soltar o Alt focou a janela destacada e fechou o overlay. **Um Alt+Tab = um passo** (log do `step`), o problema do T7 não aparece. OK.
+- **SUPER+CTRL+ALT+Q (tile topleft):** colocou o kitty em 901x506 no canto e repetir restaurou 350x250 em (900,700). OK.
+- **Achado:** em `hl.bind`, `code:N` usa o keycode **xkb (evdev + 8)**: `code:41` (grave) não dispara, `code:49` sim. `ALT + grave` pelo keysym também não foi confirmado (o layout do dono é `us`; não investiguei por quê, o primeiro teste pode ter sido anterior ao bind carregado).
+- **Efeito colateral a corrigir:** a lista do Alt+Tab inclui todas as janelas mapeadas, inclusive a do próprio app do dono; é o esperado, mas falta filtrar janelas "fantasma" (popups, janelas sem título, workspaces especiais) antes de dar como pronto.
+- Não testado: key-repeat segurando a tecla do passo, SHIFT (passo para trás) com bind real, mostrar a área de trabalho e manter acima por bind real.

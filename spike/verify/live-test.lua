@@ -5,7 +5,7 @@ local kw = require("kwinish")
 kw.setup({  })
 local sw = require("switcher")
 sw.setup()
--- Clash-free against the owner's Ryoku binds (checked with hyprctl binds on 2026-10-24): SUPER+CTRL+..., ALT+grave for the switcher.
+-- Clash-free against the owner's Ryoku binds (checked with hyprctl binds on 2026-10-24): SUPER+CTRL+..., ALT+code:49 (physical key above Tab, layout independent) for the switcher.
 local off = {}
 for _, d in ipairs({ "Left", "Right", "Up", "Down" }) do off["SUPER + CTRL + ALT + " .. d] = false end
-require("binds").install(kw, { mod = "SUPER + CTRL", switcher = sw, switcher_keys = { "ALT + grave", "ALT + SHIFT + grave" }, menu = "ALT + F3", override = off })
+require("binds").install(kw, { mod = "SUPER + CTRL", switcher = sw, switcher_keys = { "ALT + code:49", "ALT + SHIFT + code:49" }, menu = "ALT + F3", override = off })
