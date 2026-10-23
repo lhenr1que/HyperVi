@@ -275,8 +275,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static auto P  = Event::bus()->m_events.window.open.listen([&](PHLWINDOW w) { onNewWindow(w); });
     static auto P3 = Event::bus()->m_events.window.updateRules.listen([&](PHLWINDOW w) { onUpdateWindowRules(w); });
 
-    g_pGlobalState->config.barColor            = makeShared<Config::Values::CColorValue>("plugin:kwinish:bar_color", "Change the bar color", 0xe01c1c22);
-    g_pGlobalState->config.textColor           = makeShared<Config::Values::CColorValue>("plugin:kwinish:col.text", "Change the text color", 0xfff0f0f6);
+    g_pGlobalState->config.barColor            = makeShared<Config::Values::CColorValue>("plugin:kwinish:bar_color", "Bar colour of the focused window", 0xf726262e);
+    g_pGlobalState->config.textColor           = makeShared<Config::Values::CColorValue>("plugin:kwinish:col.text", "Title colour of the focused window", 0xfff0f0f6);
     g_pGlobalState->config.inactiveButtonColor = makeShared<Config::Values::CColorValue>(
         "plugin:kwinish:inactive_button_color", "Change the inactive button's color. 0x00000000 means unset", 0x00000000);
     g_pGlobalState->config.barHeight       = makeShared<Config::Values::CIntValue>("plugin:kwinish:bar_height", "Change the bar's height", 28);
@@ -296,6 +296,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pGlobalState->config.enabled             = makeShared<Config::Values::CBoolValue>("plugin:kwinish:enabled", "Whether bars are enabled", true);
     g_pGlobalState->config.iconOnHover         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:icon_on_hover", "Whether to use an icon on hover of the buttons", false);
     g_pGlobalState->config.floatingOnly        = makeShared<Config::Values::CBoolValue>("plugin:kwinish:floating_only", "Draw bars on floating windows only", false);
+    g_pGlobalState->config.inactiveBarColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_bar_color", "Bar colour of an unfocused window", 0xe01c1c22);
+    g_pGlobalState->config.inactiveTextColor   = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_col.text", "Title colour of an unfocused window", 0xffb8b8c4);
     g_pGlobalState->config.snapTopEdge         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_top_edge", "Maximize a window dropped on the top screen edge", true);
     g_pGlobalState->config.showIcon            = makeShared<Config::Values::CBoolValue>("plugin:kwinish:show_icon", "Show the app icon at the left of the bar", true);
     g_pGlobalState->config.defaultButtons      = makeShared<Config::Values::CBoolValue>("plugin:kwinish:default_buttons", "Install the default buttons (pin, minimize, maximize, close) when none are configured", true);
@@ -322,6 +324,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.iconOnHover);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.onDoubleClick);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.floatingOnly);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveBarColor);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveTextColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.snapTopEdge);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.showIcon);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.defaultButtons);
@@ -332,6 +336,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
     else
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+    static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
+        // active/inactive colours: every bar repaints and re-renders its title when focus moves
+        for (auto& b : g_pGlobalState->bars)
+            if (b)
+                b->onFocusChanged();
+    });
     static auto P6 = Event::bus()->m_events.window.floating.listen([&](PHLWINDOW w) {
         // floating_only: a bar appears or disappears when the window changes mode
         for (auto& b : g_pGlobalState->bars)

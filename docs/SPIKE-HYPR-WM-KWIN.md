@@ -196,3 +196,6 @@ Com o arrasto começando no clique para janelas flutuantes, testado no workspace
 - **clique simples na barra:** nada se moveu. **Duplo clique** continua maximizando.
 - `snap_top_edge` passou a `true` por padrão (compilado; o plugin carregado ainda tem o padrão antigo, mas o teste ligou a opção por eval). Com o Claude só no workspace 1, ele não foi tocado em nenhum teste desta rodada. O teste de `kwinish` no ws 1 com o Claude presente não foi repetido.
 - O ponteiro virtual do teste: `pointer-path.py` quebra com argumentos colados numa variável do zsh; o driver `spike/edge-drag.py` evita isso.
+
+## Cores de barra ativa e inativa (24/10/2026, compila, a testar)
+Plugin: `bar_color` e `col.text` valem para a janela em foco; `inactive_bar_color` e `inactive_col.text` para as outras. O evento `window.active` repinta todas as barras e re-renderiza os títulos. Padrões iguais aos das barras de reserva. Não carregado ainda.

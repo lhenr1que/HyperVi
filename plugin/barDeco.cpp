@@ -445,6 +445,11 @@ bool CHyprBar::barActive() {
     return W && (!g_pGlobalState->config.floatingOnly->value() || W->m_isFloating);
 }
 
+void CHyprBar::onFocusChanged() {
+    m_bTitleColorChanged = true;
+    damageEntire();
+}
+
 void CHyprBar::onFloatingChanged() {
     g_pDecorationPositioner->repositionDeco(this);
     damageEntire();
@@ -508,7 +513,8 @@ void CHyprBar::renderBarTitle(const Vector2D& bufferSize, const float scale) {
         return;
     }
 
-    const CHyprColor COLOR = m_bForcedTitleColor.value_or(configColor(COLORVAL));
+    const bool       FOCUSED = m_pWindow.lock() && m_pWindow.lock() == Desktop::focusState()->window();
+    const CHyprColor COLOR   = m_bForcedTitleColor.value_or(configColor(FOCUSED ? COLORVAL : g_pGlobalState->config.inactiveTextColor->value()));
     m_pTextTex             = g_pHyprRenderer->renderText(m_szLastTitle, COLOR, scaledSize, false, FONT, maxWidth, WEIGHT.m_value);
 }
 
@@ -638,7 +644,8 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
         }
     }
 
-    const CHyprColor DEST_COLOR = m_bForcedBarColor.value_or(configColor(BARCOLOR));
+    const bool       FOCUSED    = PWINDOW == Desktop::focusState()->window();
+    const CHyprColor DEST_COLOR = m_bForcedBarColor.value_or(configColor(FOCUSED ? BARCOLOR : g_pGlobalState->config.inactiveBarColor->value()));
     if (DEST_COLOR != m_cRealBarColor->goal())
         *m_cRealBarColor = DEST_COLOR;
 

@@ -73,6 +73,12 @@ also the manual route: `sudo kwinish-bars-rebuild`. Tested with the sources and 
 `.abi` identical to the installed formula; a missing source exited 0 with the message. Not done: the opt-in "hold the
 Hyprland update" hook.
 
+## Active and inactive colours (24/10/2026, compiled, not yet loaded)
+`bar_color` and `col.text` are now the colours of the **focused** window's bar (defaults `#26262e` at 97 % and `#f0f0f6`);
+`inactive_bar_color` (`#1c1c22` at 88 %) and `inactive_col.text` (`#b8b8c4`) colour every other bar. Focus changes repaint
+all bars and re-render their titles; the bar colour fades through the existing animated colour variable. Window rules
+(`kwinish:bar_color`, `kwinish:title_color`) still override both.
+
 ## Open work, in order
 1. Load it once, with the owner's ok, and check the look, the buttons and the wheel.
 2. Edge snap on drag release (the plugin sees the release in `handleUpEvent`), right-click menu, active/inactive colours,
