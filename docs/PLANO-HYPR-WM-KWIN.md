@@ -164,7 +164,7 @@ plugin não bate com o Hyprland. Detalhes do plugin em `docs/PLUGIN.md`; histór
 | 26 Alt+Tab | feito (Lua + overlay Rust); testado com bind real; sem miniaturas, só classe e título |
 | 24 cantos ativos | feito (`kw.hotcorners`), testado com ponteiro virtual |
 | 12 menu da janela | feito (Rust, `kwinish-ui menu`; mover/redimensionar e "criar regra" não) |
-| 7 encaixe ao arrastar | esquerda e direita feitos no plugin; topo opcional e não confirmado |
+| 7 encaixe ao arrastar | esquerda, direita e topo feitos no plugin (testados no workspace 9 com uma janela ladrilhada presente) |
 | 11 roda do mouse na barra | feito (plugin e barras de reserva) |
 | 16 decorações: botões à direita/esquerda, duplo clique | feito no plugin (botões padrão, `align`, `hover_color`); temas de decoração não |
 | ícone do app e botão de fixar na barra (pedido do dono) | feito no plugin |
@@ -186,7 +186,7 @@ já cobre o intervalo. O hook de recompilação automática mais o aviso bastam.
 - R3 fim do arrasto: **resolvido** no plugin (a barra vê o soltar) e nas barras de reserva; o Lua sozinho continua sem ver.
 - R2 versões do Hyprland: parcialmente tratado (modo de emergência, hook de recompilação); só 0.56.2 testado.
 - Novos: carregar plugin pode derrubar o compositor (houve um crash em `hl.bind` via eval nesta sessão, não no plugin);
-  encaixe no topo e janelas do dono mexidas (o Claude virou flutuante uma vez), causa não achada.
+  o encaixe no topo mexia na janela errada (o Claude virou flutuante): causa achada e corrigida (ver `docs/SPIKE-HYPR-WM-KWIN.md`).
 
 ### O que falta
 1. Instalar de verdade (pacote, hook) e testar um upgrade real do Hyprland.

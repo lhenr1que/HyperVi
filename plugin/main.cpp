@@ -296,7 +296,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pGlobalState->config.enabled             = makeShared<Config::Values::CBoolValue>("plugin:kwinish:enabled", "Whether bars are enabled", true);
     g_pGlobalState->config.iconOnHover         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:icon_on_hover", "Whether to use an icon on hover of the buttons", false);
     g_pGlobalState->config.floatingOnly        = makeShared<Config::Values::CBoolValue>("plugin:kwinish:floating_only", "Draw bars on floating windows only", false);
-    g_pGlobalState->config.snapTopEdge         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_top_edge", "Maximize a window dropped on the top screen edge (off by default: unconfirmed next to edge-hover panels)", false);
+    g_pGlobalState->config.snapTopEdge         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_top_edge", "Maximize a window dropped on the top screen edge", true);
     g_pGlobalState->config.showIcon            = makeShared<Config::Values::CBoolValue>("plugin:kwinish:show_icon", "Show the app icon at the left of the bar", true);
     g_pGlobalState->config.defaultButtons      = makeShared<Config::Values::CBoolValue>("plugin:kwinish:default_buttons", "Install the default buttons (pin, minimize, maximize, close) when none are configured", true);
     g_pGlobalState->config.buttonHoverColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:button_hover_color", "Background of a hovered button", 0x33ffffff);

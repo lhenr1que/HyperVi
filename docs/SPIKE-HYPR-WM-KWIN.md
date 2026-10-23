@@ -188,3 +188,11 @@ Teste no workspace 9 (para não mexer no Claude), com uma janela ladrilhada de t
 - **Tentativa 1 (não resolveu):** forçar o foco na janela da barra antes do arrasto. O compositor não usa o foco, usa a janela sob o ponteiro.
 - **Tentativa 2 (compilada, a testar):** para janelas flutuantes o arrasto começa **no clique**, quando o ponteiro ainda está na barra; janelas ladrilhadas mantêm o início preguiçoso. Um clique simples não encaixa (exige ≥ 10 px de movimento desde o clique).
 - Efeito colateral a conferir: o clique simples numa barra agora entra e sai do modo de mover; e o duplo clique precisa continuar maximizando.
+
+## Encaixe no topo: resolvido (24/10/2026)
+Com o arrasto começando no clique para janelas flutuantes, testado no workspace 9 com uma janela ladrilhada (`kwt`) presente:
+- **topo:** a `kwa` maximizou (78, 28, 1814x1024), a `kwt` ficou intacta, ação registrada com o endereço certo.
+- **esquerda e direita:** metades (901x1024); pedir o mesmo encaixe de novo devolveu a `kwa` ao ponto de origem (500, 400).
+- **clique simples na barra:** nada se moveu. **Duplo clique** continua maximizando.
+- `snap_top_edge` passou a `true` por padrão (compilado; o plugin carregado ainda tem o padrão antigo, mas o teste ligou a opção por eval). Com o Claude só no workspace 1, ele não foi tocado em nenhum teste desta rodada. O teste de `kwinish` no ws 1 com o Claude presente não foi repetido.
+- O ponteiro virtual do teste: `pointer-path.py` quebra com argumentos colados numa variável do zsh; o driver `spike/edge-drag.py` evita isso.

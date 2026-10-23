@@ -15,7 +15,7 @@ Three layers, each usable without the next:
 The plugin is the primary bar: app icon, pin button and title on the left; minimize, maximize and close on the right; drawn
 by the compositor, so stacking, animations, borders and rounding are the real ones. Right click opens the window menu,
 double click maximizes, the wheel over the bar raises or lowers the window, and dropping a dragged window on the left or
-right screen edge snaps it to a half (top edge: opt-in, `snap_top_edge`). Bars show on every window; `floating_only`
+right screen edge snaps it to a half, and on the top edge maximizes it (`snap_top_edge`, on by default). Bars show on every window; `floating_only`
 limits them to floating ones.
 
 A plugin is locked to one Hyprland build, so after a Hyprland update the plugin can be stale. Then Kwinish runs in
@@ -53,7 +53,6 @@ exercised and what was not).
 - Restore state, show-desktop origins and the keep-above list live in Lua tables and are lost on a config reload.
 - The fallback bars are layer-shell surfaces: not at window level, and they trail animated windows by up to 80 ms.
 - Not tested with several monitors, XWayland-only setups or an upgrade of Hyprland through pacman.
-- Snapping on the top edge is off by default: it misbehaved next to an edge-hover panel and the cause is not found.
 - The name Kwinish is provisional.
 
 ## License
