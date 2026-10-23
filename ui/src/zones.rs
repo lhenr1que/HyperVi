@@ -37,6 +37,43 @@ pub fn delete(zones: &mut Vec<Zone>, i: usize) {
     }
 }
 
+/// An inner edge shared by zone borders: `vertical` edges sit at x = `pos` and span y `from..to`; horizontal ones the reverse.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Edge { pub vertical: bool, pub pos: f64, pub from: f64, pub to: f64 }
+
+const MIN: f64 = 0.05;
+
+pub fn edges(zones: &[Zone]) -> Vec<Edge> {
+    let mut out: Vec<Edge> = vec![];
+    for vertical in [true, false] {
+        let (p, l) = if vertical { (0, 2) } else { (1, 3) };
+        let (q, m) = if vertical { (1, 3) } else { (0, 2) };
+        for z in zones {
+            for pos in [z[p], z[p] + z[l]] {
+                if pos < EPS || pos > 1.0 - EPS { continue }
+                let (a, b) = (z[q], z[q] + z[m]);
+                match out.iter_mut().find(|e| e.vertical == vertical && (e.pos - pos).abs() < EPS) {
+                    Some(e) => { e.from = e.from.min(a); e.to = e.to.max(b) }
+                    None => out.push(Edge { vertical, pos, from: a, to: b }),
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Move every zone border lying on `e` to `to`; None when a zone would get thinner than 5 % of the area.
+pub fn move_edge(zones: &[Zone], e: &Edge, to: f64) -> Option<Vec<Zone>> {
+    let (p, l) = if e.vertical { (0, 2) } else { (1, 3) };
+    let mut out = zones.to_vec();
+    for z in out.iter_mut() {
+        if (z[p] + z[l] - e.pos).abs() < EPS { z[l] = to - z[p] }
+        else if (z[p] - e.pos).abs() < EPS { z[l] = z[p] + z[l] - to; z[p] = to }
+        if z[l] < MIN || z[p] + z[l] > 1.0 + EPS { return None }
+    }
+    Some(out)
+}
+
 /// Strings in the file only hold what core/layouts.lua can read back: letters, digits, space and '-'.
 pub fn clean_label(s: &str) -> String {
     let c: String = s.chars().filter(|c| c.is_ascii_alphanumeric() || *c == ' ' || *c == '-').collect();
@@ -116,6 +153,19 @@ mod tests {
         assert_eq!(z, vec![[0., 0., 1., 1.]]);
         delete(&mut z, 0);
         assert_eq!(z.len(), 1, "last zone stays");
+    }
+
+    #[test]
+    fn edges_and_moving() {
+        let z = vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]];
+        let e = edges(&z);
+        assert_eq!(e.len(), 2);
+        assert_eq!(e[0], Edge { vertical: true, pos: 0.5, from: 0., to: 1. });
+        assert_eq!((e[1].vertical, e[1].pos, e[1].from, e[1].to), (false, 0.5, 0.5, 1.));
+        let m = move_edge(&z, &e[0], 0.7).unwrap();
+        let want = [[0., 0., 0.7, 1.], [0.7, 0., 0.3, 0.5], [0.7, 0.5, 0.3, 0.5]];
+        assert!(m.iter().zip(want).all(|(a, b)| a.iter().zip(b).all(|(x, y)| (x - y).abs() < 1e-9)));
+        assert!(move_edge(&z, &e[0], 0.99).is_none() && move_edge(&z, &e[0], 0.01).is_none());
     }
 
     #[test]

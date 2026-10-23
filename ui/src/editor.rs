@@ -18,6 +18,8 @@ window.kwed { background: alpha(#000000, 0.55); }
 .zone button, .topbar button { background: alpha(#1c1c22, 0.95); color: #e8e8ee; border: 1px solid alpha(#ffffff, 0.15); border-radius: 6px; padding: 4px 8px; box-shadow: none; }
 .zone button:hover, .topbar button:hover { background: alpha(#7aa2f7, 0.55); }
 .zone button.del:hover { background: #e5484d; }
+.handle { background: alpha(#ffffff, 0.35); border-radius: 6px; }
+.handle:hover { background: #ffffff; }
 .topbar { background: alpha(#1c1c22, 0.97); border-radius: 10px; padding: 8px 12px; color: #e8e8ee; }
 ";
 
@@ -39,7 +41,7 @@ fn t(en: &'static str) -> &'static str {
     }
 }
 
-struct Ed { fixed: Fixed, zones: RefCell<Vec<Zone>>, size: (i32, i32) }
+struct Ed { fixed: Fixed, handles: Fixed, zones: RefCell<Vec<Zone>>, size: (i32, i32) }
 
 fn screen() -> (i32, i32) {
     let o = Command::new("hyprctl").args(["monitors", "-j"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
@@ -76,7 +78,7 @@ fn redraw(ed: &Rc<Ed>) {
         let mk = |glyph: &str, tip: &'static str, css: Option<&str>, f: Box<dyn Fn(&mut Vec<Zone>)>| {
             let b = icon_button(glyph, t(tip), css);
             let ed = ed.clone();
-            b.connect_clicked(move |_| { f(&mut ed.zones.borrow_mut()); redraw(&ed); });
+            b.connect_clicked(move |_| { f(&mut ed.zones.borrow_mut()); redraw(&ed); rebuild_handles(&ed); });
             row.append(&b);
         };
         mk("◫", "Split left / right", None, Box::new(move |v| zones::split(v, i, true)));
@@ -86,6 +88,36 @@ fn redraw(ed: &Rc<Ed>) {
         boxw.append(&num);
         boxw.append(&row);
         ed.fixed.put(&boxw, x as f64 + 2.0, y as f64 + 2.0);
+    }
+}
+
+// Draggable handles over the inner edges. Dragging re-draws the zones live but keeps the handle widgets, so the
+// gesture survives; the handles are rebuilt when the drag ends or a zone is split/deleted.
+fn rebuild_handles(ed: &Rc<Ed>) {
+    while let Some(c) = ed.handles.first_child() { ed.handles.remove(&c); }
+    let base = ed.zones.borrow().clone();
+    for e in zones::edges(&base) {
+        let (w, h) = (ed.size.0 as f64, ed.size.1 as f64);
+        let (x, y, bw, bh) = if e.vertical { (e.pos * w - 6.0, e.from * h, 12, ((e.to - e.from) * h) as i32) } else { (e.from * w, e.pos * h - 6.0, ((e.to - e.from) * w) as i32, 12) };
+        let hd = GtkBox::new(Orientation::Horizontal, 0);
+        hd.add_css_class("handle");
+        hd.set_size_request(bw, bh);
+        hd.set_cursor_from_name(Some(if e.vertical { "col-resize" } else { "row-resize" }));
+        let g = gtk4::GestureDrag::new();
+        let (ed2, base2, e2, hd2) = (ed.clone(), base.clone(), e.clone(), hd.clone());
+        g.connect_drag_update(move |_, dx, dy| {
+            let to = e2.pos + if e2.vertical { dx / ed2.size.0 as f64 } else { dy / ed2.size.1 as f64 };
+            if let Some(z) = zones::move_edge(&base2, &e2, to) {
+                *ed2.zones.borrow_mut() = z;
+                redraw(&ed2);
+                let off = (to - e2.pos) * if e2.vertical { ed2.size.0 as f64 } else { ed2.size.1 as f64 };
+                ed2.handles.move_(&hd2, x + if e2.vertical { off } else { 0.0 }, y + if e2.vertical { 0.0 } else { off });
+            }
+        });
+        let ed3 = ed.clone();
+        g.connect_drag_end(move |_, _, _| rebuild_handles(&ed3));
+        hd.add_controller(g);
+        ed.handles.put(&hd, x, y);
     }
 }
 
@@ -102,7 +134,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         let mut known: Vec<Layout> = zones::presets();
         known.extend(saved.iter().cloned());
         let first = start.as_ref().and_then(|n| known.iter().find(|l| &l.name == n)).cloned();
-        let ed = Rc::new(Ed { fixed: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: screen() });
+        let ed = Rc::new(Ed { fixed: Fixed::new(), handles: Fixed::new(), zones: RefCell::new(first.as_ref().map_or(vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]], |l| l.zones.clone())), size: screen() });
 
         let name = Entry::new();
         name.set_text(&first.as_ref().filter(|l| saved.iter().any(|s| s.name == l.name)).map_or(String::new(), |l| l.label.clone()));
@@ -122,6 +154,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
                 if let Some(g) = l2.gap { pad2.set_value(g as f64); }
                 if saved_name(&l2) { name2.set_text(&l2.label); }
                 redraw(&ed2);
+                rebuild_handles(&ed2);
                 pop2.popdown();
             });
             list.append(&b);
@@ -140,6 +173,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
 
         let overlay = gtk4::Overlay::new();
         overlay.set_child(Some(&ed.fixed));
+        overlay.add_overlay(&ed.handles);
         overlay.add_overlay(&bar);
         let win = ApplicationWindow::builder().application(app).child(&overlay).build();
         win.add_css_class("kwed");
@@ -171,6 +205,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         });
         win.add_controller(keys);
         redraw(&ed);
+        rebuild_handles(&ed);
         win.present();
     });
     app.run_with_args::<&str>(&[])
