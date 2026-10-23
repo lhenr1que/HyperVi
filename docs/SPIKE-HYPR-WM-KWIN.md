@@ -214,3 +214,10 @@ O dono, usando o plugin instalado com a janela do Claude encaixada, apontou (cap
 1. **Molduras:** o núcleo calculava a janela sem contar a barra, que fica **acima** da janela; com o topo em y = 28 (moldura 10 + vão 18) a barra caía em y = 0..28, em cima do vão e da moldura. Agora `work_area` soma a altura da barra: a do plugin (`plugin:kwinish:bar_height`, se `kwinish-bars` está carregado e `enabled`) ou `kw.bar_height` (para as barras de reserva), então a janela começa em y = 56 e a barra em 28..56, dentro da moldura.
 2. **Restaurar:** o núcleo guarda o tamanho original e o plugin recebe as duas geometrias por `hl.plugin.kwinish.remember(address, ox, oy, ow, oh, sx, sy, sw, sh)` (e `forget` ao restaurar pelo núcleo). Ao arrastar a barra de uma janela que continua onde o encaixe a deixou, depois de 6 px de movimento o plugin devolve o tamanho antigo, mantém o ponteiro na mesma fração da barra e reinicia o modo de mover do compositor para que o ponto de agarre bata com a nova geometria.
 - **Não testado:** tudo acima; é preciso descarregar o plugin instalado e carregar o de `plugin/` (mesmo nome) e carregar o núcleo da pasta do projeto por eval. Depois do teste é preciso reconstruir e reinstalar os pacotes.
+
+## Molduras e restaurar: testados (24/10/2026)
+Plugin de `plugin/` carregado no lugar do instalado, núcleo da pasta do projeto, workspace 9:
+- **Moldura:** soltar na borda esquerda deu `(78, 56) 901x996` e na superior `(78, 56) 1814x996` (a barra em 28..56, dentro da moldura do Ryoku; captura de tela conferida).
+- **Desencaixar:** arrastar a barra da janela encaixada devolveu o tamanho `450x250`, com o ponteiro na mesma fração da barra (46,9 % contra 46,8 %) e a janela em (389, 274) sob o cursor.
+- **Ajuste do núcleo:** se a janela foi movida ou redimensionada depois do encaixe (inclusive por desencaixar), o novo "tamanho de antes" passa a ser essa geometria: encaixar, mover à mão para (700, 500) 500x300, encaixar em outro lugar e repetir o pedido devolveu exatamente (700, 500) 500x300.
+- Não testado: encaixe por teclado com a janela vinda do plugin, vários monitores, o plugin instalado depois de reconstruir o pacote.

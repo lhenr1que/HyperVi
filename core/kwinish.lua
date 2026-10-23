@@ -81,9 +81,14 @@ local function place(w, r, key)
     return
   end
   if not s then saved[w.address] = { rect = rect_of(w), was_floating = w.floating, key = key }
-  else s.key = key end
+  else
+    -- moved or resized since the last snap (e.g. unsnapped by dragging): that geometry is the one to come back to
+    if s.snap and not geometry.same(rect_of(w), s.snap) then s.rect, s.was_floating = rect_of(w), w.floating end
+    s.key = key
+  end
   if not w.floating then hl.dispatch(hl.dsp.window.float({ action = "enable", window = "address:" .. w.address })) end
   put(w, r)
+  saved[w.address].snap = r
   local o = saved[w.address].rect
   plugin_call("remember", w.address, o.x, o.y, o.w, o.h, r.x, r.y, r.w, r.h)
 end
