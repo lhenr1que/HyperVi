@@ -29,7 +29,12 @@ in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo
 `docs/PLUGIN.md`.
 
 ## Try it
-1. Core: copy or link `core/` to `~/.local/share/kwinish/core`, add `recipes/hyprland-snippet.lua` to your `hyprland.lua`
+> **The plugin alone is not enough.** Snap, the drag preview, Shift-drag zones, the window menu actions and every bind live in
+> the Lua core. If `require("kwinish")` is not in your Hyprland config (step 1), dragging a bar only moves the window; the plugin
+> shows a one-time warning when it sees a drag with no core. Loading the core with `hyprctl eval` works for tests but is lost on
+> every config reload or restart.
+
+1. Core (required): copy or link `core/` to `~/.local/share/kwinish/core`, add `recipes/hyprland-snippet.lua` to your `hyprland.lua`
    (check with `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`), optionally paste blocks from `recipes/native.lua`.
 2. UI: `cargo build --release` in `ui/`, put `kwinish-ui` on your `PATH`, start it from `exec-once` (Alt+Tab overlay) and
    `kwinish-ui bars` for the fallback bars.

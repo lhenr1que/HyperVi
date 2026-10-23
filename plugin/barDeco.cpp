@@ -217,6 +217,12 @@ void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
     }
     g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
     m_bDraggingThis = true;
+    // no zones at all: the Lua core is not loaded (or the config reload dropped it), so snapping and previews cannot work
+    if (g_pGlobalState->zones.empty() && !g_pGlobalState->warnedNoCore) {
+        g_pGlobalState->warnedNoCore = true;
+        HyprlandAPI::addNotification(PHANDLE, "[kwinish] The Lua core is not loaded: edge snapping and layout zones are off. Add require(\"kwinish\") to your Hyprland config (see the README).",
+                                     CHyprColor{1.0, 0.7, 0.2, 1.0}, 9000);
+    }
 }
 
 void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
