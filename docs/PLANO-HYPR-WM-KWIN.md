@@ -140,3 +140,9 @@ O daemon detecta a versão no start (`hyprctl version` via socket) e **desliga p
 
 Custo honesto: são duas linguagens (Lua e Rust) em vez de uma. Em troca, o núcleo fica pequeno e sem daemon. Risco novo a validar no spike: o **Lua do 0.56.2 não vê o fim do arrasto nem soltura de tecla em submap** (já visto no Ryoku); a UI em Rust cobre o Alt+Tab, mas o fim do arrasto continua em aberto (R3).
 O ponto de decisão que sobra para o dono: confirmar "Lua no núcleo + Rust na UI" (recomendado) ou "tudo em Rust/Go com daemon".
+
+## Revisão 2 (24/10/2026): barra de título em duas camadas
+Decisão do dono ("caminho do meio"):
+1. **Padrão, já feito:** `kwinish-ui bars`, barra layer-shell que funciona em qualquer Hyprland 0.55+ só com o pacote. Limites estruturais: fica acima de todas as janelas (por isso é recortada ou escondida quando outra janela a cobre) e não é desenhada junto com a janela.
+2. **Opcional e separado, só com aprovação:** um plugin C++ de decoração (como o hyprbars) para quem quiser a barra de verdade, no nível da janela, sem recorte nem sobreposição. Custos aceitos como opcionais: depende da ABI de cada versão do Hyprland, exige `hyprpm`/compilação e, se falhar, derruba o compositor. Não entra no pacote principal; seria um pacote à parte (`kwinish-bars-plugin`).
+- Antes de decidir investir no plugin próprio, comparar o visual com o `hyprbars.so` que já está em `/usr/lib/hyprland/plugins/` (carregar plugin na sessão real é arriscado: só com ok explícito do dono).

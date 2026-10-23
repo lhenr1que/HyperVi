@@ -99,3 +99,6 @@ Licença: MIT (arquivo `LICENSE`, titular "lhen" como no git; **o dono não esco
 
 ## Barras: sem contorno no corte (24/10/2026)
 Pedido do dono: o contorno da barra é só do topo e dos lados da própria janela; onde outra janela corta a barra não deve nascer um contorno novo. A barra recortada agora recebe as classes `cut-left` e `cut-right` (CSS `border-left/right: none`) no lado cortado. Conferido em captura ampliada (corte à esquerda): sem linha vertical no corte; sobra só a borda de cima e a lateral externa. O corte à direita usa a mesma lógica, não foi fotografado. A linha logo abaixo da barra é a borda real de cima da janela, não da barra.
+
+## Barras: divisor removido (24/10/2026)
+A barra agora termina na borda de cima da janela (margem superior `y - 28`, antes `y - borda - 28`), então o fundo da barra cobre a borda de cima da janela e as laterais se emendam sem linha divisória. Conferido em captura ampliada. A borda de cima volta a aparecer sozinha quando a barra está escondida. Não testado: `rounding` maior que 0.

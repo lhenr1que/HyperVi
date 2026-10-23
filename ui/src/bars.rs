@@ -110,7 +110,8 @@ impl Bar {
         let (bx0, bx1) = clip.unwrap_or((x - border, x + w + border));
         self.win.set_margin(Edge::Left, (bx0 - mx).max(0));
         self.win.set_margin(Edge::Right, (mx + mw - bx1).max(0));
-        self.win.set_margin(Edge::Top, (y - border - BAR_H - my).max(0));
+        // bottom edge sits on the window's top edge, so the bar's background covers the compositor's top border
+        self.win.set_margin(Edge::Top, (y - BAR_H - my).max(0));
         self.pos.set((x, y, w));
     }
 }
@@ -291,7 +292,7 @@ fn reconcile(app: &Application, st: &State, o: &Opts) {
         let dragging = bar.drag.borrow().is_some();
         // `j/clients` lists windows bottom to top: windows later in the list can cover this bar's strip,
         // so the bar is clipped to the widest stretch they leave free (hidden if too narrow)
-        let strip = Rect { x: r.x - border, y: r.y - border - BAR_H, w: r.w + 2 * border, h: BAR_H };
+        let strip = Rect { x: r.x - border, y: r.y - BAR_H, w: r.w + 2 * border, h: BAR_H };
         let idx = cl.iter().position(|d| d["address"] == c["address"]).unwrap_or(0);
         let covers: Vec<(i32, i32)> = cl.iter().skip(idx + 1)
             .filter(|d| d["floating"] == true && visible(d).is_some() && d["workspace"]["id"] == c["workspace"]["id"])
