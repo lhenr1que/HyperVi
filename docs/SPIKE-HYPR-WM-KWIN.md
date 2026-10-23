@@ -108,3 +108,12 @@ Teste ao vivo com `decoration:rounding = 12` (via `hyprctl eval hl.config`, reve
 - **Funciona:** a barra releu o arredondamento sozinha em ~1 s e passou a ter cantos de cima com raio 12 (mudança em tempo de execução OK).
 - **Defeito:** a barra termina reta sobre a borda de cima da janela, mas a janela tem os cantos de cima curvos; sob os dois cantos da barra aparece um entalhe transparente onde a curva da janela se afasta (visível na captura ampliada). Com rounding 0 (config do dono) não ocorre.
 - **Caminhos:** (a) preencher o entalhe: estender a barra R px para baixo nas laterais com um preenchimento côncavo (região fora do arco do canto da janela, sem cobrir o anel da borda que o compositor desenha), via `DrawingArea`/cairo; (b) regra `rounding 0` só para janelas com barra (perde os cantos de baixo); (c) a barra cobrir os R px de cima do conteúdo da janela (perde linhas do app). Recomendo (a).
+
+## Barras: preenchimento côncavo (24/10/2026)
+- **Feito:** com `decoration:rounding` R > 0 a superfície da barra ganha R px de altura. A parte de baixo é um `DrawingArea` (cairo) que, em cada lado: (1) continua a borda lateral reta por R px na cor da borda; (2) preenche com a cor da barra a região entre a lateral e o canto curvo do conteúdo da janela, que é uma superelipse `|dx/R|^p + |dy/R|^p = 1` com `p = decoration:rounding_power` (4,0 na config do dono). Barra e janela viram uma forma só. O lado cortado por outra janela (`cut-left`/`cut-right`) não desenha seu pedaço.
+- **Clique atravessa:** a região de entrada da superfície é só a linha da barra (`set_input_region`); clicar na faixa transparente logo abaixo da barra (dentro do preenchimento) focou a janela de baixo (teste ao vivo).
+- **Dinâmico:** com `rounding = 12` (via `hyprctl eval`) as barras passaram a 40 px de altura e os cantos apareceram; depois de `hyprctl reload` (rounding 0) voltaram a 28 px sem reiniciar.
+- **Corrigido no caminho:** a primeira versão pintava uma faixa escura sob a barra (fundo padrão da janela GTK); a classe `kwwin` torna o fundo transparente.
+- **Testes:** `cargo test` (4): trecho livre, retângulos, curva do canto (circular passa por `R(1-cos 45°)`), parse de cor.
+- **Não testado:** `rounding_power` diferente de 4 na tela (a curva é a mesma fórmula, mas só olhei visualmente o 4); corte lateral com arredondamento; raio grande (> altura da barra); vários monitores. A região de entrada fixa em 32767 px de largura.
+- Nome do projeto: **Kwinish** mantido por enquanto (decisão do dono, sem conflito no AUR nem no GitHub).

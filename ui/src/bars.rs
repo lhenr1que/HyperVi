@@ -15,43 +15,95 @@ use std::time::Duration;
 const BAR_H: i32 = 28;
 const SNAP_PX: f64 = 3.0;
 
+type Rgba = [f64; 4];
+
 #[derive(Clone, PartialEq)]
-struct Style { border: i32, radius: i32, active: String, inactive: String }
+struct Style { border: i32, radius: i32, power: f64, active: Rgba, inactive: Rgba }
+
+const BG: Rgba = [0x1c as f64 / 255.0, 0x1c as f64 / 255.0, 0x22 as f64 / 255.0, 0.88];
+const BG_ACTIVE: Rgba = [0x26 as f64 / 255.0, 0x26 as f64 / 255.0, 0x2e as f64 / 255.0, 0.97];
 
 // Hyprland prints gradients as "aarrggbb 0deg"; the first stop is enough for a flat border.
-fn css_color(g: &str, fallback: &str) -> String {
+fn parse_color(g: &str, fallback: Rgba) -> Rgba {
     let h = g.split_whitespace().next().unwrap_or("");
     if h.len() == 8 && h.chars().all(|c| c.is_ascii_hexdigit()) {
-        let v = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0);
-        format!("rgba({}, {}, {}, {:.2})", v(2), v(4), v(6), v(0) as f64 / 255.0)
+        let v = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0) as f64 / 255.0;
+        [v(2), v(4), v(6), v(0)]
     } else {
-        fallback.to_string()
+        fallback
     }
+}
+
+fn rgba_css(c: &Rgba) -> String {
+    format!("rgba({}, {}, {}, {:.2})", (c[0] * 255.0).round(), (c[1] * 255.0).round(), (c[2] * 255.0).round(), c[3])
 }
 
 fn read_style() -> Style {
     let int = |o: &str, d: i64| json(&format!("j/getoption {o}"))["int"].as_i64().unwrap_or(d) as i32;
-    let col = |o: &str, d: &str| css_color(json(&format!("j/getoption {o}"))["gradient"].as_str().unwrap_or(""), d);
+    let col = |o: &str, d: Rgba| parse_color(json(&format!("j/getoption {o}"))["gradient"].as_str().unwrap_or(""), d);
     Style {
         border: int("general:border_size", 1).max(0),
         radius: int("decoration:rounding", 0).max(0),
-        active: col("general:col.active_border", "#c8c3dc"),
-        inactive: col("general:col.inactive_border", "#141318"),
+        power: json("j/getoption decoration:rounding_power")["float"].as_f64().unwrap_or(2.0).clamp(1.0, 10.0),
+        active: col("general:col.active_border", [0.78, 0.76, 0.86, 1.0]),
+        inactive: col("general:col.inactive_border", [0.08, 0.07, 0.09, 1.0]),
     }
 }
 
 fn css(st: &Style) -> String {
     format!(
-        ".kwbar {{ background: alpha(#1c1c22, 0.88); color: #b8b8c4; padding: 0 6px 0 12px; border: {b}px solid {i}; border-bottom: none; border-radius: {r}px {r}px 0 0; }}
-.kwbar.active {{ background: alpha(#26262e, 0.97); color: #f0f0f6; border-color: {a}; }}
+        "window.kwwin {{ background: transparent; }}
+.kwbar {{ background: {bg}; color: #b8b8c4; padding: 0 6px 0 12px; border: {b}px solid {i}; border-bottom: none; border-radius: {r}px {r}px 0 0; }}
+.kwbar.active {{ background: {bga}; color: #f0f0f6; border-color: {a}; }}
 .kwbar.cut-left {{ border-left: none; }}
 .kwbar.cut-right {{ border-right: none; }}
 .kwbar label {{ font-size: 12px; font-weight: 600; }}
 .kwbar button {{ background: transparent; border: none; box-shadow: none; min-width: 26px; min-height: 22px; padding: 0; color: inherit; border-radius: {br}px; }}
 .kwbar button:hover {{ background: alpha(#ffffff, 0.14); }}
 .kwbar button.close:hover {{ background: #e5484d; color: white; }}",
-        b = st.border, r = st.radius, i = st.inactive, a = st.active, br = st.radius.min(6)
+        b = st.border, r = st.radius, i = rgba_css(&st.inactive), a = rgba_css(&st.active),
+        bg = rgba_css(&BG), bga = rgba_css(&BG_ACTIVE), br = st.radius.min(6)
     )
+}
+
+// Corner points of the window content's rounded corner (top-left, window origin at 0,0, radius r, curve power p):
+// from (0, r) to (r, 0). Hyprland rounds corners as a superellipse |dx/r|^p + |dy/r|^p = 1.
+fn corner_curve(r: f64, p: f64, n: usize) -> Vec<(f64, f64)> {
+    (0..=n).map(|k| {
+        let t = std::f64::consts::FRAC_PI_2 * k as f64 / n as f64;
+        (r - r * t.cos().powf(2.0 / p), r - r * t.sin().powf(2.0 / p))
+    }).collect()
+}
+
+#[derive(Clone)]
+struct Fill { style: Style, active: bool, cut_left: bool, cut_right: bool, width: f64 }
+
+// Draws, under the bar, the part that makes bar and window one shape when the window has rounded corners:
+// a straight border strip on each side plus bar-coloured fill between the strip and the curved content corner.
+fn draw_fill(cr: &gtk4::cairo::Context, f: &Fill) {
+    let (r, b) = (f.style.radius as f64, f.style.border as f64);
+    if r <= 0.0 { return }
+    let bg = if f.active { BG_ACTIVE } else { BG };
+    let bc = if f.active { f.style.active } else { f.style.inactive };
+    let curve = corner_curve(r, f.style.power, 24);
+    for left in [true, false] {
+        if (left && f.cut_left) || (!left && f.cut_right) { continue }
+        // local x of the window's own edge: b from the left; width - b from the right
+        let edge = if left { b } else { f.width - b };
+        let dir = if left { 1.0 } else { -1.0 };
+        let px = |x: f64| edge + dir * x;
+        cr.set_source_rgba(bc[0], bc[1], bc[2], bc[3]);
+        if b > 0.0 {
+            cr.rectangle(if left { 0.0 } else { f.width - b }, 0.0, b, r);
+            let _ = cr.fill();
+        }
+        cr.set_source_rgba(bg[0], bg[1], bg[2], bg[3]);
+        cr.move_to(px(0.0), 0.0);
+        cr.line_to(px(r), 0.0);
+        for &(cx, cy) in curve.iter().rev() { cr.line_to(px(cx), cy); }
+        cr.close_path();
+        let _ = cr.fill();
+    }
 }
 
 fn hypr(cmd: &str) -> String {
@@ -97,6 +149,8 @@ struct Drag { g0: (f64, f64), w0: (i32, i32) }
 struct Bar {
     win: ApplicationWindow,
     root: GtkBox,
+    fill: Rc<RefCell<Fill>>,
+    da: gtk4::DrawingArea,
     title: Label,
     pos: Cell<(i32, i32, i32)>, // window x, y, width as last placed
     mon: Cell<(i32, i32, i32)>, // monitor origin and logical width
@@ -134,8 +188,31 @@ fn make_bar(app: &Application, addr: &str, mon: (i32, i32, i32), border: Rc<Cell
     root.append(&max_b);
     root.append(&close_b);
 
-    let win = ApplicationWindow::builder().application(app).child(&root).default_height(BAR_H).build();
     root.set_size_request(-1, BAR_H);
+    let fill = Rc::new(RefCell::new(Fill { style: read_style(), active: false, cut_left: false, cut_right: false, width: 0.0 }));
+    let da = gtk4::DrawingArea::new();
+    da.set_can_target(false);
+    da.set_content_height(fill.borrow().style.radius);
+    da.set_draw_func({
+        let fill = fill.clone();
+        move |w, cr, width, _| {
+            let mut f = fill.borrow().clone();
+            f.width = width as f64;
+            let _ = w;
+            draw_fill(cr, &f);
+        }
+    });
+    let outer = GtkBox::new(Orientation::Vertical, 0);
+    outer.append(&root);
+    outer.append(&da);
+    let win = ApplicationWindow::builder().application(app).child(&outer).default_height(BAR_H).build();
+    win.add_css_class("kwwin");
+    // only the bar row takes input; the filler below it must let clicks through to the window
+    win.connect_map(|w| {
+        if let Some(surface) = w.surface() {
+            surface.set_input_region(Some(&gtk4::cairo::Region::create_rectangle(&gtk4::cairo::RectangleInt::new(0, 0, 32767, BAR_H))));
+        }
+    });
     win.init_layer_shell();
     win.set_layer(Layer::Top);
     win.set_namespace(Some("kwinish-bar"));
@@ -144,7 +221,7 @@ fn make_bar(app: &Application, addr: &str, mon: (i32, i32, i32), border: Rc<Cell
     win.set_anchor(Edge::Top, true);
     win.set_anchor(Edge::Left, true);
     win.set_anchor(Edge::Right, true);
-    let bar = Rc::new(Bar { win, root, title, pos: Cell::new((0, 0, -1)), mon: Cell::new(mon), drag: RefCell::new(None) });
+    let bar = Rc::new(Bar { win, root, fill, da, title, pos: Cell::new((0, 0, -1)), mon: Cell::new(mon), drag: RefCell::new(None) });
 
     let a = addr.to_string();
     max_b.connect_clicked({ let a = a.clone(); move |_| action(&a, "tile:max") });
@@ -248,6 +325,12 @@ fn reconcile(app: &Application, st: &State, o: &Opts) {
         if now != *st.style.borrow() {
             st.provider.load_from_data(&css(&now));
             st.border.set(now.border);
+            for b in st.bars.borrow().values() {
+                b.fill.borrow_mut().style = now.clone();
+                b.da.set_content_height(now.radius);
+                b.win.set_default_size(-1, BAR_H);
+                b.da.queue_draw();
+            }
             *st.style.borrow_mut() = now;
         }
     }
@@ -289,6 +372,11 @@ fn reconcile(app: &Application, st: &State, o: &Opts) {
         bar.mon.set(mon);
         bar.title.set_text(c["title"].as_str().unwrap_or(""));
         if addr == active { bar.root.add_css_class("active") } else { bar.root.remove_css_class("active") }
+        { // a bar created after the last style refresh starts from the current style
+            let mut f = bar.fill.borrow_mut();
+            if f.style != *st.style.borrow() { f.style = st.style.borrow().clone(); bar.da.set_content_height(f.style.radius); }
+            if f.active != (addr == active) { f.active = addr == active; bar.da.queue_draw(); }
+        }
         let dragging = bar.drag.borrow().is_some();
         // `j/clients` lists windows bottom to top: windows later in the list can cover this bar's strip,
         // so the bar is clipped to the widest stretch they leave free (hidden if too narrow)
@@ -305,6 +393,11 @@ fn reconcile(app: &Application, st: &State, o: &Opts) {
                 // a side cut by another window gets no border: the outline belongs only to the top and the window's own sides
                 for (class, cut) in [("cut-left", g.0 > strip.x), ("cut-right", g.1 < strip.x + strip.w)] {
                     if cut { bar.root.add_css_class(class) } else { bar.root.remove_css_class(class) }
+                }
+                {
+                    let mut f = bar.fill.borrow_mut();
+                    let (cl, cr) = (g.0 > strip.x, g.1 < strip.x + strip.w);
+                    if f.cut_left != cl || f.cut_right != cr { f.cut_left = cl; f.cut_right = cr; bar.da.queue_draw(); }
                 }
                 bar.win.set_visible(true);
             }
@@ -347,7 +440,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{widest_gap, Rect};
+    use super::{corner_curve, parse_color, widest_gap, Rect};
 
     #[test]
     fn rect_hits() {
@@ -366,5 +459,23 @@ mod tests {
         assert_eq!(widest_gap(0, 100, &[(0, 95)], 10), None); // too narrow to show
         assert_eq!(widest_gap(0, 100, &[(-5, 120)], 10), None); // fully covered
         assert_eq!(widest_gap(0, 100, &[(10, 40), (30, 80)], 10), Some((80, 100))); // overlapping covers merge
+    }
+
+    #[test]
+    fn curve_runs_from_left_edge_to_top_edge() {
+        let c = corner_curve(12.0, 2.0, 24);
+        let (first, last) = (c[0], c[24]);
+        assert!((first.0 - 0.0).abs() < 1e-9 && (first.1 - 12.0).abs() < 1e-9);
+        assert!((last.0 - 12.0).abs() < 1e-9 && (last.1 - 0.0).abs() < 1e-9);
+        // a circle passes through the 45 degree point at r * (1 - cos 45 deg)
+        let mid = c[12];
+        assert!((mid.0 - 12.0 * (1.0 - 0.5f64.sqrt())).abs() < 1e-6 && (mid.1 - mid.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn colour_parse() {
+        let c = parse_color("ffc8c3dc 0deg", [0.0; 4]);
+        assert!((c[0] - 200.0 / 255.0).abs() < 1e-9 && (c[3] - 1.0).abs() < 1e-9);
+        assert_eq!(parse_color("nope", [1.0, 0.0, 0.0, 1.0]), [1.0, 0.0, 0.0, 1.0]);
     }
 }
