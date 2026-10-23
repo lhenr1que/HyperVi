@@ -26,8 +26,9 @@ end
 function M.install(kw, opts)
   opts = opts or {}
   if opts.switcher then -- Alt+Tab; releasing Alt is seen by switcher.setup(), no submap needed
-    hl.bind("ALT + Tab", function() opts.switcher.step(1) end)
-    hl.bind("ALT + SHIFT + Tab", function() opts.switcher.step(-1) end)
+    local keys = opts.switcher_keys or { "ALT + Tab", "ALT + SHIFT + Tab" } -- the switcher commits on Alt release, so keep ALT
+    hl.bind(keys[1], function() opts.switcher.step(1) end)
+    hl.bind(keys[2], function() opts.switcher.step(-1) end)
   end
   if opts.menu then hl.bind(opts.menu, function() kw.menu() end) end -- e.g. menu = "ALT + F3"; needs kwinish-ui on PATH
   for _, b in ipairs(M.list(opts.mod)) do
