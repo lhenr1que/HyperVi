@@ -37,7 +37,7 @@ fn tog(label: &str, on: bool, action: &str) -> Item {
 
 // What the menu needs to know about the window; read from `hyprctl clients`, where the core also leaves tags.
 #[derive(Default)]
-struct State { floating: bool, pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
+struct State { class: String, floating: bool, pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
 
 fn hyprctl(args: &[&str]) -> String {
     Command::new("hyprctl").args(args).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
@@ -48,6 +48,7 @@ fn read_state(addr: &str) -> State {
     let clients: serde_json::Value = serde_json::from_str(&hyprctl(&["clients", "-j"])).unwrap_or_default();
     if let Some(c) = clients.as_array().and_then(|a| a.iter().find(|c| c["address"] == addr)) {
         let tag = |t: &str| c["tags"].as_array().map_or(false, |v| v.iter().any(|x| x == t));
+        st.class = c["class"].as_str().unwrap_or("").to_string();
         st.floating = c["floating"] == true;
         st.pinned = c["pinned"] == true;
         st.maximized = c["fullscreen"].as_i64() == Some(1);
@@ -103,6 +104,15 @@ fn t(en: &'static str) -> &'static str {
         "Maximize horizontally" => "Maximizar na horizontal",
         "Maximize vertically" => "Maximizar na vertical",
         "Close" => "Fechar",
+        "Window rules" => "Regras da janela",
+        "Remember position and size" => "Lembrar posição e tamanho",
+        "Always on workspace" => "Sempre na área",
+        "Always on this workspace" => "Sempre nesta área de trabalho",
+        "Always keep above others" => "Sempre manter acima das outras",
+        "Always keep below others" => "Sempre manter abaixo das outras",
+        "Always without title bar and frame" => "Sempre sem barra de título e moldura",
+        "Always hide from captures" => "Sempre ocultar de capturas",
+        "Forget rules for this app" => "Esquecer as regras deste app",
         "Edit zones..." => "Editar zonas...",
         other => other,
     }
@@ -135,6 +145,30 @@ fn layout_items() -> Vec<Item> {
     items
 }
 
+// Rules saved for this window's app (core/rules.lua writes ~/.config/kwinish/rules.json).
+fn rules_for(class: &str) -> serde_json::Value {
+    let path = crate::zones::file_path().with_file_name("rules.json");
+    let all: serde_json::Value = std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    all[class].clone()
+}
+
+fn rule_items(st: &State) -> Vec<Item> {
+    let r = rules_for(&st.class);
+    let on = |k: &str| !r[k].is_null();
+    let mut items = vec![];
+    if st.floating { items.push(tog(t("Remember position and size"), on("rect"), "rule:rect")); }
+    items.push(tog(&match r["workspace"].as_i64() { Some(n) => format!("{} {n}", t("Always on workspace")), None => t("Always on this workspace").to_string() }, on("workspace"), "rule:workspace"));
+    items.push(tog(t("Always keep above others"), on("above"), "rule:above"));
+    items.push(tog(t("Always keep below others"), on("below"), "rule:below"));
+    items.push(tog(t("Always without title bar and frame"), on("noframe"), "rule:noframe"));
+    items.push(tog(t("Always hide from captures"), on("nocapture"), "rule:nocapture"));
+    if r.as_object().map_or(false, |o| !o.is_empty()) {
+        items.push(Item::Sep);
+        items.push(act(t("Forget rules for this app"), "rule:forget"));
+    }
+    items
+}
+
 fn build(st: &State) -> Vec<Item> {
     let mut ws = vec![tog(t("All workspaces"), st.pinned, "pin"), Item::Sep];
     for id in &st.workspaces {
@@ -151,6 +185,10 @@ fn build(st: &State) -> Vec<Item> {
     ];
     // snapping only acts on floating windows (the core ignores tiled ones), so tiled windows do not get the submenu
     let mut more = if st.floating { vec![Item::Sub { label: t("Snap").into(), items: snap }] } else { vec![] };
+    // rules are per app class; windows without a class (popups) get none
+    if !st.class.is_empty() && st.class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c)) {
+        more.push(Item::Sub { label: t("Window rules").into(), items: rule_items(st) });
+    }
     more.extend(vec![
         Item::Sub { label: t("Tiling layout").into(), items: layout_items() },
         tog(t("Keep below others"), st.below, "below"),

@@ -4,6 +4,7 @@
 --   hl.bind("SUPER + Left", function() kw.tile("left") end)
 local geometry = require("geometry")
 local layouts = require("layouts")
+local rules = require("rules")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -192,6 +193,48 @@ local function toggle_nocapture(w)
   set_tag(w, "kwinish-nocapture", on)
   hl.dispatch(hl.dsp.window.set_prop({ prop = "no_screen_share", value = on and "1" or "unset", window = "address:" .. w.address }))
 end
+-- Per-app rules (rules.lua), kept in ~/.config/kwinish/rules.json and applied a moment after a window opens.
+local function cfg_dir() return (os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config")) .. "/kwinish" end
+
+local function load_rules()
+  local f = io.open(cfg_dir() .. "/rules.json", "r")
+  local text = f and f:read("*a")
+  if f then f:close() end
+  return rules.parse(text)
+end
+
+local function save_rules(r)
+  os.execute("mkdir -p '" .. cfg_dir() .. "'")
+  local f = io.open(cfg_dir() .. "/rules.json", "w")
+  if f then f:write(rules.serialize(r), "\n"); f:close() end
+end
+
+function M.apply_rules(w)
+  local r = w and load_rules()[w.class]
+  if not r then return end
+  if r.noframe and not has_tag(w, "kwinish-noframe") then toggle_noframe(w) end
+  if r.nocapture and not has_tag(w, "kwinish-nocapture") then toggle_nocapture(w) end
+  if r.workspace then hl.dispatch(hl.dsp.window.move({ workspace = tostring(r.workspace), follow = false, window = "address:" .. w.address })) end
+  if r.rect and w.floating then put(w, { x = r.rect[1], y = r.rect[2], w = r.rect[3], h = r.rect[4] }) end
+  -- addresses are reused after a window closes, so trust the window's tag, not the table entry left by its predecessor
+  if r.above and not has_tag(w, "kwinish-above") then above[w.address] = nil; M.keep_above({ window = w })
+  elseif r.below and not has_tag(w, "kwinish-below") then below[w.address] = nil; M.keep_below({ window = w }) end
+end
+
+-- window_action "rule:<above|below|noframe|nocapture|workspace|rect|forget>": toggle that rule for the window's app.
+local function window_rule(w, arg)
+  local rs = load_rules()
+  if arg == "forget" then rules.forget(rs, w.class)
+  elseif rules.bools[arg] then rules.toggle(rs, w.class, arg, true)
+  elseif arg == "workspace" then rules.toggle(rs, w.class, "workspace", w.workspace and w.workspace.id)
+  elseif arg == "rect" and w.floating then
+    local r = rect_of(w)
+    rules.toggle(rs, w.class, "rect", { math.floor(r.x + 0.5), math.floor(r.y + 0.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5) })
+  else return end
+  save_rules(rs)
+  M.apply_rules(w) -- takes effect on this window too
+end
+
 -- opts.filter(w) limits both features to matching windows (tests use it).
 -- opts: placement = "smart"|"cascade"|"center"|"cursor" (new floating windows), autoraise_ms = delay before a focused floating window is raised.
 function M.setup(opts)
@@ -269,6 +312,7 @@ function M.window_action(addr, action)
     local rects = layout_rects(w.monitor)
     local r = rects[tonumber(arg) or 0]
     if r then place(w, r, "zone:" .. arg) end
+  elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
@@ -402,6 +446,18 @@ if not KWINISH_ZONE_HOOKS then
   end
 end
 M.publish_zones()
+
+if not KWINISH_RULES_HOOK then
+  KWINISH_RULES_HOOK = true
+  hl.on("window.open", function(w)
+    local addr = w.address -- re-fetched: the window may be gone, and needs a moment to map
+    hl.timer(function()
+      local win = hl.get_window("address:" .. addr)
+      local kw = package.loaded.kwinish
+      if win and win.mapped and kw then kw.apply_rules(win) end
+    end, { timeout = 150, type = "oneshot" })
+  end)
+end
 
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests
 return M
