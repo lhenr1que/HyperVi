@@ -141,12 +141,54 @@ function M.show_desktop(opts)
 end
 
 -- Keep above: windows in `above` are raised again whenever focus changes (floating windows only).
-local above = {}
+local above, below = {}, {}
 local hooked = false
+-- The state also goes into a window tag so other programs (the window menu) can read it from `hyprctl clients`.
+local function set_tag(w, name, on)
+  hl.dispatch(hl.dsp.window.tag({ tag = (on and "+" or "-") .. name, window = "address:" .. w.address }))
+end
+
+local function has_tag(w, name)
+  for _, t in ipairs(w.tags or {}) do if t == name then return true end end
+  return false
+end
+
 function M.keep_above(opts)
   local w = target(opts); if not w then return end
   above[w.address] = (not above[w.address]) or nil
-  if above[w.address] then hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address })) end
+  set_tag(w, "kwinish-above", above[w.address] ~= nil)
+  if above[w.address] then
+    below[w.address] = nil; set_tag(w, "kwinish-below", false)
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address }))
+  end
+end
+
+-- Keep below: sent to the bottom of the floating stack, and again whenever focus moves.
+function M.keep_below(opts)
+  local w = target(opts); if not w then return end
+  below[w.address] = (not below[w.address]) or nil
+  set_tag(w, "kwinish-below", below[w.address] ~= nil)
+  if below[w.address] then
+    above[w.address] = nil; set_tag(w, "kwinish-above", false)
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "bottom", window = "address:" .. w.address }))
+  end
+end
+
+-- No title bar, border or rounded corners (and hidden from screen capture): toggles, state kept in tags.
+local function toggle_noframe(w)
+  local on = not has_tag(w, "kwinish-noframe")
+  set_tag(w, "kwinish-noframe", on)
+  local sel = "address:" .. w.address
+  for _, prop in ipairs({ "border_size", "rounding" }) do
+    hl.dispatch(hl.dsp.window.set_prop({ prop = prop, value = on and "0" or "unset", window = sel }))
+  end
+  plugin_call("set_bar_hidden", w.address, on)
+end
+
+local function toggle_nocapture(w)
+  local on = not has_tag(w, "kwinish-nocapture")
+  set_tag(w, "kwinish-nocapture", on)
+  hl.dispatch(hl.dsp.window.set_prop({ prop = "no_screen_share", value = on and "1" or "unset", window = "address:" .. w.address }))
 end
 -- opts.filter(w) limits both features to matching windows (tests use it).
 -- opts: placement = "smart"|"cascade"|"center"|"cursor" (new floating windows), autoraise_ms = delay before a focused floating window is raised.
@@ -164,6 +206,11 @@ function M.setup(opts)
     hl.timer(function()
       for addr in pairs(above) do
         if hl.get_window("address:" .. addr) then raise(addr) else above[addr] = nil end
+      end
+      for addr in pairs(below) do
+        if hl.get_window("address:" .. addr) then
+          hl.dispatch(hl.dsp.window.alter_zorder({ mode = "bottom", window = "address:" .. addr }))
+        else below[addr] = nil end
       end
     end, { timeout = 30, type = "oneshot" })
     if opts.autoraise_ms and cur_addr then
@@ -208,7 +255,17 @@ function M.window_action(addr, action)
   elseif kind == "float" then hl.dispatch(hl.dsp.window.float({ action = "toggle", window = sel }))
   elseif kind == "fullscreen" then hl.dispatch(hl.dsp.window.fullscreen({ window = sel }))
   elseif kind == "close" then hl.dispatch(hl.dsp.window.close({ window = sel }))
+  elseif kind == "workspace" and arg == "new" then
+    local top = 0
+    for _, ws in ipairs(hl.get_workspaces()) do if ws.id and ws.id > top then top = ws.id end end
+    hl.dispatch(hl.dsp.window.move({ workspace = tostring(top + 1), window = sel }))
   elseif kind == "workspace" then hl.dispatch(hl.dsp.window.move({ workspace = arg, window = sel }))
+  elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
+  elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
+  elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
+  elseif kind == "below" then M.keep_below({ window = w })
+  elseif kind == "noframe" then toggle_noframe(w)
+  elseif kind == "nocapture" then toggle_nocapture(w)
   end
 end
 

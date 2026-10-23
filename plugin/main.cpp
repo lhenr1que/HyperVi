@@ -293,6 +293,21 @@ int luaSetZone(lua_State* L) {
     return 0;
 }
 
+// hl.plugin.kwinish.set_bar_hidden(address, hidden): the window menu's "no title bar and frame".
+int luaSetBarHidden(lua_State* L) {
+    if (!lua_isstring(L, 1) || !lua_isboolean(L, 2))
+        return Config::Lua::Bindings::Internal::configError(L, "set_bar_hidden: expected (address, boolean)");
+    const auto key = (uintptr_t)std::strtoull(lua_tostring(L, 1), nullptr, 0);
+    if (lua_toboolean(L, 2))
+        g_pGlobalState->hiddenBars.insert(key);
+    else
+        g_pGlobalState->hiddenBars.erase(key);
+    for (auto& b : g_pGlobalState->bars)
+        if (b && (uintptr_t)b->getOwner().get() == key)
+            b->onFloatingChanged(); // re-places the bar, which now reserves (or frees) its height
+    return 0;
+}
+
 int luaClearZones(lua_State*) {
     g_pGlobalState->zones.clear();
     return 0;
@@ -388,6 +403,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
     }
     static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
         // active/inactive colours: every bar repaints and re-renders its title when focus moves

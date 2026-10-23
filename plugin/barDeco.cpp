@@ -541,6 +541,8 @@ bool CHyprBar::barActive() {
     if (!g_pGlobalState->config.enabled->value() || m_hidden)
         return false;
     const auto W = m_pWindow.lock();
+    if (W && g_pGlobalState->hiddenBars.contains((uintptr_t)W.get()))
+        return false;
     return W && (!g_pGlobalState->config.floatingOnly->value() || W->m_isFloating);
 }
 
