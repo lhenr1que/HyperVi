@@ -72,10 +72,10 @@ static void installDefaultButtons() {
         }
         g_pGlobalState->buttons.push_back(std::move(b));
     };
-    add("\u25C6", "pin", true);
-    add("\u2715", "close", false, CHyprColor(0.90, 0.28, 0.30, 1.0));
-    add("\u25A1", "maximize", false);
-    add("\u2212", "minimize", false);
+    add("builtin:pin", "pin", true);
+    add("builtin:close", "close", false, CHyprColor(0.90, 0.28, 0.30, 1.0));
+    add("builtin:maximize", "maximize", false);
+    add("builtin:minimize", "minimize", false);
 }
 
 static void onConfigReloaded() {

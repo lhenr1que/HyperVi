@@ -541,7 +541,14 @@ void CHyprBar::renderBarButtonsText(CBox* barBox, const float scale, const float
         if ((!button.iconTex || button.iconTex->m_texID == 0) && !button.icon.empty()) {
             auto fgcol = button.userfg ? button.fgcol : (button.bgcol.r + button.bgcol.g + button.bgcol.b < 1) ? CHyprColor(0xFFFFFFFF) : CHyprColor(0xFF000000);
 
-            button.iconTex = g_pHyprRenderer->renderText(button.icon, fgcol, std::round(button.size * 0.62 * scale), false, "sans", scaledButtonSize);
+            if (button.icon.starts_with("builtin:")) {
+                // drawn glyph: same size and stroke for every button, independent of installed fonts
+                if (auto* surface = KwIcon::glyph(button.icon.substr(8), std::round(scaledButtonSize), fgcol.r, fgcol.g, fgcol.b, fgcol.a)) {
+                    button.iconTex = g_pHyprRenderer->createTexture(surface);
+                    cairo_surface_destroy(surface);
+                }
+            } else
+                button.iconTex = g_pHyprRenderer->renderText(button.icon, fgcol, std::round(button.size * 0.62 * scale), false, "sans", scaledButtonSize);
         }
 
         if (!button.iconTex || button.iconTex->m_texID == 0)

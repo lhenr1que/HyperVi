@@ -11,4 +11,8 @@ namespace KwIcon {
 
     // Renders a png or svg to a size x size ARGB32 surface, keeping the aspect ratio; nullptr on failure. Caller destroys.
     cairo_surface_t* load(const std::string& path, int size);
+
+    // Button glyphs drawn with strokes, so every button gets the same size and weight whatever fonts are installed.
+    // name: minimize maximize close pin (anything else gives nullptr). Caller destroys.
+    cairo_surface_t* glyph(const std::string& name, int px, double r, double g, double b, double a);
 }

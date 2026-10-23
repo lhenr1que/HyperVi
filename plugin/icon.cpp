@@ -181,3 +181,40 @@ cairo_surface_t* KwIcon::load(const std::string& path, int size) {
     }
     return out;
 }
+
+cairo_surface_t* KwIcon::glyph(const std::string& name, int px, double r, double g, double b, double a) {
+    if (px < 4 || (name != "minimize" && name != "maximize" && name != "close" && name != "pin"))
+        return nullptr;
+
+    auto*        out = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, px, px);
+    auto*        cr  = cairo_create(out);
+    const double p   = px * 0.28; // padding: the glyph is 44% of the button
+    const double lo = p, hi = px - p, mid = px / 2.0;
+
+    cairo_set_source_rgba(cr, r, g, b, a);
+    cairo_set_line_width(cr, std::max(1.0, px * 0.085));
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+    cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+
+    if (name == "minimize") {
+        cairo_move_to(cr, lo, mid);
+        cairo_line_to(cr, hi, mid);
+    } else if (name == "maximize") {
+        cairo_rectangle(cr, lo, lo, hi - lo, hi - lo);
+    } else if (name == "close") {
+        cairo_move_to(cr, lo, lo);
+        cairo_line_to(cr, hi, hi);
+        cairo_move_to(cr, hi, lo);
+        cairo_line_to(cr, lo, hi);
+    } else { // pin: head, bar, needle
+        const double hw = (hi - lo) * 0.28;
+        cairo_rectangle(cr, mid - hw, lo - px * 0.04, hw * 2, (hi - lo) * 0.5);
+        cairo_move_to(cr, lo + (hi - lo) * 0.1, lo + (hi - lo) * 0.5);
+        cairo_line_to(cr, hi - (hi - lo) * 0.1, lo + (hi - lo) * 0.5);
+        cairo_move_to(cr, mid, lo + (hi - lo) * 0.5);
+        cairo_line_to(cr, mid, hi + px * 0.04);
+    }
+    cairo_stroke(cr);
+    cairo_destroy(cr);
+    return out;
+}

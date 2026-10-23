@@ -55,7 +55,7 @@ KWin's bar: app icon and a pin button as well as the title.
   first icon lookup scans the desktop entries once, inside the compositor.
 - Default buttons when the config adds none (`default_buttons`, on): pin at the left, close, maximize, minimize at the
   right, flat Breeze-style glyphs with a hover background (red for close). The pin button shows a highlight while the
-  window is pinned. The pin glyph is a plain diamond for now (no font-independent pin shape).
+  window is pinned. Glyphs are drawn with strokes (`builtin:pin|minimize|maximize|close` as the button icon), so every button has the same size and weight whatever fonts are installed; custom buttons can still use any text as `icon`.
 - **Edge snap on drag release**: releasing a bar drag with the pointer within 3 px of a screen edge snaps the window
   (left/right half, top maximized). The window goes back to where the drag began first, so restore returns there. The
   placement itself is done by the Lua core (`kwinish.lua`, `window_action`), spawned through `hyprctl eval`; without the
