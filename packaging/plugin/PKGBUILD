@@ -1,0 +1,40 @@
+# Maintainer: lhen <lhenriqueds99@gmail.com>
+# The kwinish-bars Hyprland plugin (title bars), built for the Hyprland installed at build time. A plugin is locked to
+# one Hyprland build, so the package also ships its sources and a pacman hook that rebuilds it after hyprland changes.
+pkgname=kwinish-bars-plugin-git
+pkgver=0.0.0
+pkgrel=1
+pkgdesc='KWin-style title bars for Hyprland (compositor plugin, fork of hyprbars) with a rebuild hook'
+arch=('x86_64')
+url='https://example.invalid/kwinish'
+license=('MIT' 'BSD-3-Clause')
+depends=('hyprland' 'librsvg' 'cairo')
+makedepends=('git' 'gcc' 'make' 'pkgconf')
+optdepends=('gcc: automatic rebuild after a Hyprland update' 'make: automatic rebuild after a Hyprland update')
+provides=('kwinish-bars-plugin')
+conflicts=('kwinish-bars-plugin')
+source=("kwinish::git+file://${KWINISH_SRC:-$PWD/../..}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd kwinish
+  printf '0.0.0.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  make -C kwinish/plugin abi
+}
+
+package() {
+  cd kwinish
+  install -Dm755 plugin/kwinish-bars.so "$pkgdir/usr/lib/hyprland/plugins/kwinish-bars.so"
+  install -Dm644 plugin/kwinish-bars.abi "$pkgdir/usr/lib/hyprland/plugins/kwinish-bars.abi"
+  # sources for the rebuild hook
+  install -d "$pkgdir/usr/share/kwinish/plugin-src"
+  install -m644 plugin/{Makefile,barDeco.cpp,barDeco.hpp,BarPassElement.cpp,BarPassElement.hpp,globals.hpp,main.cpp,icon.cpp,icon.hpp,NOTICE,LICENSE.hyprland-plugins} "$pkgdir/usr/share/kwinish/plugin-src/"
+  install -m755 plugin/abi.sh "$pkgdir/usr/share/kwinish/plugin-src/"
+  install -Dm755 packaging/plugin/kwinish-bars-rebuild "$pkgdir/usr/bin/kwinish-bars-rebuild"
+  install -Dm644 packaging/plugin/kwinish-bars.hook "$pkgdir/usr/share/libalpm/hooks/kwinish-bars.hook"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 plugin/LICENSE.hyprland-plugins "$pkgdir/usr/share/licenses/$pkgname/LICENSE.hyprland-plugins"
+}
