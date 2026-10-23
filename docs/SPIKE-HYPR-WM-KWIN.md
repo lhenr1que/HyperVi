@@ -221,3 +221,11 @@ Plugin de `plugin/` carregado no lugar do instalado, núcleo da pasta do projeto
 - **Desencaixar:** arrastar a barra da janela encaixada devolveu o tamanho `450x250`, com o ponteiro na mesma fração da barra (46,9 % contra 46,8 %) e a janela em (389, 274) sob o cursor.
 - **Ajuste do núcleo:** se a janela foi movida ou redimensionada depois do encaixe (inclusive por desencaixar), o novo "tamanho de antes" passa a ser essa geometria: encaixar, mover à mão para (700, 500) 500x300, encaixar em outro lugar e repetir o pedido devolveu exatamente (700, 500) 500x300.
 - Não testado: encaixe por teclado com a janela vinda do plugin, vários monitores, o plugin instalado depois de reconstruir o pacote.
+
+## Pedido: o que o dono curte no KDE (24/10/2026)
+Capturas do KDE: (1) **menu de janela** com submenus (Áreas de trabalho, Mais ações: Mover, Redimensionar, Manter abaixo, Tela cheia, Sem barra e moldura, Ocultar de capturas, atalho da janela, regras da janela e do aplicativo) e barra com ícone, fixar, título e três botões; (2) **pré-visualização** da área que a janela vai ocupar ao soltar o botão; (3) **presets de tiling** com o editor de zonas (Meta+T, dividir esquerda/direita ou superior/inferior, bloco flutuante, preenchimento, carregar layout) e Shift ao arrastar para ver as zonas. Ordem combinada comigo: pré-visualização, menu, presets.
+
+## Pré-visualização do encaixe (24/10/2026, compila, a testar)
+- O núcleo Lua publica ao plugin as zonas `left`, `right` e `top` de cada monitor (`hl.plugin.kwinish.set_zone`, já com a barra incluída: `y - altura`, `h + altura`) ao carregar, e de novo em `monitor.layout_changed`, `monitor.added`, `config.reloaded` e `window.active`. Uma só fonte da geometria: o que a prévia mostra é o que o encaixe faz.
+- O plugin desenha a prévia como um elemento de render próprio (`PreviewPassElement`: retângulo translúcido arredondado com contorno), adicionado no `draw()` da barra enquanto a janela flutuante é arrastada pela barra e o ponteiro está numa borda (mesmo teste de 3 px do encaixe, exige 10 px de movimento desde o clique). Fica na pilha logo abaixo da janela arrastada, como no KDE. Config: `snap_preview` (padrão ligado), `preview_color` (padrão `#7aa2f7` a 25 %).
+- Não testado: tudo (precisa carregar o plugin de `plugin/` no lugar do instalado).

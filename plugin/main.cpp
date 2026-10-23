@@ -278,6 +278,26 @@ int luaForget(lua_State* L) {
     return 0;
 }
 
+// hl.plugin.kwinish.set_zone(monitor, name, x, y, w, h): the core publishes where each snap zone (left, right, top) puts a
+// window, so the drag preview shows exactly what the snap will do. clear_zones() forgets all of them.
+int luaSetZone(lua_State* L) {
+    if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
+        return Config::Lua::Bindings::Internal::configError(L, "set_zone: expected (monitor, name, x, y, w, h)");
+    double v[4];
+    for (int i = 0; i < 4; ++i) {
+        if (!lua_isnumber(L, 3 + i))
+            return Config::Lua::Bindings::Internal::configError(L, "set_zone: geometry values must be numbers");
+        v[i] = lua_tonumber(L, 3 + i);
+    }
+    g_pGlobalState->zones[lua_tostring(L, 1)][lua_tostring(L, 2)] = SZone{{v[0], v[1]}, {v[2], v[3]}};
+    return 0;
+}
+
+int luaClearZones(lua_State*) {
+    g_pGlobalState->zones.clear();
+    return 0;
+}
+
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
@@ -322,6 +342,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pGlobalState->config.inactiveBarColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_bar_color", "Bar colour of an unfocused window", 0xe01c1c22);
     g_pGlobalState->config.inactiveTextColor   = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_col.text", "Title colour of an unfocused window", 0xffb8b8c4);
     g_pGlobalState->config.snapTopEdge         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_top_edge", "Maximize a window dropped on the top screen edge", true);
+    g_pGlobalState->config.snapPreview         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_preview", "Show where a dragged window will land when it is released on a snap edge", true);
+    g_pGlobalState->config.previewColor        = makeShared<Config::Values::CColorValue>("plugin:kwinish:preview_color", "Colour of the snap preview (fill; the outline is the same colour, more opaque)", 0x407aa2f7);
     g_pGlobalState->config.showIcon            = makeShared<Config::Values::CBoolValue>("plugin:kwinish:show_icon", "Show the app icon at the left of the bar", true);
     g_pGlobalState->config.defaultButtons      = makeShared<Config::Values::CBoolValue>("plugin:kwinish:default_buttons", "Install the default buttons (pin, minimize, maximize, close) when none are configured", true);
     g_pGlobalState->config.buttonHoverColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:button_hover_color", "Background of a hovered button", 0x33ffffff);
@@ -350,6 +372,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveBarColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveTextColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.snapTopEdge);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.snapPreview);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.previewColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.showIcon);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.defaultButtons);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonHoverColor);
@@ -362,6 +386,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
+        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
     }
     static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
         // active/inactive colours: every bar repaints and re-renders its title when focus moves

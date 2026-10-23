@@ -26,6 +26,7 @@
 #include "globals.hpp"
 #include "BarPassElement.hpp"
 #include "icon.hpp"
+#include "PreviewPassElement.hpp"
 
 #include <climits>
 
@@ -292,6 +293,67 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
     }
 }
 
+// Which snap zone the pointer is on: "left", "right", "top" (maximize), or nullptr. Same test for the preview and the snap.
+const char* CHyprBar::edgeZone(const Vector2D& C, PHLMONITOR M) {
+    const auto  EDGE = 3.0;
+    const float MW   = M->m_size.x / M->m_scale;
+    if (C.x <= M->m_position.x + EDGE)
+        return "left";
+    if (C.x >= M->m_position.x + MW - EDGE - 1)
+        return "right";
+    if (g_pGlobalState->config.snapTopEdge->value() && C.y <= M->m_position.y + EDGE)
+        return "top";
+    return nullptr;
+}
+
+// While a floating window is dragged by its bar, shade the area the snap would give it.
+void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
+    std::string zoneName;
+    const SZone* zone = nullptr;
+    if (m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() && (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
+        const auto M = Desktop::focusState()->monitor();
+        if (M && M == pMonitor) {
+            if (const char* z = edgeZone(g_pInputManager->getMouseCoordsInternal(), M)) {
+                const auto MIT = g_pGlobalState->zones.find(M->m_name);
+                if (MIT != g_pGlobalState->zones.end())
+                    if (const auto ZIT = MIT->second.find(z); ZIT != MIT->second.end()) {
+                        zone     = &ZIT->second;
+                        zoneName = z;
+                    }
+            }
+        }
+    }
+
+    if (zoneName != m_szPreviewZone) {
+        // repaint what the preview covered, and what it will cover
+        for (const auto* name : {&m_szPreviewZone, &zoneName}) {
+            const auto MIT = g_pGlobalState->zones.find(pMonitor->m_name);
+            if (name->empty() || MIT == g_pGlobalState->zones.end())
+                continue;
+            if (const auto ZIT = MIT->second.find(*name); ZIT != MIT->second.end())
+                g_pHyprRenderer->damageBox(CBox{ZIT->second.pos.x, ZIT->second.pos.y, ZIT->second.size.x, ZIT->second.size.y});
+        }
+        m_szPreviewZone = zoneName;
+    }
+
+    if (!zone)
+        return;
+
+    const auto  W     = m_pWindow.lock();
+    const float SCALE = pMonitor->m_scale;
+    CHyprColor  fill  = configColor(g_pGlobalState->config.previewColor->value());
+    CHyprColor  line  = fill;
+    line.a            = std::min(1.0, fill.a * 2.5);
+
+    CPreviewPassElement::SPreviewData data;
+    data.box    = CBox{zone->pos.x - pMonitor->m_position.x, zone->pos.y - pMonitor->m_position.y, zone->size.x, zone->size.y}.scale(SCALE).round();
+    data.round  = W ? std::round(W->rounding() * SCALE) : 0;
+    data.border = std::max(1, (int)std::round(2 * SCALE));
+    data.fill   = fill;
+    data.line   = line;
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+}
+
 // Dragging a snapped window by its bar gives back the size it had before the snap (as KWin does): once the pointer has
 // moved a few pixels, resize to the remembered size, keep the pointer at the same fraction of the bar, and restart the
 // compositor's move so its grab offset matches the new geometry.
@@ -345,15 +407,8 @@ void CHyprBar::snapOnRelease() {
         return;
 
     const auto  C     = g_pInputManager->getMouseCoordsInternal();
-    const auto  EDGE  = 3.0;
-    const float MW    = M->m_size.x / M->m_scale;
-    const char* where = nullptr;
-    if (C.x <= M->m_position.x + EDGE)
-        where = "tile:left";
-    else if (C.x >= M->m_position.x + MW - EDGE - 1)
-        where = "tile:right";
-    else if (g_pGlobalState->config.snapTopEdge->value() && C.y <= M->m_position.y + EDGE)
-        where = "tile:max";
+    const char* zone  = edgeZone(C, M);
+    const char* where = !zone ? nullptr : std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
     const auto ACTIVE = Desktop::focusState()->window();
     Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
                      M->m_name, where ? where : "none");
@@ -658,6 +713,8 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
 
     if (!barActive() || !validMapped(m_pWindow) || !ENABLED)
         return;
+
+    drawSnapPreview(pMonitor);
 
     const auto PWINDOW = m_pWindow.lock();
 

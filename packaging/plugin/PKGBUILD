@@ -31,7 +31,7 @@ package() {
   install -Dm644 plugin/kwinish-bars.abi "$pkgdir/usr/lib/hyprland/plugins/kwinish-bars.abi"
   # sources for the rebuild hook
   install -d "$pkgdir/usr/share/kwinish/plugin-src"
-  install -m644 plugin/{Makefile,barDeco.cpp,barDeco.hpp,BarPassElement.cpp,BarPassElement.hpp,globals.hpp,main.cpp,icon.cpp,icon.hpp,NOTICE,LICENSE.hyprland-plugins} "$pkgdir/usr/share/kwinish/plugin-src/"
+  install -m644 plugin/{Makefile,barDeco.cpp,barDeco.hpp,BarPassElement.cpp,BarPassElement.hpp,PreviewPassElement.cpp,PreviewPassElement.hpp,globals.hpp,main.cpp,icon.cpp,icon.hpp,NOTICE,LICENSE.hyprland-plugins} "$pkgdir/usr/share/kwinish/plugin-src/"
   install -m755 plugin/abi.sh "$pkgdir/usr/share/kwinish/plugin-src/"
   install -Dm755 packaging/plugin/kwinish-bars-rebuild "$pkgdir/usr/bin/kwinish-bars-rebuild"
   install -Dm644 packaging/plugin/kwinish-bars.hook "$pkgdir/usr/share/libalpm/hooks/kwinish-bars.hook"

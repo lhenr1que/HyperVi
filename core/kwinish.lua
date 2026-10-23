@@ -249,5 +249,31 @@ function M.hotcorners(opts)
   end, { timeout = tick, type = "repeat" })
 end
 
+-- Tell the plugin where each snap zone (left, right, top) puts a window, title bar included, so its drag preview shows
+-- exactly what releasing the window there will do.
+function M.publish_zones()
+  local p = hl.plugin and hl.plugin.kwinish
+  if not (p and p.set_zone) then return end
+  pcall(p.clear_zones)
+  local gi = num(hl.get_config("general.gaps_in"), "left")
+  local bh = bar_height()
+  for _, mon in ipairs(hl.get_monitors()) do
+    local area = work_area(mon)
+    for zone, where in pairs({ left = "left", right = "right", top = "max" }) do
+      local r = geometry.tile_rect(area, where, gi)
+      pcall(p.set_zone, mon.name, zone, r.x, r.y - bh, r.w, r.h + bh)
+    end
+  end
+end
+
+-- Zones depend on monitors, gaps and the bar height: republish when those can change (once per Lua state).
+if not KWINISH_ZONE_HOOKS then
+  KWINISH_ZONE_HOOKS = true
+  for _, ev in ipairs({ "monitor.layout_changed", "monitor.added", "config.reloaded", "window.active" }) do
+    hl.on(ev, function() local kw = package.loaded.kwinish; if kw then kw.publish_zones() end end)
+  end
+end
+M.publish_zones()
+
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests
 return M

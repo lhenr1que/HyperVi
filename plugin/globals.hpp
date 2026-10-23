@@ -31,11 +31,16 @@ struct SRestore {
     Vector2D snapPos, snapSize; // geometry the snap gave it
 };
 
+struct SZone {
+    Vector2D pos, size; // global layout coordinates; includes the title bar
+};
+
 class CHyprBar;
 
 struct SGlobalState {
     std::vector<SHyprButton>  buttons;
     std::vector<WP<CHyprBar>> bars;
+    std::unordered_map<std::string, std::unordered_map<std::string, SZone>> zones; // monitor name -> zone name, filled by the Lua core
     std::unordered_map<uintptr_t, SRestore> restores; // by window pointer, filled by the Lua core
     uint32_t                  nobarRuleIdx      = 0;
     uint32_t                  barColorRuleIdx   = 0;
@@ -48,8 +53,8 @@ struct SGlobalState {
         SP<Config::Values::CFontWeightValue> barTextWeight;
         SP<Config::Values::CIntValue>        barPadding;
         SP<Config::Values::CIntValue>        barButtonPadding;
-        SP<Config::Values::CBoolValue>       barBlur, barTitleEnabled, barPartOfWindow, barPrecedenceOverBorder, enabled, iconOnHover, floatingOnly, showIcon, defaultButtons, snapTopEdge;
-        SP<Config::Values::CColorValue>      buttonHoverColor, pinnedColor, inactiveBarColor, inactiveTextColor;
+        SP<Config::Values::CBoolValue>       barBlur, barTitleEnabled, barPartOfWindow, barPrecedenceOverBorder, enabled, iconOnHover, floatingOnly, showIcon, defaultButtons, snapTopEdge, snapPreview;
+        SP<Config::Values::CColorValue>      buttonHoverColor, pinnedColor, inactiveBarColor, inactiveTextColor, previewColor;
         SP<Config::Values::CStringValue>     barTextFont, barTextAlign, barButtonsAlignment, onDoubleClick;
     } config;
 };
