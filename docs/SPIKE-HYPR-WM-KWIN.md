@@ -175,3 +175,7 @@ O dono avisou que o Ryoku tem a barra Caelestia ativada por hover e deixou a esc
 ## Ícone de app comum e floating_only (24/10/2026)
 - **Ícone:** um kitty de classe `kitty` (com `kitty.desktop`, `Icon=kitty`) mostrou o ícone do gato na barra, ao lado do botão de fixar e do título. Junto com o do Claude, são dois apps com ícone resolvido por desktop entry + tema.
 - **floating_only:** a barra passou a reposicionar sozinha quando a opção muda sem recarregar a config (compara o valor a cada quadro, como já era feito com `enabled`). Compilado, **precisa recarregar o plugin para testar**.
+
+## floating_only ao vivo e pacote do plugin (24/10/2026)
+- **floating_only:** com o plugin recarregado, `floating_only = true` (por eval, sem recarregar a config) tirou a barra do Claude na hora (janela de y 58 para 30, altura 992 para 1020) e `false` a trouxe de volta. Funciona.
+- **Pacote do plugin:** `packaging/plugin/` (PKGBUILD, `kwinish-bars-rebuild`, hook do pacman) gera `kwinish-bars-plugin-git` com `makepkg --nodeps`. O script de recompilação foi testado com origem do repositório e destino de teste: o `.abi` gerado é idêntico ao do plugin atual; sem fontes, ele avisa e sai com 0 (não quebra a transação do pacman). O pacote não foi instalado e o hook não foi exercitado de verdade (precisa de um upgrade real do `hyprland`).

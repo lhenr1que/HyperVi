@@ -63,6 +63,16 @@ KWin's bar: app icon and a pin button as well as the title.
 - **Right click on the bar** opens the window menu (`kwinish-ui menu`).
 - Not verified: everything above (compiles only).
 
+## Packaging (24/10/2026, drafts, built with `makepkg --nodeps`, not installed)
+`packaging/plugin/` builds `kwinish-bars-plugin-git`: the `.so` and its `.abi` receipt in `/usr/lib/hyprland/plugins/`, the
+plugin sources in `/usr/share/kwinish/plugin-src`, `/usr/bin/kwinish-bars-rebuild` and a pacman hook
+(`kwinish-bars.hook`, PostTransaction on `hyprland` install/upgrade). The hook rebuilds the plugin for the new Hyprland
+(about 15 s; needs `gcc`, `make` and the Hyprland headers, listed as optional dependencies) and **never fails the pacman
+transaction**: if it cannot build, it prints why, keeps the old plugin, and Kwinish runs in emergency mode. The script is
+also the manual route: `sudo kwinish-bars-rebuild`. Tested with the sources and a scratch destination: success wrote a
+`.abi` identical to the installed formula; a missing source exited 0 with the message. Not done: the opt-in "hold the
+Hyprland update" hook.
+
 ## Open work, in order
 1. Load it once, with the owner's ok, and check the look, the buttons and the wheel.
 2. Edge snap on drag release (the plugin sees the release in `handleUpEvent`), right-click menu, active/inactive colours,

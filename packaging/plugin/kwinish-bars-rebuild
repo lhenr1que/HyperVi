@@ -2,7 +2,7 @@
 # Rebuilds the kwinish-bars plugin for the installed Hyprland (a plugin is locked to one Hyprland build).
 # Run by the pacman hook after hyprland changes, or by hand: sudo kwinish-bars-rebuild
 # Never fails the pacman transaction: if the build fails the old plugin stays and Kwinish runs in emergency mode.
-src=/usr/share/kwinish/plugin-src
+src=${KWINISH_PLUGIN_SRC:-/usr/share/kwinish/plugin-src}
 dest=${KWINISH_PLUGIN_DEST:-/usr/lib/hyprland/plugins}
 
 if ! command -v g++ >/dev/null 2>&1 || ! command -v make >/dev/null 2>&1 || ! pkg-config --exists hyprland; then
