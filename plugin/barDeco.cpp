@@ -340,8 +340,14 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
 }
 
 void CHyprBar::handleMovement() {
-    if (const auto W = m_pWindow.lock())
+    if (const auto W = m_pWindow.lock()) {
         m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window
+        // can hand focus to that window before this runs, and the drag would grab it instead (a tiled window then
+        // floats and follows the pointer). Pin the focus on this bar's window.
+        if (Desktop::focusState()->window() != W)
+            Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+    }
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     m_bDraggingThis = true;
     Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
