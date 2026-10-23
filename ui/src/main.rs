@@ -5,7 +5,7 @@ use gtk4::{gio, glib, Application, ApplicationWindow, Box as GtkBox, CssProvider
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::path::PathBuf;
 
-mod bar;
+mod bars;
 mod menu;
 
 const CSS: &str = "
@@ -98,11 +98,11 @@ fn run_switcher() -> glib::ExitCode {
 fn main() -> glib::ExitCode {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
-        Some("bar") => bar::run(args.get(2).cloned().unwrap_or_default()),
+        Some("bars") => bars::run(args[2..].to_vec()),
         Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default()),
         None => run_switcher(),
         Some(other) => {
-            eprintln!("usage: kwinish-ui [menu <window address>]  (got {other})");
+            eprintln!("usage: kwinish-ui [menu <window address> | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
             glib::ExitCode::FAILURE
         }
     }

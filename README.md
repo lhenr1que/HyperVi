@@ -4,7 +4,7 @@ KWin-style window management for Hyprland 0.55+ (Lua config). Early work; see `d
 
 ## Status
 Core in Lua (`core/`): quick tile, hot corners (`kw.hotcorners`), maximize on one axis, pack to edge, show desktop, keep above, window placement (smart, cascade, center, cursor), auto-raise. Planned: Alt+Tab, window menu, hot corners and a title bar in a Rust UI.
-Alt+Tab: `core/switcher.lua` (keys and focus) plus `ui/` (`kwinish-ui`, a Rust GTK4 layer-shell overlay that only draws; build with `cargo build --release` and run it from `exec-once`).
+Title bars: `kwinish-ui bars` (one layer-shell bar per floating window: drag, edge snap on release, double-click maximize, right-click menu, wheel raises or lowers; `--only`/`--skip` filter by class). Alt+Tab: `core/switcher.lua` (keys and focus) plus `ui/` (`kwinish-ui`, a Rust GTK4 layer-shell overlay that only draws; build with `cargo build --release` and run it from `exec-once`).
 
 ## Try it
 1. Copy or link `core/` to `~/.local/share/kwinish/core`.
