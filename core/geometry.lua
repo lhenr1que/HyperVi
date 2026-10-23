@@ -29,6 +29,17 @@ function M.axis_rect(area, cur, axis)
   if axis == "v" then return { x = cur.x, y = area.y, w = cur.w, h = area.h } end
 end
 
+-- Push `cur` against one edge of `area` without resizing. dir: left right up down.
+function M.pack_rect(area, cur, dir)
+  local r = { x = cur.x, y = cur.y, w = cur.w, h = cur.h }
+  if dir == "left" then r.x = area.x
+  elseif dir == "right" then r.x = area.x + area.w - cur.w
+  elseif dir == "up" then r.y = area.y
+  elseif dir == "down" then r.y = area.y + area.h - cur.h
+  else return nil end
+  return r
+end
+
 function M.same(a, b, tol)
   tol = tol or 2
   return math.abs(a.x - b.x) <= tol and math.abs(a.y - b.y) <= tol

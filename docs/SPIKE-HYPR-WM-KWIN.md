@@ -30,3 +30,9 @@ Plano aprovado pelo dono: Lua no núcleo, Rust na UI (layer-shell), repo novo lo
 - `kw.tile(where)` (left right top bottom topleft topright bottomleft bottomright max) e `kw.maximize_axis("h"|"v")`; repetir o mesmo pedido restaura o retângulo original.
 - Matemática pura em `geometry.lua`, com `lua5.4 core/test_geometry.lua` (passa). Hyprland-side testado ao vivo com kitty flutuante descartável: metades, canto, eixo horizontal e restaurar deram os retângulos esperados (área útil = reserved + gaps_out; monitor 1920x1080, reserved 60/10/10/10, gaps 18).
 - Limites: restaurar guarda o retângulo numa tabela Lua (perde-se no reload; trocar por tags); `tile` em janela tiled a torna flutuante; não testado com vários monitores nem com escala diferente de 1.
+
+## Fase 1, fatia 2 (23/10/2026)
+- `kw.pack(left|right|up|down)`, `kw.show_desktop({filter=})`, `kw.keep_above()` + `kw.setup()` (registra os listeners; chamar uma vez).
+- Testado ao vivo com dois kitties descartáveis (vermelho e azul): empacotar, esconder e restaurar pela workspace especial `special:kwinish_desktop`, e manter acima (o vermelho continuou sobre o azul focado, conferido por captura de tela).
+- **Achados:** `hl.dsp.window.bring_to_top` não eleva a janela de forma visível; o que funciona é `alter_zorder({mode="top"})`, e só depois do evento `window.active` (timer de 30 ms, porque o evento dispara antes de a nova janela focada ser elevada). Cuidado ao recarregar o módulo: `package.loaded` zera o estado (a tabela de restaurar).
+- Limites: estado em tabelas Lua (perde-se no reload); `show_desktop` guarda a workspace de origem, não o foco; "manter abaixo" não feito; grow/shrink fica com o dispatcher nativo `resize relative` (sem código novo).

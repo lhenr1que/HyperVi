@@ -12,4 +12,10 @@ eq(g.tile_rect(area, "right", 10),      { x = 515, y = 20,  w = 495, h = 600 }, 
 assert(g.tile_rect(area, "nope") == nil, "unknown")
 eq(g.axis_rect(area, { x = 100, y = 200, w = 300, h = 150 }, "h"), { x = 10, y = 200, w = 1000, h = 150 }, "axis h")
 eq(g.axis_rect(area, { x = 100, y = 200, w = 300, h = 150 }, "v"), { x = 100, y = 20, w = 300, h = 600 }, "axis v")
+local c = { x = 100, y = 200, w = 300, h = 150 }
+eq(g.pack_rect(area, c, "left"),  { x = 10,  y = 200, w = 300, h = 150 }, "pack left")
+eq(g.pack_rect(area, c, "right"), { x = 710, y = 200, w = 300, h = 150 }, "pack right")
+eq(g.pack_rect(area, c, "up"),    { x = 100, y = 20,  w = 300, h = 150 }, "pack up")
+eq(g.pack_rect(area, c, "down"),  { x = 100, y = 470, w = 300, h = 150 }, "pack down")
+assert(g.pack_rect(area, c, "x") == nil, "pack unknown")
 print("geometry ok")

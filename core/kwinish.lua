@@ -75,5 +75,62 @@ function M.maximize_axis(axis, opts)
   if r then place(w, r, "axis:" .. axis) end
 end
 
+-- dir: left right up down. Floats the window, like tile().
+function M.pack(dir, opts)
+  local w = target(opts); if not w then return end
+  local r = geometry.pack_rect(work_area(w.monitor), rect_of(w), dir)
+  if r then place(w, r, "pack:" .. dir) end
+end
+
+-- Show desktop: stash every window of the active workspace in a special workspace, or bring them back.
+-- opts.filter(w) limits which windows are stashed (tests use it; default is all).
+-- shortcut: origins live in a Lua table, so a config reload forgets them; move to window tags to survive reloads.
+local STASH = "special:kwinish_desktop"
+local stashed = {}
+function M.show_desktop(opts)
+  local sel = function(w) return "address:" .. w.address end
+  if next(stashed) then
+    for addr, ws in pairs(stashed) do
+      hl.dispatch(hl.dsp.window.move({ workspace = ws, follow = false, window = "address:" .. addr }))
+    end
+    stashed = {}
+    return
+  end
+  local ws = hl.get_active_workspace()
+  if not ws then return end
+  local filter = opts and opts.filter
+  for _, w in ipairs(hl.get_workspace_windows(ws.id)) do
+    if w.mapped and not w.hidden and (not filter or filter(w)) then
+      stashed[w.address] = ws.id
+      hl.dispatch(hl.dsp.window.move({ workspace = STASH, follow = false, window = sel(w) }))
+    end
+  end
+end
+
+-- Keep above: windows in `above` are raised again whenever focus changes (floating windows only).
+local above = {}
+local hooked = false
+function M.keep_above(opts)
+  local w = target(opts); if not w then return end
+  above[w.address] = (not above[w.address]) or nil
+  if above[w.address] then hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address })) end
+end
+function M.setup()
+  if hooked then return end
+  hooked = true
+  -- the event fires before the newly focused window is raised, so raise on a short timer
+  hl.on("window.active", function()
+    hl.timer(function()
+      for addr in pairs(above) do
+        if hl.get_window("address:" .. addr) then
+          hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
+        else
+          above[addr] = nil
+        end
+      end
+    end, { timeout = 30, type = "oneshot" })
+  end)
+end
+
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests
 return M
