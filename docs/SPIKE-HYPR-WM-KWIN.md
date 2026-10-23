@@ -42,3 +42,9 @@ Plano aprovado pelo dono: Lua no núcleo, Rust na UI (layer-shell), repo novo lo
 - Testes puros (`lua5.4 core/test_geometry.lua`) cobrem center, cursor, cascade e smart. **Ao vivo:** colocação inteligente testada com dois kitties (o segundo foi para a direita, sem sobrepor o primeiro).
 - **Não verificado ao vivo: auto-raise.** Com `follow_mouse=1` o ponteiro virtual do teste não trocou o foco (a janela ativa continuou kwb com o cursor sobre a kwa), então o caminho de reelevação não foi exercitado. Testar com mouse de verdade ou revisar o motivo (possível `float_switch_override_focus`).
 - Os listeners de `setup` ficam registrados até o próximo reload da config; no teste foram limitados a janelas de classe `kw*` pelo `filter`.
+
+## Alt+Tab (24/10/2026)
+- **Decisão de arquitetura:** o overlay não pega o teclado. O Lua (`core/switcher.lua`) é dono de teclas e foco (bind `ALT + Tab` chama `step`, a soltura do Alt chega por `input.keyboard.key`), escreve `$XDG_RUNTIME_DIR/kwinish/switcher.json`, e o `kwinish-ui` (Rust, gtk4 0.11 + gtk4-layer-shell 0.8, `KeyboardMode::None`) só desenha o arquivo. Isso evita o problema do T7 (reenvio de teclas ao ganhar foco e soltura dentro de submap) por construção: um Alt+Tab é um `step`, sem foco de teclado.
+- **Testado ao vivo** (3 kitties descartáveis, `step` por eval, soltura e Esc por uinput): o overlay apareceu centralizado com a segunda janela destacada; soltar o Alt focou a janela escolhida e fechou o overlay; Esc cancelou sem mudar o foco; dois passos selecionaram o terceiro. Segurança: timeout de 15 s fecha sem focar.
+- **Não testado:** o bind `ALT + Tab` real (não registrado na sessão por causa do crash do `hl.bind`), key-repeat segurando Tab, miniaturas (hoje cartões com classe e título), janelas em outros workspaces/monitores, ordem MRU depois de reload (parte vazia, completa com a ordem do compositor).
+- Testes puros: `lua5.4 core/test_switcher.lua`.

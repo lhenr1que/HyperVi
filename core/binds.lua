@@ -25,6 +25,10 @@ end
 
 function M.install(kw, opts)
   opts = opts or {}
+  if opts.switcher then -- Alt+Tab; releasing Alt is seen by switcher.setup(), no submap needed
+    hl.bind("ALT + Tab", function() opts.switcher.step(1) end)
+    hl.bind("ALT + SHIFT + Tab", function() opts.switcher.step(-1) end)
+  end
   for _, b in ipairs(M.list(opts.mod)) do
     local keys = b.keys
     if opts.override and opts.override[keys] ~= nil then keys = opts.override[keys] end
