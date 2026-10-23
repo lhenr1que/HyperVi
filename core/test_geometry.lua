@@ -27,4 +27,14 @@ x, y = g.place(area, sz, "smart", { others = {} }); assert(x == 10 and y == 20, 
 -- a window covering the left half pushes the new one to the right half, with zero overlap
 x, y = g.place(area, sz, "smart", { others = { { x = 10, y = 20, w = 500, h = 600 } } })
 assert(x >= 510, "smart avoids overlap, got " .. x)
+local mons = { { x = 0, y = 0, w = 100, h = 50 }, { x = 100, y = 0, w = 100, h = 50 } }
+assert(g.corner_at(mons, 0, 0, 2) == "topleft" and g.corner_at(mons, 99, 49, 2) == "bottomright", "corners monitor 1")
+assert(g.corner_at(mons, 100, 0, 2) == "topleft" and g.corner_at(mons, 199, 0, 2) == "topright", "corners monitor 2")
+assert(g.corner_at(mons, 50, 25, 2) == nil and g.corner_at(mons, 50, 0, 2) == nil and g.corner_at(mons, 500, 5, 2) == nil, "not a corner")
+local st = {}
+assert(not g.dwell(st, "topleft", 3) and not g.dwell(st, "topleft", 3), "needs 3 ticks")
+assert(g.dwell(st, "topleft", 3), "fires on 3rd")
+assert(not g.dwell(st, "topleft", 3), "fires once")
+assert(not g.dwell(st, nil, 3) and not g.dwell(st, "topleft", 3) and not g.dwell(st, "topleft", 3) and g.dwell(st, "topleft", 3), "re-arms after leaving")
+assert(not g.dwell({}, "topleft", 3) and not g.dwell(st, "topright", 3), "other corner restarts the count")
 print("geometry ok")

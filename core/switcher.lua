@@ -49,7 +49,8 @@ end
 local function build()
   local list, seen = {}, {}
   local function add(w)
-    if w.mapped and not seen[w.address] and (not opts.filter or opts.filter(w)) then
+    -- skip unmapped windows and nameless ones (popups, tooltips, helper surfaces)
+    if w.mapped and not seen[w.address] and (w.class ~= "" or w.title ~= "") and (not opts.filter or opts.filter(w)) then
       seen[w.address] = true
       list[#list + 1] = { address = w.address, class = w.class, title = w.title }
     end

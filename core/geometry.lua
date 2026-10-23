@@ -83,6 +83,29 @@ function M.place(area, size, policy, o)
   end
 end
 
+-- Which screen corner {x,y} is in, or nil. rects = monitor rects in layout coordinates; edge = px from both borders.
+function M.corner_at(rects, x, y, edge)
+  for _, r in ipairs(rects) do
+    if x >= r.x and x < r.x + r.w and y >= r.y and y < r.y + r.h then
+      local left, right = x < r.x + edge, x >= r.x + r.w - edge
+      local top, bottom = y < r.y + edge, y >= r.y + r.h - edge
+      if top and left then return "topleft" elseif top and right then return "topright"
+      elseif bottom and left then return "bottomleft" elseif bottom and right then return "bottomright" end
+      return nil
+    end
+  end
+end
+
+-- Dwell tracker: call once per tick with the current corner; returns true once after `need` consecutive ticks
+-- in the same corner, and not again until the pointer leaves it. `st` is a table you keep between calls.
+function M.dwell(st, corner, need)
+  if corner ~= st.corner then st.corner, st.ticks, st.fired = corner, 0, false end
+  if not corner then return false end
+  st.ticks = st.ticks + 1
+  if st.ticks >= need and not st.fired then st.fired = true; return true end
+  return false
+end
+
 function M.same(a, b, tol)
   tol = tol or 2
   return math.abs(a.x - b.x) <= tol and math.abs(a.y - b.y) <= tol

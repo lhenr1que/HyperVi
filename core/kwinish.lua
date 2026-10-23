@@ -7,6 +7,7 @@ local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
 local saved = {}
+local hot_started = false
 
 local function xy(v, a, b) return v[a] or v[1], v[b] or v[2] end
 
@@ -183,6 +184,37 @@ end
 function M.menu(opts)
   local w = (opts and opts.window) or hl.get_active_window()
   if w then hl.exec_cmd("kwinish-ui menu " .. w.address) end
+end
+
+-- Hot corners. opts.corners maps topleft/topright/bottomleft/bottomright to "show_desktop", "menu",
+-- { exec = "command" } or a function; opts.delay_ms (dwell, default 300), opts.edge px (default 2), opts.tick_ms (default 100).
+-- Lua sees no pointer-motion events, so a repeating timer polls the cursor; it cannot be stopped except by a config reload.
+function M.hotcorners(opts)
+  if hot_started then return end
+  hot_started = true
+  local corners, edge = opts.corners or {}, opts.edge or 2
+  local tick = opts.tick_ms or 100
+  local need = math.max(1, math.ceil((opts.delay_ms or 300) / tick))
+  local st = {}
+  local function run(action)
+    if type(action) == "function" then action()
+    elseif action == "show_desktop" then M.show_desktop()
+    elseif action == "menu" then M.menu()
+    elseif type(action) == "table" and action.exec then hl.exec_cmd(action.exec) end
+  end
+  hl.timer(function()
+    local pos = hl.get_cursor_pos()
+    if not pos then return end
+    local rects = {}
+    for _, m in ipairs(hl.get_monitors()) do
+      local sc = m.scale or 1
+      local w, h = m.width / sc, m.height / sc
+      if (m.transform or 0) % 2 == 1 then w, h = h, w end
+      rects[#rects + 1] = { x = m.x, y = m.y, w = w, h = h }
+    end
+    local c = geometry.corner_at(rects, pos.x or pos[1], pos.y or pos[2], edge)
+    if geometry.dwell(st, c and corners[c] and c or nil, need) then run(corners[c]) end
+  end, { timeout = tick, type = "repeat" })
 end
 
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests

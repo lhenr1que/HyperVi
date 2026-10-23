@@ -3,12 +3,14 @@ local wins = {
   a = { address = "a", class = "A", title = "one", mapped = true },
   b = { address = "b", class = "B", title = "two", mapped = true },
   c = { address = "c", class = "C", title = "three", mapped = true },
+  g = { address = "g", class = "", title = "", mapped = true, xwayland = true },
+  u = { address = "u", class = "U", title = "unmapped", mapped = false },
 }
 local focused, on_key, on_active = nil, nil, nil
 hl = {
   get_active_window = function() return wins.a end,
   get_window = function(sel) return wins[sel:match("address:(.*)")] end,
-  get_windows = function() return { wins.a, wins.b, wins.c } end,
+  get_windows = function() return { wins.a, wins.b, wins.c, wins.g, wins.u } end,
   dsp = { focus = function(t) return t end },
   dispatch = function(t) focused = t.window end,
   timer = function() end,
