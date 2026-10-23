@@ -1,25 +1,60 @@
-# kwinish
+# Kwinish
 
-KWin-style window management for Hyprland 0.55+ (Lua config). Early work; see `docs/PLANO-HYPR-WM-KWIN.md`.
+KWin-style window management for **Hyprland 0.55+** (Lua config). Early work, tested on Hyprland 0.56.2 only.
 
-## Status
-Core in Lua (`core/`): quick tile, hot corners (`kw.hotcorners`), maximize on one axis, pack to edge, show desktop, keep above, window placement (smart, cascade, center, cursor), auto-raise. Planned: Alt+Tab, window menu, hot corners and a title bar in a Rust UI.
-Title bars: `kwinish-ui bars` (one layer-shell bar per floating window: drag, edge snap on release, double-click maximize, right-click menu, wheel raises or lowers; `--only`/`--skip` filter by class). Alt+Tab: `core/switcher.lua` (keys and focus) plus `ui/` (`kwinish-ui`, a Rust GTK4 layer-shell overlay that only draws; build with `cargo build --release` and run it from `exec-once`).
+Three layers, each usable without the next:
+
+| Layer | What | Needs |
+|---|---|---|
+| `core/` (Lua) | quick tile, one-axis maximize, pack to edge, show desktop, keep above, smart placement, auto-raise, hot corners, Alt+Tab logic, default binds | Hyprland with a Lua config |
+| `ui/` (Rust, `kwinish-ui`) | Alt+Tab overlay, window menu, fallback title bars | GTK4, gtk4-layer-shell |
+| `plugin/` (C++, `kwinish-bars`) | the title bar: a compositor plugin forked from hyprbars | Hyprland headers, librsvg; rebuilt for each Hyprland update |
+
+## Title bars
+
+The plugin is the primary bar: app icon, pin button and title on the left; minimize, maximize and close on the right; drawn
+by the compositor, so stacking, animations, borders and rounding are the real ones. Right click opens the window menu,
+double click maximizes, the wheel over the bar raises or lowers the window, and dropping a dragged window on the left or
+right screen edge snaps it to a half (top edge: opt-in, `snap_top_edge`). Bars show on every window; `floating_only`
+limits them to floating ones.
+
+A plugin is locked to one Hyprland build, so after a Hyprland update the plugin can be stale. Then Kwinish runs in
+**emergency mode**: it does not load the plugin, shows a notification, and `kwinish-ui bars` draws fallback bars
+(layer-shell surfaces that sit above all windows, so they hide or clip when another window covers them). The pacman hook
+in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo kwinish-bars-rebuild`. Details in
+`docs/PLUGIN.md`.
 
 ## Try it
-1. Copy or link `core/` to `~/.local/share/kwinish/core`.
-2. Add `recipes/hyprland-snippet.lua` to your `hyprland.lua` (check with `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`).
-3. Optional: paste blocks from `recipes/native.lua` for features Hyprland already has.
+1. Core: copy or link `core/` to `~/.local/share/kwinish/core`, add `recipes/hyprland-snippet.lua` to your `hyprland.lua`
+   (check with `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`), optionally paste blocks from `recipes/native.lua`.
+2. UI: `cargo build --release` in `ui/`, put `kwinish-ui` on your `PATH`, start it from `exec-once` (Alt+Tab overlay) and
+   `kwinish-ui bars` for the fallback bars.
+3. Plugin: `make -C plugin abi`, then `hyprctl plugin load $PWD/plugin/kwinish-bars.so`. Turn off any other title-bar
+   plugin first (hyprbars). Loading a plugin can crash Hyprland if the plugin is wrong; keep a way to restart the session.
 
-Default binds are `SUPER + ALT + arrows` (halves, top, bottom), `Q W A S` (corners), `Return` (maximize), `H`/`V` (one axis), `CTRL + ALT + arrows` (pack), `SUPER + D` (show desktop), `ALT + T` (keep above). Change them with `override`.
+Packages (drafts, `makepkg --nodeps` works, nothing published): `packaging/PKGBUILD` (core and UI) and
+`packaging/plugin/PKGBUILD` (plugin, rebuild script, pacman hook).
+
+Default binds (`recipes/hyprland-snippet.lua`): `SUPER + ALT + arrows` halves, top and bottom; `Q W A S` corners;
+`Return` maximize; `H`/`V` one axis; `CTRL + ALT + arrows` pack; `SUPER + D` show desktop; `ALT + T` keep above; `ALT + Tab`
+switcher (`ALT + F3` window menu). They clash with some Ryoku binds: use `mod` and `override`.
 
 ## Tests
 ```
 lua5.4 core/test_geometry.lua
 lua5.4 core/test_binds.lua
 lua5.4 core/test_switcher.lua
+cargo test --manifest-path ui/Cargo.toml
 ```
-Restore state, show-desktop origins and the keep-above list live in Lua tables and are lost on a config reload.
+The plugin and the UI are checked by running them on a live session (see `docs/SPIKE-HYPR-WM-KWIN.md` for what was
+exercised and what was not).
+
+## Known limits
+- Restore state, show-desktop origins and the keep-above list live in Lua tables and are lost on a config reload.
+- The fallback bars are layer-shell surfaces: not at window level, and they trail animated windows by up to 80 ms.
+- Not tested with several monitors, XWayland-only setups or an upgrade of Hyprland through pacman.
+- Snapping on the top edge is off by default: it misbehaved next to an edge-hover panel and the cause is not found.
+- The name Kwinish is provisional.
 
 ## License
-MIT, see `LICENSE`.
+MIT, see `LICENSE`. `plugin/` is a fork of hyprbars (BSD 3-Clause, `plugin/LICENSE.hyprland-plugins`, `plugin/NOTICE`).

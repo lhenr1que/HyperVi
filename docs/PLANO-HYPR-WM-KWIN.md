@@ -146,3 +146,51 @@ Decisão do dono ("caminho do meio"):
 1. **Padrão, já feito:** `kwinish-ui bars`, barra layer-shell que funciona em qualquer Hyprland 0.55+ só com o pacote. Limites estruturais: fica acima de todas as janelas (por isso é recortada ou escondida quando outra janela a cobre) e não é desenhada junto com a janela.
 2. **Opcional e separado, só com aprovação:** um plugin C++ de decoração (como o hyprbars) para quem quiser a barra de verdade, no nível da janela, sem recorte nem sobreposição. Custos aceitos como opcionais: depende da ABI de cada versão do Hyprland, exige `hyprpm`/compilação e, se falhar, derruba o compositor. Não entra no pacote principal; seria um pacote à parte (`kwinish-bars-plugin`).
 - Antes de decidir investir no plugin próprio, comparar o visual com o `hyprbars.so` que já está em `/usr/lib/hyprland/plugins/` (carregar plugin na sessão real é arriscado: só com ok explícito do dono).
+
+## Revisão 3 (24/10/2026): estado atual
+Este documento começou como plano; as seções 0 a 6 são o plano original (Go para o núcleo, barra só layer-shell) e foram
+superadas pelas revisões. **Arquitetura vigente:** núcleo em Lua (`core/`), UI em Rust (`ui/`, `kwinish-ui`), barra de título
+como plugin C++ próprio (`plugin/`, fork do hyprbars) com as barras layer-shell como reserva e um "modo de emergência" quando o
+plugin não bate com o Hyprland. Detalhes do plugin em `docs/PLUGIN.md`; histórico e resultados de teste em
+`docs/SPIKE-HYPR-WM-KWIN.md`.
+
+### Escopo entregue (números do catálogo `docs/referencia/kwin-vs-hyprland-marcado.md`)
+| Item | Situação |
+|---|---|
+| 4 maximizar num eixo, 5 encaixe rápido, 15 empacotar/crescer | feito no núcleo (`tile`, `maximize_axis`, `pack`; crescer fica com o `resize` nativo) |
+| 25 mostrar a área de trabalho, 3 manter acima | feito (`show_desktop`, `keep_above`; "manter abaixo" não) |
+| 9 posicionamento (cascata, inteligente, centrada, sob o ponteiro) | feito (`kw.setup{placement=}`); aleatória e canto não |
+| 10 foco: auto-raise | feito, **não verificado ao vivo** (o ponteiro virtual não trocou o foco) |
+| 26 Alt+Tab | feito (Lua + overlay Rust); testado com bind real; sem miniaturas, só classe e título |
+| 24 cantos ativos | feito (`kw.hotcorners`), testado com ponteiro virtual |
+| 12 menu da janela | feito (Rust, `kwinish-ui menu`; mover/redimensionar e "criar regra" não) |
+| 7 encaixe ao arrastar | esquerda e direita feitos no plugin; topo opcional e não confirmado |
+| 11 roda do mouse na barra | feito (plugin e barras de reserva) |
+| 16 decorações: botões à direita/esquerda, duplo clique | feito no plugin (botões padrão, `align`, `hover_color`); temas de decoração não |
+| ícone do app e botão de fixar na barra (pedido do dono) | feito no plugin |
+| 1, 8, 13, 14, 17, 18, 21, 22, 29–31, 36, 44, 48, 49, 55, 58 | nativos do Hyprland: receitas em `recipes/native.lua` (parte) |
+| 6 zonas de encaixe, 32/33 efeitos, 41 daltonismo, 52 gestos de borda, 53/54 | para depois, como marcado |
+
+### Decisões do dono
+Kwinish como nome provisório; licença MIT (recomendação minha, aceita por omissão); barras em todas as janelas com
+`floating_only`; ícone e botão de fixar como no KWin; plugin como caminho principal e layer-shell como reserva;
+recompilação automática por hook do pacman, sem pausar o upgrade do Hyprland.
+
+### Por que não pausar a atualização do Hyprland
+Seria um hook que bloqueia o upgrade até o plugin ser recompilado. Não recomendo como padrão: o `pacman -Syu` ficaria
+travado, não dá para saber de antemão se o plugin compila na versão nova (a API de plugins muda) e o modo de emergência
+já cobre o intervalo. O hook de recompilação automática mais o aviso bastam. Fica como opção futura para quem quiser.
+
+### Riscos: situação
+- R1 Alt+Tab com soltura de tecla: **resolvido** (o Lua vê as teclas por `input.keyboard.key`, o overlay não pega teclado).
+- R3 fim do arrasto: **resolvido** no plugin (a barra vê o soltar) e nas barras de reserva; o Lua sozinho continua sem ver.
+- R2 versões do Hyprland: parcialmente tratado (modo de emergência, hook de recompilação); só 0.56.2 testado.
+- Novos: carregar plugin pode derrubar o compositor (houve um crash em `hl.bind` via eval nesta sessão, não no plugin);
+  encaixe no topo e janelas do dono mexidas (o Claude virou flutuante uma vez), causa não achada.
+
+### O que falta
+1. Instalar de verdade (pacote, hook) e testar um upgrade real do Hyprland.
+2. Vários monitores e XWayland.
+3. Cores de barra ativa e inativa no plugin; miniaturas no Alt+Tab.
+4. Estado do núcleo que sobrevive a reload (tags de janela).
+5. Escolher um nome definitivo e publicar (não há repositório remoto; nada foi enviado a lugar nenhum).
