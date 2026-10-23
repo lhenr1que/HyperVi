@@ -202,3 +202,9 @@ Plugin: `bar_color` e `col.text` valem para a janela em foco; `inactive_bar_colo
 
 ## Cores ativa e inativa, testadas (24/10/2026)
 Com o plugin recarregado, duas kitties no workspace 9: a janela em foco tem barra mais clara, título claro e a borda clara do compositor; a outra tem barra mais escura e título cinza, sem borda clara. Ao trocar o foco (`hl.dsp.focus`) as duas barras trocaram de aparência na hora (captura de tela das duas situações). `snap_top_edge` aparece `true` por padrão. Não testado: troca de foco entre workspaces diferentes, temas de cor customizados e o desvanecimento da cor em câmera lenta.
+
+## Pacotes instalados e testados (24/10/2026)
+O dono instalou `kwinish-git` e `kwinish-bars-plugin-git` (0.0.0.r39.8f1d777-1) com `pacman -U` (o `sudo` pede senha; eu não instalo). Conferido: arquivos em `/usr/bin`, `/usr/lib/hyprland/plugins` (`kwinish-bars.abi` idêntico ao do hyprbars do mesmo Hyprland) e `/usr/share/libalpm/hooks/kwinish-bars.hook`; `/proc/<pid>/maps` do Hyprland mostra o plugin carregado de `/usr/lib/hyprland/plugins/kwinish-bars.so`.
+- **`kwinish-bars-rebuild`** (instalado, fontes de `/usr/share/kwinish/plugin-src`, destino de teste): recompilou e o `.abi` saiu idêntico ao instalado.
+- **Núcleo de `/usr/share/kwinish/core` + plugin instalado, workspace 9:** soltar a barra na borda esquerda encaixou a janela (901x1024) e pedir o mesmo encaixe de novo a devolveu a (500, 400); o clique direito abriu o menu com `/usr/bin/kwinish-ui`. Claude intacto.
+- **Não testado:** o hook do pacman em um upgrade real do `hyprland`; a remoção do pacote (`pacman -R`).
