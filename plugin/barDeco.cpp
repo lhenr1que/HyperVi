@@ -47,6 +47,7 @@ CHyprBar::CHyprBar(PHLWINDOW pWindow) : IHyprWindowDecoration(pWindow) {
 
     // move events
     m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
+    m_pMouseAxisCallback = Event::bus()->m_events.input.mouse.axis.listen([&](IPointer::SAxisEvent e, Event::SCallbackInfo& info) { onMouseAxis(info, e); });
     m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D c, Event::SCallbackInfo& info) { onMouseMove(c); });
 
     Animation::mgr()->createAnimation(configColor(g_pGlobalState->config.barColor->value()), m_cRealBarColor, Config::animationTree()->getAnimationPropertyConfig("border"),
@@ -80,7 +81,7 @@ void CHyprBar::onPositioningReply(const SDecorationPositioningReply& reply) {
 }
 
 std::string CHyprBar::getDisplayName() {
-    return "Hyprbar";
+    return "KwinishBar";
 }
 
 bool CHyprBar::inputIsValid() {
@@ -149,6 +150,20 @@ void CHyprBar::onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e) {
     handleUpEvent(info);
 }
 
+// Wheel over the bar: up raises the window, down lowers it (KWin's titlebar wheel action).
+void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e) {
+    if (e.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || e.delta == 0.0 || !validMapped(m_pWindow) || !inputIsValid())
+        return;
+
+    const auto HEIGHT = g_pGlobalState->config.barHeight->value();
+    const auto COORDS = cursorRelativeToBar();
+    if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1))
+        return;
+
+    info.cancelled = true;
+    runAction(e.delta < 0 ? "raise" : "lower");
+}
+
 void CHyprBar::onMouseMove(Vector2D coords) {
     // ensure proper redraws of button icons on hover when using hardware cursors
     if (g_pGlobalState->config.iconOnHover->value())
@@ -215,7 +230,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
             if (m_bTouchEv)
                 g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
-            Log::logger->log(Log::DEBUG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+            Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
         }
 
         m_bDraggingThis = false;
@@ -238,7 +253,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
 
     if (!ON_DOUBLE_CLICK.empty() &&
         std::chrono::duration_cast<std::chrono::milliseconds>(Time::steadyNow() - m_lastMouseDown).count() < 400 /* Arbitrary delay I found suitable */) {
-        Config::Supplementary::executor()->spawn(ON_DOUBLE_CLICK);
+        runAction(ON_DOUBLE_CLICK);
         m_bDragPending = false;
     } else {
         m_lastMouseDown = Time::steadyNow();
@@ -261,7 +276,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
         if (m_bTouchEv)
             (void)Config::Actions::floatWindow(Config::Actions::eTogglableAction::TOGGLE_ACTION_DISABLE);
 
-        Log::logger->log(Log::DEBUG, "[hyprbars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+        Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
     }
 
     m_bDragPending = false;
@@ -272,8 +287,43 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
 void CHyprBar::handleMovement() {
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     m_bDraggingThis = true;
-    Log::logger->log(Log::DEBUG, "[hyprbars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
     return;
+}
+
+// Built-in actions run inside the compositor, so they cannot go stale when Hyprland's dispatcher syntax changes
+// (upstream hyprbars shells out, which broke the Ryoku buttons on the Lua-era Hyprland).
+// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>.
+static void dispatchIfKnown(const std::string& name, const std::string& arg) {
+    if (g_pKeybindManager->m_dispatchers.contains(name))
+        g_pKeybindManager->m_dispatchers[name](arg);
+}
+
+void CHyprBar::runAction(const std::string& action) {
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+
+    if (action == "close")
+        (void)Config::Actions::closeWindow(W);
+    else if (action == "float")
+        (void)Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    else if (action == "pin")
+        (void)Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    else if (action == "raise")
+        (void)Config::Actions::alterZOrder("top", W);
+    else if (action == "lower")
+        (void)Config::Actions::alterZOrder("bottom", W);
+    else if (action == "maximize")
+        dispatchIfKnown("fullscreen", "1"); // the window was just focused by the click
+    else if (action == "fullscreen")
+        dispatchIfKnown("fullscreen", "0");
+    else if (action == "minimize")
+        dispatchIfKnown("movetoworkspacesilent", "special:minimized");
+    else if (action == "menu")
+        dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x}", (uintptr_t)W.get()));
+    else if (action.starts_with("exec:"))
+        dispatchIfKnown("exec", action.substr(5));
 }
 
 bool CHyprBar::doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, const bool BUTTONSRIGHT) {
@@ -286,7 +336,7 @@ bool CHyprBar::doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButt
 
         if (VECINRECT(COORDS, currentPos.x, currentPos.y, currentPos.x + b.size + barButtonPadding, currentPos.y + b.size)) {
             // hit on close
-            g_pKeybindManager->m_dispatchers["exec"](b.cmd);
+            runAction(b.cmd);
             return true;
         }
 

@@ -6,3 +6,4 @@ spike/menu.log
 spike/bars.log
 plugin/*.so
 plugin/*.o
+plugin/*.abi

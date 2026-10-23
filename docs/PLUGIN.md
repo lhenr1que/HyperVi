@@ -6,8 +6,8 @@ frame-accurate animations, and the compositor's own borders and rounding.
 
 ## Source
 `plugin/` is a fork of hyprbars (hyprland-plugins commit `7644cec`, BSD-3-Clause, notice in `plugin/NOTICE`). Builds in
-~13 s with `make -C plugin` (needs the Hyprland headers: `pkg-config hyprland`). **Status: builds unchanged; not renamed,
-not adapted, not loaded.** Loading a plugin into the compositor needs the owner's go-ahead each time.
+~13 s with `make -C plugin` (needs the Hyprland headers: `pkg-config hyprland`). **Status (24/10/2026): renamed and adapted, builds, never loaded.** Loading a plugin into the compositor needs the
+owner's go-ahead each time.
 
 ## Modes (implemented in `ui/src/mode.rs`, tested)
 | Mode | When | What happens |
@@ -31,10 +31,22 @@ every Hyprland update needs a rebuild. Options for the user, all compatible with
    so pacman holds the upgrade. Opt-in only, because it blocks `pacman -Syu`.
 4. **Do nothing**: emergency mode, the system keeps working with the fallback bars.
 
+## What the fork does now (compiled, not yet run)
+- Identity: plugin name `kwinish-bars`, config namespace `plugin:kwinish:*` (same keys as hyprbars plus our palette as
+  defaults: 28 px, left-aligned bold title, bar over the border), Lua namespace `hl.plugin.kwinish.add_button`, window
+  effects `kwinish:no_bar|bar_color|title_color`, decoration name `KwinishBar`. It skips windows that already carry a
+  hyprbars bar.
+- Buttons run **built-in actions inside the compositor**: `close`, `maximize`, `fullscreen`, `minimize`, `float`, `pin`,
+  `raise`, `lower`, `menu`, `exec:<cmd>`. `on_double_click` takes the same names (default `maximize`).
+- `add_button` ignores a button with the same icon and action (the duplicated-buttons bug seen with the Hub's live apply).
+- Wheel over the bar raises (up) or lowers (down) the window.
+- `make -C plugin` builds `kwinish-bars.so`; `make -C plugin abi` writes `kwinish-bars.abi` with the same formula the
+  Ryoku package uses (it matched the installed hyprbars receipt byte for byte).
+- Unverified without loading: that `fullscreen`, `movetoworkspacesilent` and `exec` exist in the dispatcher table under
+  those names (each call is guarded with `contains`, so a missing one does nothing instead of crashing), and the look.
+
 ## Open work, in order
-1. Rename to `kwinish-bars`, own config namespace, install as `kwinish-bars.so` plus a `.abi` receipt.
-2. Buttons: built-in actions executed in the compositor (`close`, `maximize`, `minimize`, `fullscreen`, `float`, `menu`,
-   `exec:<cmd>`), not shell strings. Upstream runs a shell command, which is why the Ryoku buttons silently fail on
-   Hyprland 0.56 (they use the old `killactive` syntax; `hyprctl dispatch` now takes Lua).
-3. Style: kwinish palette, border-aware bar, wheel, double-click and right-click like the layer-shell bars.
-4. Packaging: a separate `kwinish-bars-plugin` package, the pacman rebuild hook, a rebuild command.
+1. Load it once, with the owner's ok, and check the look, the buttons and the wheel.
+2. Edge snap on drag release (the plugin sees the release in `handleUpEvent`), right-click menu, active/inactive colours,
+   rounding-aware corners.
+3. Packaging: a separate `kwinish-bars-plugin` package, the pacman rebuild hook, a rebuild command.

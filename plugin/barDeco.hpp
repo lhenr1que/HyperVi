@@ -93,6 +93,8 @@ class CHyprBar : public IHyprWindowDecoration {
     void handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent);
     void handleUpEvent(Event::SCallbackInfo& info);
     void handleMovement();
+    void runAction(const std::string& action);
+    void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
     bool doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, bool BUTTONSRIGHT);
 
     CBox assignedBoxGlobal();
@@ -103,6 +105,7 @@ class CHyprBar : public IHyprWindowDecoration {
 
     CHyprSignalListener m_pTouchMoveCallback;
     CHyprSignalListener m_pMouseMoveCallback;
+    CHyprSignalListener m_pMouseAxisCallback;
 
     std::string         m_szLastTitle;
 

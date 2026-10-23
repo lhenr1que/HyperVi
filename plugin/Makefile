@@ -11,7 +11,7 @@ INCLUDES = `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev waylan
 LIBS =
 
 SRC = main.cpp barDeco.cpp BarPassElement.cpp
-TARGET = hyprbars.so
+TARGET = kwinish-bars.so
 
 all: $(TARGET)
 
@@ -26,3 +26,6 @@ meson-build:
 	cd build && meson .. && ninja
 
 .PHONY: all meson-build clean
+
+abi: $(TARGET)
+	./abi.sh > kwinish-bars.abi
