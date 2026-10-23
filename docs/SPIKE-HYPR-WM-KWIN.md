@@ -260,3 +260,9 @@ Com o plugin recarregado, kitty no workspace 9, cliques reais: o **clique no íc
 - **Seletor:** `kwinish-ui layouts` (menu no ponteiro com o layout ativo marcado) e o submenu **Mais ações > Layout de tiling** do menu de janela; bind padrão `SUPER + CTRL + T`. Rótulos em português com `LANG=pt*`.
 - **Testado ao vivo** (kitty no workspace 9, plugin ainda a versão anterior): `zone:2` no grid deu (991, 56) 901x492 e `zone:3` (78, 560) 901x492 (10 px de vão entre as zonas); com `thirds` a zona 2 deu a coluna central (689, 56) 593x996; repetir restaurou (500, 400); o arquivo do layout guardou `thirds`; o seletor mostrou os seis itens em português com a marca no ativo e clicar em "Duas colunas" gravou `halves`.
 - **Não testado:** o Shift ao arrastar (prévia de todas as zonas e o encaixe na zona), que precisa carregar o plugin novo; vários monitores; o editor visual de zonas (fica para a segunda etapa).
+
+## Shift ao arrastar: testado ao vivo (24/10/2026)
+Plugin novo carregado, núcleo da pasta do projeto, workspace 9, layout padrão `grid`, teclado e ponteiro virtuais num só dispositivo uinput (`spike/shift-drag.py`; atenção: o dispositivo precisa declarar o botão esquerdo, 0x110, além das teclas):
+- **Prévia:** segurando Shift durante o arrasto, as quatro zonas da grade aparecem com contorno e um traço de preenchimento, e a zona sob o ponteiro fica preenchida (captura de tela com o ponteiro na zona de cima à esquerda).
+- **Encaixe:** soltar com Shift na zona de cima à esquerda deixou a janela em (78, 56) 901x492; soltar na zona de baixo à direita deu (991, 560) 901x492; repetir `zone:4` pelo núcleo restaurou (500, 400).
+- Não testado: soltar o Shift antes do botão, vários monitores, `rounding > 0` nas zonas, layouts além da grade.
