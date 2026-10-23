@@ -44,6 +44,8 @@ fn css(st: &Style) -> String {
     format!(
         ".kwbar {{ background: alpha(#1c1c22, 0.88); color: #b8b8c4; padding: 0 6px 0 12px; border: {b}px solid {i}; border-bottom: none; border-radius: {r}px {r}px 0 0; }}
 .kwbar.active {{ background: alpha(#26262e, 0.97); color: #f0f0f6; border-color: {a}; }}
+.kwbar.cut-left {{ border-left: none; }}
+.kwbar.cut-right {{ border-right: none; }}
 .kwbar label {{ font-size: 12px; font-weight: 600; }}
 .kwbar button {{ background: transparent; border: none; box-shadow: none; min-width: 26px; min-height: 22px; padding: 0; color: inherit; border-radius: {br}px; }}
 .kwbar button:hover {{ background: alpha(#ffffff, 0.14); }}
@@ -299,6 +301,10 @@ fn reconcile(app: &Application, st: &State, o: &Opts) {
         match gap {
             Some(g) => {
                 if !dragging { bar.place(r.x, r.y, r.w, border, Some(g)) }
+                // a side cut by another window gets no border: the outline belongs only to the top and the window's own sides
+                for (class, cut) in [("cut-left", g.0 > strip.x), ("cut-right", g.1 < strip.x + strip.w)] {
+                    if cut { bar.root.add_css_class(class) } else { bar.root.remove_css_class(class) }
+                }
                 bar.win.set_visible(true);
             }
             None => bar.win.set_visible(false),
