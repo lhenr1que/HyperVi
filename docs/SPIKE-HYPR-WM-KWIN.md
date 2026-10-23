@@ -102,3 +102,9 @@ Pedido do dono: o contorno da barra é só do topo e dos lados da própria janel
 
 ## Barras: divisor removido (24/10/2026)
 A barra agora termina na borda de cima da janela (margem superior `y - 28`, antes `y - borda - 28`), então o fundo da barra cobre a borda de cima da janela e as laterais se emendam sem linha divisória. Conferido em captura ampliada. A borda de cima volta a aparecer sozinha quando a barra está escondida. Não testado: `rounding` maior que 0.
+
+## Barras com arredondamento (24/10/2026)
+Teste ao vivo com `decoration:rounding = 12` (via `hyprctl eval hl.config`, revertido com `hyprctl reload`; o valor volta a 0):
+- **Funciona:** a barra releu o arredondamento sozinha em ~1 s e passou a ter cantos de cima com raio 12 (mudança em tempo de execução OK).
+- **Defeito:** a barra termina reta sobre a borda de cima da janela, mas a janela tem os cantos de cima curvos; sob os dois cantos da barra aparece um entalhe transparente onde a curva da janela se afasta (visível na captura ampliada). Com rounding 0 (config do dono) não ocorre.
+- **Caminhos:** (a) preencher o entalhe: estender a barra R px para baixo nas laterais com um preenchimento côncavo (região fora do arco do canto da janela, sem cobrir o anel da borda que o compositor desenha), via `DrawingArea`/cairo; (b) regra `rounding 0` só para janelas com barra (perde os cantos de baixo); (c) a barra cobrir os R px de cima do conteúdo da janela (perde linhas do app). Recomendo (a).
