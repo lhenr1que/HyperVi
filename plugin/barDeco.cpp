@@ -19,6 +19,7 @@
 #include <hyprland/src/animation/AnimationManager.hpp>
 #include <hyprland/src/protocols/LayerShell.hpp>
 #include <hyprland/src/event/EventBus.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
@@ -200,6 +201,21 @@ void CHyprBar::onMouseMove(Vector2D coords) {
     if (!m_bDragPending || m_bTouchEv || !validMapped(m_pWindow) || m_touchId != 0)
         return;
 
+    // A maximized window is not grabbed by a plain click: only a real drag takes it out of the maximized state, and
+    // it comes back under the pointer at its earlier size (KWin's behaviour), not at wherever the maximized rect was.
+    if (const auto W = m_pWindow.lock(); W && Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED)) {
+        const auto C = g_pInputManager->getMouseCoordsInternal();
+        if ((C - m_pressCursor).size() < 6)
+            return; // still a click; keep waiting
+        const auto OLDPOS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        const auto OLDSIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        (void)Config::Actions::fullscreenWindow(Fullscreen::FSMODE_NONE, false, W);
+        const auto     SIZE   = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        const double   RATIO  = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+        const Vector2D NEWPOS = {C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)};
+        (void)Config::Actions::move(NEWPOS, false, W);
+    }
+
     m_bDragPending = false;
     handleMovement();
 }
@@ -303,11 +319,11 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
         // The compositor grabs the window under the pointer when the move starts. Waiting for the first motion (as
         // upstream does) lets a fast move leave the bar and grab whatever is below, so a floating window's drag
         // starts right at the press, while the pointer is still on its bar. Tiled windows keep the lazy start.
-        if (PWINDOW->m_isFloating && !m_bTouchEv) {
+        if (PWINDOW->m_isFloating && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
             m_bDragPending = false;
             handleMovement();
         } else
-            m_bDragPending = true;
+            m_bDragPending = true; // tiled and maximized windows start the drag on the first real motion (onMouseMove)
     }
 }
 

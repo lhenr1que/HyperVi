@@ -34,6 +34,8 @@ ninguém publica as zonas (`hl.plugin.kwinish.set_zone`) e o encaixe/prévia/Shi
 qualquer recarga de config. O plugin agora avisa uma vez (notificação) ao arrastar sem zonas publicadas. Em 24/10 o núcleo do dono
 estava só em memória; a edição do `user.lua` do dono depende de autorização dele.
 
+**Bug (24/10, dono):** um clique simples na barra de uma janela maximizada tirava-a do estado maximizado e a jogava para um canto fora da tela (o arrasto de janela flutuante começava já no clique, com o retângulo maximizado como referência). Corrigido no plugin (`onMouseMove`/`handleDownEvent`: janela maximizada só inicia o arrasto após 6 px, sai do maximizado e volta sob o ponteiro no tamanho anterior); compilado, ainda não verificado ao vivo.
+
 ## Como testar sem estragar o desktop do dono (aprendido na pele)
 - Ambiente em cada comando: `export XDG_RUNTIME_DIR=/run/user/1000 HYPRLAND_INSTANCE_SIGNATURE=$(ls -t /run/user/1000/hypr | head -1) WAYLAND_DISPLAY=wayland-1`
   (a assinatura **muda a cada login/reinício**; uma antiga faz o `hyprctl` falhar em silêncio).
