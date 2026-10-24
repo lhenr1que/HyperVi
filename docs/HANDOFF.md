@@ -27,6 +27,13 @@ repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido 
 5. Miniaturas no Alt+Tab; estado do núcleo que sobrevive a reload (hoje em tabelas Lua; usar tags); `rounding > 0` nas zonas e na prévia.
 6. Testar o hook do pacman num upgrade real do `hyprland`; remoção do pacote; escolher nome definitivo e publicar (nome provisório "Kwinish", licença MIT).
 
+## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
+- **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
+  Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).
+- **Página no Ryoku Hub** para layouts, regras e barras (hoje tudo em JSON/menu). Seguir a regra GUI-primeiro do vault.
+- **Barras em apps com decoração própria (CSD)**: decidir se há opt-out por app (já existe "sem barra e moldura" e regra por app).
+- Descartado: mexer na memória do `CWindow` para "esconder sem mudar de workspace" (frágil a cada versão do Hyprland); manter `special:minimized`.
+
 ## Atenção: o núcleo Lua precisa estar carregado de forma persistente
 O plugin não faz nada de zona sozinho: sem `require("kwinish")` no config do Hyprland (ex.: `~/.config/hypr/user.lua` com
 `package.path = "/usr/share/kwinish/core/?.lua;" .. package.path` e `pcall(require, "kwinish")`, ou `recipes/hyprland-snippet.lua`),
