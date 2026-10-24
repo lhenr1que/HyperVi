@@ -40,6 +40,22 @@ Pop Shell e KWin: só conceitos (cache de geometria, `transientFor`, z-order); G
 `hyprbars` já é a base do plugin (BSD-3, `plugin/NOTICE`). HyDE (GPL-3): só ideias de detecção de GPU e captura; o Kwinish não toca
 em GPU. Ryoku: GPL-3 com terceiros no `NOTICE`; ver `ryoku-work/docs/distro/ESCOPO-DISTRO.md`.
 
+## Comportamentos de referência do Windows e do macOS (24/10; só o que o usuário vê, nada de binário)
+Fontes lidas em 24/10: Apple Support "Tile windows on Mac" (guia do macOS 27) e Microsoft Learn/Support sobre Snap layouts. O que vem
+só da memória do assistente está marcado (memória) e não foi conferido agora. Implementar sempre do zero.
+- **macOS:** arrastar a janela até a borda encaixa; arrastar até o topo abre o Mission Control; segurar Option ao arrastar mostra as áreas
+  de encaixe (igual ao nosso Shift ao arrastar); o botão verde abre um menu de layouts para uma ou mais janelas; menu da janela e atalhos de
+  teclado; o recurso liga e desliga nas configurações.
+- **Windows:** Snap layouts (passar o mouse no botão maximizar abre um menu de layouts; clicar numa zona encaixa a janela); **Snap Assist**
+  (depois de encaixar uma janela, sugere as outras abertas para as zonas que sobraram); Snap layouts ao arrastar para o topo da tela
+  (liga/desliga); sugestões para encaixar várias janelas de uma vez; Snap groups (as janelas encaixadas voltam juntas). (memória:
+  Win+setas, Aero Shake, clique no botão da barra de tarefas minimiza/restaura, Alt+Tab com miniaturas, Task View.)
+- **Candidatos para o Kwinish, em ordem de valor:** (1) **Snap Assist** sobre as zonas que já existem: ao encaixar uma janela numa zona,
+  oferecer as outras janelas para as zonas vazias; (2) seletor de layout ao passar o mouse no botão maximizar da barra do plugin;
+  (3) miniaturas no Alt+Tab (já na pendência 5); (4) abrir o Mission Control-like ao arrastar até o topo (opcional, hoje o topo maximiza);
+  (5) liga/desliga do encaixe nas configurações (hoje só pelo config).
+- Limite: o assistente não tem um Windows nem um Mac para observar; versões muito novas só valem pelo que as páginas oficiais dizem.
+
 ## REA (github.com/morluto/rea, avaliado 24/10)
 "Reverse Engineer Anything": MCP (Node 22+) para engenharia reversa de binários, apps e comportamento em execução, apoiado em Hopper, Ghidra ou IDA (ferramentas comerciais à parte); MIT, uso legal e autorizado. Serve pouco aqui: os doadores (Hyprland, hyprbars, KWin, Pop Shell, Ryoku) têm código aberto e se leem direto; para o Hyprland bastou `strings` e os cabeçalhos instalados. Reverter GPL não tira a obrigação GPL do que for derivado. Útil só se um dia houver um binário fechado a estudar.
 
