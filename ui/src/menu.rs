@@ -24,7 +24,7 @@ enum Item {
     Act { label: String, check: Option<bool>, action: String },
     Sub { label: String, items: Vec<Item> },
     Sep,
-    Spawn { label: String }, // launches the zone editor
+    Spawn { label: String, args: Vec<String> }, // launches kwinish-ui with these arguments
 }
 
 fn act(label: &str, action: &str) -> Item {
@@ -104,6 +104,7 @@ fn t(en: &'static str) -> &'static str {
         "Maximize horizontally" => "Maximizar na horizontal",
         "Maximize vertically" => "Maximizar na vertical",
         "Close" => "Fechar",
+        "Window shortcut..." => "Atalho da janela...",
         "Move" => "Mover",
         "Resize" => "Redimensionar",
         "Window rules" => "Regras da janela",
@@ -143,8 +144,15 @@ fn layout_items() -> Vec<Item> {
     if !user.is_empty() { items.push(Item::Sep); }
     items.extend(user.iter().map(|l| tog(&l.label, l.name == now, &format!("layout:{}", l.name))));
     items.push(Item::Sep);
-    items.push(Item::Spawn { label: t("Edit zones...").into() });
+    items.push(Item::Spawn { label: t("Edit zones...").into(), args: vec!["zones".into()] });
     items
+}
+
+// "Window shortcut..." with the current combination, for apps that have a class a bind can name.
+fn shortcut_item(st: &State, addr: &str) -> Item {
+    let cur = crate::shortcut::load().get(&st.class).cloned();
+    let label = match cur { Some(c) => format!("{} ({c})", t("Window shortcut...")), None => t("Window shortcut...").to_string() };
+    Item::Spawn { label, args: vec!["shortcut".into(), addr.into()] }
 }
 
 // Rules saved for this window's app (core/rules.lua writes ~/.config/kwinish/rules.json).
@@ -171,7 +179,7 @@ fn rule_items(st: &State) -> Vec<Item> {
     items
 }
 
-fn build(st: &State) -> Vec<Item> {
+fn build(st: &State, addr: &str) -> Vec<Item> {
     let mut ws = vec![tog(t("All workspaces"), st.pinned, "pin"), Item::Sep];
     for id in &st.workspaces {
         ws.push(tog(&format!("{} {}", t("Workspace"), id), *id == st.ws && !st.pinned, &format!("workspace:{id}")));
@@ -199,7 +207,7 @@ fn build(st: &State) -> Vec<Item> {
         tog(t("No title bar and frame"), st.noframe, "noframe"),
         tog(t("Hide from captures and recordings"), st.nocapture, "nocapture"),
     ]);
-    vec![
+    let mut root = vec![
         Item::Sub { label: t("Workspaces").into(), items: ws },
         tog(t("Maximize"), st.maximized, "maximize"),
         act(t("Minimize"), "minimize"),
@@ -209,7 +217,9 @@ fn build(st: &State) -> Vec<Item> {
         Item::Sub { label: t("More actions").into(), items: more },
         Item::Sep,
         act(t("Close"), "close"),
-    ]
+    ];
+    if !st.class.is_empty() && st.class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c)) { root.insert(5, shortcut_item(st, addr)); }
+    root
 }
 
 fn run_action(addr: &str, action: &str) {
@@ -255,15 +265,15 @@ fn make_box(items: &[Item], ctx: &Rc<Ctx>, level: usize) -> GtkBox {
                 row.add_controller(motion);
                 menu.append(&row);
             }
-            Item::Spawn { label } => {
+            Item::Spawn { label, args } => {
                 let row = Button::new();
                 row.add_css_class("row");
                 let text = Label::new(Some(label));
                 text.set_xalign(0.0);
                 row.set_child(Some(&text));
-                let ctx2 = ctx.clone();
+                let (ctx2, args) = (ctx.clone(), args.clone());
                 row.connect_clicked(move |_| {
-                    let _ = Command::new("kwinish-ui").arg("zones").spawn();
+                    let _ = Command::new("kwinish-ui").args(&args).spawn();
                     ctx2.app.quit();
                 });
                 menu.append(&row);
@@ -351,7 +361,7 @@ fn run_inner(addr: String, args: Vec<String>, layouts_only: bool) -> glib::ExitC
         let (px, py) = at.unwrap_or_else(crate::mon::cursor);
         let mon = crate::mon::at(&crate::mon::all(), px, py);
         let ctx = Rc::new(Ctx { app: app.clone(), fixed: fixed.clone(), addr: addr.clone(), open: RefCell::new(vec![]), screen: (mon.w, mon.h) });
-        let items = if layouts_only { layout_items() } else { build(&read_state(&addr)) };
+        let items = if layouts_only { layout_items() } else { build(&read_state(&addr), &addr) };
         let root = make_box(&items, &ctx, 0);
         let (cx, cy) = (px - mon.x, py - mon.y);
         let (_, nat) = root.preferred_size();

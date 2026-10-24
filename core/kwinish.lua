@@ -448,6 +448,18 @@ if not KWINISH_ZONE_HOOKS then
 end
 M.publish_zones()
 
+-- Window shortcuts (shortcuts.json): one bind per app that focuses it. Binds are added only while the config loads
+-- (hl.bind from a running eval can crash Hyprland 0.56.2); the guard also keeps a core reload by eval from re-binding.
+if not KWINISH_SHORTCUTS then
+  KWINISH_SHORTCUTS = true
+  local f = io.open(cfg_dir() .. "/shortcuts.json", "r")
+  local text = f and f:read("*a")
+  if f then f:close() end
+  for class, combo in pairs(rules.parse_shortcuts(text)) do
+    hl.bind(combo, function() hl.dispatch(hl.dsp.focus({ window = "class:" .. class })) end)
+  end
+end
+
 if not KWINISH_RULES_HOOK then
   KWINISH_RULES_HOOK = true
   hl.on("window.open", function(w)

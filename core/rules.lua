@@ -67,4 +67,14 @@ end
 
 function M.forget(rules, class) rules[class] = nil end
 
+-- shortcuts.json ({"kitty":"SUPER + ALT + K"}, written by `kwinish-ui shortcut`) -> { class = combo }. Only plain classes and
+-- combos made of capital letters, digits, '+' and spaces survive, so nothing odd reaches hl.bind.
+function M.parse_shortcuts(text)
+  local out = {}
+  for class, combo in (text or ""):gmatch('"([^"]*)"%s*:%s*"([^"]*)"') do
+    if M.valid_class(class) and combo:match("^[%u%d%+ ]+$") and #combo <= 40 then out[class] = combo end
+  end
+  return out
+end
+
 return M
