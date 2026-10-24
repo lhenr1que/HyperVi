@@ -58,8 +58,25 @@ fn t(en: &'static str) -> &'static str {
         "Esc cancels, Delete removes the current shortcut" => "Esc cancela, Delete remove o atalho atual",
         "needs SUPER, CTRL or ALT" => "precisa de SUPER, CTRL ou ALT",
         "is already used" => "já está em uso",
+        "The Kwinish core is not up to date: reload Hyprland and try again" => "O núcleo do Kwinish não está atualizado: recarregue o Hyprland e tente de novo",
         other => other,
     }
+}
+
+// Hyprland handles its binds before any client sees a key, so pressing an existing combination would run it (SUPER+Q closed
+// a window) instead of being captured. While the dialog is open the compositor sits in an empty submap, which turns the
+// binds off; the dialog leaves it on every way out, and a detached watchdog leaves it anyway if the process dies.
+fn submap(name: &str) {
+    let _ = Command::new("hyprctl").args(["eval", &format!("hl.dispatch(hl.dsp.submap('{name}'))")]).output();
+}
+
+/// True when the compositor is now in the empty submap; false (core too old or not loaded) means keys cannot be captured safely.
+fn enter_capture() -> bool {
+    submap("kwcapture");
+    let on = Command::new("hyprctl").arg("submap").output().map_or(false, |o| String::from_utf8_lossy(&o.stdout).trim() == "kwcapture");
+    if !on { return false }
+    let _ = Command::new("sh").args(["-c", "sleep 35; hyprctl eval \"hl.dispatch(hl.dsp.submap('reset'))\" >/dev/null 2>&1"]).spawn();
+    true
 }
 
 const CSS: &str = "window.kwsc { background: transparent; } .box { background: alpha(#1c1c22, 0.97); border-radius: 12px; padding: 22px 30px; border: 1px solid alpha(#ffffff, 0.12); } .box label { color: #e8e8ee; } .big { font-size: 18px; font-weight: 700; } .dim { opacity: 0.7; font-size: 12px; } .err { color: #ff8585; }";
@@ -92,6 +109,15 @@ pub fn run(addr: String) -> glib::ExitCode {
         win.set_keyboard_mode(KeyboardMode::Exclusive);
         if let Some(m) = crate::mon::gdk_monitor(&crate::mon::at(&crate::mon::all(), crate::mon::cursor().0, crate::mon::cursor().1).name) { win.set_monitor(Some(&m)); }
 
+        if !enter_capture() {
+            // the binds are still live, so a key would run its bind: refuse to listen
+            title.set_text(t("The Kwinish core is not up to date: reload Hyprland and try again"));
+            let a = app.clone();
+            glib::timeout_add_seconds_local_once(4, move || a.quit());
+            win.present();
+            return;
+        }
+
         let class = Rc::new(class.clone());
         let app2 = app.clone();
         let keys = gtk4::EventControllerKey::new();
@@ -115,7 +141,7 @@ pub fn run(addr: String) -> glib::ExitCode {
                 if map.get(class.as_str()) != Some(&c) && conflicts(&binds, mask, &name) { err.set_text(&format!("{c} {}", t("is already used"))); return glib::Propagation::Stop }
                 map.insert(class.to_string(), c);
             }
-            if save(&map).is_ok() { let _ = Command::new("hyprctl").arg("reload").status(); }
+            if save(&map).is_ok() { submap("reset"); let _ = Command::new("hyprctl").arg("reload").status(); }
             *done.borrow_mut() = true;
             app2.quit();
             glib::Propagation::Stop
@@ -125,6 +151,7 @@ pub fn run(addr: String) -> glib::ExitCode {
         glib::timeout_add_seconds_local_once(30, move || a.quit());
         win.present();
     });
+    app.connect_shutdown(|_| submap("reset"));
     app.run_with_args::<&str>(&[])
 }
 

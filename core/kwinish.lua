@@ -455,8 +455,14 @@ if not KWINISH_SHORTCUTS then
   local f = io.open(cfg_dir() .. "/shortcuts.json", "r")
   local text = f and f:read("*a")
   if f then f:close() end
+  -- `kwinish-ui shortcut` enters this empty submap while it listens for keys, so no bind runs instead of being captured
+  hl.define_submap("kwcapture", function() end)
   for class, combo in pairs(rules.parse_shortcuts(text)) do
-    hl.bind(combo, function() hl.dispatch(hl.dsp.focus({ window = "class:" .. class })) end)
+    hl.bind(combo, function()
+      hl.dispatch(hl.dsp.focus({ window = "class:" .. class }))
+      local w = hl.get_window("class:" .. class)
+      if w and w.floating then hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address })) end
+    end)
   end
 end
 
