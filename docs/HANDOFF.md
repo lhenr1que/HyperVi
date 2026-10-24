@@ -66,6 +66,24 @@ O que ainda nos diferencia: barra e menu estilo KWin, zonas de layout com prévi
 Correção do quadro comparativo colado: o Kwinish **não** esconde janelas por flag no `CWindow` (minimiza por `special:minimized`), **ainda não**
 trata janelas filhas (`transientFor`) e **ainda não** tem a tríade por workspace (só confirmada como possível).
 
+### Como o Omarchy faz o modo Floating por workspace (leitura do código MIT em 24/10, `omacom/omarchy`, `default/hypr/workspace-modes.lua`)
+- **Floating não é um motor**: o Hyprland só reporta `tiledLayout` e aceita nome de layout desconhecido em silêncio (caindo em dwindle), igual ao
+  que vimos aqui. O Omarchy aplica o modo **às janelas**: ao ligar o modo, cada janela ladrilhada vira flutuante, é centralizada num tamanho
+  confortável (`min(1100, 64% da largura)` × `min(760, 68% da altura)`) e escalonada em cascata de 24 px; ao desligar, só as janelas que o
+  modo flutuou voltam a ladrilhar.
+- **Etiquetas (tags) nas janelas** guardam isso: `omarchy-mode-floated` (a janela que o modo flutuou), `omarchy-floating-workspace` (qualquer
+  janela de um workspace flutuante, para barra de título/sombra) e `omarchy-mode-opened`. A etiqueta morre com a janela, acompanha-a entre
+  workspaces e **sobrevive ao reload da config**: é a solução para a nossa pendência 5 (estado do núcleo que some no reload).
+  Janelas que já eram flutuantes por conta própria, em tela cheia ou fixadas (pin) ficam fora do modo.
+- O modo de cada workspace fica num arquivo (`~/.local/state/omarchy/workspace-layouts/N.lua`, `o.workspace_mode({workspace, mode})`) e é
+  reaplicado ao logar; `hyprctl eval` aplica na hora. Janelas novas num workspace flutuante nascem flutuantes por **regra de janela com
+  intervalo de workspaces** (`workspace = "r[a-b]"`), no tamanho do modo. `Super + L` cicla dwindle → scrolling → floating.
+- Barra de título por **plugin próprio num pacote à parte** (`omarchy-hyprland-titlebars`, `titlebars.so`), não o hyprbars puro.
+- API útil que ainda não usávamos: `hl.get_windows({ tag = "..." })` (listar janelas por etiqueta) e `hl.window_rule` com `workspace = "r[a-b]"`
+  e `modal = false`.
+- Adotar para o Kwinish: seletor por workspace com **modo guardado em arquivo** + **etiquetas para reverter só o que o modo mexeu** + regra de
+  abertura por intervalo de workspaces. Crédito e licença MIT do Omarchy se algum trecho for adaptado.
+
 ## REA (github.com/morluto/rea, avaliado 24/10)
 "Reverse Engineer Anything": MCP (Node 22+) para engenharia reversa de binários, apps e comportamento em execução, apoiado em Hopper, Ghidra ou IDA (ferramentas comerciais à parte); MIT, uso legal e autorizado. Serve pouco aqui: os doadores (Hyprland, hyprbars, KWin, Pop Shell, Ryoku) têm código aberto e se leem direto; para o Hyprland bastou `strings` e os cabeçalhos instalados. Reverter GPL não tira a obrigação GPL do que for derivado. Útil só se um dia houver um binário fechado a estudar.
 
