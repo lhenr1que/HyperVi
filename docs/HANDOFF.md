@@ -56,6 +56,16 @@ só da memória do assistente está marcado (memória) e não foi conferido agor
   (5) liga/desliga do encaixe nas configurações (hoje só pelo config).
 - Limite: o assistente não tem um Windows nem um Mac para observar; versões muito novas só valem pelo que as páginas oficiais dizem.
 
+## Omarchy 4.5 RC (releases de omacom/omarchy, lido em 24/10)
+Notas oficiais: "Add floating workspaces with themed titlebars and a dock, alongside dwindle and scrolling on `Super + L`" e "Give each
+monitor its own workspaces, remembered every time it's plugged back in". Ou seja, o Omarchy já oferece dwindle / scrolling / floating por
+workspace: **a "tríade por workspace" não é lacuna única do Kwinish** (um texto colado antes dizia que ninguém oferecia). Como é feito
+(plugin, hyprbars, código próprio) **as notas não dizem**; um texto colado afirmou que usa hyprbars e `special:minimized`, sem prova (e com
+sintaxe `windowrulev2` de config antiga). O Omarchy é MIT: dá para ler o código dele (somente leitura, com crédito) para ver como fizeram.
+O que ainda nos diferencia: barra e menu estilo KWin, zonas de layout com prévia e editor, regras por app, Move/Resize/atalho pelo menu.
+Correção do quadro comparativo colado: o Kwinish **não** esconde janelas por flag no `CWindow` (minimiza por `special:minimized`), **ainda não**
+trata janelas filhas (`transientFor`) e **ainda não** tem a tríade por workspace (só confirmada como possível).
+
 ## REA (github.com/morluto/rea, avaliado 24/10)
 "Reverse Engineer Anything": MCP (Node 22+) para engenharia reversa de binários, apps e comportamento em execução, apoiado em Hopper, Ghidra ou IDA (ferramentas comerciais à parte); MIT, uso legal e autorizado. Serve pouco aqui: os doadores (Hyprland, hyprbars, KWin, Pop Shell, Ryoku) têm código aberto e se leem direto; para o Hyprland bastou `strings` e os cabeçalhos instalados. Reverter GPL não tira a obrigação GPL do que for derivado. Útil só se um dia houver um binário fechado a estudar.
 
