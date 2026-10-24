@@ -32,14 +32,16 @@ Tiling / Scrolling / Floating alternáveis por workspace, com seletor no menu e 
 **O Hyprland 0.56.2 já tem os motores**: `/usr/include/hyprland/src/layout/algorithm/tiled/` traz `dwindle`, `master`, `monocle` e
 `scrolling`, e o binário tem `CWorkspaceAlgoMatcher` (`updateWorkspaceLayouts`, `registerFloatingAlgo`), logo existe escolha de algoritmo
 por workspace e até algoritmos flutuantes registráveis por plugin. Não é preciso escrever motor de scroll nem adaptar o hyprscroller.
-Falta confirmar o campo exato da regra de workspace (`hl.workspace_rule` aceita `layout_opts`; o nome do campo do algoritmo não foi visto)
-e testar dwindle → scrolling num workspace do teste (9). Trabalho do Kwinish: seletor por workspace, modo Floating (o que já existe),
+**Confirmado ao vivo (24/10, workspace 9, 3 kitties):** `hyprctl eval "hl.workspace_rule({ workspace = '9', layout = 'scrolling' })"` trocou o workspace de dwindle para scrolling na hora (as janelas viraram colunas em fita, uma fora da tela à direita), e `master`, `monocle` e `dwindle` também; `hyprctl workspaces -j` mostra o motor em `tiledLayout`. `layout = 'floating'` é aceito mas não altera o `tiledLayout`: o modo Floating é o das janelas flutuantes (o que o Kwinish já faz), não um motor. Sem plugin. A regra vale até o próximo reload da config (para persistir, aplicar no núcleo ao carregar). Opções nativas do scroll: `scrolling:column_width`, `focus_fit_method`, `follow_focus`, `direction`, `wrap_focus`. Trabalho do Kwinish: seletor por workspace, modo Floating (o que já existe),
 e o estado de geometria que hoje some no reload (pendência 5; guardar em tags ou arquivo). Não obriga nuvem: depende do desktop do dono.
 
 ## Referências ("doadores"), avaliação
 Pop Shell e KWin: só conceitos (cache de geometria, `transientFor`, z-order); GPL, nunca copiar código para o Kwinish (MIT).
 `hyprbars` já é a base do plugin (BSD-3, `plugin/NOTICE`). HyDE (GPL-3): só ideias de detecção de GPU e captura; o Kwinish não toca
 em GPU. Ryoku: GPL-3 com terceiros no `NOTICE`; ver `ryoku-work/docs/distro/ESCOPO-DISTRO.md`.
+
+## REA (github.com/morluto/rea, avaliado 24/10)
+"Reverse Engineer Anything": MCP (Node 22+) para engenharia reversa de binários, apps e comportamento em execução, apoiado em Hopper, Ghidra ou IDA (ferramentas comerciais à parte); MIT, uso legal e autorizado. Serve pouco aqui: os doadores (Hyprland, hyprbars, KWin, Pop Shell, Ryoku) têm código aberto e se leem direto; para o Hyprland bastou `strings` e os cabeçalhos instalados. Reverter GPL não tira a obrigação GPL do que for derivado. Útil só se um dia houver um binário fechado a estudar.
 
 ## Distro baseada em Arch (ideia do dono, 24/10)
 Recomendações registradas em `~/Downloads/ryoku-work/docs/distro/ESCOPO-DISTRO.md` (Kwinish independente em pacotes; Ryoku é GPL-3; escopo antes de nome/repositório). Nada decidido nem iniciado. Mapa das pastas: `ryoku-work/LEIA-ME.md`.
