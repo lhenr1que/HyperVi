@@ -294,7 +294,7 @@ int luaSetZone(lua_State* L) {
 }
 
 // hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
-// next button press ends it. Escape is not handled: a click always is.
+// next button press ends it (Escape also cancels, handled by the compositor).
 int luaGrab(lua_State* L) {
     if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
         return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
