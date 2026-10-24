@@ -456,7 +456,8 @@ if not KWINISH_SHORTCUTS then
   local text = f and f:read("*a")
   if f then f:close() end
   -- `kwinish-ui shortcut` enters this empty submap while it listens for keys, so no bind runs instead of being captured
-  hl.define_submap("kwcapture", function() end)
+  -- (a submap with no bind in it is never registered, hence the bind on a key combination nobody types)
+  hl.define_submap("kwcapture", function() hl.bind("CTRL + ALT + SHIFT + SUPER + F24", function() end) end)
   for class, combo in pairs(rules.parse_shortcuts(text)) do
     hl.bind(combo, function()
       hl.dispatch(hl.dsp.focus({ window = "class:" .. class }))
