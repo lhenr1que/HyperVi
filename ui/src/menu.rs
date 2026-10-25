@@ -88,7 +88,10 @@ fn t(en: &'static str) -> &'static str {
         "Fullscreen" => "Tela cheia",
         "No title bar and frame" => "Sem barra de título e moldura",
         "Hide from captures and recordings" => "Ocultar de capturas e gravações",
-        "Float / tile" => "Flutuar / ladrilhar",
+        "Float / tile this window" => "Flutuar / ladrilhar esta janela",
+        "One column per screen" => "Uma coluna por tela",
+        "Two columns per screen" => "Duas colunas por tela",
+        "Three columns per screen" => "Três colunas por tela",
         "Snap" => "Encaixar",
         "Tiling layout" => "Layout de tiling",
         "Off (screen edges only)" => "Desligado (só as bordas da tela)",
@@ -209,17 +212,24 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
     }
     // the mode of this workspace (a window's workspace id of 1 or more; special workspaces have none)
     if st.ws >= 1 {
-        more.push(Item::Sub { label: t("Workspace mode").into(), items: vec![
+        let mut items = vec![
             tog(t("Tiling"), st.mode == "tiling", "mode:tiling"),
             tog(t("Scrolling"), st.mode == "scrolling", "mode:scrolling"),
             tog(t("Floating windows"), st.mode == "floating", "mode:floating"),
-        ] });
+        ];
+        if st.mode == "scrolling" {
+            items.push(Item::Sep);
+            items.push(act(t("One column per screen"), "columns:1"));
+            items.push(act(t("Two columns per screen"), "columns:2"));
+            items.push(act(t("Three columns per screen"), "columns:3"));
+        }
+        more.push(Item::Sub { label: t("Workspace mode").into(), items });
     }
     more.extend(vec![
         Item::Sub { label: t("Tiling layout").into(), items: layout_items() },
         tog(t("Keep below others"), st.below, "below"),
         tog(t("Fullscreen"), st.fullscreen, "fullscreen"),
-        act(t("Float / tile"), "float"),
+        act(t("Float / tile this window"), "float"),
         tog(t("No title bar and frame"), st.noframe, "noframe"),
         tog(t("Hide from captures and recordings"), st.nocapture, "nocapture"),
     ]);

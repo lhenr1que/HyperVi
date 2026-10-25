@@ -316,6 +316,7 @@ function M.window_action(addr, action)
   elseif kind == "grab" then plugin_call("grab", arg, addr) -- "grab:move" / "grab:resize", needs the plugin
   elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "mode" then if w.workspace then M.set_workspace_mode(w.workspace.id, arg) end
+  elseif kind == "columns" then if w.workspace then M.set_scrolling_columns(w.workspace.id, arg) end
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
@@ -532,6 +533,23 @@ function M.cycle_workspace_mode(back)
   local w = hl.get_active_window()
   if not (w and w.workspace) then return end
   M.set_workspace_mode(w.workspace.id, modes.next(mode_of(w.workspace.id, load_modes()), back))
+end
+
+-- Scrolling workspace: make every column 1/n of the screen (n = 1, 2 or 3). Hyprland's colresize acts on the focused column, so each
+-- window is focused in turn and the original focus comes back. New windows open at Hyprland's default width (0.5): not remembered.
+function M.set_scrolling_columns(ws, n)
+  ws, n = tonumber(ws), tonumber(n)
+  if not ws or ws < 1 or not n or n < 1 or n > 3 then return end
+  local active = hl.get_active_window()
+  local list = hl.get_workspace_windows(ws)
+  local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
+  for _, w in ipairs(list) do
+    if not w.floating and (w.fullscreen or 0) == 0 then
+      hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
+      hl.dispatch(hl.dsp.layout("colresize " .. width))
+    end
+  end
+  if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
 end
 
 -- A window that opens on a floating workspace floats too.
