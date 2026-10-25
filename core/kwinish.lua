@@ -319,7 +319,7 @@ function M.window_action(addr, action)
   elseif kind == "columns" then
     -- the window menu keeps the keyboard until it quits, and while it does the compositor will not move focus: wait for it to go
     local ws = w.workspace and w.workspace.id
-    if ws then hl.timer(function() M.set_scrolling_columns(ws, arg) end, { timeout = 250, type = "oneshot" }) end
+    if ws then hl.timer(function() M.set_scrolling_columns(ws, arg, addr) end, { timeout = 250, type = "oneshot" }) end
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
@@ -540,8 +540,8 @@ end
 
 -- Scrolling workspace: make every column 1/n of the screen (n = 1, 2 or 3). Hyprland's colresize acts on the focused column, so each
 -- window is focused in turn and the original focus comes back.
-local function resize_columns(ws, n)
-  local active = hl.get_active_window()
+local function resize_columns(ws, n, keep)
+  local active = keep and hl.get_window("address:" .. keep) or hl.get_active_window()
   local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
   for _, w in ipairs(hl.get_workspace_windows(ws)) do
     if not w.floating and (w.fullscreen or 0) == 0 then
@@ -561,7 +561,7 @@ local function load_columns()
   return modes.parse_columns(text)
 end
 
-function M.set_scrolling_columns(ws, n)
+function M.set_scrolling_columns(ws, n, keep) -- keep: address of the window that ends up focused (the one the menu was opened on)
   ws, n = tonumber(ws), tonumber(n)
   if not ws or ws < 1 or not n or n < 1 or n > 3 then return end
   local cols = load_columns()
@@ -573,9 +573,9 @@ function M.set_scrolling_columns(ws, n)
     if load_modes()[tostring(ws)] ~= "scrolling" then
       M.set_workspace_mode(ws, "scrolling")
       -- the layout switch settles a moment later; resizing columns before that finds none
-      hl.timer(function() resize_columns(ws, n) end, { timeout = 300, type = "oneshot" })
+      hl.timer(function() resize_columns(ws, n, keep) end, { timeout = 300, type = "oneshot" })
     else
-      resize_columns(ws, n)
+      resize_columns(ws, n, keep)
     end
   end
 end
