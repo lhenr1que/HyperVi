@@ -536,20 +536,60 @@ function M.cycle_workspace_mode(back)
 end
 
 -- Scrolling workspace: make every column 1/n of the screen (n = 1, 2 or 3). Hyprland's colresize acts on the focused column, so each
--- window is focused in turn and the original focus comes back. New windows open at Hyprland's default width (0.5): not remembered.
-function M.set_scrolling_columns(ws, n)
-  ws, n = tonumber(ws), tonumber(n)
-  if not ws or ws < 1 or not n or n < 1 or n > 3 then return end
+-- window is focused in turn and the original focus comes back.
+local function resize_columns(ws, n)
   local active = hl.get_active_window()
-  local list = hl.get_workspace_windows(ws)
   local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
-  for _, w in ipairs(list) do
+  for _, w in ipairs(hl.get_workspace_windows(ws)) do
     if not w.floating and (w.fullscreen or 0) == 0 then
       hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
       hl.dispatch(hl.dsp.layout("colresize " .. width))
     end
   end
   if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
+end
+
+-- workspace-columns.json remembers n per workspace: while it is set, the columns are redrawn to that width whenever a window opens or
+-- closes there. Choosing the same n again clears it (columns are left alone again).
+local function load_columns()
+  local f = io.open(cfg_dir() .. "/workspace-columns.json", "r")
+  local text = f and f:read("*a")
+  if f then f:close() end
+  return modes.parse_columns(text)
+end
+
+function M.set_scrolling_columns(ws, n)
+  ws, n = tonumber(ws), tonumber(n)
+  if not ws or ws < 1 or not n or n < 1 or n > 3 then return end
+  local cols = load_columns()
+  if cols[tostring(ws)] == n then cols[tostring(ws)] = nil else cols[tostring(ws)] = n end
+  os.execute("mkdir -p '" .. cfg_dir() .. "'")
+  local f = io.open(cfg_dir() .. "/workspace-columns.json", "w")
+  if f then f:write(modes.serialize_columns(cols), "\n"); f:close() end
+  if cols[tostring(ws)] then
+    if load_modes()[tostring(ws)] ~= "scrolling" then
+      M.set_workspace_mode(ws, "scrolling")
+      -- the layout switch settles a moment later; resizing columns before that finds none
+      hl.timer(function() resize_columns(ws, n) end, { timeout = 300, type = "oneshot" })
+    else
+      resize_columns(ws, n)
+    end
+  end
+end
+
+-- Re-applies the remembered width on a workspace after a window opened or closed there (debounced: one pass per burst).
+local columns_pending = {}
+function M.refresh_columns(ws)
+  ws = tonumber(ws)
+  if not ws or columns_pending[ws] then return end
+  local n = load_columns()[tostring(ws)]
+  if not n then return end
+  columns_pending[ws] = true
+  hl.timer(function()
+    columns_pending[ws] = nil
+    local m = load_modes()[tostring(ws)]
+    if m == "scrolling" then resize_columns(ws, n) end
+  end, { timeout = 250, type = "oneshot" })
 end
 
 -- A window that opens on a floating workspace floats too.
@@ -582,12 +622,17 @@ end
 
 if not KWINISH_RULES_HOOK then
   KWINISH_RULES_HOOK = true
+  hl.on("window.close", function(w)
+    local ws = w and w.workspace and w.workspace.id
+    local kw = package.loaded.kwinish
+    if ws and kw then kw.refresh_columns(ws) end
+  end)
   hl.on("window.open", function(w)
     local addr = w.address -- re-fetched: the window may be gone, and needs a moment to map
     hl.timer(function()
       local win = hl.get_window("address:" .. addr)
       local kw = package.loaded.kwinish
-      if win and win.mapped and kw then kw.apply_workspace_mode(win); kw.apply_rules(win) end
+      if win and win.mapped and kw then kw.apply_workspace_mode(win); kw.apply_rules(win); if win.workspace then kw.refresh_columns(win.workspace.id) end end
     end, { timeout = 150, type = "oneshot" })
   end)
 end

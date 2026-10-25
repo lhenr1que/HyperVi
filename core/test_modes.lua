@@ -13,4 +13,7 @@ assert(r.w == 1100 and r.h == 680 and r.x == 100 + 450 and r.y == 50 + 160, "cen
 local a, b = M.open_rect({ x = 0, y = 0, w = 1000, h = 800 }, 0), M.open_rect({ x = 0, y = 0, w = 1000, h = 800 }, 1)
 assert(b.x - a.x == 24 and b.y - a.y == 24 and a.w == 640 and a.h == 544, "cascade steps and small-screen size")
 assert(M.open_rect({ x = 0, y = 0, w = 1000, h = 800 }, 5).x == a.x, "cascade wraps every 5")
+local c = M.parse_columns('{"2":3,"4":2,"5":9,"0":1,"x":1}')
+assert(c["2"] == 3 and c["4"] == 2 and c["5"] == nil and c["0"] == nil and c.x == nil, "columns parsed, bad dropped")
+assert(M.serialize_columns(c) == '{"2":3,"4":2}' and M.parse_columns(M.serialize_columns(c))["2"] == 3 and next(M.parse_columns(nil)) == nil)
 print("modes ok")

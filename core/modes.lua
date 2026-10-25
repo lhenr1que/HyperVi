@@ -42,4 +42,23 @@ function M.open_rect(area, step)
   return { x = math.floor(area.x + (area.w - w) / 2) + off, y = math.floor(area.y + (area.h - h) / 2) + off, w = w, h = h }
 end
 
+-- workspace-columns.json: {"2":3} = workspace 2 keeps 3 columns per screen (1 to 3). Absent = left alone.
+function M.parse_columns(text)
+  local out = {}
+  for ws, n in (text or ""):gmatch('"(%d+)"%s*:%s*(%d+)') do
+    n = tonumber(n)
+    if tonumber(ws) >= 1 and n >= 1 and n <= 3 then out[ws] = n end
+  end
+  return out
+end
+
+function M.serialize_columns(cols)
+  local ks = {}
+  for k in pairs(cols) do ks[#ks + 1] = k end
+  table.sort(ks, function(a, b) return tonumber(a) < tonumber(b) end)
+  local parts = {}
+  for _, k in ipairs(ks) do parts[#parts + 1] = string.format('"%s":%d', k, cols[k]) end
+  return "{" .. table.concat(parts, ",") .. "}"
+end
+
 return M

@@ -219,9 +219,12 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
         ];
         if st.mode == "scrolling" {
             items.push(Item::Sep);
-            items.push(act(t("One column per screen"), "columns:1"));
-            items.push(act(t("Two columns per screen"), "columns:2"));
-            items.push(act(t("Three columns per screen"), "columns:3"));
+            // the width kept for this workspace (core/kwinish.lua redraws the columns to it); choosing it again turns that off
+            let kept: serde_json::Value = std::fs::read_to_string(crate::zones::file_path().with_file_name("workspace-columns.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+            let n = kept[st.ws.to_string()].as_i64().unwrap_or(0);
+            items.push(tog(t("One column per screen"), n == 1, "columns:1"));
+            items.push(tog(t("Two columns per screen"), n == 2, "columns:2"));
+            items.push(tog(t("Three columns per screen"), n == 3, "columns:3"));
         }
         more.push(Item::Sub { label: t("Workspace mode").into(), items });
     }
