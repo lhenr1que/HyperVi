@@ -284,9 +284,16 @@ fn make_box(items: &[Item], ctx: &Rc<Ctx>, level: usize) -> GtkBox {
             Item::Spawn { label, args } => {
                 let row = Button::new();
                 row.add_css_class("row");
+                // same two columns as the other rows (empty tick, then the text), so the text lines up
+                let line = GtkBox::new(Orientation::Horizontal, 6);
+                let tick = Label::new(Some(""));
+                tick.add_css_class("tick");
                 let text = Label::new(Some(label));
                 text.set_xalign(0.0);
-                row.set_child(Some(&text));
+                text.set_hexpand(true);
+                line.append(&tick);
+                line.append(&text);
+                row.set_child(Some(&line));
                 let (ctx2, args) = (ctx.clone(), args.clone());
                 row.connect_clicked(move |_| {
                     let _ = Command::new("kwinish-ui").args(&args).spawn();
