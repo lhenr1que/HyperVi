@@ -5,6 +5,7 @@
 local geometry = require("geometry")
 local layouts = require("layouts")
 local rules = require("rules")
+local modes = require("modes")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -314,6 +315,7 @@ function M.window_action(addr, action)
     if r then place(w, r, "zone:" .. arg) end
   elseif kind == "grab" then plugin_call("grab", arg, addr) -- "grab:move" / "grab:resize", needs the plugin
   elseif kind == "rule" then window_rule(w, arg)
+  elseif kind == "mode" then if w.workspace then M.set_workspace_mode(w.workspace.id, arg) end
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
@@ -448,6 +450,99 @@ if not KWINISH_ZONE_HOOKS then
 end
 M.publish_zones()
 
+-- Workspace modes (modes.lua), kept in ~/.config/kwinish/workspace-modes.json. Tiling and scrolling are Hyprland's own layouts, set per
+-- workspace with a workspace rule; floating floats the windows. Windows the mode floated carry the tag kwinish-mode-floated, so ending
+-- the mode tiles only those, and the tag survives config reloads (a table here would not). Windows that already floated, are
+-- fullscreen or pinned are left alone. A window's last floating rectangle is kept in a tag and
+-- put back when the mode returns (see saved_rect).
+local mode_cascade = 0
+
+local function load_modes()
+  local f = io.open(cfg_dir() .. "/workspace-modes.json", "r")
+  local text = f and f:read("*a")
+  if f then f:close() end
+  return modes.parse(text)
+end
+
+local function save_modes(t)
+  os.execute("mkdir -p '" .. cfg_dir() .. "'")
+  local f = io.open(cfg_dir() .. "/workspace-modes.json", "w")
+  if f then f:write(modes.serialize(t), "\n"); f:close() end
+end
+
+-- A window's floating rectangle is kept in a tag (kwinish-rect-X-Y-W-H, X and Y shifted by 10000 to stay positive) when the mode
+-- ends, and put back when it begins again: Hyprland itself does not return a re-floated window to where it was.
+local function saved_rect(w)
+  for _, t in ipairs(w.tags or {}) do
+    local x, y, ww, hh = t:match("^kwinish%-rect%-(%d+)%-(%d+)%-(%d+)%-(%d+)$")
+    if x then return { x = tonumber(x) - 10000, y = tonumber(y) - 10000, w = tonumber(ww), h = tonumber(hh) } end
+  end
+end
+
+local function save_rect(w)
+  for _, t in ipairs(w.tags or {}) do
+    if t:match("^kwinish%-rect%-") then set_tag(w, t, false) end
+  end
+  local r = rect_of(w)
+  set_tag(w, string.format("kwinish-rect-%d-%d-%d-%d", math.floor(r.x + 10000.5), math.floor(r.y + 10000.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5)), true)
+end
+
+local function float_for_mode(w)
+  if w.floating or (w.fullscreen or 0) ~= 0 or w.pinned then return end
+  local sel = "address:" .. w.address
+  set_tag(w, "kwinish-mode-floated", true)
+  hl.dispatch(hl.dsp.window.float({ action = "enable", window = sel }))
+  local r = saved_rect(w)
+  if r then put(w, r)
+  elseif w.monitor then
+    put(w, modes.open_rect(work_area(w.monitor), mode_cascade))
+    mode_cascade = (mode_cascade + 1) % 5
+  end
+end
+
+local function mode_of(ws, saved)
+  local m = saved[tostring(ws)]
+  if m then return m end
+  for _, w in ipairs(hl.get_workspaces()) do
+    if w.id == ws then return modes.from_engine(w.tiled_layout) end
+  end
+  return "tiling"
+end
+
+-- Applies `mode` to workspace `ws` (a number >= 1) now, and remembers it.
+function M.set_workspace_mode(ws, mode)
+  ws = tonumber(ws)
+  if not ws or ws < 1 or not modes.valid[mode] then return end
+  local saved = load_modes()
+  saved[tostring(ws)] = mode
+  save_modes(saved)
+  hl.workspace_rule({ workspace = tostring(ws), layout = modes.engine(mode) })
+  for _, w in ipairs(hl.get_workspace_windows(ws)) do
+    if mode == "floating" then float_for_mode(w)
+    elseif has_tag(w, "kwinish-mode-floated") then
+      set_tag(w, "kwinish-mode-floated", false)
+      if w.floating then save_rect(w) end
+      if not w.pinned then hl.dispatch(hl.dsp.window.float({ action = "disable", window = "address:" .. w.address })) end
+    end
+  end
+end
+
+-- Next (or previous) mode for the workspace of the active window.
+function M.cycle_workspace_mode(back)
+  local w = hl.get_active_window()
+  if not (w and w.workspace) then return end
+  M.set_workspace_mode(w.workspace.id, modes.next(mode_of(w.workspace.id, load_modes()), back))
+end
+
+-- A window that opens on a floating workspace floats too.
+function M.apply_workspace_mode(w)
+  local ws = w and w.workspace and w.workspace.id
+  if ws and ws >= 1 and load_modes()[tostring(ws)] == "floating" then float_for_mode(w) end
+end
+
+-- After a config reload the workspace rules are gone: set them again.
+for ws, mode in pairs(load_modes()) do hl.workspace_rule({ workspace = ws, layout = modes.engine(mode) }) end
+
 -- Window shortcuts (shortcuts.json): one bind per app that focuses it. Binds are added only while the config loads
 -- (hl.bind from a running eval can crash Hyprland 0.56.2); the guard also keeps a core reload by eval from re-binding.
 if not KWINISH_SHORTCUTS then
@@ -474,7 +569,7 @@ if not KWINISH_RULES_HOOK then
     hl.timer(function()
       local win = hl.get_window("address:" .. addr)
       local kw = package.loaded.kwinish
-      if win and win.mapped and kw then kw.apply_rules(win) end
+      if win and win.mapped and kw then kw.apply_workspace_mode(win); kw.apply_rules(win) end
     end, { timeout = 150, type = "oneshot" })
   end)
 end

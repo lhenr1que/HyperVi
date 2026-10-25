@@ -37,7 +37,7 @@ fn tog(label: &str, on: bool, action: &str) -> Item {
 
 // What the menu needs to know about the window; read from `hyprctl clients`, where the core also leaves tags.
 #[derive(Default)]
-struct State { class: String, floating: bool, pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
+struct State { mode: String, class: String, floating: bool, pinned: bool, maximized: bool, fullscreen: bool, ws: i64, above: bool, below: bool, noframe: bool, nocapture: bool, workspaces: Vec<i64> }
 
 fn hyprctl(args: &[&str]) -> String {
     Command::new("hyprctl").args(args).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
@@ -61,6 +61,10 @@ fn read_state(addr: &str) -> State {
     }
     let ws: serde_json::Value = serde_json::from_str(&hyprctl(&["workspaces", "-j"])).unwrap_or_default();
     st.workspaces = ws.as_array().map(|a| a.iter().filter_map(|w| w["id"].as_i64()).filter(|id| *id > 0).collect()).unwrap_or_default();
+    // mode of the window's workspace: the one the core saved, else what Hyprland's tiled layout stands for (core/modes.lua)
+    let saved: serde_json::Value = std::fs::read_to_string(crate::zones::file_path().with_file_name("workspace-modes.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let tiled = ws.as_array().and_then(|a| a.iter().find(|w| w["id"].as_i64() == Some(st.ws))).and_then(|w| w["tiledLayout"].as_str()).unwrap_or("dwindle").to_string();
+    st.mode = saved[st.ws.to_string()].as_str().map(String::from).unwrap_or_else(|| if tiled == "scrolling" { "scrolling".into() } else { "tiling".into() });
     st.workspaces.sort();
     if st.ws > 0 && !st.workspaces.contains(&st.ws) { st.workspaces.push(st.ws); st.workspaces.sort(); }
     st
@@ -104,6 +108,10 @@ fn t(en: &'static str) -> &'static str {
         "Maximize horizontally" => "Maximizar na horizontal",
         "Maximize vertically" => "Maximizar na vertical",
         "Close" => "Fechar",
+        "Workspace mode" => "Modo da área de trabalho",
+        "Tiling" => "Ladrilhado",
+        "Scrolling" => "Rolagem",
+        "Floating windows" => "Janelas flutuantes",
         "Window shortcut..." => "Atalho da janela...",
         "Move" => "Mover",
         "Resize" => "Redimensionar",
@@ -198,6 +206,14 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
     // rules are per app class; windows without a class (popups) get none
     if !st.class.is_empty() && st.class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c)) {
         more.push(Item::Sub { label: t("Window rules").into(), items: rule_items(st) });
+    }
+    // the mode of this workspace (a window's workspace id of 1 or more; special workspaces have none)
+    if st.ws >= 1 {
+        more.push(Item::Sub { label: t("Workspace mode").into(), items: vec![
+            tog(t("Tiling"), st.mode == "tiling", "mode:tiling"),
+            tog(t("Scrolling"), st.mode == "scrolling", "mode:scrolling"),
+            tog(t("Floating windows"), st.mode == "floating", "mode:floating"),
+        ] });
     }
     more.extend(vec![
         Item::Sub { label: t("Tiling layout").into(), items: layout_items() },

@@ -27,7 +27,8 @@ repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido 
 5. Miniaturas no Alt+Tab; estado do núcleo que sobrevive a reload (hoje em tabelas Lua; usar tags); `rounding > 0` nas zonas e na prévia.
 6. Testar o hook do pacman num upgrade real do `hyprland`; remoção do pacote; escolher nome definitivo e publicar (nome provisório "Kwinish", licença MIT).
 
-## Três modos por workspace (adotado pelo dono, 24/10; nada implementado)
+## Três modos por workspace (adotado pelo dono, 24/10; IMPLEMENTADO no núcleo e no menu)
+**Feito** (`core/modes.lua`, `set_workspace_mode`, menu "Mais ações > Modo da área de trabalho"; `workspace-modes.json`; verificado ao vivo no ws 9: tiling → floating → tiling → floating restaura a posição de cada janela por etiqueta `kwinish-rect-X-Y-W-H`, janela nova nasce flutuante em cascata, scrolling troca o motor; o modo salvo é reaplicado ao carregar o núcleo; design inspirado no Omarchy, MIT, ver mais abaixo). Não feito: bind para ciclar (`cycle_workspace_mode` existe, sem atalho), indicador na barra, janela nova sem piscar (hoje flutua ~150 ms depois de abrir), modo por monitor, tag `kwinish-mode-placed` antiga sem uso. Texto original da ideia:
 Tiling / Scrolling / Floating alternáveis por workspace, com seletor no menu e na barra e a geometria preservada ao trocar.
 **O Hyprland 0.56.2 já tem os motores**: `/usr/include/hyprland/src/layout/algorithm/tiled/` traz `dwindle`, `master`, `monocle` e
 `scrolling`, e o binário tem `CWorkspaceAlgoMatcher` (`updateWorkspaceLayouts`, `registerFloatingAlgo`), logo existe escolha de algoritmo
