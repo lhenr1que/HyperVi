@@ -316,7 +316,10 @@ function M.window_action(addr, action)
   elseif kind == "grab" then plugin_call("grab", arg, addr) -- "grab:move" / "grab:resize", needs the plugin
   elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "mode" then if w.workspace then M.set_workspace_mode(w.workspace.id, arg) end
-  elseif kind == "columns" then if w.workspace then M.set_scrolling_columns(w.workspace.id, arg) end
+  elseif kind == "columns" then
+    -- the window menu keeps the keyboard until it quits, and while it does the compositor will not move focus: wait for it to go
+    local ws = w.workspace and w.workspace.id
+    if ws then hl.timer(function() M.set_scrolling_columns(ws, arg) end, { timeout = 250, type = "oneshot" }) end
   elseif kind == "pin" then hl.dispatch(hl.dsp.window.pin({ action = "toggle", window = sel }))
   elseif kind == "maximize" then hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", window = sel }))
   elseif kind == "minimize" then hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = sel }))
