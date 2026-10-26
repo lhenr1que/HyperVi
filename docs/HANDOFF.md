@@ -10,7 +10,7 @@ Sempre que algo só puder ser verificado pelo dono (plugin carregado, mouse real
 (o shell dele é o fish; use `$PWD`, sem `$(...)` aninhado complicado) ou **anote o teste em `docs/STATUS.md`, seção "Testes pendentes para o dono"**, para ele fazer
 depois. **Mostre o texto completo do teste (comandos e passos) também na resposta no chat**, não só diga que está no arquivo. Inclua sempre: o que fazer, o que deve acontecer, e como desfazer. Ao fechar um teste, mova-o para "verificado" no `STATUS.md`.
 
-## Como retomar pelo Alethe (orquestração; decidido com o dono em 25/10)
+## Como retomar pelo Alethe (ABANDONADO pelo dono em 26/10: "ainda não funciona bem"; fica só como referência)
 O dono quer o Claude como **líder** dentro do Alethe, repartindo o trabalho pesado com o Codex e o Antigravity (cada um tem cota própria; o Claude gasta o
 mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes/revisões e só verificar). O Alethe fica em `~/Apps/alethe`
 (`src-tauri/target/release/alethe`; v1.7.0 compilada do código-fonte, sem instalador para Linux).
@@ -29,6 +29,28 @@ mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes
 6. Cuidados com o Alethe: ele instala CLIs de agentes em `~/.local/bin` (já quebrou o `claude` uma vez; ver o conserto abaixo), cria
    `~/.config/opencode/plugin/alethe-bridge.js`, e o controle remoto dele (HTTP/WebSocket sem criptografia) deve ficar desligado.
    Backup das configurações antes dele: `~/Apps/backups/pre-alethe-*` (sem credenciais).
+
+## Como retomar sem o Alethe (26/10)
+O dono tem Claude Code, Codex e Antigravity (`agy`). Fluxo recomendado: o Claude é o líder (decide, verifica, mexe no plugin e testa ao vivo); o Codex faz
+revisões de leitura e escreve testes, pelo terminal (`codex exec` não interativo, ou uma sessão de Codex na pasta do projeto em somente leitura); o
+Antigravity serve de segunda opinião. Cada um tem cota própria; o Claude gasta o mesmo limite em qualquer lugar, então delegue a leitura pesada.
+Sempre ler o diff antes de aceitar, e rodar `for t in core/test_*.lua; do lua5.4 $t; done` e `cargo test --manifest-path ui/Cargo.toml`.
+**Sobras do Alethe no disco do dono** (decisão dele): app em `~/Apps/alethe` (e `~/Apps/alethe-*.log/png`), CLIs que ele instalou em `~/.local/bin`
+(`claude` quebrado, `codex`, `agy`, `mimo`) e pacotes em `~/.local/lib/node_modules`, `~/.config/opencode/plugin/alethe-bridge.js`, e o controle remoto dele
+(ligado em "Rede local"; desligar). Backup das configurações: `~/Apps/backups/pre-alethe-*`.
+
+## Plano HDE colado pelo dono (26/10; avaliação, nada implementado)
+Visão: "Modular Hybrid Desktop Environment" com quatro modos (Tiling, Scrolling, Floating, e VXWM = canvas 2D infinito, v2.0), transições animadas entre
+eles e um seletor em cruz (HUD) em Quickshell (Cima = Tiling, Direita = Floating, Esquerda = Scrolling, Baixo = VXWM "em breve").
+- **Já existe**: os três modos por workspace (`core/modes.lua`, menu "Modo da área de trabalho"), com a geometria de cada janela guardada em etiquetas e
+  restaurada ao voltar. O Hyprland já anima o movimento e o redimensionamento das janelas ao trocar de modo; **não é preciso um motor de interpolação
+  próprio em C++**: basta ajustar as curvas/animações (`windowsMove`) na config.
+- **Divergências com o código real**: o Kwinish hoje é núcleo Lua + UI Rust (GTK4 layer-shell) + plugin C++ só para barras e prévias, não um motor C++ de modos;
+  o HUD poderia ser Rust/GTK (como o menu) ou QML se for parte do shell do Ryoku; o monorepo `hde-suite/` e os nomes (HDE, PKGBUILD-hde-desktop) não existem.
+- **Conflito de atalhos**: o plano sugere `Super + Ctrl + setas`, mas no Ryoku elas já **redimensionam a janela** (`binds.lua` do dono) e `Super + Ctrl + Alt + setas` mandam a
+  workspace para outro monitor. Escolher outra combinação.
+- **VXWM**: precisa de uma câmera/zoom que o Hyprland não oferece nativamente para janelas (só zoom de cursor); é um projeto à parte.
+- **Próximo passo sugerido**: o seletor em cruz (HUD) com três quadrantes ativos e o de baixo apagado, chamando `kwinish.set_workspace_mode`; atalho a decidir.
 
 ## O que existe e funciona (testado ao vivo no Hyprland 0.56.2 do dono)
 - **Plugin `kwinish-bars`** (`plugin/`, C++, fork do hyprbars): barra com ícone do app, fixar, título, minimizar/maximizar/fechar;
