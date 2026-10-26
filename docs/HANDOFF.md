@@ -39,19 +39,6 @@ Sempre ler o diff antes de aceitar, e rodar `for t in core/test_*.lua; do lua5.4
 (`claude` quebrado, `codex`, `agy`, `mimo`) e pacotes em `~/.local/lib/node_modules`, `~/.config/opencode/plugin/alethe-bridge.js`, e o controle remoto dele
 (ligado em "Rede local"; desligar). Backup das configurações: `~/Apps/backups/pre-alethe-*`.
 
-## Plano HDE colado pelo dono (26/10; avaliação, nada implementado)
-Visão: "Modular Hybrid Desktop Environment" com quatro modos (Tiling, Scrolling, Floating, e VXWM = canvas 2D infinito, v2.0), transições animadas entre
-eles e um seletor em cruz (HUD) em Quickshell (Cima = Tiling, Direita = Floating, Esquerda = Scrolling, Baixo = VXWM "em breve").
-- **Já existe**: os três modos por workspace (`core/modes.lua`, menu "Modo da área de trabalho"), com a geometria de cada janela guardada em etiquetas e
-  restaurada ao voltar. O Hyprland já anima o movimento e o redimensionamento das janelas ao trocar de modo; **não é preciso um motor de interpolação
-  próprio em C++**: basta ajustar as curvas/animações (`windowsMove`) na config.
-- **Divergências com o código real**: o Kwinish hoje é núcleo Lua + UI Rust (GTK4 layer-shell) + plugin C++ só para barras e prévias, não um motor C++ de modos;
-  o HUD poderia ser Rust/GTK (como o menu) ou QML se for parte do shell do Ryoku; o monorepo `hde-suite/` e os nomes (HDE, PKGBUILD-hde-desktop) não existem.
-- **Conflito de atalhos**: o plano sugere `Super + Ctrl + setas`, mas no Ryoku elas já **redimensionam a janela** (`binds.lua` do dono) e `Super + Ctrl + Alt + setas` mandam a
-  workspace para outro monitor. Escolher outra combinação.
-- **VXWM**: precisa de uma câmera/zoom que o Hyprland não oferece nativamente para janelas (só zoom de cursor); é um projeto à parte.
-- **Próximo passo sugerido**: o seletor em cruz (HUD) com três quadrantes ativos e o de baixo apagado, chamando `kwinish.set_workspace_mode`; atalho a decidir.
-
 ## O que existe e funciona (testado ao vivo no Hyprland 0.56.2 do dono)
 - **Plugin `kwinish-bars`** (`plugin/`, C++, fork do hyprbars): barra com ícone do app, fixar, título, minimizar/maximizar/fechar;
   cores ativa/inativa; menu da janela no ícone e no clique direito; duplo clique maximiza; roda sobe/desce a janela; arrasto
@@ -83,60 +70,8 @@ por workspace e até algoritmos flutuantes registráveis por plugin. Não é pre
 **Confirmado ao vivo (24/10, workspace 9, 3 kitties):** `hyprctl eval "hl.workspace_rule({ workspace = '9', layout = 'scrolling' })"` trocou o workspace de dwindle para scrolling na hora (as janelas viraram colunas em fita, uma fora da tela à direita), e `master`, `monocle` e `dwindle` também; `hyprctl workspaces -j` mostra o motor em `tiledLayout`. `layout = 'floating'` é aceito mas não altera o `tiledLayout`: o modo Floating é o das janelas flutuantes (o que o Kwinish já faz), não um motor. Sem plugin. A regra vale até o próximo reload da config (para persistir, aplicar no núcleo ao carregar). Opções nativas do scroll: `scrolling:column_width`, `focus_fit_method`, `follow_focus`, `direction`, `wrap_focus`. Trabalho do Kwinish: seletor por workspace, modo Floating (o que já existe),
 e o estado de geometria que hoje some no reload (pendência 5; guardar em tags ou arquivo). Não obriga nuvem: depende do desktop do dono.
 
-## Referências ("doadores"), avaliação
-Pop Shell e KWin: só conceitos (cache de geometria, `transientFor`, z-order); GPL, nunca copiar código para o Kwinish (MIT).
-`hyprbars` já é a base do plugin (BSD-3, `plugin/NOTICE`). HyDE (GPL-3): só ideias de detecção de GPU e captura; o Kwinish não toca
-em GPU. Ryoku: GPL-3 com terceiros no `NOTICE`; ver `ryoku-work/docs/distro/ESCOPO-DISTRO.md`.
-
-## Comportamentos de referência do Windows e do macOS (24/10; só o que o usuário vê, nada de binário)
-Fontes lidas em 24/10: Apple Support "Tile windows on Mac" (guia do macOS 27) e Microsoft Learn/Support sobre Snap layouts. O que vem
-só da memória do assistente está marcado (memória) e não foi conferido agora. Implementar sempre do zero.
-- **macOS:** arrastar a janela até a borda encaixa; arrastar até o topo abre o Mission Control; segurar Option ao arrastar mostra as áreas
-  de encaixe (igual ao nosso Shift ao arrastar); o botão verde abre um menu de layouts para uma ou mais janelas; menu da janela e atalhos de
-  teclado; o recurso liga e desliga nas configurações.
-- **Windows:** Snap layouts (passar o mouse no botão maximizar abre um menu de layouts; clicar numa zona encaixa a janela); **Snap Assist**
-  (depois de encaixar uma janela, sugere as outras abertas para as zonas que sobraram); Snap layouts ao arrastar para o topo da tela
-  (liga/desliga); sugestões para encaixar várias janelas de uma vez; Snap groups (as janelas encaixadas voltam juntas). (memória:
-  Win+setas, Aero Shake, clique no botão da barra de tarefas minimiza/restaura, Alt+Tab com miniaturas, Task View.)
-- **Candidatos para o Kwinish, em ordem de valor:** (1) **Snap Assist** sobre as zonas que já existem: ao encaixar uma janela numa zona,
-  oferecer as outras janelas para as zonas vazias; (2) seletor de layout ao passar o mouse no botão maximizar da barra do plugin;
-  (3) miniaturas no Alt+Tab (já na pendência 5); (4) abrir o Mission Control-like ao arrastar até o topo (opcional, hoje o topo maximiza);
-  (5) liga/desliga do encaixe nas configurações (hoje só pelo config).
-- Limite: o assistente não tem um Windows nem um Mac para observar; versões muito novas só valem pelo que as páginas oficiais dizem.
-
-## Omarchy 4.5 RC (releases de omacom/omarchy, lido em 24/10)
-Notas oficiais: "Add floating workspaces with themed titlebars and a dock, alongside dwindle and scrolling on `Super + L`" e "Give each
-monitor its own workspaces, remembered every time it's plugged back in". Ou seja, o Omarchy já oferece dwindle / scrolling / floating por
-workspace: **a "tríade por workspace" não é lacuna única do Kwinish** (um texto colado antes dizia que ninguém oferecia). Como é feito
-(plugin, hyprbars, código próprio) **as notas não dizem**; um texto colado afirmou que usa hyprbars e `special:minimized`, sem prova (e com
-sintaxe `windowrulev2` de config antiga). O Omarchy é MIT: dá para ler o código dele (somente leitura, com crédito) para ver como fizeram.
-O que ainda nos diferencia: barra e menu estilo KWin, zonas de layout com prévia e editor, regras por app, Move/Resize/atalho pelo menu.
-Correção do quadro comparativo colado: o Kwinish **não** esconde janelas por flag no `CWindow` (minimiza por `special:minimized`), **ainda não**
-trata janelas filhas (`transientFor`) e **ainda não** tem a tríade por workspace (só confirmada como possível).
-
-### Como o Omarchy faz o modo Floating por workspace (leitura do código MIT em 24/10, `omacom/omarchy`, `default/hypr/workspace-modes.lua`)
-- **Floating não é um motor**: o Hyprland só reporta `tiledLayout` e aceita nome de layout desconhecido em silêncio (caindo em dwindle), igual ao
-  que vimos aqui. O Omarchy aplica o modo **às janelas**: ao ligar o modo, cada janela ladrilhada vira flutuante, é centralizada num tamanho
-  confortável (`min(1100, 64% da largura)` × `min(760, 68% da altura)`) e escalonada em cascata de 24 px; ao desligar, só as janelas que o
-  modo flutuou voltam a ladrilhar.
-- **Etiquetas (tags) nas janelas** guardam isso: `omarchy-mode-floated` (a janela que o modo flutuou), `omarchy-floating-workspace` (qualquer
-  janela de um workspace flutuante, para barra de título/sombra) e `omarchy-mode-opened`. A etiqueta morre com a janela, acompanha-a entre
-  workspaces e **sobrevive ao reload da config**: é a solução para a nossa pendência 5 (estado do núcleo que some no reload).
-  Janelas que já eram flutuantes por conta própria, em tela cheia ou fixadas (pin) ficam fora do modo.
-- O modo de cada workspace fica num arquivo (`~/.local/state/omarchy/workspace-layouts/N.lua`, `o.workspace_mode({workspace, mode})`) e é
-  reaplicado ao logar; `hyprctl eval` aplica na hora. Janelas novas num workspace flutuante nascem flutuantes por **regra de janela com
-  intervalo de workspaces** (`workspace = "r[a-b]"`), no tamanho do modo. `Super + L` cicla dwindle → scrolling → floating.
-- Barra de título por **plugin próprio num pacote à parte** (`omarchy-hyprland-titlebars`, `titlebars.so`), não o hyprbars puro.
-- API útil que ainda não usávamos: `hl.get_windows({ tag = "..." })` (listar janelas por etiqueta) e `hl.window_rule` com `workspace = "r[a-b]"`
-  e `modal = false`.
-- Adotar para o Kwinish: seletor por workspace com **modo guardado em arquivo** + **etiquetas para reverter só o que o modo mexeu** + regra de
-  abertura por intervalo de workspaces. Crédito e licença MIT do Omarchy se algum trecho for adaptado.
-
-## REA (github.com/morluto/rea, avaliado 24/10)
-"Reverse Engineer Anything": MCP (Node 22+) para engenharia reversa de binários, apps e comportamento em execução, apoiado em Hopper, Ghidra ou IDA (ferramentas comerciais à parte); MIT, uso legal e autorizado. Serve pouco aqui: os doadores (Hyprland, hyprbars, KWin, Pop Shell, Ryoku) têm código aberto e se leem direto; para o Hyprland bastou `strings` e os cabeçalhos instalados. Reverter GPL não tira a obrigação GPL do que for derivado. Útil só se um dia houver um binário fechado a estudar.
-
-## Distro baseada em Arch (ideia do dono, 24/10)
-Recomendações registradas em `~/Downloads/ryoku-work/docs/distro/ESCOPO-DISTRO.md` (Kwinish independente em pacotes; Ryoku é GPL-3; escopo antes de nome/repositório). Nada decidido nem iniciado. Mapa das pastas: `ryoku-work/LEIA-ME.md`.
+## Ideias e referências
+Ficam em `docs/ideias/` (um arquivo por ideia, com o `INDICE.md`): seletor em cruz, VXWM, comportamentos do Windows e do macOS, página no Hub, modais ao minimizar, encaixe entre monitores, distro, Omarchy e outras referências. Este arquivo guarda só o estado do projeto.
 
 ## Revisão feita no Alethe (25/10; o planner era o Claude Code, não o Codex; plugin/ e core/ lidos, nada rodado ao vivo por ele); verificada por mim
 **Corrigido** (compilado; plugin ainda não carregado ao vivo, o resto verificado no ws 9): (1) `handleUpEvent` agora zera o estado de arrasto
@@ -198,13 +133,6 @@ independente); conferir o texto BSD-3 contra o upstream antes de publicar. As wo
 
 ## Snap Assist (25/10; feito)
 `core/assist.lua` (puro: `plan` acha a primeira zona vazia e as janelas soltas; uma janela está "na zona" se o retângulo dela bate com o da zona, tolerância 4 px) e `snap_assist()` em `kwinish.lua`, chamado depois de `place(...,"zone:N")` bem-sucedido (restaurar não dispara). Escreve `$XDG_RUNTIME_DIR/kwinish/assist.json` e roda `kwinish-ui assist` (`ui/src/assist.rs`: layer-shell com teclado exclusivo, painel sobre a zona, clique num cartão chama `window_action(addr,"zone:N")`, o que reabre para a próxima zona; Esc, clique fora ou 20 s encerram). Candidatas: flutuantes, mesmo workspace e monitor, fora de zona. Desligar: `kw.snap_assist=false`. Verificado ao vivo no ws 9 (thirds: 2 escolhas, zona 3 reabriu, fechou ao encher). **Armadilha:** o overlay some em 20 s; um clique virtual tardio cai na janela de baixo. Não testado: Shift ao arrastar com mouse real, monitor com escala ≠ 1, miniaturas.
-
-## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
-- **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
-  Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).
-- **Página no Ryoku Hub** para layouts, regras e barras (hoje tudo em JSON/menu). Seguir a regra GUI-primeiro do vault.
-- **Barras em apps com decoração própria (CSD)**: decidir se há opt-out por app (já existe "sem barra e moldura" e regra por app).
-- Descartado: mexer na memória do `CWindow` para "esconder sem mudar de workspace" (frágil a cada versão do Hyprland); manter `special:minimized`.
 
 ## Atenção: o núcleo Lua precisa estar carregado de forma persistente
 O plugin não faz nada de zona sozinho: sem `require("kwinish")` no config do Hyprland (ex.: `~/.config/hypr/user.lua` com
