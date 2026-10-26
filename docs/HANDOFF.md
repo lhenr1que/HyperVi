@@ -5,7 +5,8 @@ Para quem pega o projeto numa sessão nova (a sessão original ficou grande). Le
 repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido explícito do dono). Commits:
 `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
 
-## Regra de trabalho: testes que dependem do dono (pedido do dono, 26/10)
+## Regra de trabalho: testes que dependem do dono (pedido do dono, 26/10, reforçada duas vezes)
+**OBRIGATÓRIO: escreva o comando e os passos completos na resposta do chat. Dizer "está no STATUS.md" não basta.**
 Sempre que algo só puder ser verificado pelo dono (plugin carregado, mouse real, dois monitores, `sudo`), **entregue o comando pronto para colar no terminal**
 (o shell dele é o fish; use `$PWD`, sem `$(...)` aninhado complicado) ou **anote o teste em `docs/STATUS.md`, seção "Testes pendentes para o dono"**, para ele fazer
 depois. **Mostre o texto completo do teste (comandos e passos) também na resposta no chat**, não só diga que está no arquivo. Inclua sempre: o que fazer, o que deve acontecer, e como desfazer. Ao fechar um teste, mova-o para "verificado" no `STATUS.md`.

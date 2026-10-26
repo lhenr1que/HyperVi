@@ -47,7 +47,7 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
 ## Testes pendentes para o dono
-Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
+**Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
 
 **1. Snap Assist com Shift ao arrastar (mouse real, plugin carregado)**
 ```fish
