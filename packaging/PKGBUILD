@@ -26,7 +26,7 @@ build() {
 
 check() {
   cd kwinish
-  for t in geometry binds switcher layouts rules modes; do lua core/test_$t.lua; done
+  for t in geometry binds switcher layouts rules modes kwinish; do lua core/test_$t.lua; done
 }
 
 package() {

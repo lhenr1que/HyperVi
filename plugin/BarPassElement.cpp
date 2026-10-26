@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause AND MIT
+// Derived from hyprbars (hyprwm/hyprland-plugins, BSD-3-Clause, Copyright (c) 2023 Hypr Development); changes MIT. See NOTICE.
 #include "BarPassElement.hpp"
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>

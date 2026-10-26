@@ -141,6 +141,14 @@ menu aberto pelas barras é recolhido (sem zumbi); (10) fechar uma janela durant
 diretório de estado não puder ser monitorado. **Pendente:** (3) o submap anterior não é guardado (sempre `reset`); (9) vários daemons de barras podem coexistir
 (`NON_UNIQUE`); a corrida entre dois diálogos de atalho simultâneos continua possível.
 
+## Primeira orquestração no Alethe (25/10; funcionou)
+Planner delegou 2 workers (Codex) em worktrees (`.alethe/worktrees/job-01` e `job-02`, ignoradas pelo git). Job 1: `core/test_kwinish.lua` (247 linhas, simulador de `hl`
+em Lua puro, estado só em `/tmp/kwinish-test.*`; cobre modos, etiquetas de retângulo, colunas com timers simulados, manter acima/abaixo e restauração de
+minimizada); li o arquivo inteiro antes de aceitar, rodei os 7 testes e o incorporei, com `kwinish` na lista do `check()` do PKGBUILD. Job 2 (só leitura,
+licenças): faltavam cabeçalhos nos arquivos de `plugin/`; acrescentei cabeçalho SPDX (`BSD-3-Clause AND MIT` nos derivados do hyprbars, `MIT` nos próprios;
+só comentários). O texto BSD-3 original está em `plugin/LICENSE.hyprland-plugins`. Não provado: que nenhum trecho do Omarchy foi adaptado (a implementação é
+independente); conferir o texto BSD-3 contra o upstream antes de publicar. As worktrees e os ramos `alethe/agent-job-*` continuam no disco (limpar pelo cartão do Alethe).
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).

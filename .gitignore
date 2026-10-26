@@ -8,3 +8,4 @@ plugin/*.so
 plugin/*.o
 plugin/*.abi
 dist/
+.alethe/

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
 #pragma once
 #include <hyprland/src/render/pass/PassElement.hpp>
 

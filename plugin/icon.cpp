@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
 #include "icon.hpp"
 
 #include <algorithm>
