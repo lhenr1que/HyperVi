@@ -1,0 +1,50 @@
+# Kwinish: onde estamos (25/10/2026)
+
+Resumo geral para o dono. Detalhes técnicos e armadilhas: `docs/HANDOFF.md`. Repositório git local, 88 commits, nada publicado.
+
+## O que é
+Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, em três peças:
+- **Plugin `kwinish-bars`** (C++, fork do hyprbars): barra de título com ícone, fixar, minimizar/maximizar/fechar, menu, encaixe nas bordas e zonas.
+- **Núcleo Lua** (`core/`): a lógica (encaixe, zonas, modos, regras, Alt+Tab, atalhos), carregada pela config do Hyprland.
+- **UI em Rust** (`ui/`, `kwinish-ui`): menu da janela, Alt+Tab, seletor e editor de layouts, diálogo de atalho, barras de reserva.
+
+## Feito e verificado ao vivo
+- Barra de título completa: ícone, fixar, título, três botões, cores ativa/inativa, duplo clique maximiza, roda sobe/desce a janela.
+- Encaixe nas bordas esquerda/direita/topo com pré-visualização; Shift ao arrastar mostra as zonas do layout; desencaixar devolve o tamanho anterior.
+- Layouts e zonas, com editor visual, seletor, e arquivo `layouts.json` do usuário.
+- Menu da janela estilo KDE: submenus, Mover/Redimensionar, regras por janela/app (posição, tamanho, sempre na área, acima, abaixo, sem moldura, ocultar de capturas), atalho por janela.
+- Três modos por workspace (tiling, scrolling, floating) com geometria guardada em etiquetas, colunas por tela lembradas.
+- Manter acima/abaixo, minimizar/restaurar (`special:minimized`), mostrar área de trabalho, empacotar, eixo, cantos ativos.
+- Vários monitores: menu e editor abrem no monitor sob o ponteiro (testado com HDMI-A-1 + DP-1).
+- Pacotes de rascunho (`kwinish-git`, `kwinish-bars-plugin-git`) com hook do pacman que recompila o plugin. Instalado: `0.0.0.r50.babd9b8-1`.
+- Qualidade: 7 arquivos de teste Lua passando (incluindo o novo simulador de `hl`, `core/test_kwinish.lua`), testes Rust em `ui/`, três rodadas de revisão (Claude no Alethe, Codex em `plugin/`+`core/`, Codex em `ui/`) com correções aplicadas.
+- Licenças: cabeçalhos SPDX em `plugin/`; texto BSD-3 do hyprbars em `plugin/LICENSE.hyprland-plugins` **conferido hoje contra o upstream** (`hyprwm/hyprland-plugins`, ramo main): idêntico, copyright "2023, Hypr Development".
+
+## Corrigido no código, ainda não verificado ao vivo
+Plugin recompilado mas **não recarregado** pelo dono: correções das revisões (barras sobrepostas, estado de arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela). O núcleo foi testado no workspace 9; o plugin precisa de `hyprctl plugin unload/load` feito por você.
+
+## O que falta
+**Depende de você (desktop real):** recarregar o plugin e testar as correções; `sudo pacman -U dist/*.pkg.tar.zst`; teste com mouse real; Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`.
+
+**Funcionalidades:**
+1. Duplo clique no ícone fecha a janela (KDE faz).
+2. Snap Assist: após encaixar, oferecer as outras janelas para as zonas vazias (maior valor da lista).
+3. Seletor de layout ao passar o mouse no botão maximizar.
+4. Miniaturas no Alt+Tab; `rounding > 0` nas zonas e na prévia.
+5. Minimizar janela com filhas/modais (`transientFor`): diálogos ficam para trás.
+6. Bind para ciclar o modo do workspace, indicador na barra, janela nova sem piscar, modo por monitor.
+7. Página no Ryoku Hub para layouts, regras e barras (hoje JSON + menu).
+8. Opt-out de barra em apps com decoração própria (CSD) por app.
+9. Liga/desliga do encaixe nas configurações.
+
+**Bugs/pendências conhecidos:**
+- Encaixe depois de arrastar entre monitores volta ao monitor de origem (plugin escolhe a zona pelo ponteiro, núcleo pelo monitor da janela).
+- Clique em área coberta por outra janela aciona a barra da focada (precisa de teste ao vivo).
+- Atalho: o submap anterior não é guardado (sempre `reset`); vários daemons de barras podem coexistir; corrida entre dois diálogos de atalho.
+- Busca de ícones com I/O no render; `snap` guarda o retângulo pedido, não o obtido; estado do mostrar-área-de-trabalho em tabela Lua.
+- Auto-raise nunca verificado ao vivo.
+
+**Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
+
+## Fora de escopo / descartado
+Mexer na memória do `CWindow` para esconder janelas; copiar código GPL (KWin, Pop Shell, HyDE); distro própria (ideia registrada, nada iniciado).
