@@ -180,9 +180,17 @@ function M.keep_below(opts)
   end
 end
 
+-- After a core reload the lists are empty while the windows keep their tags: read them back.
+pcall(function()
+  for _, w in ipairs(hl.get_windows()) do
+    if has_tag(w, "kwinish-above") then above[w.address] = true end
+    if has_tag(w, "kwinish-below") then below[w.address] = true end
+  end
+end)
+
 -- Window addresses are reused: forget what was kept for a window that closed.
 function M.forget_window(addr)
-  saved[addr], above[addr], below[addr] = nil, nil, nil
+  saved[addr], above[addr], below[addr], stashed[addr] = nil, nil, nil, nil
 end
 
 -- No title bar, border or rounded corners (and hidden from screen capture): toggles, state kept in tags.
@@ -555,7 +563,9 @@ local function resize_columns(ws, n, keep)
   for _, w in ipairs(hl.get_workspace_windows(ws)) do
     if not w.floating and (w.fullscreen or 0) == 0 then
       hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
-      hl.dispatch(hl.dsp.layout("colresize " .. width))
+      local now = hl.get_active_window()
+      -- colresize acts on the focused column: when focus was refused (an overlay still holds the keyboard) skip, or it would hit another window
+      if now and now.address == w.address then hl.dispatch(hl.dsp.layout("colresize " .. width)) end
     end
   end
   if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
@@ -585,7 +595,9 @@ function M.set_scrolling_columns(ws, n, keep) -- keep: address of the window tha
     if load_modes()[tostring(ws)] ~= "scrolling" then
       M.set_workspace_mode(ws, "scrolling")
       -- the layout switch settles a moment later; resizing columns before that finds none
-      hl.timer(function() resize_columns(ws, n, keep) end, { timeout = 300, type = "oneshot" })
+      hl.timer(function()
+        if load_columns()[tostring(ws)] == n and load_modes()[tostring(ws)] == "scrolling" then resize_columns(ws, n, keep) end
+      end, { timeout = 300, type = "oneshot" })
     else
       resize_columns(ws, n, keep)
     end
@@ -642,6 +654,11 @@ if not KWINISH_RULES_HOOK then
     if w and w.address then
       local win = hl.get_window("address:" .. w.address)
       if win and has_tag(win, "kwinish-mode-floated") then set_tag(win, "kwinish-mode-floated", false) end
+      local kw = package.loaded.kwinish
+      if win and kw then
+        kw.apply_workspace_mode(win) -- floating destination: the window floats too
+        if win.workspace then kw.refresh_columns(win.workspace.id) end
+      end
     end
   end)
   hl.on("window.close", function(w)

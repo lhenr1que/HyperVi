@@ -144,6 +144,11 @@ void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent 
     if (e.button != BTN_LEFT && e.button != BTN_RIGHT)
         return;
 
+    // overlapping bars all hear the same press: the first one that took it cancels it, the others must not act on it too
+    // (releases still go to every bar, so each can clear its own drag state)
+    if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && info.cancelled)
+        return;
+
     // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
     // screen edge, which input validation would reject)
     if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
@@ -650,10 +655,15 @@ void CHyprBar::updateIcon(float scale) {
     m_iIconPx     = PX;
     m_pIconTex    = nullptr;
 
-    const auto path = KwIcon::findIconPath(W->m_class, PX);
-    if (auto* surface = KwIcon::load(path, PX)) {
-        m_pIconTex = g_pHyprRenderer->createTexture(surface);
-        cairo_surface_destroy(surface);
+    // this runs in the render pass: a filesystem error while searching the icon themes must not escape into the compositor
+    try {
+        const auto path = KwIcon::findIconPath(W->m_class, PX);
+        if (auto* surface = KwIcon::load(path, PX)) {
+            m_pIconTex = g_pHyprRenderer->createTexture(surface);
+            cairo_surface_destroy(surface);
+        }
+    } catch (const std::exception& e) {
+        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->m_class, e.what());
     }
 }
 

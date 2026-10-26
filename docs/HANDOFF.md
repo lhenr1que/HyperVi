@@ -104,6 +104,17 @@ mostrar área de trabalho em tabela Lua, (13) toque, (14) `snap` guarda o retân
 bloqueante e escrita não atômica, (19) JSON convertido em Lua com load (arquivo do próprio usuário), (20) regras de workspace do usuário podem ser
 sobrescritas, (21) triplo clique.
 
+## Revisão do Codex de verdade (25/10, `plugin/` e `core/`, só leitura; verificada por mim)
+**Corrigido** (plugin compilado, ainda não carregado ao vivo; o núcleo foi testado ao vivo no ws 9): (1) duas barras sobrepostas já não agem no mesmo clique
+(a primeira que cancela o evento vence, as outras ignoram o aperto; a soltura continua indo a todas); (2) a busca de ícones, que roda no render, é
+capturada por try/catch (erro de sistema de arquivos derrubaria o compositor); (3) `PLUGIN_EXIT` remove também `CPreviewPassElement`; (4) Esc limpa
+`grabActive` (o compositor cancela o Mover/Redimensionar e a flag ficava presa); (6) janela movida para um workspace em modo flutuante passa a flutuar e as
+colunas do destino são redesenhadas; (7) os timers das colunas revalidam o modo e o número antes de agir; (8) `resize_columns` só redimensiona se o foco
+realmente chegou à janela; (9) `stashed` do mostrar área de trabalho limpo ao fechar; (10) as listas manter acima/abaixo são refeitas das etiquetas
+depois de um reload do núcleo; (11) o histórico do Alt+Tab esquece janelas fechadas. **Pendente:** (5) encaixe depois de arrastar entre monitores
+volta ao monitor de origem (o plugin escolhe a zona pelo ponteiro, o núcleo calcula pelo monitor da janela; precisa passar o monitor ao núcleo);
+`ui/` ainda não foi revisada por outro agente.
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).

@@ -81,6 +81,11 @@ function M.setup(o)
   local cur = hl.get_active_window()
   if cur then touch(cur.address) end
   hl.on("window.active", function(w) if w and not open then touch(w.address) end end)
+  -- a closed window leaves the history (its address may be reused by another one)
+  hl.on("window.close", function(w)
+    if not (w and w.address) then return end
+    for i, a in ipairs(mru) do if a == w.address then table.remove(mru, i) break end end
+  end)
   hl.on("input.keyboard.key", function(code, _, state)
     if not open then return end
     if state == 0 and ALT_KEYS[code] then close(true)
