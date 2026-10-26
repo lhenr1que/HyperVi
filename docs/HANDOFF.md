@@ -91,6 +91,19 @@ trata janelas filhas (`transientFor`) e **ainda não** tem a tríade por workspa
 ## Distro baseada em Arch (ideia do dono, 24/10)
 Recomendações registradas em `~/Downloads/ryoku-work/docs/distro/ESCOPO-DISTRO.md` (Kwinish independente em pacotes; Ryoku é GPL-3; escopo antes de nome/repositório). Nada decidido nem iniciado. Mapa das pastas: `ryoku-work/LEIA-ME.md`.
 
+## Revisão do Codex (25/10, plugin/ e core/ lidos, nada rodado ao vivo por ele); verificada por mim
+**Corrigido** (compilado; plugin ainda não carregado ao vivo, o resto verificado no ws 9): (1) `handleUpEvent` agora zera o estado de arrasto
+mesmo quando outra janela tem o foco (antes a próxima soltura era engolida); (3) `hiddenBars` e `restores` limpos ao fechar a janela (endereços
+são reaproveitados); (6) `scissor` desligado no retorno antecipado; (7) `layouts.json` malformado não derruba mais o núcleo (validação sob pcall);
+(8) manter acima/abaixo alterna pela etiqueta, não pela tabela que o reload esvazia; (9) a etiqueta `kwinish-mode-floated` sai da janela ao mudar
+de workspace; (11) o aviso "núcleo Lua não carregado" agora vale também para o arrasto com o mouse (antes só no toque; o HANDOFF dizia o
+contrário); (12) só os botões esquerdo e direito contam na barra; (15) `saved`/`above`/`below` limpos ao fechar; (4) `resize_columns` volta ao
+workspace de origem (a troca de foco em segundo plano não ficou visível nos testes). **Não alterado**: (2) clique em área coberta de outra
+janela aciona a barra da janela focada (precisa de teste ao vivo; a condição vem do hyprbars), (5) busca de ícones com I/O no render, (10) `stashed` do
+mostrar área de trabalho em tabela Lua, (13) toque, (14) `snap` guarda o retângulo pedido e não o obtido, (16) a (22) robustez menor, (18) mkdir/execute
+bloqueante e escrita não atômica, (19) JSON convertido em Lua com load (arquivo do próprio usuário), (20) regras de workspace do usuário podem ser
+sobrescritas, (21) triplo clique.
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).

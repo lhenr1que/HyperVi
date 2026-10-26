@@ -22,5 +22,7 @@ assert(#L.user == 1 and L.find("user-a").label == "My one" and L.find("user-a").
 assert(L.find("grid") and L.find("bad") == nil, "presets stay, bad dropped")
 L.load_user("not json {{"); assert(#L.user == 0, "garbage gives no layouts")
 L.load_user('[{"name":"os","zones":[[0,0,1,1]],"x":os.exit()}]'); assert(#L.user == 0 or L.find("os"), "no env access")
+L.load_user('[{"name":"a1","zones":[1,2]},{"name":"a2","zones":[["x",0,1,1]]},{"name":"user-ok","zones":[[0,0,1,1]]}]')
+assert(#L.user == 1 and L.user[1].name == "user-ok", "malformed zones are dropped without error, the good entry stays")
 L.load_user(nil); assert(#L.user == 0)
 print("layouts ok")

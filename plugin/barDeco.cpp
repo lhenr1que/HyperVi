@@ -126,9 +126,22 @@ bool CHyprBar::inputIsValid() {
     return true;
 }
 
+// No zones at all: the Lua core is not loaded (or a config reload dropped it), so snapping and previews cannot work. Said once.
+static void warnIfNoCore() {
+    if (!g_pGlobalState->zones.empty() || g_pGlobalState->warnedNoCore)
+        return;
+    g_pGlobalState->warnedNoCore = true;
+    HyprlandAPI::addNotification(PHANDLE, "[kwinish] The Lua core is not loaded: edge snapping and layout zones are off. Add require(\"kwinish\") to your Hyprland config (see the README).",
+                                 CHyprColor{1.0, 0.7, 0.2, 1.0}, 9000);
+}
+
 void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
     // a menu Move/Resize is in progress or just ended with this click: the bars stay out of it
     if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+        return;
+
+    // middle, side and extra buttons are not ours (they used to count as a left click: middle-click on close closed the window)
+    if (e.button != BTN_LEFT && e.button != BTN_RIGHT)
         return;
 
     // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
@@ -237,12 +250,7 @@ void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
     }
     g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
     m_bDraggingThis = true;
-    // no zones at all: the Lua core is not loaded (or the config reload dropped it), so snapping and previews cannot work
-    if (g_pGlobalState->zones.empty() && !g_pGlobalState->warnedNoCore) {
-        g_pGlobalState->warnedNoCore = true;
-        HyprlandAPI::addNotification(PHANDLE, "[kwinish] The Lua core is not loaded: edge snapping and layout zones are off. Add require(\"kwinish\") to your Hyprland config (see the README).",
-                                     CHyprColor{1.0, 0.7, 0.2, 1.0}, 9000);
-    }
+    warnIfNoCore();
 }
 
 void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
@@ -481,8 +489,18 @@ void CHyprBar::snapOnRelease() {
 }
 
 void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
-    if (m_pWindow.lock() != Desktop::focusState()->window())
+    if (m_pWindow.lock() != Desktop::focusState()->window()) {
+        // focus moved between the press and the release (e.g. the minimize button): clear the drag state instead of leaving it
+        // stuck, which swallowed the next release and could start a drag with no button down
+        if (m_bDraggingThis)
+            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+        m_bDraggingThis  = false;
+        m_bCancelledDown = false;
+        m_bDragPending   = false;
+        m_bTouchEv       = false;
+        m_touchId        = 0;
         return;
+    }
 
     if (m_bCancelledDown)
         info.cancelled = true;
@@ -517,6 +535,7 @@ void CHyprBar::handleMovement() {
     }
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     m_bDraggingThis = true;
+    warnIfNoCore();
     Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
     return;
 }
@@ -860,8 +879,10 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
                           PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->m_floatingOffset.y - pMonitor->m_position.y + 1,
                           PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
 
-        if (windowBox.w < 1 || windowBox.h < 1)
+        if (windowBox.w < 1 || windowBox.h < 1) {
+            g_pHyprOpenGL->scissor(nullptr);
             return;
+        }
 
         glClearStencil(0);
         glClear(GL_STENCIL_BUFFER_BIT);

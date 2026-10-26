@@ -426,6 +426,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
     }
+    // window keys are pointers and get reused: forget what was kept for a window when it closes
+    static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
+        const auto key = (uintptr_t)w.get();
+        g_pGlobalState->hiddenBars.erase(key);
+        g_pGlobalState->restores.erase(key);
+    });
     // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
     static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
         auto& g = *g_pGlobalState;

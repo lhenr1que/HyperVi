@@ -29,11 +29,16 @@ function M.load_user(text)
   local ok, list = pcall(chunk or error)
   if not ok or type(list) ~= "table" then return end
   for _, l in ipairs(list) do
-    local good = type(l) == "table" and type(l.name) == "string" and l.name:match("^[%w%-]+$") and type(l.zones) == "table" and #l.zones > 0
-    for _, z in ipairs(good and l.zones or {}) do
-      good = good and #z == 4 and z[1] >= 0 and z[2] >= 0 and z[3] > 0 and z[4] > 0 and z[1] + z[3] <= 1 + 1e-6 and z[2] + z[4] <= 1 + 1e-6
-    end
-    if good then
+    -- one bad entry (a zone that is not a list of numbers, say) must not take the others down: validate under pcall
+    local ok, good = pcall(function()
+      local g = type(l) == "table" and type(l.name) == "string" and l.name:match("^[%w%-]+$") and type(l.zones) == "table" and #l.zones > 0
+      for _, z in ipairs(g and l.zones or {}) do
+        g = g and type(z) == "table" and #z == 4 and type(z[1]) == "number" and type(z[2]) == "number" and type(z[3]) == "number" and type(z[4]) == "number"
+          and z[1] >= 0 and z[2] >= 0 and z[3] > 0 and z[4] > 0 and z[1] + z[3] <= 1 + 1e-6 and z[2] + z[4] <= 1 + 1e-6
+      end
+      return g
+    end)
+    if ok and good then
       M.user[#M.user + 1] = { name = l.name, label = type(l.label) == "string" and l.label or l.name, zones = l.zones, gap = tonumber(l.gap), user = true }
     end
   end

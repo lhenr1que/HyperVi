@@ -159,9 +159,10 @@ end
 
 function M.keep_above(opts)
   local w = target(opts); if not w then return end
-  above[w.address] = (not above[w.address]) or nil
-  set_tag(w, "kwinish-above", above[w.address] ~= nil)
-  if above[w.address] then
+  local on = not has_tag(w, "kwinish-above") -- the tag outlives a core reload, the table does not
+  above[w.address] = on or nil
+  set_tag(w, "kwinish-above", on)
+  if on then
     below[w.address] = nil; set_tag(w, "kwinish-below", false)
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. w.address }))
   end
@@ -170,12 +171,18 @@ end
 -- Keep below: sent to the bottom of the floating stack, and again whenever focus moves.
 function M.keep_below(opts)
   local w = target(opts); if not w then return end
-  below[w.address] = (not below[w.address]) or nil
-  set_tag(w, "kwinish-below", below[w.address] ~= nil)
-  if below[w.address] then
+  local on = not has_tag(w, "kwinish-below")
+  below[w.address] = on or nil
+  set_tag(w, "kwinish-below", on)
+  if on then
     above[w.address] = nil; set_tag(w, "kwinish-above", false)
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "bottom", window = "address:" .. w.address }))
   end
+end
+
+-- Window addresses are reused: forget what was kept for a window that closed.
+function M.forget_window(addr)
+  saved[addr], above[addr], below[addr] = nil, nil, nil
 end
 
 -- No title bar, border or rounded corners (and hidden from screen capture): toggles, state kept in tags.
@@ -390,7 +397,8 @@ end
 local function load_user_layouts()
   local dir = layout_file()
   local f = io.open(dir .. "/layouts.json", "r")
-  layouts.load_user(f and f:read("*a") or nil)
+  local ok = pcall(function() layouts.load_user(f and f:read("*a") or nil) end)
+  if not ok then layouts.user = {} end
   if f then f:close() end
 end
 load_user_layouts()
@@ -542,6 +550,7 @@ end
 -- window is focused in turn and the original focus comes back.
 local function resize_columns(ws, n, keep)
   local active = keep and hl.get_window("address:" .. keep) or hl.get_active_window()
+  local home = hl.get_active_workspace and hl.get_active_workspace() -- focusing a window of another workspace may switch to it
   local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
   for _, w in ipairs(hl.get_workspace_windows(ws)) do
     if not w.floating and (w.fullscreen or 0) == 0 then
@@ -550,6 +559,9 @@ local function resize_columns(ws, n, keep)
     end
   end
   if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
+  if home and home.id and (not active or not active.workspace or active.workspace.id ~= home.id) then
+    hl.dispatch(hl.dsp.focus({ workspace = home.id })) -- back where the user was, also when no window was active
+  end
 end
 
 -- workspace-columns.json remembers n per workspace: while it is set, the columns are redrawn to that width whenever a window opens or
@@ -625,9 +637,17 @@ end
 
 if not KWINISH_RULES_HOOK then
   KWINISH_RULES_HOOK = true
+  -- a window carried to another workspace leaves the mode that floated it: drop the claim, so that workspace's mode never tiles it
+  hl.on("window.move_to_workspace", function(w)
+    if w and w.address then
+      local win = hl.get_window("address:" .. w.address)
+      if win and has_tag(win, "kwinish-mode-floated") then set_tag(win, "kwinish-mode-floated", false) end
+    end
+  end)
   hl.on("window.close", function(w)
     local ws = w and w.workspace and w.workspace.id
     local kw = package.loaded.kwinish
+    if w and w.address and kw then kw.forget_window(w.address) end
     if ws and kw then kw.refresh_columns(ws) end
   end)
   hl.on("window.open", function(w)
