@@ -25,6 +25,8 @@
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
 
 #include "globals.hpp"
 #include "BarPassElement.hpp"
@@ -492,15 +494,40 @@ void CHyprBar::maybeUnsnap() {
     if (std::abs(POS.x - R.snapPos.x) > 4 || std::abs(POS.y - R.snapPos.y) > 4 || std::abs(SIZE.x - R.snapSize.x) > 4 || std::abs(SIZE.y - R.snapSize.y) > 4)
         return;
 
-    const double RATIO = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
-    const Vector2D NEWPOS = {C.x - RATIO * R.size.x, C.y - (m_pressCursor.y - R.snapPos.y)};
+    const double RATIO   = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    const double GRABY   = m_pressCursor.y - R.snapPos.y;
+    const auto   FROM    = SIZE;
+    const auto   TO      = R.size;
+    const auto   T0      = Time::steadyNow();
+    constexpr int MS     = 140;
 
-    (void)Config::Actions::resize(R.size, false, W);
-    (void)Config::Actions::move(NEWPOS, false, W);
-    m_dragStart = NEWPOS;
-
+    // The size eases back over MS milliseconds, the window kept under the pointer at the same fraction of its bar; the
+    // compositor's move is paused meanwhile and restarted from the final geometry.
     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    auto timer = makeShared<CEventLoopTimer>(
+        std::chrono::microseconds(1),
+        [self = m_self, WIN = m_pWindow, RATIO, GRABY, FROM, TO, T0](SP<CEventLoopTimer> t, void*) {
+            const auto B = self.lock();
+            const auto W = WIN.lock();
+            if (!B || !W || !B->m_bDraggingThis)
+                return;
+            const double   P     = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - T0).count() / MS);
+            const double   E     = 1.0 - std::pow(1.0 - P, 3.0);
+            const Vector2D SZ    = FROM + (TO - FROM) * E;
+            const auto     C     = g_pInputManager->getMouseCoordsInternal();
+            const Vector2D POS   = {C.x - RATIO * SZ.x, C.y - GRABY};
+            (void)Config::Actions::resize(SZ, false, W);
+            (void)Config::Actions::move(POS, false, W);
+            if (P >= 1.0) {
+                B->m_dragStart = POS;
+                g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+                g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+                return;
+            }
+            t->updateTimeout(std::chrono::milliseconds(8));
+        },
+        nullptr);
+    g_pEventLoopManager->addTimer(timer);
 }
 
 // Releasing a drag with the pointer on a screen edge snaps the window (left/right: half, top: maximized), like KWin's
