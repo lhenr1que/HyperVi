@@ -345,7 +345,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
 // Which snap zone the pointer is on: "left", "right", "top" (maximize), or nullptr. Same test for the preview and the snap.
 const char* CHyprBar::edgeZone(const Vector2D& C, PHLMONITOR M) {
     const auto  EDGE = 3.0;
-    const float MW   = M->m_size.x / M->m_scale;
+    const float MW   = M->m_size.x; // already logical (pixels / scale)
     if (C.x <= M->m_position.x + EDGE)
         return "left";
     if (C.x >= M->m_position.x + MW - EDGE - 1)
@@ -399,7 +399,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
 
     if (signature != m_szPreviewZone) {
         // repaint everything the preview covered or covers: the whole monitor is simplest and only happens on a change
-        g_pHyprRenderer->damageBox(CBox{pMonitor->m_position.x, pMonitor->m_position.y, pMonitor->m_size.x / pMonitor->m_scale, pMonitor->m_size.y / pMonitor->m_scale});
+        g_pHyprRenderer->damageBox(CBox{pMonitor->m_position.x, pMonitor->m_position.y, pMonitor->m_size.x, pMonitor->m_size.y});
         m_szPreviewZone = signature;
     }
 
