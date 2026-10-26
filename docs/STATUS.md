@@ -46,6 +46,9 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
+## Verificado pelo dono em 26/10 (mouse real, dois monitores)
+Encaixe nas bordas e topo, voltar do topo ao tamanho anterior (com animação de 140 ms), Shift no meio do arrasto, fronteira DP-1/HDMI-A-1 sem o pulo da janela. Correções: escala 2 nas bordas, posição do clique para desencaixar, faixa de 16 px nas fronteiras, monitor sob o ponteiro, `cursor:no_warps` durante o ajuste de colunas. Dev: `fish tools/dev-reload.fish` carrega plugin e núcleo juntos (recarregar só o plugin traz de volta o núcleo de /usr/share). Resistência na fronteira (ideia do dono): não implementada, avaliar se ainda faz falta.
+
 ## Testes pendentes para o dono
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
 
