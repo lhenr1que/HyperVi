@@ -306,6 +306,8 @@ int luaGrab(lua_State* L) {
         if ((uintptr_t)w.get() != key || !w->m_isMapped || w->isHidden())
             continue;
         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+        if (Desktop::focusState()->window() != w)
+            break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
         g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
         g_pGlobalState->grabActive = true;
         break;

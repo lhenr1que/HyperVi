@@ -328,7 +328,11 @@ function M.window_action(addr, action)
     local rects = layout_rects(w.monitor)
     local r = rects[tonumber(arg) or 0]
     if r then place(w, r, "zone:" .. arg) end
-  elseif kind == "grab" then plugin_call("grab", arg, addr) -- "grab:move" / "grab:resize", needs the plugin
+  elseif kind == "grab" then
+    -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
+    -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when
+    -- the menu was opened on a covered window): wait for the menu to go
+    hl.timer(function() plugin_call("grab", arg, addr) end, { timeout = 250, type = "oneshot" })
   elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "mode" then if w.workspace then M.set_workspace_mode(w.workspace.id, arg) end
   elseif kind == "columns" then
@@ -649,6 +653,19 @@ end
 
 if not KWINISH_RULES_HOOK then
   KWINISH_RULES_HOOK = true
+  hl.on("window.active", function(w)
+    local addr = w and w.address
+    if not addr then return end
+    hl.timer(function()
+      local win = hl.get_window("address:" .. addr)
+      local home = hl.get_active_workspace and hl.get_active_workspace()
+      if win and win.workspace and win.workspace.name == "special:minimized" and home and home.id and home.id >= 1 then
+        hl.dispatch(hl.dsp.window.move({ workspace = tostring(home.id), window = "address:" .. addr }))
+        hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
+        hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
+      end
+    end, { timeout = 30, type = "oneshot" })
+  end)
   -- a window carried to another workspace leaves the mode that floated it: drop the claim, so that workspace's mode never tiles it
   hl.on("window.move_to_workspace", function(w)
     if w and w.address then

@@ -115,6 +115,17 @@ depois de um reload do núcleo; (11) o histórico do Alt+Tab esquece janelas fec
 volta ao monitor de origem (o plugin escolhe a zona pelo ponteiro, o núcleo calcula pelo monitor da janela; precisa passar o monitor ao núcleo);
 `ui/` ainda não foi revisada por outro agente.
 
+## Relatos do dono em 25/10 (corrigidos)
+- **Mover/Redimensionar pelo menu numa janela coberta agia na janela da frente:** o menu segura o teclado e o compositor recusa trocar o foco, então o
+  `grab` pegava a janela focada ou sob o ponteiro. O núcleo agora espera 250 ms (como em `columns`) e o plugin aborta se o foco não chegou à janela.
+  Verificado ao vivo com o overlay do menu aberto (`spike/grab-menu.py`): a janela de trás andou e a da frente ficou.
+- **Janela minimizada que recebe foco simples (preview da dock, Alt+Tab, script) abria o `special:minimized` por cima da tela, deixando só ela
+  visível:** `hl.dsp.focus` numa janela de uma workspace especial a mostra como overlay. O núcleo agora restaura de verdade (move para a workspace
+  ativa, sobe e foca) quando a janela ativa está em `special:minimized`. Minimizar a janela ativa continua funcionando (testado). A dock do Ryoku
+  (`Dock.qml`/`Kwin.qml`) tem o próprio caminho de restauração e não foi alterada.
+- Ao testar: cada `hyprctl eval` que recarrega o núcleo registra `hl.on` de novo e as closures antigas ficam; para um teste limpo, `hyprctl reload`
+  (recria o estado Lua) e carregue o núcleo uma vez só.
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).
