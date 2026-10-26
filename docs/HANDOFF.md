@@ -5,6 +5,26 @@ Para quem pega o projeto numa sessão nova (a sessão original ficou grande). Le
 repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido explícito do dono). Commits:
 `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
 
+## Como retomar pelo Alethe (orquestração; decidido com o dono em 25/10)
+O dono quer o Claude como **líder** dentro do Alethe, repartindo o trabalho pesado com o Codex e o Antigravity (cada um tem cota própria; o Claude gasta o
+mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes/revisões e só verificar). O Alethe fica em `~/Apps/alethe`
+(`src-tauri/target/release/alethe`; v1.7.0 compilada do código-fonte, sem instalador para Linux).
+1. Alethe → Nova sessão → **Abrir como: Orquestração** → planner **Claude Code** → pasta `/home/ryo/Downloads/ryoku-work/kwinish`; **Modo irrestrito desligado**,
+   runtime **Leve**. Mantenha a permissão do Claude no modo que pede confirmação (não "auto mode").
+2. Primeira mensagem ao planner:
+   ```
+   Leia docs/HANDOFF.md. Delegue a leitura pesada, os testes e as revisões a workers Codex ou Antigravity (cada um na sua worktree); você decide e verifica o que
+   voltar. Workers: sem sudo, sem tocar em ~/.config, sem carregar plugins, sem rede. Nada de commit ou merge no repositório principal sem eu aprovar.
+   ```
+3. O planner só delega se for pedido (o painel mostra "0 de 0 workers" até lá). Se um worker pedir rede ou outra pasta no cartão dele, **recuse**.
+4. Ao terminar: ler o diff de cada worker antes de aceitar, rodar `for t in core/test_*.lua; do lua5.4 $t; done` e `cargo test --manifest-path ui/Cargo.toml`, e só então
+   copiar para o repositório e commitar. Limpar as worktrees com `git worktree remove` (o dono é leigo no Alethe: faça por ele, depois de conferir que nada se perde).
+5. O que continua exigindo o dono e uma sessão com acesso ao desktop: carregar/descarregar o plugin, `sudo pacman -U` dos pacotes em `dist/`, teste com mouse real e
+   com dois monitores. Os pacotes saem de `packaging/` (`KWINISH_SRC=$PWD makepkg -f --nodeps` em pastas de trabalho; no `/tmp`, que some no reinício).
+6. Cuidados com o Alethe: ele instala CLIs de agentes em `~/.local/bin` (já quebrou o `claude` uma vez; ver o conserto abaixo), cria
+   `~/.config/opencode/plugin/alethe-bridge.js`, e o controle remoto dele (HTTP/WebSocket sem criptografia) deve ficar desligado.
+   Backup das configurações antes dele: `~/Apps/backups/pre-alethe-*` (sem credenciais).
+
 ## O que existe e funciona (testado ao vivo no Hyprland 0.56.2 do dono)
 - **Plugin `kwinish-bars`** (`plugin/`, C++, fork do hyprbars): barra com ícone do app, fixar, título, minimizar/maximizar/fechar;
   cores ativa/inativa; menu da janela no ícone e no clique direito; duplo clique maximiza; roda sobe/desce a janela; arrasto
