@@ -45,9 +45,7 @@ pub fn load() -> BTreeMap<String, String> {
 }
 
 pub fn save(map: &BTreeMap<String, String>) -> std::io::Result<()> {
-    let p = file_path();
-    if let Some(d) = p.parent() { std::fs::create_dir_all(d)?; }
-    std::fs::write(p, serde_json::to_string_pretty(map).unwrap_or_else(|_| "{}".into()))
+    crate::zones::write_atomic(&file_path(), &serde_json::to_string_pretty(map).unwrap_or_else(|_| "{}".into()), |t| serde_json::from_str::<Value>(t).is_ok())
 }
 
 fn t(en: &'static str) -> &'static str {
@@ -58,6 +56,7 @@ fn t(en: &'static str) -> &'static str {
         "Esc cancels, Delete removes the current shortcut" => "Esc cancela, Delete remove o atalho atual",
         "needs SUPER, CTRL or ALT" => "precisa de SUPER, CTRL ou ALT",
         "is already used" => "já está em uso",
+        "could not read the current binds" => "não consegui ler os atalhos atuais",
         "The Kwinish core is not up to date: reload Hyprland and try again" => "O núcleo do Kwinish não está atualizado: recarregue o Hyprland e tente de novo",
         other => other,
     }
@@ -75,7 +74,9 @@ fn enter_capture() -> bool {
     submap("kwcapture");
     let on = Command::new("hyprctl").arg("submap").output().map_or(false, |o| String::from_utf8_lossy(&o.stdout).trim() == "kwcapture");
     if !on { return false }
-    let _ = Command::new("sh").args(["-c", "sleep 35; hyprctl eval \"hl.dispatch(hl.dsp.submap('reset'))\" >/dev/null 2>&1"]).spawn();
+    // only when the compositor is still in kwcapture and no dialog is alive (another one may have started since): an old watchdog must not
+    // turn the binds back on under a newer capture
+    let _ = Command::new("sh").args(["-c", "sleep 35; if [ \"$(hyprctl submap 2>/dev/null)\" = kwcapture ] && ! pgrep -f 'kwinish-ui shortcut' >/dev/null; then hyprctl eval \"hl.dispatch(hl.dsp.submap('reset'))\" >/dev/null 2>&1; fi"]).spawn();
     true
 }
 
@@ -137,11 +138,16 @@ pub fn run(addr: String) -> glib::ExitCode {
                 for (m, bit) in [(M::SHIFT_MASK, SHIFT), (M::CONTROL_MASK, CTRL), (M::ALT_MASK, ALT), (M::SUPER_MASK, SUPER)] { if state.contains(m) { mask |= bit } }
                 let Some(c) = combo(mask, &name) else { err.set_text(&format!("{} ({})", t("needs SUPER, CTRL or ALT"), name)); return glib::Propagation::Stop };
                 let binds = Command::new("hyprctl").args(["binds", "-j"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+                // not being able to read the existing binds is not "no conflict": refuse rather than risk shadowing one
+                if !serde_json::from_str::<Value>(&binds).map_or(false, |v| v.as_array().map_or(false, |a| !a.is_empty())) {
+                    err.set_text(t("could not read the current binds"));
+                    return glib::Propagation::Stop
+                }
                 // a bind this app already owns is not a conflict
                 if map.get(class.as_str()) != Some(&c) && conflicts(&binds, mask, &name) { err.set_text(&format!("{c} {}", t("is already used"))); return glib::Propagation::Stop }
                 map.insert(class.to_string(), c);
             }
-            if save(&map).is_ok() { submap("reset"); let _ = Command::new("hyprctl").arg("reload").status(); }
+            if save(&map).is_ok() { submap("reset"); let _ = Command::new("hyprctl").arg("reload").spawn(); }
             *done.borrow_mut() = true;
             app2.quit();
             glib::Propagation::Stop

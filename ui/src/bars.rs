@@ -259,7 +259,9 @@ fn make_bar(app: &Application, addr: &str, mon: (i32, i32, i32), border: Rc<Cell
                         // under the bar, at the pointer's x
                         let (x, _) = cursor();
                         let (_, wy, _) = bar.pos.get();
-                        let _ = std::process::Command::new(exe).args(["menu", &a, "--at", &format!("{},{}", x as i32, wy)]).spawn();
+                        if let Ok(mut child) = std::process::Command::new(exe).args(["menu", &a, "--at", &format!("{},{}", x as i32, wy)]).spawn() {
+                            std::thread::spawn(move || { let _ = child.wait(); }); // reaped when the menu ends, no zombie
+                        }
                     }
                 }
                 _ => {}

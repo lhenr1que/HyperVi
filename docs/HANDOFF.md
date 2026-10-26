@@ -126,6 +126,21 @@ volta ao monitor de origem (o plugin escolhe a zona pelo ponteiro, o núcleo cal
 - Ao testar: cada `hyprctl eval` que recarrega o núcleo registra `hl.on` de novo e as closures antigas ficam; para um teste limpo, `hyprctl reload`
   (recria o estado Lua) e carregue o núcleo uma vez só.
 
+## Mover/Redimensionar em janela coberta, segunda rodada (25/10)
+Persistia mesmo após o atraso de 250 ms: depois do menu fechar o ponteiro ainda estava na entrada do menu, sobre a janela da frente, e o foco segue o
+ponteiro no primeiro movimento, então a janela da frente era arrastada. Agora o núcleo, como o KWin, **sobe a janela, leva o ponteiro para dentro dela**
+(centro no Mover, canto inferior direito no Redimensionar) e só então inicia o `grab`. Reproduzido e verificado com o caminho inteiro por ponteiro virtual
+(`spike/menu-grab.py`: botão direito na barra da janela coberta, clique na entrada do menu, arrasto, clique). Só núcleo (sem recarregar o plugin).
+
+## Revisão do Codex sobre `ui/`, `switcher.lua` e `binds.lua` (25/10; verificada)
+**Corrigido:** (1) o menu/editor/atalho não esperam mais o `hyprctl` com o teclado exclusivo (`spawn` em vez de `status`); (2) o vigia de 35 s do atalho só
+reseta se o compositor ainda estiver em `kwcapture` e nenhum diálogo estiver vivo; (4) e (5) `layouts.json` e `shortcuts.json` são gravados por arquivo
+temporário + `rename`, e um arquivo ilegível é copiado para `.bak` antes de ser sobrescrito (`write_atomic`); (6) `layouts.json` é validado na UI como no
+núcleo (nome, zonas dentro de [0,1], gap de 0 a 60); (7) a checagem de conflito de atalho não falha mais aberta (sem ler `hyprctl binds`, recusa); (8) o filho do
+menu aberto pelas barras é recolhido (sem zumbi); (10) fechar uma janela durante o Alt+Tab a tira da seleção aberta; (11) o overlay não entra em pânico se o
+diretório de estado não puder ser monitorado. **Pendente:** (3) o submap anterior não é guardado (sempre `reset`); (9) vários daemons de barras podem coexistir
+(`NON_UNIQUE`); a corrida entre dois diálogos de atalho simultâneos continua possível.
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).

@@ -88,12 +88,14 @@ fn run_switcher() -> glib::ExitCode {
             let _ = std::fs::create_dir_all(dir);
         }
         // watch the directory: the Lua side replaces the file, which a file monitor can miss
-        let monitor = gio::File::for_path(path.parent().unwrap())
-            .monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE)
-            .expect("cannot watch state dir");
-        let (w, r, p) = (win.clone(), row.clone(), path.clone());
-        monitor.connect_changed(move |_, _, _, _| render(&w, &r, &p));
-        std::mem::forget(monitor);
+        match gio::File::for_path(path.parent().unwrap()).monitor_directory(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) {
+            Ok(monitor) => {
+                let (w, r, p) = (win.clone(), row.clone(), path.clone());
+                monitor.connect_changed(move |_, _, _, _| render(&w, &r, &p));
+                std::mem::forget(monitor);
+            }
+            Err(e) => eprintln!("kwinish-ui: cannot watch {}: {e}", path.display()), // the overlay stays hidden instead of panicking
+        }
         render(&win, &row, &path);
         std::mem::forget(app.hold());
     });

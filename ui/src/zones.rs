@@ -90,16 +90,21 @@ pub fn file_path() -> PathBuf {
     PathBuf::from(base).join("kwinish").join("layouts.json")
 }
 
+/// Entries the core (core/layouts.lua) would reject are dropped here too, so the picker never offers what cannot be used.
 pub fn parse(text: &str) -> Vec<Layout> {
     let v: Value = serde_json::from_str(text).unwrap_or_default();
     v.as_array().map(|a| a.iter().filter_map(|l| {
-        let zones: Vec<Zone> = l["zones"].as_array()?.iter().filter_map(|z| {
-            let n: Vec<f64> = z.as_array()?.iter().filter_map(Value::as_f64).collect();
-            (n.len() == 4).then(|| [n[0], n[1], n[2], n[3]])
-        }).collect();
         let name = l["name"].as_str()?.to_string();
+        if name.is_empty() || name.len() > 64 || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') { return None }
+        let raw = l["zones"].as_array()?;
+        let mut zones: Vec<Zone> = vec![];
+        for z in raw {
+            let n: Vec<f64> = z.as_array()?.iter().map(Value::as_f64).collect::<Option<Vec<f64>>>()?;
+            if n.len() != 4 || n[0] < 0.0 || n[1] < 0.0 || n[2] <= 0.0 || n[3] <= 0.0 || n[0] + n[2] > 1.0 + 1e-6 || n[1] + n[3] > 1.0 + 1e-6 { return None }
+            zones.push([n[0], n[1], n[2], n[3]]);
+        }
         if zones.is_empty() { return None }
-        Some(Layout { label: l["label"].as_str().unwrap_or(&name).to_string(), name, gap: l["gap"].as_i64(), zones })
+        Some(Layout { label: l["label"].as_str().unwrap_or(&name).to_string(), name, gap: l["gap"].as_i64().map(|g| g.clamp(0, 60)), zones })
     }).collect()).unwrap_or_default()
 }
 
@@ -115,13 +120,23 @@ pub fn render(layouts: &[Layout]) -> String {
 
 pub fn load() -> Vec<Layout> { std::fs::read_to_string(file_path()).map(|t| parse(&t)).unwrap_or_default() }
 
+/// Write `text` to `path` through a temporary file and a rename, so a crash or a second writer never leaves a half-written file. A file
+/// that exists but does not parse is first copied to `<name>.bak`, since saving over it would silently drop whatever it held.
+pub fn write_atomic(path: &std::path::Path, text: &str, parses: impl Fn(&str) -> bool) -> std::io::Result<()> {
+    if let Some(d) = path.parent() { std::fs::create_dir_all(d)?; }
+    if let Ok(old) = std::fs::read_to_string(path) {
+        if !old.trim().is_empty() && !parses(&old) { let _ = std::fs::write(path.with_extension("json.bak"), old); }
+    }
+    let tmp = path.with_extension(format!("json.tmp{}", std::process::id()));
+    std::fs::write(&tmp, text)?;
+    std::fs::rename(&tmp, path)
+}
+
 /// Insert or replace (by name) and write the file.
 pub fn save(l: Layout) -> std::io::Result<()> {
     let mut all = load();
     match all.iter_mut().find(|x| x.name == l.name) { Some(x) => *x = l, None => all.push(l) }
-    let p = file_path();
-    if let Some(d) = p.parent() { std::fs::create_dir_all(d)?; }
-    std::fs::write(p, render(&all))
+    write_atomic(&file_path(), &render(&all), |t| serde_json::from_str::<Value>(t).is_ok())
 }
 
 /// The presets of core/layouts.lua, to load as a starting point (keep in step with it).
@@ -174,6 +189,28 @@ mod tests {
         add_floating(&mut z);
         delete(&mut z, 1);
         assert_eq!(z, vec![[0., 0., 1., 1.]]);
+    }
+
+    #[test]
+    fn parse_drops_what_the_core_would_reject() {
+        let t = r#"[{"name":"ok","zones":[[0,0,0.5,1]],"gap":999},{"name":"bad name","zones":[[0,0,1,1]]},{"name":"neg","zones":[[-0.1,0,1,1]]},
+                    {"name":"big","zones":[[0,0,2,1]]},{"name":"nan","zones":[["x",0,1,1]]},{"name":"short","zones":[[0,0,1]]},{"name":"none","zones":[]}]"#;
+        let l = parse(t);
+        assert_eq!(l.len(), 1);
+        assert_eq!((l[0].name.as_str(), l[0].gap), ("ok", Some(60)));
+    }
+
+    #[test]
+    fn atomic_write_keeps_a_backup_of_an_unreadable_file() {
+        let d = std::env::temp_dir().join(format!("kwinish-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let p = d.join("layouts.json");
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(&p, "{ not json").unwrap();
+        write_atomic(&p, "[]", |t| serde_json::from_str::<Value>(t).is_ok()).unwrap();
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "[]");
+        assert_eq!(std::fs::read_to_string(p.with_extension("json.bak")).unwrap(), "{ not json");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

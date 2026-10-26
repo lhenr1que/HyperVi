@@ -202,7 +202,7 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
             let l = Layout { name: zones::slug(&label), label, gap: Some(pad2.value() as i64), zones: ed2.zones.borrow().clone() };
             if zones::save(l.clone()).is_ok() {
                 // set_layout re-reads the file, activates the layout and republishes the zones to the plugin
-                let _ = Command::new("hyprctl").args(["eval", &format!("require('kwinish').window_action('','layout:{}')", l.name)]).status();
+                let _ = Command::new("hyprctl").args(["eval", &format!("require('kwinish').window_action('','layout:{}')", l.name)]).spawn();
             }
             a.quit();
         });

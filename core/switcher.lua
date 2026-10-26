@@ -85,6 +85,10 @@ function M.setup(o)
   hl.on("window.close", function(w)
     if not (w and w.address) then return end
     for i, a in ipairs(mru) do if a == w.address then table.remove(mru, i) break end end
+    if open then -- the selection on screen must not keep a window that is gone (its address may be reused)
+      for i = #items, 1, -1 do if items[i].address == w.address then table.remove(items, i) end end
+      if #items == 0 then close(false) else sel = math.min(sel, #items - 1); write(true, sel, items) end
+    end
   end)
   hl.on("input.keyboard.key", function(code, _, state)
     if not open then return end

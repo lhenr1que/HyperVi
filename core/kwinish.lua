@@ -332,7 +332,20 @@ function M.window_action(addr, action)
     -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
     -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when
     -- the menu was opened on a covered window): wait for the menu to go
-    hl.timer(function() plugin_call("grab", arg, addr) end, { timeout = 250, type = "oneshot" })
+    hl.timer(function()
+      -- KWin raises the window and puts the pointer on it. The pointer is still on the menu entry, over whatever window is under it
+      -- (the one in front, for a covered window), and focus follows the pointer on the first move, so the drag would go to that one.
+      local win = hl.get_window("address:" .. addr)
+      if win then
+        local r = rect_of(win)
+        if win.floating then hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr })) end
+        local tx, ty = r.x + r.w / 2, r.y + r.h / 2 -- move: the middle of the window
+        if arg == "resize" then tx, ty = r.x + r.w - 12, r.y + r.h - 12 end -- resize: its bottom-right corner
+        hl.dispatch(hl.dsp.cursor.move({ x = math.floor(tx), y = math.floor(ty) }))
+        hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
+      end
+      plugin_call("grab", arg, addr)
+    end, { timeout = 250, type = "oneshot" })
   elseif kind == "rule" then window_rule(w, arg)
   elseif kind == "mode" then if w.workspace then M.set_workspace_mode(w.workspace.id, arg) end
   elseif kind == "columns" then

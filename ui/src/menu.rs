@@ -255,7 +255,8 @@ fn run_action(addr: &str, action: &str) {
     // addr and action come from our own tables and Hyprland, but keep the Lua string safe anyway
     let clean = |s: &str| s.chars().filter(|c| c.is_ascii_alphanumeric() || ":+-_".contains(*c)).collect::<String>();
     let code = format!("require('kwinish').window_action('{}','{}')", clean(addr), clean(action));
-    let _ = Command::new("hyprctl").args(["eval", &code]).status();
+    // not waited for: the menu holds the keyboard until it quits, and a slow hyprctl must not keep it (the core also waits for the menu to go)
+    let _ = Command::new("hyprctl").args(["eval", &code]).spawn();
 }
 
 struct Ctx { app: Application, fixed: Fixed, addr: String, open: RefCell<Vec<(GtkBox, Button)>>, screen: (i32, i32) }  // screen: size of the monitor the menu is on
