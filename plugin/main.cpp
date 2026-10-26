@@ -381,6 +381,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pGlobalState->config.floatingOnly        = makeShared<Config::Values::CBoolValue>("plugin:kwinish:floating_only", "Draw bars on floating windows only", false);
     g_pGlobalState->config.inactiveBarColor    = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_bar_color", "Bar colour of an unfocused window", 0xe01c1c22);
     g_pGlobalState->config.inactiveTextColor   = makeShared<Config::Values::CColorValue>("plugin:kwinish:inactive_col.text", "Title colour of an unfocused window", 0xffb8b8c4);
+    g_pGlobalState->config.seamResistance      = makeShared<Config::Values::CIntValue>("plugin:kwinish:seam_resistance", "Pixels of extra push needed to drag a window across the seam between two monitors (0 = off)", 60);
     g_pGlobalState->config.snapTopEdge         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_top_edge", "Maximize a window dropped on the top screen edge", true);
     g_pGlobalState->config.snapPreview         = makeShared<Config::Values::CBoolValue>("plugin:kwinish:snap_preview", "Show where a dragged window will land when it is released on a snap edge", true);
     g_pGlobalState->config.previewColor        = makeShared<Config::Values::CColorValue>("plugin:kwinish:preview_color", "Colour of the snap preview (fill; the outline is the same colour, more opaque)", 0x407aa2f7);
@@ -411,6 +412,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.floatingOnly);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveBarColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.inactiveTextColor);
+    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.seamResistance);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.snapTopEdge);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.snapPreview);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.previewColor);

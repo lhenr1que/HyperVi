@@ -25,6 +25,7 @@
 #include <hyprland/src/layout/LayoutManager.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
+#include <hyprland/src/pointer/PointerManager.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
 
@@ -217,6 +218,47 @@ void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEven
 
 // Pressing or releasing Shift mid-drag freezes the compositor's move (the window stops, the pointer goes on): start the
 // move again from where the window is, as unsnapping does.
+static PHLMONITOR monitorAtPointer(const Vector2D& C);
+
+// Dragging a window across the seam between two monitors takes an extra push (plugin:kwinish:seam_resistance pixels): the pointer
+// is held on the edge, which also shows the edge snap preview, and only crosses once the push is spent.
+void CHyprBar::resistSeam() {
+    const double RES = g_pGlobalState->config.seamResistance->value();
+    const auto   C   = g_pInputManager->getMouseCoordsInternal();
+    if (m_resistWarping) {
+        m_resistWarping = false;
+        return;
+    }
+    const auto PREV = m_resistLast;
+    m_resistLast    = C;
+    if (RES <= 0)
+        return;
+    const auto A = monitorAtPointer(PREV), B = monitorAtPointer(C);
+    if (!A || !B || A == B) {
+        if (std::abs(C.x - m_resistSeam) > 32)
+            m_resistPush = 0; // moved away from the seam: the next approach starts fresh
+        return;
+    }
+    const bool RIGHT = std::abs(A->m_position.x + A->m_size.x - B->m_position.x) < 2;
+    const bool LEFT  = std::abs(B->m_position.x + B->m_size.x - A->m_position.x) < 2;
+    if (!RIGHT && !LEFT)
+        return;
+    const double SEAM = RIGHT ? B->m_position.x : A->m_position.x;
+    if (SEAM != m_resistSeam) {
+        m_resistSeam = SEAM;
+        m_resistPush = 0;
+    }
+    m_resistPush += std::abs(C.x - PREV.x);
+    if (m_resistPush >= RES) {
+        m_resistPush = 0;
+        return; // spent: this move crosses
+    }
+    const Vector2D BACK = {RIGHT ? SEAM - 1 : SEAM, C.y};
+    m_resistWarping     = true;
+    m_resistLast        = BACK;
+    Pointer::mgr()->warpTo(BACK);
+}
+
 void CHyprBar::rearmDrag() {
     const auto W = m_pWindow.lock();
     if (!W || !m_bDraggingThis || m_bTouchEv)
@@ -236,8 +278,10 @@ void CHyprBar::onMouseMove(Vector2D coords) {
             std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
         }
     }
-    if (m_bDraggingThis && !m_bTouchEv)
+    if (m_bDraggingThis && !m_bTouchEv) {
         maybeUnsnap();
+        resistSeam();
+    }
 
     // ensure proper redraws of button icons on hover when using hardware cursors
     damageOnButtonHover();
@@ -601,6 +645,8 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
 
 void CHyprBar::handleMovement() {
     m_bUnsnapChecked = false;
+    m_resistLast     = g_pInputManager->getMouseCoordsInternal();
+    m_resistPush     = 0;
     if (const auto W = m_pWindow.lock()) {
         m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
         // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window

@@ -56,7 +56,7 @@ struct SGlobalState {
 
     struct {
         SP<Config::Values::CColorValue>      barColor, textColor, inactiveButtonColor;
-        SP<Config::Values::CIntValue>        barHeight;
+        SP<Config::Values::CIntValue>        barHeight, seamResistance;
         SP<Config::Values::CIntValue>        barTextSize;
         SP<Config::Values::CFontWeightValue> barTextWeight;
         SP<Config::Values::CIntValue>        barPadding;
