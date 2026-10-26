@@ -248,7 +248,7 @@ void CHyprBar::resistSeam() {
         m_resistSeam = SEAM;
         m_resistPush = 0;
     }
-    m_resistPush += std::abs(C.x - PREV.x);
+    m_resistPush += std::min(20.0, std::abs(C.x - PREV.x)); // a single fast flick must not spend it all
     if (m_resistPush >= RES) {
         m_resistPush = 0;
         return; // spent: this move crosses

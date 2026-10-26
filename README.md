@@ -15,7 +15,7 @@ Three layers, each usable without the next:
 The plugin is the primary bar: app icon, pin button and title on the left; minimize, maximize and close on the right; drawn
 by the compositor, so stacking, animations, borders and rounding are the real ones. Right click opens the window menu,
 double click maximizes, the wheel over the bar raises or lowers the window, and dropping a dragged window on the left or
-right screen edge snaps it to a half, and on the top edge maximizes it (`snap_top_edge`, on by default). Dragging across the seam between two monitors takes an extra push of `seam_resistance` pixels (default 60, 0 turns it off). Bars show on every window; `floating_only`
+right screen edge snaps it to a half, and on the top edge maximizes it (`snap_top_edge`, on by default). Dragging across the seam between two monitors takes an extra push of `seam_resistance` pixels (default 200, 0 turns it off). Bars show on every window; `floating_only`
 limits them to floating ones.
 
 **Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + CTRL + T`) or in the window menu. Make your own with the zone editor (`kwinish-ui zones`, `SUPER + CTRL + E`, or "Edit zones..." in the picker): split, add floating blocks, set the padding, load a preset to start from; layouts are saved in `~/.config/kwinish/layouts.json` and show up in the picker. Dragging a snapped window by its bar gives back its old size.
