@@ -32,6 +32,8 @@
 #include "PreviewPassElement.hpp"
 
 #include <climits>
+#include <filesystem>
+#include <fstream>
 
 using namespace Render::GL;
 
@@ -211,7 +213,27 @@ void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEven
     runAction(e.delta < 0 ? "raise" : "lower");
 }
 
+// Pressing or releasing Shift mid-drag freezes the compositor's move (the window stops, the pointer goes on): start the
+// move again from where the window is, as unsnapping does.
+void CHyprBar::rearmDrag() {
+    const auto W = m_pWindow.lock();
+    if (!W || !m_bDraggingThis || m_bTouchEv)
+        return;
+    m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+}
+
 void CHyprBar::onMouseMove(Vector2D coords) {
+    // opt-in drag trace: create $XDG_RUNTIME_DIR/kwinish/trace, then read /tmp/kwinish-drag.log
+    if (m_bDraggingThis && std::filesystem::exists(std::string(getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp") + "/kwinish/trace")) {
+        const auto W = m_pWindow.lock();
+        const auto C = g_pInputManager->getMouseCoordsInternal();
+        if (W) {
+            const auto P = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+            std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
+        }
+    }
     if (m_bDraggingThis && !m_bTouchEv)
         maybeUnsnap();
 
@@ -344,11 +366,19 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
 
 // Which snap zone the pointer is on: "left", "right", "top" (maximize), or nullptr. Same test for the preview and the snap.
 const char* CHyprBar::edgeZone(const Vector2D& C, PHLMONITOR M) {
-    const auto  EDGE = 3.0;
-    const float MW   = M->m_size.x; // already logical (pixels / scale)
-    if (C.x <= M->m_position.x + EDGE)
+    // An edge shared with another monitor is a seam: the pointer crosses it, so a 3px strip is unreachable. Give it a wide strip.
+    const auto  SEAM = 16.0, EDGE = 3.0;
+    const float MW = M->m_size.x, MH = M->m_size.y; // already logical (pixels / scale)
+    bool        seamLeft = false, seamRight = false;
+    for (const auto& N : State::monitorState()->monitors()) {
+        if (N == M || N->m_position.y >= M->m_position.y + MH || N->m_position.y + N->m_size.y <= M->m_position.y)
+            continue;
+        seamLeft |= std::abs(N->m_position.x + N->m_size.x - M->m_position.x) < 2;
+        seamRight |= std::abs(N->m_position.x - (M->m_position.x + MW)) < 2;
+    }
+    if (C.x <= M->m_position.x + (seamLeft ? SEAM : EDGE))
         return "left";
-    if (C.x >= M->m_position.x + MW - EDGE - 1)
+    if (C.x >= M->m_position.x + MW - (seamRight ? SEAM : EDGE) - 1)
         return "right";
     if (g_pGlobalState->config.snapTopEdge->value() && C.y <= M->m_position.y + EDGE)
         return "top";
@@ -443,7 +473,9 @@ void CHyprBar::maybeUnsnap() {
         return;
 
     const auto R    = IT->second;
-    const auto POS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    // the position at the press: the compositor may already have moved the window a few pixels by the time the pointer
+    // has travelled far enough to count as a drag
+    const auto POS  = m_dragStart;
     const auto SIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
     g_pGlobalState->restores.erase(IT);
 

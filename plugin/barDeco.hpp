@@ -54,6 +54,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                               onFloatingChanged();
     void                               onFocusChanged();
     void                               onConfigReloaded();
+    void                               rearmDrag();
 
     WP<CHyprBar>                       m_self;
 
