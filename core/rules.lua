@@ -9,7 +9,7 @@ function M.valid_class(c) return type(c) == "string" and c ~= "" and #c <= 80 an
 
 local function valid_rect(r)
   if type(r) ~= "table" or #r ~= 4 then return false end
-  for i = 1, 4 do if type(r[i]) ~= "number" then return false end end
+  for i = 1, 4 do if math.type(r[i]) ~= "integer" then return false end end
   return r[3] > 0 and r[4] > 0
 end
 

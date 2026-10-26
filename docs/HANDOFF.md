@@ -97,6 +97,10 @@ depois de um reload do núcleo; (11) o histórico do Alt+Tab esquece janelas fec
 volta ao monitor de origem (o plugin escolhe a zona pelo ponteiro, o núcleo calcula pelo monitor da janela; precisa passar o monitor ao núcleo);
 `ui/` ainda não foi revisada por outro agente.
 
+## Revisão do Codex sobre Snap Assist e regras (26/10; `codex exec -s read-only`; verificada por mim)
+**Corrigido:** (1) `rect` não inteiro ou infinito em `rules.json` passava na validação e o `serialize` falhava depois de o arquivo ser truncado (perdia as regras): agora só inteiros valem e a gravação serializa antes de abrir o arquivo. **Encaixe entre monitores:** `window_action` aceita `tile:X@MON` e `zone:N@MON`, o plugin manda o monitor do soltar (plugin recompilado, não carregado; teste simulado passa; sem Snap Assist nesse caso).
+**Pendente:** (3) dois encaixes rápidos compartilham `assist.json` e podem abrir dois overlays (falta geração/escrita atômica); (4) o clique no Snap Assist envia só endereço e índice, sem revalidar o contexto; (5) `parse_columns` aceita `2.5` como 2; (2) desmarcar uma regra não desfaz o estado na janela atual (talvez seja o desejado). **Antigravity:** a cota Pro voltou em 26/10 mas acabou de novo na primeira tarefa (reset em ~45 h); uma chamada pequena não prova que há cota para uma tarefa grande.
+
 ## Relatos do dono em 25/10 (corrigidos)
 - **Mover/Redimensionar pelo menu numa janela coberta agia na janela da frente:** o menu segura o teclado e o compositor recusa trocar o foco, então o
   `grab` pegava a janela focada ou sob o ponteiro. O núcleo agora espera 250 ms (como em `columns`) e o plugin aborta se o foco não chegou à janela.

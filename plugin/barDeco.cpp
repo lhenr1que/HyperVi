@@ -491,8 +491,9 @@ void CHyprBar::snapOnRelease() {
         return;
 
     (void)Config::Actions::move(m_dragStart, false, W);
+    // the core computes the rectangle on the monitor of the drop, not on the one the window is still on ("zone:2@HDMI-A-1")
     Config::Supplementary::executor()->spawn(
-        std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}')\"", (uintptr_t)W.get(), where));
+        std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
 }
 
 void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {

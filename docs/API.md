@@ -22,7 +22,7 @@ Loaded from the Hyprland Lua config (see `recipes/hyprland-snippet.lua`). Public
 `addr` is a Hyprland window address. `action` is `kind` or `kind:arg`:
 `layout:<name>`, `tile:<where>`, `axis:<h|v>`, `pack:<dir>`, `zone:<n>`, `above`, `below`, `float`, `fullscreen`, `maximize`,
 `minimize`, `pin`, `close`, `workspace:<n|new>`, `grab:<move|resize>`, `rule:<name>`, `mode:<name>`, `columns:<n>`,
-`noframe`, `nocapture`. Unknown kinds are ignored. `grab:*` needs the plugin.
+`noframe`, `nocapture`. `tile:*` and `zone:*` accept a monitor suffix, `zone:2@HDMI-A-1`: the rectangle is computed on that monitor (the plugin sends the monitor of the drop); an unknown name falls back to the window's own monitor. Unknown kinds are ignored. `grab:*` needs the plugin.
 
 ## 3. Compositor plugin `kwinish-bars` (Lua namespace `hl.plugin.kwinish`)
 `add_button`, `set_zone(monitor, name, x, y, w, h)`, `clear_zones`, `set_bar_hidden(address, bool)`, `grab("move"|"resize", address)`,

@@ -16,5 +16,7 @@ Um arquivo por ideia. O estado do projeto (o que existe, pendências, como testa
 
 Para uma ideia nova: crie `docs/ideias/<nome>.md` com **o que é**, **o comportamento desejado**, **o que já existe e o que falta** e **riscos ou decisões em aberto**, e acrescente uma linha aqui. Se ainda for só uma frase, deixe-a numa lista no fim deste arquivo até merecer o seu.
 
+Ideias e decisões da suíte (HDE, loja, temas, HUD, distribuição) ficam em `~/Downloads/ryoku-work/hde/docs/IDEIAS.md` e `DECISOES.md`.
+
 ## Frases soltas (ainda sem arquivo)
 - (nenhuma)

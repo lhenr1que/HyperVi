@@ -68,7 +68,17 @@ hyprctl plugin load $PWD/plugin/kwinish-bars.so
 Teste: clique simples na barra de uma janela maximizada (não deve fugir da tela); arraste duas janelas sobrepostas; Mover pelo menu e aperte Esc.
 Desfazer: `hyprctl plugin unload $PWD/plugin/kwinish-bars.so; hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so`.
 
-**3. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
+**3. Encaixe depois de arrastar para o 2º monitor (plugin recompilado em 26/10, precisa recarregar)**
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+make -C plugin abi
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl plugin load $PWD/plugin/kwinish-bars.so
+hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts','assist'}) do package.loaded[m]=nil end; require('kwinish')"
+```
+Com DP-1 e HDMI-A-1: abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: como no teste 2 (descarregar o de teste, carregar o instalado) e `hyprctl reload`.
+
+**4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 
 ## Fora de escopo / descartado
 Mexer na memória do `CWindow` para esconder janelas; copiar código GPL (KWin, Pop Shell, HyDE); distro própria (ideia registrada, nada iniciado).

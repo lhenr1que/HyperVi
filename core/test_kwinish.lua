@@ -65,6 +65,7 @@ local function run()
   end
   hl = {
     dsp = { window = {}, focus = command("focus"), layout = command("layout") },
+    get_monitors = function() return { mon, { name = "SIDE", x = 1600, y = 0, width = 1000, height = 800, scale = 1, reserved = {} } } end,
     get_windows = function() return wins end,
     get_window = lookup,
     get_workspaces = function() return workspaces end,
@@ -255,6 +256,16 @@ local function run()
   assert(#execs == 1, "no assist on restore")
   kw.snap_assist = false
   kw.window_action(e.address, "zone:2"); assert(#execs == 1, "assist switched off")
+  -- Dropped on another monitor: the zone and the half are computed on that monitor, not the window's own.
+  local g = window("g", 2, true)
+  kw.window_action(g.address, "zone:2@SIDE")
+  assert(g.at[1] == 1600 + 500 and g.size[1] == 500, "zone on the other monitor: " .. g.at[1] .. " " .. g.size[1])
+  local h = window("h", 2, true)
+  kw.window_action(h.address, "tile:left@SIDE")
+  assert(h.at[1] == 1600 and h.size[1] == 500, "half on the other monitor: " .. h.at[1] .. " " .. h.size[1])
+  local k = window("k", 2, true)
+  kw.window_action(k.address, "tile:left@NOPE") -- unknown monitor: falls back to the window's own
+  assert(k.at[1] == 0, "fallback to own monitor")
 end
 
 local ok, err = xpcall(run, debug.traceback)

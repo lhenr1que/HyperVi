@@ -126,7 +126,7 @@ end
 function M.tile(where, opts)
   local w = target(opts); if not w then return end
   local gi = num(hl.get_config("general.gaps_in"), "left")
-  local r = geometry.tile_rect(work_area(w.monitor), where, gi)
+  local r = geometry.tile_rect(work_area(opts.monitor or w.monitor), where, gi)
   if r then place(w, r, "tile:" .. where) end
 end
 
@@ -246,8 +246,10 @@ end
 
 local function save_rules(r)
   os.execute("mkdir -p '" .. cfg_dir() .. "'")
+  local ok, text = pcall(rules.serialize, r) -- before opening: a failure must not leave a truncated file
+  if not ok then return end
   local f = io.open(cfg_dir() .. "/rules.json", "w")
-  if f then f:write(rules.serialize(r), "\n"); f:close() end
+  if f then f:write(text, "\n"); f:close() end
 end
 
 function M.apply_rules(w)
@@ -333,11 +335,20 @@ local layout_rects -- defined below, with the layout state
 -- "fullscreen", "close" or "workspace:N", applied to the window with that address.
 function M.window_action(addr, action)
   local kind, arg = action:match("^(%w+):?(.*)$")
+  -- "tile:left@DP-1" / "zone:2@HDMI-A-1": the monitor the drop happened on (the plugin knows it, the window may still be on another)
+  local mon
+  if kind == "tile" or kind == "zone" then
+    local base, name = arg:match("^(.-)@(.+)$")
+    if base then
+      arg = base
+      for _, m in ipairs(hl.get_monitors()) do if m.name == name then mon = m end end
+    end
+  end
   if kind == "layout" then M.set_layout(arg) return end -- needs no window
   local w = hl.get_window("address:" .. addr)
   if not w then return end
   local sel = "address:" .. addr
-  if kind == "tile" then M.tile(arg, { window = w })
+  if kind == "tile" then M.tile(arg, { window = w, monitor = mon })
   elseif kind == "axis" then M.maximize_axis(arg, { window = w })
   elseif kind == "pack" then M.pack(arg, { window = w })
   elseif kind == "above" then M.keep_above({ window = w })
@@ -350,9 +361,10 @@ function M.window_action(addr, action)
     hl.dispatch(hl.dsp.window.move({ workspace = tostring(top + 1), window = sel }))
   elseif kind == "workspace" then hl.dispatch(hl.dsp.window.move({ workspace = arg, window = sel }))
   elseif kind == "zone" then
-    local rects = layout_rects(w.monitor)
+    local rects = layout_rects(mon or w.monitor)
     local r = rects[tonumber(arg) or 0]
-    if r and place(w, r, "zone:" .. arg) then snap_assist(w, tonumber(arg), rects) end
+    -- no Snap Assist for a drop on another monitor: the window's workspace and monitor are still the old ones until it lands
+    if r and place(w, r, "zone:" .. arg) and not mon then snap_assist(w, tonumber(arg), rects) end
   elseif kind == "grab" then
     -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
     -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when
