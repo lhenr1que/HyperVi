@@ -9,6 +9,7 @@ mod bars;
 mod editor;
 mod zones;
 mod mode;
+mod assist;
 mod menu;
 mod mon;
 mod shortcut;
@@ -109,10 +110,11 @@ fn main() -> glib::ExitCode {
         Some("shortcut") => shortcut::run(args.get(2).cloned().unwrap_or_default()),
         Some("zones") => editor::run(args.get(2..).unwrap_or(&[]).to_vec()),
         Some("layouts") => menu::run_layouts(args.get(2..).unwrap_or(&[]).to_vec()),
+        Some("assist") => assist::run(),
         Some("menu") => menu::run(args.get(2).cloned().unwrap_or_default(), args.get(3..).unwrap_or(&[]).to_vec()),
         None => run_switcher(),
         Some(other) => {
-            eprintln!("usage: kwinish-ui [layouts | shortcut <window address> | zones [--edit NAME] | menu <window address> [--at X,Y] | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
+            eprintln!("usage: kwinish-ui [assist | layouts | shortcut <window address> | zones [--edit NAME] | menu <window address> [--at X,Y] | bars [--only <class prefix>] [--skip a,b]]  (got {other})");
             glib::ExitCode::FAILURE
         }
     }

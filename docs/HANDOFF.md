@@ -169,6 +169,9 @@ licenças): faltavam cabeçalhos nos arquivos de `plugin/`; acrescentei cabeçal
 só comentários). O texto BSD-3 original está em `plugin/LICENSE.hyprland-plugins`. Não provado: que nenhum trecho do Omarchy foi adaptado (a implementação é
 independente); conferir o texto BSD-3 contra o upstream antes de publicar. As worktrees e os ramos `alethe/agent-job-*` continuam no disco (limpar pelo cartão do Alethe).
 
+## Snap Assist (25/10; feito)
+`core/assist.lua` (puro: `plan` acha a primeira zona vazia e as janelas soltas; uma janela está "na zona" se o retângulo dela bate com o da zona, tolerância 4 px) e `snap_assist()` em `kwinish.lua`, chamado depois de `place(...,"zone:N")` bem-sucedido (restaurar não dispara). Escreve `$XDG_RUNTIME_DIR/kwinish/assist.json` e roda `kwinish-ui assist` (`ui/src/assist.rs`: layer-shell com teclado exclusivo, painel sobre a zona, clique num cartão chama `window_action(addr,"zone:N")`, o que reabre para a próxima zona; Esc, clique fora ou 20 s encerram). Candidatas: flutuantes, mesmo workspace e monitor, fora de zona. Desligar: `kw.snap_assist=false`. Verificado ao vivo no ws 9 (thirds: 2 escolhas, zona 3 reabriu, fechou ao encher). **Armadilha:** o overlay some em 20 s; um clique virtual tardio cai na janela de baixo. Não testado: Shift ao arrastar com mouse real, monitor com escala ≠ 1, miniaturas.
+
 ## Ideias avaliadas (24/10, texto de outra IA colado pelo dono; só o que se aplica)
 - **Minimizar com janelas filhas/modais**: hoje `minimize` manda só a janela para `special:minimized`; diálogos filhos ficam para trás.
   Pendência real (testar com um app que abra diálogo; KWin trata por `transientFor`, só como conceito: o KWin é GPL e este projeto é MIT, nunca copiar código).

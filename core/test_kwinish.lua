@@ -10,7 +10,7 @@ assert(tmp:match("^/tmp/kwinish%-test%.%w+$"))
 -- outside this directory (including reads of the user's real state).
 os.getenv = function(key)
   if key == "HOME" then return tmp end
-  if key:match("^XDG_.*_HOME$") then return tmp .. "/" .. key end
+  if key:match("^XDG_.*_HOME$") or key == "XDG_RUNTIME_DIR" then return tmp .. "/" .. key end
   return getenv(key)
 end
 io.open = function(path, mode)
@@ -18,7 +18,7 @@ io.open = function(path, mode)
   return open(path, mode)
 end
 os.execute = function(cmd)
-  assert(cmd == "mkdir -p '" .. tmp .. "/XDG_CONFIG_HOME/kwinish'", "unexpected core command: " .. cmd)
+  assert(cmd == "mkdir -p '" .. tmp .. "/XDG_CONFIG_HOME/kwinish'" or cmd == "mkdir -p '" .. tmp .. "/XDG_RUNTIME_DIR/kwinish'", "unexpected core command: " .. cmd)
   return execute(cmd)
 end
 
@@ -26,7 +26,7 @@ local function run()
   local mon = { name = "TEST", x = 0, y = 0, width = 1600, height = 1000, scale = 1, reserved = {} }
   local workspaces = { { id = 1, name = "1", tiled_layout = "dwindle" }, { id = 2, name = "2", tiled_layout = "dwindle" },
     { id = -99, name = "special:minimized" } }
-  local wins, events, timers, calls = {}, {}, {}, {}
+  local wins, events, timers, calls, execs = {}, {}, {}, {}, {}
   local clock, serial, active, home, refused = 0, 0, nil, workspaces[1], nil
   local function window(addr, ws, floating)
     local w = { address = addr, class = "Test", title = addr, mapped = true, hidden = false, fullscreen = 0,
@@ -87,6 +87,7 @@ local function run()
       timers[#timers + 1] = { fn = fn, at = clock + opts.timeout, id = serial }
     end,
     workspace_rule = function(rule) ws_lookup(rule.workspace).tiled_layout = rule.layout end,
+    exec_cmd = function(cmd) execs[#execs + 1] = cmd end,
     define_submap = function(name, fn) assert(name == "kwcapture"); fn() end,
     bind = function(keys, fn) assert(type(keys) == "string" and type(fn) == "function") end,
   }
@@ -238,6 +239,22 @@ local function run()
   kw.window_action(manual.address, "minimize")
   home = workspaces[3]; emit("window.active", manual); advance(30)
   assert(manual.workspace.name == "special:minimized", "no restoration into a special workspace")
+
+  -- Snap Assist: filling a zone offers the loose floating windows of the workspace for the next empty zone.
+  kw.set_layout("halves")
+  local c, d, e = window("c", 2, true), window("d", 2, true), window("e", 2, true)
+  c.at, d.at, e.at = { 900, 900 }, { 1000, 900 }, { 1100, 900 }
+  local function assist_json() local f = assert(io.open(tmp .. "/XDG_RUNTIME_DIR/kwinish/assist.json", "r")); local t = f:read("*a"); f:close(); return t end
+  kw.window_action(c.address, "zone:1")
+  assert(#execs == 1 and execs[1] == "kwinish-ui assist", "assist opened")
+  local j = assist_json()
+  assert(j:find('"monitor":"TEST","zone":2,', 1, true) and j:find('"address":"d"', 1, true) and j:find('"address":"e"', 1, true) and not j:find('"address":"c"', 1, true), j)
+  kw.window_action(d.address, "zone:2") -- the last empty zone: nothing left to offer
+  assert(#execs == 1, "no assist when every zone is filled")
+  kw.window_action(d.address, "zone:2") -- same request again restores the window: no assist either
+  assert(#execs == 1, "no assist on restore")
+  kw.snap_assist = false
+  kw.window_action(e.address, "zone:2"); assert(#execs == 1, "assist switched off")
 end
 
 local ok, err = xpcall(run, debug.traceback)

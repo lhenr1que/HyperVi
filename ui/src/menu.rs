@@ -251,7 +251,7 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
     root
 }
 
-fn run_action(addr: &str, action: &str) {
+pub(crate) fn run_action(addr: &str, action: &str) {
     // addr and action come from our own tables and Hyprland, but keep the Lua string safe anyway
     let clean = |s: &str| s.chars().filter(|c| c.is_ascii_alphanumeric() || ":+-_".contains(*c)).collect::<String>();
     let code = format!("require('kwinish').window_action('{}','{}')", clean(addr), clean(action));

@@ -6,6 +6,7 @@ local geometry = require("geometry")
 local layouts = require("layouts")
 local rules = require("rules")
 local modes = require("modes")
+local assist = require("assist")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -83,7 +84,7 @@ local function place(w, r, key)
     plugin_call("forget", w.address)
     put(w, s.rect)
     if not s.was_floating then hl.dispatch(hl.dsp.window.float({ action = "disable", window = "address:" .. w.address })) end
-    return
+    return false
   end
   if not s then saved[w.address] = { rect = rect_of(w), was_floating = w.floating, key = key }
   else
@@ -95,6 +96,30 @@ local function place(w, r, key)
   saved[w.address].snap = r
   local o = saved[w.address].rect
   plugin_call("remember", w.address, o.x, o.y, o.w, o.h, r.x, r.y, r.w, r.h)
+  return true
+end
+
+-- Snap Assist: after `w` fills layout zone `i`, offer the loose floating windows of its workspace and monitor for the next empty zone
+-- (kwinish-ui assist reads the state file and puts its choice back through window_action("zone:N"), which comes here again).
+M.snap_assist = true -- set false (after require) to turn it off
+local function snap_assist(w, i, rects)
+  if not M.snap_assist or #rects < 2 or not w.workspace or not w.monitor then return end
+  local wins = {}
+  for _, o in ipairs(hl.get_workspace_windows(w.workspace.id)) do
+    if o ~= w and o.address ~= w.address and o.floating and o.mapped and not o.hidden and (o.fullscreen or 0) == 0
+      and o.monitor and o.monitor.name == w.monitor.name then
+      local r = rect_of(o)
+      wins[#wins + 1] = { address = o.address, class = o.class, title = o.title, x = r.x, y = r.y, w = r.w, h = r.h }
+    end
+  end
+  local plan = assist.plan(rects, wins, i)
+  if not plan then return end
+  local dir = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish"
+  os.execute("mkdir -p '" .. dir .. "'")
+  local f = io.open(dir .. "/assist.json", "w")
+  if not f then return end
+  f:write(assist.json(w.monitor.name, plan)); f:close()
+  hl.exec_cmd("kwinish-ui assist")
 end
 
 -- where: left right top bottom topleft topright bottomleft bottomright max
@@ -327,7 +352,7 @@ function M.window_action(addr, action)
   elseif kind == "zone" then
     local rects = layout_rects(w.monitor)
     local r = rects[tonumber(arg) or 0]
-    if r then place(w, r, "zone:" .. arg) end
+    if r and place(w, r, "zone:" .. arg) then snap_assist(w, tonumber(arg), rects) end
   elseif kind == "grab" then
     -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
     -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when

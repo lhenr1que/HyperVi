@@ -15,6 +15,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - Menu da janela estilo KDE: submenus, Mover/Redimensionar, regras por janela/app (posição, tamanho, sempre na área, acima, abaixo, sem moldura, ocultar de capturas), atalho por janela.
 - Três modos por workspace (tiling, scrolling, floating) com geometria guardada em etiquetas, colunas por tela lembradas.
 - Manter acima/abaixo, minimizar/restaurar (`special:minimized`), mostrar área de trabalho, empacotar, eixo, cantos ativos.
+- **Snap Assist** (25/10): ao encaixar uma janela numa zona (menu ou Shift ao arrastar), uma sobreposição cobre a próxima zona vazia com as outras janelas flutuantes do workspace; escolher encaixa e passa para a zona seguinte. `core/assist.lua`, `ui/src/assist.rs`. Verificado ao vivo pelo menu com o layout de três colunas; o gesto com Shift ao arrastar não foi testado com mouse real.
 - Vários monitores: menu e editor abrem no monitor sob o ponteiro (testado com HDMI-A-1 + DP-1).
 - Pacotes de rascunho (`kwinish-git`, `kwinish-bars-plugin-git`) com hook do pacman que recompila o plugin. Instalado: `0.0.0.r50.babd9b8-1`.
 - Qualidade: 7 arquivos de teste Lua passando (incluindo o novo simulador de `hl`, `core/test_kwinish.lua`), testes Rust em `ui/`, três rodadas de revisão (Claude no Alethe, Codex em `plugin/`+`core/`, Codex em `ui/`) com correções aplicadas.
@@ -28,14 +29,13 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 
 **Funcionalidades:**
 1. Duplo clique no ícone fecha a janela (KDE faz).
-2. Snap Assist: após encaixar, oferecer as outras janelas para as zonas vazias (maior valor da lista).
-3. Seletor de layout ao passar o mouse no botão maximizar.
-4. Miniaturas no Alt+Tab; `rounding > 0` nas zonas e na prévia.
-5. Minimizar janela com filhas/modais (`transientFor`): diálogos ficam para trás.
-6. Bind para ciclar o modo do workspace, indicador na barra, janela nova sem piscar, modo por monitor.
-7. Página no Ryoku Hub para layouts, regras e barras (hoje JSON + menu).
-8. Opt-out de barra em apps com decoração própria (CSD) por app.
-9. Liga/desliga do encaixe nas configurações.
+2. Seletor de layout ao passar o mouse no botão maximizar.
+3. Miniaturas no Alt+Tab (e no Snap Assist, hoje só ícone e título); `rounding > 0` nas zonas e na prévia.
+4. Minimizar janela com filhas/modais (`transientFor`): diálogos ficam para trás.
+5. Bind para ciclar o modo do workspace, indicador na barra, janela nova sem piscar, modo por monitor.
+6. Página no Ryoku Hub para layouts, regras e barras (hoje JSON + menu).
+7. Opt-out de barra em apps com decoração própria (CSD) por app.
+8. Liga/desliga do encaixe e do Snap Assist nas configurações (hoje `kw.snap_assist=false` no `user.lua`).
 
 **Bugs/pendências conhecidos:**
 - Encaixe depois de arrastar entre monitores volta ao monitor de origem (plugin escolhe a zona pelo ponteiro, núcleo pelo monitor da janela).
