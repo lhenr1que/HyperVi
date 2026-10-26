@@ -5,6 +5,11 @@ Para quem pega o projeto numa sessão nova (a sessão original ficou grande). Le
 repositório git **local** (nunca houve push, fork ou PR; não faça sem pedido explícito do dono). Commits:
 `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
 
+## Regra de trabalho: testes que dependem do dono (pedido do dono, 26/10)
+Sempre que algo só puder ser verificado pelo dono (plugin carregado, mouse real, dois monitores, `sudo`), **entregue o comando pronto para colar no terminal**
+(o shell dele é o fish; use `$PWD`, sem `$(...)` aninhado complicado) ou **anote o teste em `docs/STATUS.md`, seção "Testes pendentes para o dono"**, para ele fazer
+depois. Inclua sempre: o que fazer, o que deve acontecer, e como desfazer. Ao fechar um teste, mova-o para "verificado" no `STATUS.md`.
+
 ## Como retomar pelo Alethe (orquestração; decidido com o dono em 25/10)
 O dono quer o Claude como **líder** dentro do Alethe, repartindo o trabalho pesado com o Codex e o Antigravity (cada um tem cota própria; o Claude gasta o
 mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes/revisões e só verificar). O Alethe fica em `~/Apps/alethe`

@@ -46,5 +46,29 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
+## Testes pendentes para o dono
+Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
+
+**1. Snap Assist com Shift ao arrastar (mouse real, plugin carregado)**
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+cargo build --manifest-path ui/Cargo.toml; and ln -sf $PWD/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
+hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts','assist'}) do package.loaded[m]=nil end; require('kwinish').set_layout('thirds')"
+```
+Abra 3 janelas flutuantes, segure Shift e arraste uma pela barra até a primeira zona. Deve abrir uma sobreposição na zona seguinte com as outras janelas; clique numa para encaixar; repita. Esc cancela.
+Desfazer: `rm ~/.local/bin/kwinish-ui; hyprctl reload`, e escolha de novo o seu layout no seletor (o teste troca o layout salvo).
+
+**2. Plugin com as correções das revisões (barras sobrepostas, arrasto preso, Esc no Mover/Redimensionar, maximizada que fugia)**
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+make -C plugin abi
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl plugin load $PWD/plugin/kwinish-bars.so
+```
+Teste: clique simples na barra de uma janela maximizada (não deve fugir da tela); arraste duas janelas sobrepostas; Mover pelo menu e aperte Esc.
+Desfazer: `hyprctl plugin unload $PWD/plugin/kwinish-bars.so; hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so`.
+
+**3. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
+
 ## Fora de escopo / descartado
 Mexer na memória do `CWindow` para esconder janelas; copiar código GPL (KWin, Pop Shell, HyDE); distro própria (ideia registrada, nada iniciado).
