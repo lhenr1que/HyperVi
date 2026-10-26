@@ -385,6 +385,15 @@ const char* CHyprBar::edgeZone(const Vector2D& C, PHLMONITOR M) {
     return nullptr;
 }
 
+// The monitor under the pointer. The focused monitor follows the dragged window's centre, which is on the other side of a
+// seam while the pointer is still on this one.
+static PHLMONITOR monitorAtPointer(const Vector2D& C) {
+    for (const auto& N : State::monitorState()->monitors())
+        if (C.x >= N->m_position.x && C.x < N->m_position.x + N->m_size.x && C.y >= N->m_position.y && C.y < N->m_position.y + N->m_size.y)
+            return N;
+    return Desktop::focusState()->monitor();
+}
+
 // The layout zone (published by the core as "z:N") under the pointer, or "" ; the smallest wins where zones overlap.
 static std::string layoutZoneAt(const Vector2D& C, const std::unordered_map<std::string, SZone>& zones) {
     std::string best;
@@ -409,8 +418,8 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
 
     if (MIT != g_pGlobalState->zones.end() && m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() &&
         (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
-        const auto M = Desktop::focusState()->monitor();
         const auto C = g_pInputManager->getMouseCoordsInternal();
+        const auto M = monitorAtPointer(C);
         if (M && M == pMonitor) {
             if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
                 const auto HOVER = layoutZoneAt(C, MIT->second);
@@ -502,11 +511,11 @@ void CHyprBar::snapOnRelease() {
     if (!W || !W->m_isFloating)
         return;
 
-    const auto M = Desktop::focusState()->monitor();
+    const auto C = g_pInputManager->getMouseCoordsInternal();
+    const auto M = monitorAtPointer(C);
     if (!M)
         return;
 
-    const auto  C = g_pInputManager->getMouseCoordsInternal();
     std::string where;
     if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
         // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
