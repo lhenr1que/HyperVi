@@ -91,7 +91,7 @@ trata janelas filhas (`transientFor`) e **ainda não** tem a tríade por workspa
 ## Distro baseada em Arch (ideia do dono, 24/10)
 Recomendações registradas em `~/Downloads/ryoku-work/docs/distro/ESCOPO-DISTRO.md` (Kwinish independente em pacotes; Ryoku é GPL-3; escopo antes de nome/repositório). Nada decidido nem iniciado. Mapa das pastas: `ryoku-work/LEIA-ME.md`.
 
-## Revisão do Codex (25/10, plugin/ e core/ lidos, nada rodado ao vivo por ele); verificada por mim
+## Revisão feita no Alethe (25/10; o planner era o Claude Code, não o Codex; plugin/ e core/ lidos, nada rodado ao vivo por ele); verificada por mim
 **Corrigido** (compilado; plugin ainda não carregado ao vivo, o resto verificado no ws 9): (1) `handleUpEvent` agora zera o estado de arrasto
 mesmo quando outra janela tem o foco (antes a próxima soltura era engolida); (3) `hiddenBars` e `restores` limpos ao fechar a janela (endereços
 são reaproveitados); (6) `scissor` desligado no retorno antecipado; (7) `layouts.json` malformado não derruba mais o núcleo (validação sob pcall);
