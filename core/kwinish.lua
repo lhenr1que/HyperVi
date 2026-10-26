@@ -611,21 +611,30 @@ end
 -- Scrolling workspace: make every column 1/n of the screen (n = 1, 2 or 3). Hyprland's colresize acts on the focused column, so each
 -- window is focused in turn and the original focus comes back.
 local function resize_columns(ws, n, keep)
-  local active = keep and hl.get_window("address:" .. keep) or hl.get_active_window()
-  local home = hl.get_active_workspace and hl.get_active_workspace() -- focusing a window of another workspace may switch to it
-  local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
-  for _, w in ipairs(hl.get_workspace_windows(ws)) do
-    if not w.floating and (w.fullscreen or 0) == 0 then
-      hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
-      local now = hl.get_active_window()
-      -- colresize acts on the focused column: when focus was refused (an overlay still holds the keyboard) skip, or it would hit another window
-      if now and now.address == w.address then hl.dispatch(hl.dsp.layout("colresize " .. width)) end
+  -- Focusing windows warps the pointer to the focused window's centre. That yanked a floating window being dragged onto this
+  -- workspace (the pointer jumped, the window followed, and it fell back across the monitor seam), so warps are off meanwhile.
+  local _, warps = pcall(hl.get_config, "cursor.no_warps")
+  if type(warps) ~= "boolean" then warps = false end
+  pcall(hl.config, { cursor = { no_warps = true } })
+  local ok, err = pcall(function()
+    local active = keep and hl.get_window("address:" .. keep) or hl.get_active_window()
+    local home = hl.get_active_workspace and hl.get_active_workspace() -- focusing a window of another workspace may switch to it
+    local width = string.format("%.3f", 1 / n - (n > 1 and 0.001 or 0))
+    for _, w in ipairs(hl.get_workspace_windows(ws)) do
+      if not w.floating and (w.fullscreen or 0) == 0 then
+        hl.dispatch(hl.dsp.focus({ window = "address:" .. w.address }))
+        local now = hl.get_active_window()
+        -- colresize acts on the focused column: when focus was refused (an overlay still holds the keyboard) skip, or it would hit another window
+        if now and now.address == w.address then hl.dispatch(hl.dsp.layout("colresize " .. width)) end
+      end
     end
-  end
-  if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
-  if home and home.id and (not active or not active.workspace or active.workspace.id ~= home.id) then
-    hl.dispatch(hl.dsp.focus({ workspace = home.id })) -- back where the user was, also when no window was active
-  end
+    if active then hl.dispatch(hl.dsp.focus({ window = "address:" .. active.address })) end
+    if home and home.id and (not active or not active.workspace or active.workspace.id ~= home.id) then
+      hl.dispatch(hl.dsp.focus({ workspace = home.id })) -- back where the user was, also when no window was active
+    end
+  end)
+  pcall(hl.config, { cursor = { no_warps = warps } })
+  if not ok then error(err, 0) end
 end
 
 -- workspace-columns.json remembers n per workspace: while it is set, the columns are redrawn to that width whenever a window opens or

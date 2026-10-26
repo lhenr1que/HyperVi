@@ -22,6 +22,7 @@ os.execute = function(cmd)
   return execute(cmd)
 end
 
+local warps_log = {}
 local function run()
   local mon = { name = "TEST", x = 0, y = 0, width = 1600, height = 1000, scale = 1, reserved = {} }
   local workspaces = { { id = 1, name = "1", tiled_layout = "dwindle" }, { id = 2, name = "2", tiled_layout = "dwindle" },
@@ -77,9 +78,11 @@ local function run()
     get_active_window = function() return active end,
     get_active_workspace = function() return home end,
     get_config = function(key)
-      assert(key == "general.gaps_out" or key == "general.gaps_in", key)
+      assert(key == "general.gaps_out" or key == "general.gaps_in" or key == "cursor.no_warps", key)
+      if key == "cursor.no_warps" then return false end
       return 0
     end,
+    config = function(t) if t.cursor then warps_log[#warps_log + 1] = t.cursor.no_warps end end,
     get_loaded_plugins = function() return {} end,
     on = function(name, fn) events[name] = events[name] or {}; table.insert(events[name], fn) end,
     timer = function(fn, opts)
@@ -272,4 +275,5 @@ local ok, err = xpcall(run, debug.traceback)
 os.getenv, os.execute, io.open = getenv, execute, open
 assert(execute("rm -rf -- '" .. tmp .. "'"))
 assert(ok, err)
+assert(#warps_log >= 2 and warps_log[1] == true and warps_log[#warps_log] == false, "pointer warps restored after the column pass")
 print("kwinish ok")
