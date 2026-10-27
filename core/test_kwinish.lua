@@ -292,11 +292,13 @@ local function run()
   kw.set_layout("thirds")
   local drop, candidate = window("drop", 2, true), window("candidate", 2, true)
   drop.at, candidate.at = { 900, 900 }, { 1100, 900 }
+  candidate.monitor = hl.get_monitors()[2] -- a real candidate on the drop monitor exercises the cross-monitor guard
   local before_drop = #execs
   kw.window_action(drop.address, "zone:1@SIDE")
   rect(drop, 1600, 0, 333, 800)
   assert(#execs == before_drop, "cross-monitor drop must not open Snap Assist")
   kw.window_action(drop.address, "zone:1@SIDE") -- restore before testing the same zone on TEST
+  candidate.monitor = drop.monitor
   kw.window_action(drop.address, "zone:1@TEST")
   assert(#execs == before_drop + 1 and execs[#execs]:find("kwinish-ui assist", 1, true),
     "same-monitor drop must open Snap Assist")
