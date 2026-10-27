@@ -229,7 +229,11 @@ bool CHyprBar::holdAtSeam(IPointer::SMotionEvent& e) {
     if (RES <= 0 || !m_bDraggingThis || m_bTouchEv)
         return false;
     const auto C = g_pInputManager->getMouseCoordsInternal();
-    const auto A = monitorAtPointer(C), B = monitorAtPointer(C + e.delta);
+    // the compositor moves the pointer by delta, or by unaccel with input:force_no_accel: hold back whichever would cross
+    const auto A = monitorAtPointer(C);
+    auto       B = monitorAtPointer(C + e.delta);
+    if (A == B)
+        B = monitorAtPointer(C + e.unaccel);
     if (!A || !B || A == B) {
         if (std::abs(C.x - m_resistSeam) > 32)
             m_resistPush = 0; // moved away from the seam: the next approach starts fresh
@@ -244,15 +248,16 @@ bool CHyprBar::holdAtSeam(IPointer::SMotionEvent& e) {
         m_resistSeam = SEAM;
         m_resistPush = 0;
     }
-    m_resistPush += std::min(20.0, std::abs(e.delta.x)); // a single fast flick must not spend it all
+    m_resistPush += std::min(20.0, std::max(std::abs(e.delta.x), std::abs(e.unaccel.x))); // a single fast flick must not spend it all
     if (m_resistPush >= RES) {
         m_resistPush = 0;
         return false; // spent: this motion crosses
     }
     const double EDGE = RIGHT ? SEAM - 1 : SEAM;      // the last pixel of this monitor
     const double KEEP = EDGE - C.x;                   // horizontal motion that still fits (same sign as the motion, or 0)
-    e.unaccel.x       = e.delta.x != 0 ? e.unaccel.x * KEEP / e.delta.x : 0;
-    e.delta.x         = KEEP;
+    const auto   fit  = [KEEP](double v) { return v * KEEP > 0 ? (std::abs(v) < std::abs(KEEP) ? v : KEEP) : 0.0; };
+    e.delta.x         = fit(e.delta.x);
+    e.unaccel.x       = fit(e.unaccel.x);
     return true;
 }
 
@@ -274,6 +279,10 @@ void CHyprBar::onMouseMove(Vector2D coords) {
             const auto P = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
             std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("arg=({:.1f},{:.1f}) cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", coords.x, coords.y, C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
         }
+    }
+    if (m_rearmPending) {
+        m_rearmPending = false;
+        rearmDrag();
     }
     if (m_bDraggingThis && !m_bTouchEv) {
         maybeUnsnap();
@@ -624,6 +633,10 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
     m_bCancelledDown = false;
 
     if (m_bDraggingThis) {
+        if (m_unsnapAnim) {
+            m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+            stepUnsnap();
+        }
         g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
         m_bDraggingThis = false;
         if (m_bTouchEv)

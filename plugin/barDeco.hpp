@@ -45,6 +45,7 @@ class CHyprBar : public IHyprWindowDecoration {
     virtual uint64_t                   getDecorationFlags();
 
     bool                               m_bButtonsDirty = true;
+    bool                               m_rearmPending  = false; // Shift changed mid-drag: restart the compositor's move on the next motion
 
     virtual std::string                getDisplayName();
 

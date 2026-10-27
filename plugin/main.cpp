@@ -457,13 +457,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
         if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
             g_pGlobalState->grabActive = false;
-        // Shift mid-drag stalls the compositor's move: start it again once the key has been processed
+        // Shift mid-drag stalls the compositor's move: the dragging bar restarts it on the next pointer motion (no deferred
+        // callback, which could outlive the plugin)
         if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
-            g_pEventLoopManager->doLater([] {
-                for (auto& b : g_pGlobalState->bars)
-                    if (b)
-                        b->rearmDrag();
-            });
+            for (auto& b : g_pGlobalState->bars)
+                if (b)
+                    b->m_rearmPending = true;
     });
     // window keys are pointers and get reused: forget what was kept for a window when it closes
     static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
