@@ -20,7 +20,7 @@ limits them to floating ones.
 
 **Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + CTRL + T`) or in the window menu. Make your own with the zone editor (`kwinish-ui zones`, `SUPER + CTRL + E`, or "Edit zones..." in the picker): split, add floating blocks, set the padding, load a preset to start from; layouts are saved in `~/.config/kwinish/layouts.json` and show up in the picker. Dragging a snapped window by its bar gives back its old size.
 
-**Settings.** `kwinish-ui settings` opens a window with the title-bar, colour and snapping options (and the Snap Assist switch). Changes apply at once and are kept in `~/.config/kwinish/settings.json`, which the core applies on every config load; options you never touch there keep coming from your Hyprland config.
+**Settings.** `kwinish-ui settings` (or "Kwinish settings..." under More actions in the window menu) opens a window with the title-bar, colour and snapping options (and the Snap Assist switch). Changes apply at once and are kept in `~/.config/kwinish/settings.json`, which the core applies on every config load; options you never touch there keep coming from your Hyprland config.
 
 **Window menu.** KWin-style, born from the bar: click the app icon or right-click the bar. Workspaces, maximize, minimize, keep above or below, fullscreen, no frame, hide from captures, snap, tiling layout, close. State shows as check marks.
 

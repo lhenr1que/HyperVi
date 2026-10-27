@@ -33,6 +33,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 - `switcher.setup()` e as teclas de Alt+Tab (`switcher_keys`).
 
 ## 4. Pelo menu da janela (botão direito na barra, ou Alt+F3)
+Mais ações > Configurações do Kwinish... abre `kwinish-ui settings`.
 Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das capturas, fixar em todas as workspaces, mover para workspace, encaixar (metades, quartos, eixos), layout de mosaico, modo e colunas da workspace, regras por app, mover/redimensionar, minimizar, maximizar, fechar.
 
 ## 5. Lacunas e perguntas (o que a revisão achou)
