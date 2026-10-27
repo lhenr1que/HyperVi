@@ -1,7 +1,7 @@
 # Maintainer: lhen <lhenriqueds99@gmail.com>
 # Local build recipe; point `url` and `source` at the public repository before submitting anywhere.
 pkgname=kwinish-git
-pkgver=0.0.0
+pkgver=0.0.0.r125.60e8e18
 pkgrel=1
 pkgdesc='KWin-style window management for Hyprland 0.55+ (Lua core, GTK4 layer-shell UI)'
 arch=('x86_64')
@@ -9,6 +9,7 @@ url='https://example.invalid/kwinish'
 license=('MIT')
 depends=('hyprland' 'gtk4' 'gtk4-layer-shell')
 makedepends=('git' 'cargo')
+checkdepends=('lua')
 provides=('kwinish')
 conflicts=('kwinish')
 source=("kwinish::git+file://${KWINISH_SRC:-$PWD/..}")
@@ -26,7 +27,7 @@ build() {
 
 check() {
   cd kwinish
-  for t in geometry binds switcher layouts rules modes kwinish assist settings; do lua core/test_$t.lua; done
+  bash tools/check.sh --lua-only
 }
 
 package() {
