@@ -24,4 +24,5 @@ Teste simulado não é teste ao vivo: diga qual foi feito.
 ## Limites
 - Não carregue/descarregue o plugin, não use `sudo`, não mexa em `~/.config` do dono sem pedido. Isso é do dono.
 - O que só o dono pode verificar vai em `docs/STATUS.md`, "Testes pendentes para o dono", e também por inteiro na resposta do chat: comando (fish), o que deve acontecer, como desfazer.
+- Todo roteiro de teste ao vivo deve incluir o comando para carregar/recarregar o plugin e depois o núcleo do repositório; nunca presumir que o plugin já está carregado (pedido do dono, 27/10/2026). O dono executa esses comandos.
 - Repositório local: sem push, fork ou PR sem pedido explícito. Commits: `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
