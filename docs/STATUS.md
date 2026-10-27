@@ -54,7 +54,7 @@ Achado ao planejar: o Hyprland instalado roda a config em **Lua 5.5** (`readelf`
 - [x] 1. `core/test_switcher.lua` com runtime temporário próprio (hoje grava `$XDG_RUNTIME_DIR/kwinish/switcher.json` da sessão quando rodado direto) e `tools/test-lua-isolation.sh`, que roda cada suíte com HOME/XDG sentinela e falha se algo for gravado ali.
 - [x] 2. `tools/check.sh`, comando único: suítes Lua, testes de `tools/`, `cargo test --locked`, compilação do plugin num diretório temporário; HOME/XDG temporários e sem sockets da sessão; código ≠ 0 em qualquer falha, ferramenta ausente ou nenhuma suíte encontrada. `tools/test-check.sh` testa o executor com ferramentas simuladas.
 - [x] 3. `packaging/PKGBUILD`: `check()` chama `tools/check.sh --lua-only` (sem lista manual de suítes), `checkdepends=('lua')`.
-- [ ] 4. Reversão segura: `tools/live-backup.sh` guarda e restaura arquivo, link (mesmo quebrado) ou ausência; o teste 5 deixa de apagar `settings.json` e o link do `kwinish-ui`.
+- [x] 4. Reversão segura: `tools/live-backup.sh` guarda e restaura arquivo, link (mesmo quebrado) ou ausência; o teste 5 deixa de apagar `settings.json` e o link do `kwinish-ui`.
 - [ ] 5. Documentação: `AGENTS.md`, `README.md`, novo `docs/TESTING.md`, `docs/HANDOFF.md`.
 - [ ] 6. Evidências registradas aqui; testes 6 e 1 movidos para verificados pelo dono.
 
@@ -124,15 +124,27 @@ hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=
 Com DP-1 e HDMI-A-1: abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: como no teste 2 (descarregar o de teste, carregar o instalado) e `hyprctl reload`.
 
 **5. Janela de configurações (núcleo do repositório carregado)**
+Antes de tudo, guarde o `settings.json` e o `~/.local/bin/kwinish-ui` como estão hoje (arquivo, link, mesmo quebrado, ou ausência). Se o `save` falhar, nada mais roda (`and`) e nada foi alterado:
 ```fish
 cd ~/Downloads/ryoku-work/kwinish
-cargo build --manifest-path ui/Cargo.toml
-fish tools/dev-reload.fish
-./ui/target/debug/kwinish-ui settings
+bash tools/live-backup.sh save ~/.local/state/kwinish-backup/teste-5 ~/.config/kwinish/settings.json ~/.local/bin/kwinish-ui
+and cargo build --manifest-path ui/Cargo.toml
+and fish tools/dev-reload.fish
+and ./ui/target/debug/kwinish-ui settings
 ```
-Mude "Altura" para 34: as barras devem engordar na hora. Troque a cor "Barra, janela focada": a barra da janela ativa muda. Desligue "Snap Assist" e encaixe uma janela numa zona pelo menu: a sobreposição não deve abrir. Depois `hyprctl reload` seguido de `fish tools/dev-reload.fish`: os valores devem continuar (vêm do `settings.json`).
-Menu: com o binário do repositório no PATH (`ln -sf $PWD/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui`; o menu chama o `kwinish-ui` do PATH, e o de `/usr/bin` ainda não conhece `settings`), clique direito na barra de uma janela, Mais ações > Configurações do Kwinish...: a mesma janela abre; abrir de novo só traz a já aberta para a frente.
-Desfazer: `rm ~/.config/kwinish/settings.json ~/.local/bin/kwinish-ui; hyprctl reload`.
+O `dev-reload.fish` descarrega e carrega o plugin do repositório e depois o núcleo do repositório. Mude "Altura" para 34: as barras devem engordar na hora. Troque a cor "Barra, janela focada": a barra da janela ativa muda. Desligue "Snap Assist" e encaixe uma janela numa zona pelo menu: a sobreposição não deve abrir. Depois `hyprctl reload` seguido de `fish tools/dev-reload.fish`: os valores devem continuar (vêm do `settings.json`).
+Menu: ponha o binário do repositório no PATH (o menu chama o `kwinish-ui` do PATH, e o de `/usr/bin` ainda não conhece `settings`); o `save` acima já guardou o que havia nesse caminho:
+```fish
+ln -sf $PWD/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
+```
+Clique direito na barra de uma janela, Mais ações > Configurações do Kwinish...: a mesma janela abre; abrir de novo só traz a já aberta para a frente.
+Desfazer (volta o `settings.json` e o `kwinish-ui` exatamente como estavam, ou remove só o que o teste criou; depois volta ao núcleo e plugin instalados):
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+bash tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
+and hyprctl reload
+```
+Se o `restore` recusar algo, ele diz o quê e mantém o backup em `~/.local/state/kwinish-backup/teste-5`. **Não use mais o `rm` antigo deste teste**: ele apagava um `settings.json` legítimo e um `kwinish-ui` que já existisse.
 
 **4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 

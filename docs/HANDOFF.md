@@ -159,7 +159,7 @@ estava só em memória; a edição do `user.lua` do dono depende de autorizaçã
   esquerdo (0x110). No zsh, argumentos guardados numa variável não se separam: use Python/`bash` para montar listas.
   `grim -g "X,Y WxH"` (com `x` entre largura e altura).
 - **Núcleo de teste**: `hyprctl eval "package.path='<repo>/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts'}) do package.loaded[m]=nil end; require('kwinish')"`.
-- **`~/.local/bin/kwinish-ui`** (link para `ui/target/debug/kwinish-ui`) sobrepõe `/usr/bin`; crie para testar, **remova depois**.
+- **`~/.local/bin/kwinish-ui`** (link para `ui/target/debug/kwinish-ui`) sobrepõe `/usr/bin`. Antes de criar, guarde o que existe com `bash tools/live-backup.sh save <estado> ~/.local/bin/kwinish-ui` e desfaça com `bash tools/live-backup.sh restore <estado>`; **nunca `rm`** (pode haver um link ou binário anterior do dono). Vale para qualquer arquivo do dono que um teste ao vivo mude (`settings.json` etc.).
 - **Plugin**: carregar/descarregar (`hyprctl plugin load|unload`) é **bloqueado** para o assistente pelo classificador de segurança; o dono roda no terminal.
   O plugin de teste (`plugin/kwinish-bars.so`) e o instalado (`/usr/lib/hyprland/plugins/`) têm o mesmo nome: descarregue um antes do outro.
   Depois de `make -C plugin abi` o dono precisa recarregar. `sudo` pede senha: o dono instala com `pacman -U dist/*.pkg.tar.zst`.
