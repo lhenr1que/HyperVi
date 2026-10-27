@@ -1,0 +1,40 @@
+schema: spec-driven
+
+context: |
+  Language: pt-BR
+  All artifacts must be written in pt-BR.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Code, identifiers and code comments stay in English.
+
+  Project: Kwinish, KDE/KWin-style window management for Hyprland 0.56.2 (Lua config), three layers:
+  plugin/ (C++23 fork of hyprbars: title bars, drag, snap preview, seam resistance),
+  core/ (Lua loaded by the Hyprland config: snap, zones, workspace modes, rules, Alt+Tab, Snap Assist, settings),
+  ui/ (Rust GTK4 + layer-shell: window menu, Alt+Tab overlay, layout picker and editor, Snap Assist, settings window).
+  Main flow: gesture or menu -> require('kwinish').window_action(addr, action) via hyprctl eval -> hl.dispatch.
+  User data lives in ~/.config/kwinish/*.json; formats and interfaces are owned by docs/API.md and docs/CONFIGURAVEL.md.
+  Specs describe observable behaviour only and link to those docs instead of repeating them.
+  Every change needs a test that fails before the fix: Lua suites under core/test_*.lua (plain Lua with a simulated hl),
+  cargo test for ui/. Things only the owner can verify (plugin load, real mouse, two monitors, sudo) go to
+  docs/STATUS.md "Testes pendentes para o dono" with the full command, and are never reported as verified.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
