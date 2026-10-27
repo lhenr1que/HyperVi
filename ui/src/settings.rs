@@ -77,7 +77,22 @@ fn load() -> Map<String, Value> {
 }
 
 /// Set one key, re-reading the file first so an edit made while the window is open is kept.
+/// Lua that applies one change now: through the core's apply_settings when it has it, else straight to the compositor (an older
+/// core, e.g. the installed one before the package is updated, has no apply_settings and would make the change wait for a reload).
+pub fn live_code(key: &str, v: &Value) -> Option<String> {
+    let lit = match v {
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) if n.is_i64() => n.to_string(),
+        Value::String(t) if t.chars().all(|c| c.is_ascii_alphanumeric() || " -_()".contains(c)) => format!("'{t}'"),
+        _ => return None, // the core would drop it too
+    };
+    let direct = if key == "snap_assist" { format!("if k then k.snap_assist={lit} end") }
+                 else { format!("if hl.plugin and hl.plugin.kwinish then hl.config({{plugin={{kwinish={{['{key}']={lit}}}}}}}) end") };
+    Some(format!("local k=package.loaded.kwinish; if k and k.apply_settings then k.apply_settings() else {direct} end"))
+}
+
 fn save(key: &str, v: Value) {
+    let code = live_code(key, &v);
     let mut map = load();
     map.insert(key.to_string(), v);
     let text = serde_json::to_string_pretty(&map).unwrap_or_else(|_| "{}".into());
@@ -85,7 +100,7 @@ fn save(key: &str, v: Value) {
         eprintln!("kwinish-ui: cannot write {}: {e}", file_path().display());
         return;
     }
-    let _ = Command::new("hyprctl").args(["eval", "require('kwinish').apply_settings()"]).spawn();
+    if let Some(code) = code { let _ = Command::new("hyprctl").args(["eval", &code]).spawn(); }
 }
 
 pub fn run() -> glib::ExitCode {
@@ -190,5 +205,13 @@ mod tests {
         assert_eq!(rgba_to_argb("rgba(26262ef7)"), Some(0xf726262e));
         assert_eq!(rgba_to_argb("rgba(26262e)"), None);
         assert_eq!(rgba_to_argb("red"), None);
+    }
+    #[test]
+    fn live_code_is_plain_lua() {
+        assert_eq!(live_code("bar_padding", &Value::from(4)).unwrap(),
+            "local k=package.loaded.kwinish; if k and k.apply_settings then k.apply_settings() else if hl.plugin and hl.plugin.kwinish then hl.config({plugin={kwinish={['bar_padding']=4}}}) end end");
+        assert!(live_code("bar_color", &Value::from("rgba(26262ef7)")).unwrap().contains("['bar_color']='rgba(26262ef7)'"));
+        assert!(live_code("snap_assist", &Value::Bool(false)).unwrap().contains("k.snap_assist=false"));
+        assert!(live_code("bar_text_font", &Value::from("x'); os.exit(")).is_none());
     }
 }
