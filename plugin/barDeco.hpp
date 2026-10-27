@@ -55,6 +55,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                               onFocusChanged();
     void                               onConfigReloaded();
     void                               rearmDrag();
+    bool                               holdAtSeam(IPointer::SMotionEvent& e);
 
     WP<CHyprBar>                       m_self;
 
@@ -113,7 +114,6 @@ class CHyprBar : public IHyprWindowDecoration {
     void                  openMenu(double x, double y);
     void                  snapOnRelease();
     void                  maybeUnsnap();
-    void                  resistSeam();
     const char*           edgeZone(const Vector2D& cursor, PHLMONITOR monitor);
     void                  drawSnapPreview(PHLMONITOR monitor);
     void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
@@ -136,11 +136,8 @@ class CHyprBar : public IHyprWindowDecoration {
     Vector2D            m_dragStart;
     Vector2D            m_pressCursor;
     bool                m_bUnsnapChecked = false;
-    Vector2D            m_resistLast;       // pointer at the previous move of this drag
     double              m_resistPush = 0;   // pixels pushed against the seam so far
     double              m_resistSeam = 0;   // x of that seam
-    Vector2D            m_resistOff;        // window position minus pointer, from the last move that was not held back
-    bool                m_resistWarping = false;
     std::string         m_szPreviewZone;
 
     bool                m_bDraggingThis  = false;

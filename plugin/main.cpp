@@ -338,6 +338,17 @@ int luaClearZones(lua_State*) {
     return 0;
 }
 
+
+// Pointer motion arrives here before the pointer moves: a dragged window's bar may hold back the part that would cross a seam.
+static CFunctionHook* g_pMotionHook = nullptr;
+using MotionFn                      = void (*)(CInputManager*, IPointer::SMotionEvent);
+static void hkOnMouseMoved(CInputManager* self, IPointer::SMotionEvent e) {
+    for (auto& b : g_pGlobalState->bars)
+        if (b && b->holdAtSeam(e))
+            break;
+    ((MotionFn)g_pMotionHook->m_original)(self, e);
+}
+
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
 
@@ -433,6 +444,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
         HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
     }
+    for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+        if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+            g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+            if (g_pMotionHook && !g_pMotionHook->hook())
+                g_pMotionHook = nullptr;
+            break;
+        }
+    if (!g_pMotionHook)
+        HyprlandAPI::addNotification(PHANDLE, "[kwinish] Could not hook pointer motion: seam resistance is off.", CHyprColor{1.0, 0.4, 0.2, 1.0}, 8000);
     // Escape cancels the compositor's move/resize on its own; without this the flag stayed set and swallowed the next click
     static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
         if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
