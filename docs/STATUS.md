@@ -47,6 +47,17 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
+## Etapa A — Base verificável (aprovada pelo dono em 27/10; em andamento)
+Origem: auditoria do Codex de 27/10 (roadmap A–F) e plano aprovado pelo dono. Critério: qualquer teste que falhe dá código de saída ≠ 0; nenhuma suíte usa o runtime ou a config pessoal. Sem mudar modos, arquivos pessoais, worktrees ou diretórios não rastreados; sem reload nem carga de plugin. Sem proposta OpenSpec nova: o isolamento do runtime do Alt+Tab também consta na tarefa 3.3 de `harden-user-data-io` (etapa B), que continua aberta.
+Achado ao planejar: o Hyprland instalado roda a config em **Lua 5.5** (`readelf` do `/usr/bin/Hyprland`: `liblua.so.5.5`, pacote `lua`); o `AGENTS.md` mandava usar `lua5.4`. As 9 suítes passam nas duas versões; o executor usa `lua` (o do compositor), com `LUA=lua5.4` para comparar.
+**Retomar:** base `60e19df`; `git log --oneline 60e19df..` lista o que já entrou; cada commit marca seu item abaixo.
+- [ ] 1. `core/test_switcher.lua` com runtime temporário próprio (hoje grava `$XDG_RUNTIME_DIR/kwinish/switcher.json` da sessão quando rodado direto) e `tools/test-lua-isolation.sh`, que roda cada suíte com HOME/XDG sentinela e falha se algo for gravado ali.
+- [ ] 2. `tools/check.sh`, comando único: suítes Lua, testes de `tools/`, `cargo test --locked`, compilação do plugin num diretório temporário; HOME/XDG temporários e sem sockets da sessão; código ≠ 0 em qualquer falha, ferramenta ausente ou nenhuma suíte encontrada. `tools/test-check.sh` testa o executor com ferramentas simuladas.
+- [ ] 3. `packaging/PKGBUILD`: `check()` chama `tools/check.sh --lua-only` (sem lista manual de suítes), `checkdepends=('lua')`.
+- [ ] 4. Reversão segura: `tools/live-backup.sh` guarda e restaura arquivo, link (mesmo quebrado) ou ausência; o teste 5 deixa de apagar `settings.json` e o link do `kwinish-ui`.
+- [ ] 5. Documentação: `AGENTS.md`, `README.md`, novo `docs/TESTING.md`, `docs/HANDOFF.md`.
+- [ ] 6. Evidências registradas aqui; testes 6 e 1 movidos para verificados pelo dono.
+
 ## Para a próxima sessão (fim de 26/10/2026)
 **Próxima mudança planejada (27/10):** `harden-user-data-io` — leitores JSON sem execução, validação de layouts alinhada entre Lua/Rust e publicação atômica com falhas verificadas e backup obrigatório. Proposta, especificação, design e tarefas em `openspec/changes/harden-user-data-io/`; não implementada. Correções de snap integradas em `285c67d`; testes ao vivo 1 e 6 pendentes, mudanças ainda não arquivadas.
 **Atualização de 27/10 — fix-assist-drop-context:** implementação revisada e incorporada à master em 27/10; arquivamento aguarda teste ao vivo. Regressão reproduzida antes do conserto (`same-monitor drop must open Snap Assist`); sufixo do mesmo monitor agora permite o Assist, outro monitor continua sem Assist. As 9 suítes Lua passaram no simulador; teste com mouse real pendente no item 1 abaixo.
