@@ -45,9 +45,9 @@ end
 -- workspace-columns.json: {"2":3} = workspace 2 keeps 3 columns per screen (1 to 3). Absent = left alone.
 function M.parse_columns(text)
   local out = {}
-  for ws, n in (text or ""):gmatch('"(%d+)"%s*:%s*(%d+)') do
+  for ws, n in (text or ""):gmatch('"(%d+)"%s*:%s*([^,}%s]+)') do
     n = tonumber(n)
-    if tonumber(ws) >= 1 and n >= 1 and n <= 3 then out[ws] = n end
+    if tonumber(ws) >= 1 and math.type(n) == "integer" and n >= 1 and n <= 3 then out[ws] = n end
   end
   return out
 end

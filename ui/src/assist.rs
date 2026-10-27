@@ -16,7 +16,7 @@ window.kwa { background: alpha(#000000, 0.25); }
 ";
 
 #[derive(Debug, PartialEq)]
-pub struct Assist { pub monitor: String, pub zone: u32, pub rect: [i32; 4], pub items: Vec<(String, String, String)> } // items: address, class, title
+pub struct Assist { pub generation: u64, pub monitor: String, pub zone: u32, pub rect: [i32; 4], pub items: Vec<(String, String, String)> } // items: address, class, title
 
 pub fn parse(json: &str) -> Option<Assist> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
@@ -25,11 +25,23 @@ pub fn parse(json: &str) -> Option<Assist> {
     let s = |it: &serde_json::Value, k: &str| it[k].as_str().unwrap_or("").to_string();
     let items: Vec<_> = v["items"].as_array()?.iter().map(|it| (s(it, "address"), s(it, "class"), s(it, "title"))).filter(|i| !i.0.is_empty()).collect();
     if items.is_empty() { return None; }
-    Some(Assist { monitor: v["monitor"].as_str()?.into(), zone: v["zone"].as_u64()? as u32, rect: [n(0)?, n(1)?, n(2)?.max(1), n(3)?.max(1)], items })
+    Some(Assist { generation: v["generation"].as_u64()?, monitor: v["monitor"].as_str()?.into(), zone: v["zone"].as_u64()? as u32, rect: [n(0)?, n(1)?, n(2)?.max(1), n(3)?.max(1)], items })
 }
 
 fn state_path() -> std::path::PathBuf {
     std::path::PathBuf::from(std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into())).join("kwinish").join("assist.json")
+}
+
+fn same_generation(path: &std::path::Path, generation: u64) -> bool {
+    std::fs::read_to_string(path).ok().and_then(|s| parse(&s))
+        .is_some_and(|a| a.generation == generation)
+}
+
+fn valid_choice(path: &std::path::Path, generation: u64, addr: &str, clients: &str) -> bool {
+    let exists = serde_json::from_str::<serde_json::Value>(clients).ok()
+        .and_then(|v| v.as_array().map(|cs| cs.iter().any(|c| c["address"].as_str() == Some(addr))))
+        .unwrap_or(false);
+    exists && same_generation(path, generation)
 }
 
 pub fn run() -> glib::ExitCode {
@@ -37,6 +49,10 @@ pub fn run() -> glib::ExitCode {
         eprintln!("kwinish-ui assist: no state to show");
         return glib::ExitCode::FAILURE;
     };
+    if std::env::var("KWINISH_ASSIST_GENERATION").ok()
+        .is_some_and(|g| g.parse::<u64>().ok() != Some(a.generation)) {
+        return glib::ExitCode::SUCCESS;
+    }
     let app = Application::builder().application_id("dev.kwinish.assist").flags(gtk4::gio::ApplicationFlags::NON_UNIQUE).build();
     app.connect_activate(move |app| {
         let provider = CssProvider::new();
@@ -70,9 +86,14 @@ pub fn run() -> glib::ExitCode {
             row.append(&text);
             let b = Button::builder().child(&row).build();
             b.add_css_class("card");
-            let (app2, addr, zone) = (app.clone(), addr.clone(), a.zone);
+            let (app2, addr, zone, generation) = (app.clone(), addr.clone(), a.zone, a.generation);
             b.connect_clicked(move |_| {
-                crate::menu::run_action(&addr, &format!("zone:{zone}"));
+                let clients = std::process::Command::new("hyprctl").args(["clients", "-j"]).output()
+                    .ok().filter(|o| o.status.success())
+                    .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+                if valid_choice(&state_path(), generation, &addr, &clients) {
+                    crate::menu::run_action(&addr, &format!("zone:{zone}"));
+                }
                 app2.quit();
             });
             panel.append(&b);
@@ -110,6 +131,15 @@ pub fn run() -> glib::ExitCode {
         win.add_controller(keys);
         let app2 = app.clone();
         glib::timeout_add_seconds_local_once(20, move || app2.quit());
+        let app2 = app.clone();
+        let generation = a.generation;
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            if !same_generation(&state_path(), generation) {
+                app2.quit();
+                return glib::ControlFlow::Break;
+            }
+            glib::ControlFlow::Continue
+        });
         win.present();
         if let Some(b) = first { b.grab_focus(); }
     });
@@ -122,10 +152,30 @@ mod tests {
 
     #[test]
     fn parses_core_state() {
-        let a = parse(r#"{"monitor":"DP-1","zone":2,"rect":[500,0,500,600],"items":[{"address":"0x1","class":"kitty","title":"a\"b"},{"address":"","class":"x","title":"y"}]}"#).unwrap();
+        let a = parse(r#"{"generation":1,"monitor":"DP-1","zone":2,"rect":[500,0,500,600],"items":[{"address":"0x1","class":"kitty","title":"a\"b"},{"address":"","class":"x","title":"y"}]}"#).unwrap();
         assert_eq!((a.monitor.as_str(), a.zone, a.rect), ("DP-1", 2, [500, 0, 500, 600]));
         assert_eq!(a.items, vec![("0x1".to_string(), "kitty".to_string(), "a\"b".to_string())]);
-        assert!(parse(r#"{"monitor":"A","zone":1,"rect":[0,0,1,1],"items":[]}"#).is_none());
+        assert!(parse(r#"{"generation":1,"monitor":"A","zone":1,"rect":[0,0,1,1],"items":[]}"#).is_none());
         assert!(parse("garbage").is_none());
+    }
+}
+
+#[cfg(test)]
+mod choice_tests {
+    use super::*;
+    #[test]
+    fn rejects_replaced_generation_and_missing_window() {
+        let path = std::env::temp_dir().join(format!("kwinish-assist-{}.json", std::process::id()));
+        let state = r#"{"generation":1,"monitor":"A","zone":1,"rect":[0,0,1,1],"items":[{"address":"0x1"}]}"#;
+        std::fs::write(&path, state).unwrap();
+        let clients = r#"[{"address":"0x1"}]"#;
+        assert!(valid_choice(&path, 1, "0x1", clients));
+        assert!(!valid_choice(&path, 1, "gone", clients));
+        assert!(!valid_choice(&path, 1, "0x1", "invalid"));
+        std::fs::write(&path, state.replace("generation\":1", "generation\":2")).unwrap();
+        assert!(!same_generation(&path, 1));
+        assert!(!valid_choice(&path, 1, "0x1", clients));
+        std::fs::remove_file(&path).unwrap();
+        assert!(!valid_choice(&path, 2, "0x1", clients));
     }
 }

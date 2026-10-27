@@ -17,3 +17,7 @@ local c = M.parse_columns('{"2":3,"4":2,"5":9,"0":1,"x":1}')
 assert(c["2"] == 3 and c["4"] == 2 and c["5"] == nil and c["0"] == nil and c.x == nil, "columns parsed, bad dropped")
 assert(M.serialize_columns(c) == '{"2":3,"4":2}' and M.parse_columns(M.serialize_columns(c))["2"] == 3 and next(M.parse_columns(nil)) == nil)
 print("modes ok")
+
+for _, n in ipairs({ "2.5", "2.0", "2e0", "2junk", "-1", "null" }) do
+  assert(next(M.parse_columns('{"1":' .. n .. '}')) == nil, "reject non-integer token: " .. n)
+end

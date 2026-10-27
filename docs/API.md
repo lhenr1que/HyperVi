@@ -40,7 +40,7 @@ Config (user data, `$XDG_CONFIG_HOME/kwinish/`):
 | `workspace-modes.json` | workspace to mode |
 | `workspace-columns.json` | `{"2":3}`: workspace 2 keeps 3 columns |
 
-Runtime (`$XDG_RUNTIME_DIR/kwinish/`, written by the core, read by `kwinish-ui`): `switcher.json` (`open`, `selected`, `items[]` with `class`, `title`), `assist.json` (shape **TODO**).
+Runtime (`$XDG_RUNTIME_DIR/kwinish/`, written by the core, read by `kwinish-ui`): `switcher.json` (`open`, `selected`, `items[]` with `class`, `title`), `assist.json` (`{"generation":N,"monitor":name,"zone":N,"rect":[x,y,w,h],"items":[{"address","class","title"}]}`; generation increases on each atomic publication, including core reloads; core launches are serialized with `flock` on `assist.lock`, obsolete queued launches are skipped, overlays close when their generation is replaced and recheck it and window existence before acting).
 Writers must be atomic (temp file plus rename); readers must tolerate a bad file (the core drops bad entries, never crashes).
 
 ## 5. Window tags (set by the core, readable by a dock)

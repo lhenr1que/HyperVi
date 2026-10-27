@@ -250,15 +250,19 @@ local function run()
   c.at, d.at, e.at = { 900, 900 }, { 1000, 900 }, { 1100, 900 }
   local function assist_json() local f = assert(io.open(tmp .. "/XDG_RUNTIME_DIR/kwinish/assist.json", "r")); local t = f:read("*a"); f:close(); return t end
   kw.window_action(c.address, "zone:1")
-  assert(#execs == 1 and execs[1] == "kwinish-ui assist", "assist opened")
+  assert(#execs == 1 and execs[1] == "flock '" .. tmp .. "/XDG_RUNTIME_DIR/kwinish/assist.lock' env KWINISH_ASSIST_GENERATION=1 kwinish-ui assist", "assist opened")
   local j = assist_json()
   assert(j:find('"monitor":"TEST","zone":2,', 1, true) and j:find('"address":"d"', 1, true) and j:find('"address":"e"', 1, true) and not j:find('"address":"c"', 1, true), j)
+  local f = window("f", 2, true)
+  kw.window_action(f.address, "zone:1") -- another snap before the overlay gets a choice
+  assert(#execs == 2 and execs[2]:find("KWINISH_ASSIST_GENERATION=2 kwinish-ui assist", 1, true), "rapid snap gets its own serialized generation")
+  assert(assist_json():find('"generation":2', 1, true), "latest generation published")
   kw.window_action(d.address, "zone:2") -- the last empty zone: nothing left to offer
-  assert(#execs == 1, "no assist when every zone is filled")
+  assert(#execs == 2, "no assist when every zone is filled")
   kw.window_action(d.address, "zone:2") -- same request again restores the window: no assist either
-  assert(#execs == 1, "no assist on restore")
+  assert(#execs == 2, "no assist on restore")
   kw.snap_assist = false
-  kw.window_action(e.address, "zone:2"); assert(#execs == 1, "assist switched off")
+  kw.window_action(e.address, "zone:2"); assert(#execs == 2, "assist switched off")
   -- Dropped on another monitor: the zone and the half are computed on that monitor, not the window's own.
   local g = window("g", 2, true)
   kw.window_action(g.address, "zone:2@SIDE")
