@@ -25,9 +25,10 @@ end
 local warps_log = {}
 local function run()
   local mon = { name = "TEST", x = 0, y = 0, width = 1600, height = 1000, scale = 1, reserved = {} }
-  local workspaces = { { id = 1, name = "1", tiled_layout = "dwindle" }, { id = 2, name = "2", tiled_layout = "dwindle" },
-    { id = -99, name = "special:minimized" } }
-  local wins, events, timers, calls, execs = {}, {}, {}, {}, {}
+  local side = { name = "SIDE", x = 1600, y = 0, width = 1000, height = 800, scale = 1, reserved = {} }
+  local workspaces = { { id = 1, name = "1", tiled_layout = "dwindle", monitor = mon }, { id = 2, name = "2", tiled_layout = "dwindle", monitor = mon },
+    { id = -99, name = "special:minimized" }, { id = 4, name = "4", tiled_layout = "dwindle", monitor = side } }
+  local wins, events, timers, calls, execs, rules = {}, {}, {}, {}, {}, {}
   local clock, serial, active, home, refused = 0, 0, nil, workspaces[1], nil
   local function window(addr, ws, floating)
     local w = { address = addr, class = "Test", title = addr, mapped = true, hidden = false, fullscreen = 0,
@@ -66,7 +67,13 @@ local function run()
   end
   hl = {
     dsp = { window = {}, focus = command("focus"), layout = command("layout") },
-    get_monitors = function() return { mon, { name = "SIDE", x = 1600, y = 0, width = 1000, height = 800, scale = 1, reserved = {} } } end,
+    get_monitors = function() return { mon, side } end,
+    get_active_monitor = function() return mon end,
+    get_workspace = function(sel)
+      for _, ws in ipairs(workspaces) do if tostring(ws.id) == tostring(sel) then return ws end end
+    end,
+    -- Named rules: declaring a name again replaces it, enabled = false switches it off (Hyprland 0.56, checked nested).
+    window_rule = function(spec) assert(spec.name, "rules are named"); rules[spec.name] = spec end,
     get_windows = function() return wins end,
     get_window = lookup,
     get_workspaces = function() return workspaces end,
@@ -126,6 +133,28 @@ local function run()
     elseif kind == "alter_zorder" then w.zorder = a.mode
     else error("unsupported dispatch " .. tostring(kind)) end
   end
+  -- A window opening: enabled rules for its workspace act before the tiled layout (match.float = false skips windows that float
+  -- on their own); move is monitor-local and a rule's tag shows as "name*". Without a rule it is tiled over the whole area.
+  local function open(addr, ws, natural_float)
+    local w = window(addr, ws, natural_float)
+    w.monitor = w.workspace.monitor or mon
+    w.at, w.size = natural_float and { 650, 425 } or { w.monitor.x, w.monitor.y }, natural_float and { 300, 150 } or { w.monitor.width, w.monitor.height }
+    for _, r in pairs(rules) do
+      local m = r.match
+      if r.enabled ~= false and m and tostring(m.workspace) == tostring(w.workspace.id) and (m.float == nil or m.float == w.floating) then
+        if r.float then w.floating = true end
+        if r.size then local x, y = r.size:match("^(%d+) (%d+)$"); w.size = { tonumber(x), tonumber(y) } end
+        if r.move then local x, y = r.move:match("^(%-?%d+) (%-?%d+)$"); w.at = { w.monitor.x + tonumber(x), w.monitor.y + tonumber(y) } end
+        if r.tag then w.tags[#w.tags + 1] = r.tag:sub(2) .. "*" end
+      end
+    end
+    w.first = { floating = w.floating, x = w.at[1], y = w.at[2], w = w.size[1], h = w.size[2] }
+    emit("window.open", w)
+    return w
+  end
+  local function close(w)
+    for i, x in ipairs(wins) do if x == w then table.remove(wins, i) break end end
+  end
   local function count(kind)
     local n = 0
     for _, c in ipairs(calls) do if c.kind == kind then n = n + 1 end end
@@ -179,6 +208,50 @@ local function run()
   assert(tag(a, "kwinish-rect-10025-10035-510-420") and not tag(a, "kwinish-rect-9880-10230-510-420"), "old rectangle tag replaced")
   kw.set_workspace_mode(1, "floating"); rect(a, 25, 35, 510, 420)
   kw.set_workspace_mode(1, "tiling")
+  assert(rules["kwinish-mode-floating-1"] and rules["kwinish-mode-floating-1"].enabled == false, "leaving floating switches the rule off")
+
+  -- A window that opens on a floating workspace is born floating at the mode's rectangle: floating it after it opened showed it at
+  -- its tiled size first. `other` takes cascade step 0, so the rule waits at step 1.
+  kw.set_workspace_mode(2, "floating")
+  rect(other, 240, 112, 1024, 680)
+  local n1 = open("n1", 2)
+  local f1 = n1.first
+  assert(f1.floating and f1.x == 264 and f1.y == 136 and f1.w == 1024 and f1.h == 680, "born floating at the mode rectangle")
+  assert(tag(n1, "kwinish-mode-floated"), "claimed by the mode")
+  local n2 = open("n2", 2)
+  assert(n2.first.floating and n2.first.x == 288 and n2.first.y == 160, "the next window cascades from its first frame")
+  local dlg = open("dlg", 2, true)
+  assert(dlg.size[1] == 300 and dlg.at[1] == 650 and not tag(dlg, "kwinish-mode-floated"), "a window that floats on its own is left alone")
+  calls = {}
+  advance(150) -- the 150 ms pass that used to float them must not place them again
+  assert(count("resize") == 0 and count("move") == 0 and n1.at[1] == 264 and n2.at[1] == 288, "no second placement")
+  -- A workspace on a monitor away from the origin: the rule's move is relative to that monitor.
+  kw.set_workspace_mode(4, "floating")
+  local n3 = open("n3", 4)
+  assert(n3.first.floating and n3.first.x == 1804 and n3.first.y == 152 and n3.first.w == 640 and n3.first.h == 544,
+    "rect on the side monitor: " .. n3.first.x .. "," .. n3.first.y .. " " .. n3.first.w .. "x" .. n3.first.h)
+  -- Leaving the mode tiles the windows born floating, keeps the one that floats on its own, and new windows tile again.
+  kw.set_workspace_mode(2, "tiling")
+  assert(not n1.floating and not n2.floating and dlg.floating and not other.floating, "born-floating windows go back to tiling")
+  assert(rules["kwinish-mode-floating-2"].enabled == false and not open("n4", 2).first.floating, "rule off: new windows tile")
+  -- The compositor drops rules on a config reload: loading the core declares them again, or monitor.added if no monitor exists yet.
+  rules = {}
+  kw = reload()
+  assert(rules["kwinish-mode-floating-4"] and rules["kwinish-mode-floating-4"].enabled ~= false and not rules["kwinish-mode-floating-2"], "floating rule back after reload")
+  rules = {}
+  local active_monitor, side_ws = hl.get_active_monitor, workspaces[4]
+  hl.get_active_monitor, side_ws.monitor = function() return nil end, nil
+  kw = reload()
+  assert(next(rules) == nil, "no monitor yet: no rule, no error")
+  hl.get_active_monitor, side_ws.monitor = active_monitor, side
+  emit("monitor.added", side)
+  assert(rules["kwinish-mode-floating-4"], "rule declared once a monitor appears")
+  side.width = 1200; rules["kwinish-mode-floating-4"] = nil
+  emit("monitor.layout_changed", side)
+  assert(rules["kwinish-mode-floating-4"] and rules["kwinish-mode-floating-4"].size == "768 544", "rule follows a monitor resize")
+  side.width = 1000
+  kw.set_workspace_mode(4, "tiling")
+  for _, w in ipairs({ n1, n2, n3, dlg, wins[#wins] }) do close(w) end
 
   -- Switching layout defers resizing for 300 ms; only eligible columns change.
   calls = {}

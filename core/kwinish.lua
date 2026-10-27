@@ -585,6 +585,23 @@ local function float_for_mode(w)
   end
 end
 
+-- A window opening on a floating workspace is born floating through a named window rule per workspace: floating it once it had
+-- opened showed it at its tiled size first. The rule skips windows that float on their own (dialogs), puts the next cascade
+-- rectangle (its move is monitor-local) and marks the window, which the core then tags kwinish-mode-floated: a rule's tag is
+-- "dynamic" and shows as "name*". The rule object is never kept (calling methods on hl.bind objects crashed Hyprland 0.56.2).
+local MODE_NEW = "kwinish-mode-new"
+
+local function mode_rule(ws, on)
+  local name = "kwinish-mode-floating-" .. ws
+  if not on then hl.window_rule({ name = name, enabled = false }); return end
+  local space = hl.get_workspace(tostring(ws))
+  local mon = space and space.monitor or hl.get_active_monitor()
+  if not mon then return end -- config loading before any monitor exists: monitor.added declares it
+  local r = modes.open_rect(work_area(mon), mode_cascade)
+  hl.window_rule({ name = name, match = { workspace = tostring(ws), float = false }, float = true, tag = "+" .. MODE_NEW,
+    size = string.format("%d %d", r.w, r.h), move = string.format("%d %d", r.x - mon.x, r.y - mon.y) })
+end
+
 local function mode_of(ws, saved)
   local m = saved[tostring(ws)]
   if m then return m end
@@ -599,6 +616,7 @@ function M.set_workspace_mode(ws, mode)
   ws = tonumber(ws)
   if not ws or ws < 1 or not modes.valid[mode] then return end
   local saved = load_modes()
+  local was = saved[tostring(ws)]
   saved[tostring(ws)] = mode
   save_modes(saved)
   hl.workspace_rule({ workspace = tostring(ws), layout = modes.engine(mode) })
@@ -610,6 +628,7 @@ function M.set_workspace_mode(ws, mode)
       if not w.pinned then hl.dispatch(hl.dsp.window.float({ action = "disable", window = "address:" .. w.address })) end
     end
   end
+  if mode == "floating" then mode_rule(ws, true) elseif was == "floating" then mode_rule(ws, false) end
 end
 
 -- Next (or previous) mode for the workspace of the active window.
@@ -699,8 +718,31 @@ function M.apply_workspace_mode(w)
   if ws and ws >= 1 and load_modes()[tostring(ws)] == "floating" then float_for_mode(w) end
 end
 
--- After a config reload the workspace rules are gone: set them again.
+-- A window the floating-mode rule caught: claim it for the mode and move the rule to the next cascade rectangle, before the next
+-- window maps.
+function M.mode_window_opened(w)
+  local win = w and w.address and hl.get_window("address:" .. w.address)
+  local ws = win and win.workspace and win.workspace.id
+  if not (ws and has_tag(win, MODE_NEW .. "*") and load_modes()[tostring(ws)] == "floating") then return end
+  set_tag(win, "kwinish-mode-floated", true)
+  mode_cascade = (mode_cascade + 1) % 5
+  mode_rule(ws, true)
+end
+
+-- After a config reload the workspace and window rules are gone: set them again. Window rules also when a monitor appears (at
+-- startup the config loads before any monitor exists) or changes, so the next window does not get a stale rectangle.
+function M.refresh_mode_rules()
+  for ws, mode in pairs(load_modes()) do if mode == "floating" then mode_rule(ws, true) end end
+end
 for ws, mode in pairs(load_modes()) do hl.workspace_rule({ workspace = ws, layout = modes.engine(mode) }) end
+M.refresh_mode_rules()
+if not KWINISH_MODE_HOOKS then
+  KWINISH_MODE_HOOKS = true
+  hl.on("window.open", function(w) local kw = package.loaded.kwinish; if kw then kw.mode_window_opened(w) end end)
+  for _, ev in ipairs({ "monitor.added", "monitor.layout_changed" }) do
+    hl.on(ev, function() local kw = package.loaded.kwinish; if kw then kw.refresh_mode_rules() end end)
+  end
+end
 
 -- Window shortcuts (shortcuts.json): one bind per app that focuses it. Binds are added only while the config loads
 -- (hl.bind from a running eval can crash Hyprland 0.56.2); the guard also keeps a core reload by eval from re-binding.
