@@ -38,7 +38,7 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 8. Liga/desliga do encaixe e do Snap Assist nas configurações (hoje `kw.snap_assist=false` no `user.lua`).
 
 **Bugs/pendências conhecidos:**
-- Modo floating: a janela nova nasce em mosaico (área útil inteira) e só flutua ~160 ms depois (relato do dono e medição ao vivo com kitty descartável no ws 3, 27/10: mapeada em mosaico 1827x1000 aos 105 ms, flutuante 1100x682 aos 267 ms). Planejado em `openspec/changes/fix-floating-mode-open/` (começa por um experimento num Hyprland aninhado); não implementado.
+- Modo floating: a janela nova nasce em mosaico (área útil inteira) e só flutua ~160 ms depois (relato do dono e medição ao vivo com kitty descartável no ws 3, 27/10: mapeada em mosaico 1827x1000 aos 105 ms, flutuante 1100x682 aos 267 ms). Planejado em `openspec/changes/fix-floating-mode-open/`. Experimento no Hyprland aninhado feito (27/10, Codex + Claude, `spike/nested-open/`): flutuar dentro de `window.open_early` derruba o compositor; uma regra de janela nomeada por workspace com `float` + `size` + `center` faz a janela nascer flutuante no tamanho do modo, sem passar pelo mosaico; "tamanho pedido pelo app" não sai de uma regra por workspace (o app recebe o tamanho do mosaico antes do primeiro quadro). Falta o dono decidir a cascata; tarefas 2–4 abertas, nada implementado no núcleo.
 - Encaixe depois de arrastar entre monitores volta ao monitor de origem (plugin escolhe a zona pelo ponteiro, núcleo pelo monitor da janela).
 - Clique em área coberta por outra janela aciona a barra da focada (precisa de teste ao vivo).
 - Atalho: o submap anterior não é guardado (sempre `reset`); vários daemons de barras podem coexistir; corrida entre dois diálogos de atalho.
