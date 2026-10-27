@@ -464,7 +464,8 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
 
     if (MIT != g_pGlobalState->zones.end() && m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() &&
         (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
-        const auto C = g_pInputManager->getMouseCoordsInternal();
+        // the pointer held on a seam (m_resistLast), not the real one, which flips to the other monitor between two moves and made the preview flicker
+        const auto C = m_resistLast;
         const auto M = monitorAtPointer(C);
         if (M && M == pMonitor) {
             if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
@@ -582,7 +583,7 @@ void CHyprBar::snapOnRelease() {
     if (!W || !W->m_isFloating)
         return;
 
-    const auto C = g_pInputManager->getMouseCoordsInternal();
+    const auto C = m_resistPush > 0 ? m_resistLast : g_pInputManager->getMouseCoordsInternal(); // held on a seam: the pinned pointer
     const auto M = monitorAtPointer(C);
     if (!M)
         return;

@@ -7,3 +7,6 @@ Hoje as opções do Kwinish estão em arquivos JSON (`~/.config/kwinish/`) e no 
 ## Pontos em aberto
 - O Hub é do Ryoku (GPL-3, fork do dono); o Kwinish é independente (MIT): a página seria um módulo opcional, sem acoplar o núcleo.
 - Formato dos arquivos já estável: `layouts.json`, `rules.json`, `shortcuts.json`, `workspace-modes.json`, `workspace-columns.json`.
+
+## Opções do plugin que a página deve expor (26/10)
+`seam_resistance` (pixels de empurrão para atravessar a fronteira entre monitores, 0 desliga; padrão 200), `snap_top_edge`, `snap_preview`, `preview_color`, `bar_height`. Hoje se ajustam por `hyprctl eval "hl.config({plugin={kwinish={...}}})"` ou na config do Hyprland.
