@@ -22,7 +22,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - Licenças: cabeçalhos SPDX em `plugin/`; texto BSD-3 do hyprbars em `plugin/LICENSE.hyprland-plugins` **conferido hoje contra o upstream** (`hyprwm/hyprland-plugins`, ramo main): idêntico, copyright "2023, Hypr Development".
 
 ## Corrigido no código, ainda não verificado ao vivo
-Plugin recompilado mas **não recarregado** pelo dono: correções das revisões (barras sobrepostas, estado de arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela). O núcleo foi testado no workspace 9; o plugin precisa de `hyprctl plugin unload/load` feito por você.
+Plugin (27/10, `868f66a`): mudar a "Altura" na janela de configurações redimensiona a barra, não só o ícone; compilado, falta recarregar e testar (teste 5). Plugin recompilado mas **não recarregado** pelo dono: correções das revisões (barras sobrepostas, estado de arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela). O núcleo foi testado no workspace 9; o plugin precisa de `hyprctl plugin unload/load` feito por você.
 
 ## O que falta
 **Depende de você (desktop real):** recarregar o plugin e testar as correções; `sudo pacman -U dist/*.pkg.tar.zst`; teste com mouse real; Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`.
@@ -87,6 +87,7 @@ Achado ao planejar: o Hyprland instalado roda a config em **Lua 5.5** (`readelf`
 Encaixe nas bordas e topo, voltar do topo ao tamanho anterior (com animação de 140 ms), Shift no meio do arrasto, fronteira DP-1/HDMI-A-1 sem o pulo da janela. Correções: escala 2 nas bordas, posição do clique para desencaixar, faixa de 16 px nas fronteiras, monitor sob o ponteiro, `cursor:no_warps` durante o ajuste de colunas. Dev: `fish tools/dev-reload.fish` carrega plugin e núcleo juntos (recarregar só o plugin traz de volta o núcleo de /usr/share). Resistência na fronteira (ideia do dono): não implementada, avaliar se ainda faz falta.
 
 ## Verificado pelo dono em 27/10
+Teste 5, em parte: a cor "Barra, janela focada" muda na hora e desligar o Snap Assist impede a sobreposição ao encaixar pelo menu. Altura, persistência e menu continuam pendentes (item 5 abaixo).
 Testes 6 (encaixe sem opções e restauração, `fix-snap-entrypoints`) e 1 (Snap Assist com Shift ao arrastar, `fix-assist-drop-context`): depois dos roteiros, o dono respondeu "os testes funcionaram" (27/10, 17:55, no chat do Codex). O relato não detalha os subcasos (por exemplo, soltar noutro monitor sem Assist). Os roteiros estão no `docs/STATUS.md` do commit `60e19df`.
 
 ## Testes pendentes para o dono
@@ -113,25 +114,40 @@ hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=
 Com DP-1 e HDMI-A-1: abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: como no teste 2 (descarregar o de teste, carregar o instalado) e `hyprctl reload`.
 
 **5. Janela de configurações (núcleo do repositório carregado)**
-Antes de tudo, guarde o `settings.json` e o `~/.local/bin/kwinish-ui` como estão hoje (arquivo, link, mesmo quebrado, ou ausência). Se o `save` falhar, nada mais roda (`and`) e nada foi alterado:
+Rodada de 27/10 (dono): a cor "Barra, janela focada" e desligar o Snap Assist **funcionaram**. A "Altura" só aumentava o ícone: consertado no plugin em `868f66a` (exige recompilar e recarregar o plugin). A persistência e o menu não foram testados por erro do roteiro: a janela prende o terminal, e num terminal novo (aberto em `~`) os caminhos relativos falharam; o `ln -sf $PWD/...` criou o link quebrado `~/.local/bin/kwinish-ui -> ~/ui/target/debug/kwinish-ui`, e o compositor caiu no `/usr/bin/kwinish-ui`, que não tem o item. O backup daquela rodada guardou o link certo que existia antes.
+Todos os comandos abaixo usam caminhos absolutos e funcionam de qualquer terminal.
+Passo 0, fechar a rodada anterior (devolve o `settings.json` e o link do `kwinish-ui` de antes):
+```fish
+bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
+```
+Passo 1, guardar o estado, compilar plugin e interface, carregar plugin e núcleo do repositório e abrir a janela (se o `save` falhar, nada mais roda). A janela prende este terminal; use outro para os passos seguintes:
 ```fish
 cd ~/Downloads/ryoku-work/kwinish
 bash tools/live-backup.sh save ~/.local/state/kwinish-backup/teste-5 ~/.config/kwinish/settings.json ~/.local/bin/kwinish-ui
+and make -C plugin
 and cargo build --manifest-path ui/Cargo.toml
 and fish tools/dev-reload.fish
 and ./ui/target/debug/kwinish-ui settings
 ```
-O `dev-reload.fish` descarrega e carrega o plugin do repositório e depois o núcleo do repositório. Mude "Altura" para 34: as barras devem engordar na hora. Troque a cor "Barra, janela focada": a barra da janela ativa muda. Desligue "Snap Assist" e encaixe uma janela numa zona pelo menu: a sobreposição não deve abrir. Depois `hyprctl reload` seguido de `fish tools/dev-reload.fish`: os valores devem continuar (vêm do `settings.json`).
-Menu: ponha o binário do repositório no PATH (o menu chama o `kwinish-ui` do PATH, e o de `/usr/bin` ainda não conhece `settings`); o `save` acima já guardou o que havia nesse caminho:
+Mude "Altura" para 34: a **barra inteira** deve engordar na hora (não só o ícone), e a janela desce para caber.
+Passo 2, persistência, noutro terminal:
 ```fish
-ln -sf $PWD/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
+hyprctl reload
+fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish
+```
+A altura 34 deve continuar (o núcleo do repositório aplica o `settings.json` ao carregar).
+Passo 3, menu: o menu chama o `kwinish-ui` do PATH, e o de `/usr/bin` ainda não conhece `settings`. Confira para onde aponta o link; se não for para `~/Downloads/ryoku-work/kwinish/ui/target/debug/kwinish-ui`, crie-o (o `save` já guardou o que havia):
+```fish
+readlink ~/.local/bin/kwinish-ui
+ln -sf ~/Downloads/ryoku-work/kwinish/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
 ```
 Clique direito na barra de uma janela, Mais ações > Configurações do Kwinish...: a mesma janela abre; abrir de novo só traz a já aberta para a frente.
-Desfazer (volta o `settings.json` e o `kwinish-ui` exatamente como estavam, ou remove só o que o teste criou; depois volta ao núcleo e plugin instalados):
+Desfazer (volta o `settings.json` e o `kwinish-ui` exatamente como estavam, troca o plugin do repositório pelo instalado e recarrega a config):
 ```fish
-cd ~/Downloads/ryoku-work/kwinish
-bash tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
-and hyprctl reload
+bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
+hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
+hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl reload
 ```
 Se o `restore` recusar algo, ele diz o quê e mantém o backup em `~/.local/state/kwinish-backup/teste-5`. **Não use mais o `rm` antigo deste teste**: ele apagava um `settings.json` legítimo e um `kwinish-ui` que já existisse.
 
