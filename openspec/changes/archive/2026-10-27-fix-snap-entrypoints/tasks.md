@@ -16,3 +16,4 @@
 ## Workflow follow-up
 
 - Arquivar com `/opsx:archive` (ou `$openspec-archive-change` no Codex) depois do teste do dono.
+- Arquivado em 27/10/2026 depois do relato do dono: "os testes funcionaram" (27/10, 17:55, no chat do Codex), após o roteiro 6 do `docs/STATUS.md` (commit `60e19df`). O roteiro chamou `tile('left')` por `hyprctl eval` (a função do atalho), encaixando e restaurando; o atalho em si, que exige o núcleo novo carregado pela config, não foi exercido separadamente.

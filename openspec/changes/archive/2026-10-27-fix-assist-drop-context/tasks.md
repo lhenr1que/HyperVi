@@ -16,3 +16,4 @@
 ## Workflow follow-up
 
 - Arquivar com `/opsx:archive` (ou `$openspec-archive-change` no Codex) depois do teste do dono.
+- Arquivado em 27/10/2026 depois do relato do dono: "os testes funcionaram" (27/10, 17:55, no chat do Codex), após o roteiro 1 do `docs/STATUS.md` (commit `60e19df`), Shift ao arrastar com mouse real. O relato não detalha o subcaso de soltar no outro monitor. No teste 5 (27/10) o dono também viu o cenário "Assist desligado": encaixar pelo menu com o Assist desligado não abriu a sobreposição.
