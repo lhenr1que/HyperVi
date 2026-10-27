@@ -1093,8 +1093,9 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     m_bWindowSizeChanged = false;
     m_bTitleColorChanged = false;
 
-    // dynamic updates change the extents
+    // dynamic updates change the extents; the positioner caches them and hl.config fires no config reload, so ask it again
     if (m_iLastHeight != HEIGHT) {
+        g_pDecorationPositioner->repositionDeco(this);
         PWINDOW->layoutTarget()->recalc();
         m_iLastHeight = HEIGHT;
     }
