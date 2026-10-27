@@ -114,6 +114,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                  openMenu(double x, double y);
     void                  snapOnRelease();
     void                  maybeUnsnap();
+    void                  stepUnsnap();
     const char*           edgeZone(const Vector2D& cursor, PHLMONITOR monitor);
     void                  drawSnapPreview(PHLMONITOR monitor);
     void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
@@ -136,6 +137,10 @@ class CHyprBar : public IHyprWindowDecoration {
     Vector2D            m_dragStart;
     Vector2D            m_pressCursor;
     bool                m_bUnsnapChecked = false;
+    bool                m_unsnapAnim     = false; // easing the size back after unsnapping
+    double              m_unsnapRatio = 0, m_unsnapGrabY = 0;
+    Vector2D            m_unsnapFrom, m_unsnapTo;
+    Time::steady_tp     m_unsnapT0;
     double              m_resistPush = 0;   // pixels pushed against the seam so far
     double              m_resistSeam = 0;   // x of that seam
     std::string         m_szPreviewZone;

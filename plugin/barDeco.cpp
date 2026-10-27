@@ -275,8 +275,11 @@ void CHyprBar::onMouseMove(Vector2D coords) {
             std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("arg=({:.1f},{:.1f}) cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", coords.x, coords.y, C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
         }
     }
-    if (m_bDraggingThis && !m_bTouchEv)
+    if (m_bDraggingThis && !m_bTouchEv) {
         maybeUnsnap();
+        if (m_unsnapAnim)
+            stepUnsnap();
+    }
 
     // ensure proper redraws of button icons on hover when using hardware cursors
     damageOnButtonHover();
@@ -533,40 +536,38 @@ void CHyprBar::maybeUnsnap() {
     if (std::abs(POS.x - R.snapPos.x) > 4 || std::abs(POS.y - R.snapPos.y) > 4 || std::abs(SIZE.x - R.snapSize.x) > 4 || std::abs(SIZE.y - R.snapSize.y) > 4)
         return;
 
-    const double RATIO   = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
-    const double GRABY   = m_pressCursor.y - R.snapPos.y;
-    const auto   FROM    = SIZE;
-    const auto   TO      = R.size;
-    const auto   T0      = Time::steadyNow();
-    constexpr int MS     = 140;
+    m_unsnapRatio = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    m_unsnapGrabY = m_pressCursor.y - R.snapPos.y;
+    m_unsnapFrom  = SIZE;
+    m_unsnapTo    = R.size;
+    m_unsnapT0    = Time::steadyNow();
+    m_unsnapAnim  = true;
 
-    // The size eases back over MS milliseconds, the window kept under the pointer at the same fraction of its bar; the
-    // compositor's move is paused meanwhile and restarted from the final geometry.
+    // The size eases back over 140 ms, the window kept under the pointer at the same fraction of its bar; the compositor's
+    // move is paused meanwhile and restarted from the final geometry. Pointer motion drives the steps.
     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-    auto timer = makeShared<CEventLoopTimer>(
-        std::chrono::microseconds(1),
-        [self = m_self, WIN = m_pWindow, RATIO, GRABY, FROM, TO, T0](SP<CEventLoopTimer> t, void*) {
-            const auto B = self.lock();
-            const auto W = WIN.lock();
-            if (!B || !W || !B->m_bDraggingThis)
-                return;
-            const double   P     = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - T0).count() / MS);
-            const double   E     = 1.0 - std::pow(1.0 - P, 3.0);
-            const Vector2D SZ    = FROM + (TO - FROM) * E;
-            const auto     C     = g_pInputManager->getMouseCoordsInternal();
-            const Vector2D POS   = {C.x - RATIO * SZ.x, C.y - GRABY};
-            (void)Config::Actions::resize(SZ, false, W);
-            (void)Config::Actions::move(POS, false, W);
-            if (P >= 1.0) {
-                B->m_dragStart = POS;
-                g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
-                g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
-                return;
-            }
-            t->updateTimeout(std::chrono::milliseconds(8));
-        },
-        nullptr);
-    g_pEventLoopManager->addTimer(timer);
+    stepUnsnap();
+}
+
+void CHyprBar::stepUnsnap() {
+    const auto W = m_pWindow.lock();
+    if (!m_unsnapAnim || !W || !m_bDraggingThis) {
+        m_unsnapAnim = false;
+        return;
+    }
+    const double   P   = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - m_unsnapT0).count() / 140.0);
+    const double   E   = 1.0 - std::pow(1.0 - P, 3.0);
+    const Vector2D SZ  = m_unsnapFrom + (m_unsnapTo - m_unsnapFrom) * E;
+    const auto     C   = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D POS = {C.x - m_unsnapRatio * SZ.x, C.y - m_unsnapGrabY};
+    (void)Config::Actions::resize(SZ, false, W);
+    (void)Config::Actions::move(POS, false, W);
+    if (P >= 1.0) {
+        m_unsnapAnim = false;
+        m_dragStart  = POS;
+        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+        g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    }
 }
 
 // Releasing a drag with the pointer on a screen edge snaps the window (left/right: half, top: maximized), like KWin's
@@ -640,6 +641,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
 
 void CHyprBar::handleMovement() {
     m_bUnsnapChecked = false;
+    m_unsnapAnim     = false;
     m_resistPush     = 0;
     if (const auto W = m_pWindow.lock()) {
         m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
