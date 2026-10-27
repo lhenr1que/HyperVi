@@ -125,6 +125,7 @@ end
 
 -- where: left right top bottom topleft topright bottomleft bottomright max
 function M.tile(where, opts)
+  opts = opts or {}
   local w = target(opts); if not w then return end
   local gi = num(hl.get_config("general.gaps_in"), "left")
   local r = geometry.tile_rect(work_area(opts.monitor or w.monitor), where, gi)
@@ -372,7 +373,9 @@ function M.window_action(addr, action)
     local rects = layout_rects(mon or w.monitor)
     local r = rects[tonumber(arg) or 0]
     -- no Snap Assist for a drop on another monitor: the window's workspace and monitor are still the old ones until it lands
-    if r and place(w, r, "zone:" .. arg) and not mon then snap_assist(w, tonumber(arg), rects) end
+    if r and place(w, r, "zone:" .. arg) and (not mon or (w.monitor and mon.name == w.monitor.name)) then
+      snap_assist(w, tonumber(arg), rects)
+    end
   elseif kind == "grab" then
     -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
     -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when

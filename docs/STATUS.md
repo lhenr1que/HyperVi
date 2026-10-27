@@ -48,13 +48,15 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
 ## Para a próxima sessão (fim de 26/10/2026)
+**Atualização de 27/10 — fix-assist-drop-context:** implementação revisada e incorporada à master em 27/10; arquivamento aguarda teste ao vivo. Regressão reproduzida antes do conserto (`same-monitor drop must open Snap Assist`); sufixo do mesmo monitor agora permite o Assist, outro monitor continua sem Assist. As 9 suítes Lua passaram no simulador; teste com mouse real pendente no item 1 abaixo.
+**Atualização de 27/10 — fix-snap-entrypoints:** implementação revisada e incorporada à master em 27/10; arquivamento aguarda teste ao vivo. `M.tile` normaliza opções ausentes; regressão reproduzida antes do conserto, 9 suítes Lua e 18 testes Rust passaram depois (testes simulados, sem plugin). O teste ao vivo está no item 6 de "Testes pendentes para o dono". `fix-assist-drop-context` também implementada, com teste ao vivo pendente.
 **Estado:** o repositório está limpo e tudo commitado. O dono verificou ao vivo com mouse real e dois monitores: encaixe nas bordas e topo, volta do topo com animação, Shift no meio do arrasto, fronteira DP-1/HDMI-A-1 sem pulo, resistência de fronteira (`seam_resistance`, 200 px) sem tremor, e as correções da revisão do Codex no plugin. **Não verificado ao vivo:** Snap Assist com as mudanças novas (assist.json com geração, `flock`, revalidação do clique), o desfazer das regras ao desmarcar, `force_no_accel`.
 **Como carregar o código do repositório:** `cd ~/Downloads/ryoku-work/kwinish; and fish tools/dev-reload.fish` (plugin e núcleo juntos; recarregar só o plugin traz de volta o núcleo de `/usr/share/kwinish`, que ignora `@monitor`). Só vale até o próximo `hyprctl reload`; o pacote ainda não foi reinstalado (precisa de sudo).
 **Armadilhas aprendidas:** o evento `input.mouse.move` do Hyprland chega depois de o ponteiro mover (não cancela); a resistência usa um gancho em `CInputManager::onMouseMoved` (`plugin/main.cpp`). `CEventLoopTimer` não disparou no plugin: a animação do desencaixe é movida pelos eventos do mouse. `doLater` não deve capturar código do plugin. Focar janelas leva o ponteiro ao centro delas (`cursor:no_warps` durante o ajuste de colunas). O mouse simulado (`ryoku-vm/tools/pointer-path.py 3840 1080 ...`, tela total 3840x1080) é absoluto e não passa pelo gancho de movimento relativo.
 **Decisões do dono desta sessão:** desmarcar uma regra desfaz na hora; a resistência de fronteira existe e deve ter espaço nas configurações; revisar o que o usuário configura antes do beta (feito: `docs/CONFIGURAVEL.md`).
 **Feito em 26/10 (fim):** janela de configurações `kwinish-ui settings` (`ui/src/settings.rs`, `core/settings.lua`, `~/.config/kwinish/settings.json`): barras, cores, encaixe, resistência de fronteira e Snap Assist; cada mudança grava o arquivo e chama `apply_settings()` no núcleo; o núcleo também aplica o arquivo a cada carga da config (só com o plugin carregado; chaves e valores validados). Vista aberta ao vivo lendo os valores do compositor; **aplicar ao vivo não testado** (o núcleo em memória é o de `/usr/share`, sem `apply_settings`): teste 5 abaixo.
 **Relato do dono (26/10, noite):** as mudanças da janela não valiam na hora. Causa: o núcleo em memória era o instalado (`/usr/share`), sem `apply_settings`; o `hyprctl eval` falhava calado. Corrigido: sem `apply_settings`, a janela manda a opção direto ao compositor (`hl.config`). Verificado ao vivo (`bar_padding` = 4 aplicou). Manter os valores depois de `hyprctl reload` ainda exige o núcleo novo (pacote reinstalado ou `dev-reload.fish`).
-**OpenSpec adotado (27/10):** `openspec` 1.15.0 instalado em `~/.local` (`npm install -g @fission-ai/openspec@1.15.0`, telemetria desligada), `openspec init --tools claude,codex --language pt-BR`. Regras para agentes em `AGENTS.md` (o `CLAUDE.md` só aponta para ele). Mudanças relevantes passam por `openspec/changes/`; as duas primeiras são os bugs confirmados da auditoria do Codex: `fix-snap-entrypoints` (ALT+setas dava erro) e `fix-assist-drop-context` (Snap Assist nunca abria no Shift+arrastar). Planejadas, ainda não implementadas: implementar com `/opsx:apply <nome>` (Claude Code) ou `$openspec-apply-change` (Codex). Outros achados da auditoria, a virar mudanças: `rules.json`/`layouts.json` lidos com `load`, gravações sem temporário, Makefile do plugin ignora `.h`, script de rebuild sem checar o `install`, sem CI, docs desatualizados (`PLUGIN.md`).
+**OpenSpec adotado (27/10):** `openspec` 1.15.0 instalado em `~/.local` (`npm install -g @fission-ai/openspec@1.15.0`, telemetria desligada), `openspec init --tools claude,codex --language pt-BR`. Regras para agentes em `AGENTS.md` (o `CLAUDE.md` só aponta para ele). Mudanças relevantes passam por `openspec/changes/`; as duas primeiras são os bugs confirmados da auditoria do Codex: `fix-snap-entrypoints` (ALT+setas dava erro) e `fix-assist-drop-context` (Snap Assist nunca abria no Shift+arrastar). Implementadas e revisadas na master em 27/10; testes ao vivo pendentes, ainda não arquivadas. Outros achados da auditoria, a virar mudanças: `rules.json`/`layouts.json` lidos com `load`, gravações sem temporário, Makefile do plugin ignora `.h`, script de rebuild sem checar o `install`, sem CI, docs desatualizados (`PLUGIN.md`).
 **Próximos passos, em ordem sugerida:** (1) teste 5 (janela de configurações; abre também pelo menu da janela, Mais ações > Configurações do Kwinish...); (2) teste ao vivo do Snap Assist (teste 1 abaixo); (3) os bloqueadores do beta em `BETA.md` (nome definitivo, licenças, instalação limpa e hook do pacman, separar docs públicas das internas, limpar o histórico antes de publicar); (4) backlog: duplo clique no ícone fecha a janela, miniaturas no Alt+Tab, modais ao minimizar, layouts por monitor, escala diferente de 1 e monitor rotacionado (a borda e a fronteira foram escritas para isso, mas só testadas com escala 1 e 2 lado a lado). O projeto HDE (`../hde/`) espera até o beta.
 **Delegação:** `codex exec -s read-only` (revisão) e `-s workspace-write` numa worktree (implementação) funcionaram bem hoje, o dono tem muito limite do Codex. O `agy` está sem cota até ~28/10.
 
@@ -64,14 +66,30 @@ Encaixe nas bordas e topo, voltar do topo ao tamanho anterior (com animação de
 ## Testes pendentes para o dono
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
 
-**1. Snap Assist com Shift ao arrastar (mouse real, plugin carregado)**
+**6. Encaixe sem opções e restauração (fix-snap-entrypoints, 27/10)**
+Revisado e integrado à master. O teste de regressão falha antes do conserto; as 9 suítes Lua passam depois. Pendente de verificação ao vivo. Para testar sem recarregar o plugin, com o núcleo e plugin já carregados, rode no fish:
 ```fish
 cd ~/Downloads/ryoku-work/kwinish
-cargo build --manifest-path ui/Cargo.toml; and ln -sf $PWD/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
-hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts','assist'}) do package.loaded[m]=nil end; require('kwinish').set_layout('thirds')"
+hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; package.loaded.kwinish=nil; require('kwinish')"
 ```
-Abra 3 janelas flutuantes, segure Shift e arraste uma pela barra até a primeira zona. Deve abrir uma sobreposição na zona seguinte com as outras janelas; clique numa para encaixar; repita. Esc cancela.
-Desfazer: `rm ~/.local/bin/kwinish-ui; hyprctl reload`, e escolha de novo o seu layout no seletor (o teste troca o layout salvo).
+Use uma janela flutuante descartável, fora de tela cheia. Rode o comando abaixo e, durante os três segundos, foque essa janela:
+```fish
+sleep 3; hyprctl eval "require('kwinish').tile('left')"
+```
+Deve encaixar na metade esquerda. Execute novamente, refocando a mesma janela durante a espera: deve restaurar o retângulo anterior. Este teste verifica a função chamada pelo atalho. Os binds já registrados ainda capturam a função antiga: o teste de SUPER+ALT+Esquerda (padrão), ou do atalho personalizado, exige que a configuração normal carregue o núcleo atualizado e reinstale os binds durante o reload; não registrar `hl.bind` por eval. A instalação/configuração persistente continua pendente.
+
+**1. Snap Assist com Shift ao arrastar (fix-assist-drop-context, 27/10)**
+Com o mesmo núcleo temporário do teste 6 e o plugin já carregado, habilite três colunas e o Assist apenas em memória:
+```fish
+hyprctl eval "local kw=require('kwinish'); kw.layout='thirds'; kw.snap_assist=true; kw.publish_zones()"
+```
+Abra três janelas flutuantes descartáveis no mesmo workspace e monitor, fora das zonas. Segure Shift e arraste uma pela barra à primeira zona desse monitor. Deve abrir o Assist na próxima zona vazia; escolher outra janela deve encaixá-la; Esc cancela. Se houver dois monitores, soltar uma janela numa zona do outro monitor deve encaixar sem Assist. Requer `kwinish-ui assist` no PATH do compositor (a interface já existente); não é necessário criar/remover links nem recompilar o plugin.
+
+**Desfazer ambos os testes:** restaure a janela de encaixe com a segunda chamada, feche as janelas descartáveis e rode:
+```fish
+hyprctl reload
+```
+Isso retorna ao núcleo/configuração instalados e ao layout salvo: os comandos acima não gravam o layout nem alteram dotfiles. As duas mudanças permanecem abertas no OpenSpec até a verificação ao vivo.
 
 **2. Plugin com as correções das revisões (barras sobrepostas, arrasto preso, Esc no Mover/Redimensionar, maximizada que fugia)**
 ```fish

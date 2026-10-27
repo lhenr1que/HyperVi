@@ -148,6 +148,13 @@ local function run()
   local other = window("other", 2)
   active = a
   local kw = reload()
+  -- Keyboard snapping uses the active floating window without options.
+  active = manual
+  kw.tile("left")
+  rect(manual, 0, 0, 800, 1000)
+  kw.tile("left")
+  rect(manual, 40, 50, 400, 300)
+  active = a
   kw.set_workspace_mode(1, "tiling")
   assert(home.tiled_layout == "dwindle" and not a.floating)
   kw.set_workspace_mode("1", "scrolling")
@@ -280,6 +287,20 @@ local function run()
   local k = window("k", 2, true)
   kw.window_action(k.address, "tile:left@NOPE") -- unknown monitor: falls back to the window's own
   assert(k.at[1] == 0, "fallback to own monitor")
+  -- A plugin drop includes the monitor suffix even on the window's own monitor.
+  kw.snap_assist = true
+  kw.set_layout("thirds")
+  local drop, candidate = window("drop", 2, true), window("candidate", 2, true)
+  drop.at, candidate.at = { 900, 900 }, { 1100, 900 }
+  local before_drop = #execs
+  kw.window_action(drop.address, "zone:1@SIDE")
+  rect(drop, 1600, 0, 333, 800)
+  assert(#execs == before_drop, "cross-monitor drop must not open Snap Assist")
+  kw.window_action(drop.address, "zone:1@SIDE") -- restore before testing the same zone on TEST
+  kw.window_action(drop.address, "zone:1@TEST")
+  assert(#execs == before_drop + 1 and execs[#execs]:find("kwinish-ui assist", 1, true),
+    "same-monitor drop must open Snap Assist")
+
   -- settings.json: plugin options go to hl.config only while the plugin is loaded; snap_assist stays in the core
   local f = assert(io.open(tmp .. "/XDG_CONFIG_HOME/kwinish/settings.json", "w"))
   f:write('{"bar_height": 34, "snap_assist": false, "bar_color": "nope"}'); f:close()
