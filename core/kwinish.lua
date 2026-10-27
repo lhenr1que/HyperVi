@@ -267,6 +267,8 @@ end
 -- window_action "rule:<above|below|noframe|nocapture|workspace|rect|forget>": toggle that rule for the window's app.
 local function window_rule(w, arg)
   local rs = load_rules()
+  local had = {} -- the switches this app had on before, so unchecking one takes it back off this window too
+  for k in pairs(rules.bools) do had[k] = rs[w.class] and rs[w.class][k] end
   if arg == "forget" then rules.forget(rs, w.class)
   elseif rules.bools[arg] then rules.toggle(rs, w.class, arg, true)
   elseif arg == "workspace" then rules.toggle(rs, w.class, "workspace", w.workspace and w.workspace.id)
@@ -275,6 +277,11 @@ local function window_rule(w, arg)
     rules.toggle(rs, w.class, "rect", { math.floor(r.x + 0.5), math.floor(r.y + 0.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5) })
   else return end
   save_rules(rs)
+  local now = rs[w.class] or {}
+  if had.noframe and not now.noframe and has_tag(w, "kwinish-noframe") then toggle_noframe(w) end
+  if had.nocapture and not now.nocapture and has_tag(w, "kwinish-nocapture") then toggle_nocapture(w) end
+  if had.above and not now.above and has_tag(w, "kwinish-above") then M.keep_above({ window = w }) end
+  if had.below and not now.below and has_tag(w, "kwinish-below") then M.keep_below({ window = w }) end
   M.apply_rules(w) -- takes effect on this window too
 end
 

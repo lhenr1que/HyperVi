@@ -19,7 +19,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 |---|---|---|---|
 | `layouts.json` | layouts de zonas e o espaçamento (`gap`) | editor de zonas (`kwinish-ui zones`, Super+Ctrl+E) | ao reabrir o seletor de layouts (relê ao mudar de layout) |
 | `layout` | nome do layout ativo (uma linha; `off` desliga) | seletor (`kwinish-ui layouts`, Super+T) | na hora |
-| `rules.json` | regras por app: acima, abaixo, sem moldura, sem captura, workspace, lembrar posição | menu da janela, "Regras da janela" | na próxima janela do app; **não desfaz** na janela já aberta |
+| `rules.json` | regras por app: acima, abaixo, sem moldura, sem captura, workspace, lembrar posição | menu da janela, "Regras da janela" | na próxima janela do app; desmarcar desfaz o efeito na janela já aberta (acima, abaixo, sem moldura, sem captura; posição e workspace não voltam) |
 | `shortcuts.json` | uma tecla por app que o foca | `kwinish-ui shortcut` | **só ao recarregar a config** (o Hyprland 0.56.2 pode cair com `hl.bind` por eval) |
 | `workspace-modes.json` | modo de cada workspace: tiling, scrolling, floating | menu da janela, "Modo da workspace"; `cycle_workspace_mode` | na hora |
 | `workspace-columns.json` | 1 a 3 colunas por tela no modo scrolling | menu da janela | na hora, em workspace no modo scrolling |
@@ -36,7 +36,7 @@ Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das captura
 
 ## 5. Lacunas e perguntas (o que a revisão achou)
 1. **Nenhuma opção do plugin tem interface.** São 29 opções, todas só por config ou eval. É o maior vazio e o conteúdo natural da página no Hub.
-2. **Desmarcar uma regra não desfaz a janela aberta.** Decidir se deve (reaplicar o estado padrão ao desmarcar) ou se o menu deve avisar "vale na próxima janela". Hoje não avisa.
+2. ~~Desmarcar uma regra não desfazia a janela aberta.~~ Resolvido em 26/10 por decisão do dono: desmarcar (ou "esquecer regras") desfaz na hora acima, abaixo, sem moldura e sem captura. Posição e workspace não voltam.
 3. **Atalhos por app só valem depois de recarregar.** O menu não diz isso.
 4. **As teclas padrão não são visíveis nem editáveis** por interface; só por `override` em Lua.
 5. **Auto-elevar, posição inicial e cantos ativos** (seção 3) não têm interface nem sinal de que existem; uma página nova deve expô-los.

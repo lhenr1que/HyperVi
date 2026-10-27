@@ -231,6 +231,13 @@ local function run()
   manual.zorder = nil
   emit("window.active", a); advance(30); assert(manual.zorder == nil, "disabled above no longer raised")
 
+  -- Unchecking a rule takes the switch off the open window too
+  manual.class = "RuleApp"
+  kw.window_action(manual.address, "rule:above"); assert(tag(manual, "kwinish-above"), "rule on applies to the open window")
+  kw.window_action(manual.address, "rule:above"); assert(not tag(manual, "kwinish-above"), "rule off undoes it on the open window")
+  kw.window_action(manual.address, "rule:below"); assert(tag(manual, "kwinish-below"))
+  kw.window_action(manual.address, "rule:forget"); assert(not tag(manual, "kwinish-below"), "forgetting the app undoes its switches")
+
   kw.window_action(manual.address, "minimize")
   assert(manual.workspace.name == "special:minimized")
   home, active = workspaces[2], manual
