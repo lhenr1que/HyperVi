@@ -225,24 +225,33 @@ static PHLMONITOR monitorAtPointer(const Vector2D& C);
 void CHyprBar::resistSeam() {
     const double RES = g_pGlobalState->config.seamResistance->value();
     const auto   C   = g_pInputManager->getMouseCoordsInternal();
+    const auto   W   = m_pWindow.lock();
     if (m_resistWarping) {
         m_resistWarping = false;
         return;
     }
     const auto PREV = m_resistLast;
     m_resistLast    = C;
-    if (RES <= 0)
+    if (!W)
         return;
+    const Vector2D OFF = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT) - C;
+    if (RES <= 0) {
+        m_resistOff = OFF;
+        return;
+    }
     const auto A = monitorAtPointer(PREV), B = monitorAtPointer(C);
     if (!A || !B || A == B) {
+        m_resistOff = OFF;
         if (std::abs(C.x - m_resistSeam) > 32)
             m_resistPush = 0; // moved away from the seam: the next approach starts fresh
         return;
     }
     const bool RIGHT = std::abs(A->m_position.x + A->m_size.x - B->m_position.x) < 2;
     const bool LEFT  = std::abs(B->m_position.x + B->m_size.x - A->m_position.x) < 2;
-    if (!RIGHT && !LEFT)
+    if (!RIGHT && !LEFT) {
+        m_resistOff = OFF;
         return;
+    }
     const double SEAM = RIGHT ? B->m_position.x : A->m_position.x;
     if (SEAM != m_resistSeam) {
         m_resistSeam = SEAM;
@@ -251,12 +260,15 @@ void CHyprBar::resistSeam() {
     m_resistPush += std::min(20.0, std::abs(C.x - PREV.x)); // a single fast flick must not spend it all
     if (m_resistPush >= RES) {
         m_resistPush = 0;
+        m_resistOff  = OFF;
         return; // spent: this move crosses
     }
     const Vector2D BACK = {RIGHT ? SEAM - 1 : SEAM, C.y};
     m_resistWarping     = true;
     m_resistLast        = BACK;
     Pointer::mgr()->warpTo(BACK);
+    // the compositor already put the window under the pointer that crossed; put it under the held one, or it shivers
+    (void)Config::Actions::move(BACK + m_resistOff, false, W);
 }
 
 void CHyprBar::rearmDrag() {
@@ -275,7 +287,7 @@ void CHyprBar::onMouseMove(Vector2D coords) {
         const auto C = g_pInputManager->getMouseCoordsInternal();
         if (W) {
             const auto P = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
-            std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
+            std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("arg=({:.1f},{:.1f}) cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", coords.x, coords.y, C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
         }
     }
     if (m_bDraggingThis && !m_bTouchEv) {

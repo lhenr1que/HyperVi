@@ -139,6 +139,7 @@ class CHyprBar : public IHyprWindowDecoration {
     Vector2D            m_resistLast;       // pointer at the previous move of this drag
     double              m_resistPush = 0;   // pixels pushed against the seam so far
     double              m_resistSeam = 0;   // x of that seam
+    Vector2D            m_resistOff;        // window position minus pointer, from the last move that was not held back
     bool                m_resistWarping = false;
     std::string         m_szPreviewZone;
 
