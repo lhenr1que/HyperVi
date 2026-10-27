@@ -27,7 +27,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 ## 3. Configurável só em Lua (config do Hyprland, `recipes/hyprland-snippet.lua`)
 - `kw.setup({ placement = "smart", autoraise_ms = 400 })`: posição inicial das janelas e auto-elevar ao focar. Nenhum tem interface.
 - `kw.snap_assist = false` desliga o Snap Assist. `kw.layout_gap` troca o espaçamento entre zonas.
-- `binds.install(kw, { mod, switcher, menu, override })`: teclas padrão (`binds.rows`, 20 linhas) e as que o dono troca em `override`. Nenhuma interface lista nem troca as teclas.
+- `binds.install(kw, { mod, switcher, menu, override })`: teclas padrão (`binds.rows`, 19 linhas) e as que o dono troca em `override`. Nenhuma interface lista nem troca as teclas.
 - `kw.hotcorners({ corners, delay_ms, edge, tick_ms })`: cantos ativos. O temporizador só para recarregando a config.
 - `switcher.setup()` e as teclas de Alt+Tab (`switcher_keys`).
 
