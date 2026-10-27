@@ -1,0 +1,282 @@
+[
+  {
+    "step": "all open",
+    "clients": [
+      {
+        "address": "0x558e3f596a70",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          315,
+          112
+        ],
+        "size": [
+          1100,
+          680
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": true,
+        "monitor": 0,
+        "class": "kwinish-nested-probe",
+        "title": "kwinish-nested-a",
+        "initialClass": "kwinish-nested-probe",
+        "initialTitle": "kwinish-nested-a",
+        "pid": 3497881,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [
+          "kwinish-mode-floated",
+          "kwinish-mode-new*"
+        ],
+        "swallowing": "0x0",
+        "focusHistoryID": 2,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000000"
+      },
+      {
+        "address": "0x558e3f5bf8f0",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          339,
+          136
+        ],
+        "size": [
+          1100,
+          680
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": true,
+        "monitor": 0,
+        "class": "kwinish-nested-probe",
+        "title": "kwinish-nested-b",
+        "initialClass": "kwinish-nested-probe",
+        "initialTitle": "kwinish-nested-b",
+        "pid": 3499178,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [
+          "kwinish-mode-floated",
+          "kwinish-mode-new*"
+        ],
+        "swallowing": "0x0",
+        "focusHistoryID": 1,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000001"
+      },
+      {
+        "address": "0x558e3f5e9520",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          764,
+          425
+        ],
+        "size": [
+          300,
+          150
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": true,
+        "monitor": 0,
+        "class": "kwinish.nested.dialog",
+        "title": "kwinish-nested-dialog",
+        "initialClass": "kwinish.nested.dialog",
+        "initialTitle": "kwinish-nested-dialog",
+        "pid": 3499424,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [],
+        "swallowing": "0x0",
+        "focusHistoryID": 0,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000002"
+      }
+    ]
+  },
+  {
+    "step": "after tiling",
+    "clients": [
+      {
+        "address": "0x558e3f596a70",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          0,
+          0
+        ],
+        "size": [
+          914,
+          1000
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": false,
+        "monitor": 0,
+        "class": "kwinish-nested-probe",
+        "title": "kwinish-nested-a",
+        "initialClass": "kwinish-nested-probe",
+        "initialTitle": "kwinish-nested-a",
+        "pid": 3497881,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [
+          "kwinish-mode-new*",
+          "kwinish-rect-10315-10112-1100-680"
+        ],
+        "swallowing": "0x0",
+        "focusHistoryID": 2,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000000"
+      },
+      {
+        "address": "0x558e3f5bf8f0",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          914,
+          0
+        ],
+        "size": [
+          913,
+          1000
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": false,
+        "monitor": 0,
+        "class": "kwinish-nested-probe",
+        "title": "kwinish-nested-b",
+        "initialClass": "kwinish-nested-probe",
+        "initialTitle": "kwinish-nested-b",
+        "pid": 3499178,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [
+          "kwinish-mode-new*",
+          "kwinish-rect-10339-10136-1100-680"
+        ],
+        "swallowing": "0x0",
+        "focusHistoryID": 1,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000001"
+      },
+      {
+        "address": "0x558e3f5e9520",
+        "mapped": true,
+        "hidden": false,
+        "visible": true,
+        "acceptsInput": true,
+        "at": [
+          764,
+          425
+        ],
+        "size": [
+          300,
+          150
+        ],
+        "workspace": {
+          "id": 1,
+          "name": "1"
+        },
+        "floating": true,
+        "monitor": 0,
+        "class": "kwinish.nested.dialog",
+        "title": "kwinish-nested-dialog",
+        "initialClass": "kwinish.nested.dialog",
+        "initialTitle": "kwinish-nested-dialog",
+        "pid": 3499424,
+        "xwayland": false,
+        "pinned": false,
+        "pinFullscreened": false,
+        "fullscreen": 0,
+        "fullscreenClient": 0,
+        "fullscreenHandler": "default",
+        "allowedOverFullscreen": true,
+        "grouped": [],
+        "tags": [],
+        "swallowing": "0x0",
+        "focusHistoryID": 0,
+        "inhibitingIdle": false,
+        "xdgTag": "",
+        "xdgDescription": "",
+        "contentType": "none",
+        "tearingHint": false,
+        "stableId": "18000002"
+      }
+    ]
+  }
+]

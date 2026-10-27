@@ -1,0 +1,17 @@
+{"seq":1,"event":"config.load","detail":"no monitor"}
+{"seq":2,"event":"config.reloaded","detail":"no monitor"}
+{"seq":3,"event":"monitor.added","detail":"1827x1000"}
+{"seq":4,"event":"monitor.layout_changed","detail":"1827x1000"}
+{"seq":5,"event":"hyprland.start","detail":"1827x1000"}
+{"seq":6,"event":"open_early.before","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f596a70","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[0,0],"size":[0,0]}
+{"seq":7,"event":"open","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f596a70","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[315,112],"size":[1100,680]}
+{"seq":8,"event":"open.refetched","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f596a70","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[315,112],"size":[1100,680]}
+{"seq":9,"event":"open_early.before","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f5bf8f0","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[0,0],"size":[0,0]}
+{"seq":10,"event":"open","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f5bf8f0","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[339,136],"size":[1100,680]}
+{"seq":11,"event":"open.refetched","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f5bf8f0","tags":"kwinish-mode-new*","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[339,136],"size":[1100,680]}
+{"seq":12,"event":"open_early.before","class":"kwinish.nested.dialog","workspace":1,"mapped":true,"address":"0x558e3f5e9520","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[0,0],"size":[0,0]}
+{"seq":13,"event":"open","class":"kwinish.nested.dialog","workspace":1,"mapped":true,"address":"0x558e3f5e9520","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[764,425],"size":[300,150]}
+{"seq":14,"event":"open.refetched","class":"kwinish.nested.dialog","workspace":1,"mapped":true,"address":"0x558e3f5e9520","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":true,"at":[764,425],"size":[300,150]}
+{"seq":15,"event":"open_early.before","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f60c2b0","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":false,"at":[0,0],"size":[0,0]}
+{"seq":16,"event":"open","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f60c2b0","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":false,"at":[0,500],"size":[914,500]}
+{"seq":17,"event":"open.refetched","class":"kwinish-nested-probe","workspace":1,"mapped":true,"address":"0x558e3f60c2b0","tags":"","fullscreen":0,"monitor":"WAYLAND-1","pinned":false,"floating":false,"at":[0,500],"size":[914,500]}

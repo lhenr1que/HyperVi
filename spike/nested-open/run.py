@@ -100,6 +100,8 @@ def run(case, out):
     template = template.replace('dofile(os.getenv("KWINISH_NESTED_CASE") or "/tmp/kwinish-nested-case.lua")',
         "\n".join(f"{key} = {json.dumps(value)}" for key, value in
                   (("NESTED_ROOT", str(root)), ("NESTED_CASE", case), ("NESTED_REPO", str(REPO)))))
+    if case == "core-mode":  # the size the owner's workspace 9 gives the nested window: no resize after monitor.added
+        template = template.replace('mode = "1280x800@60"', 'mode = "1827x1000@60"')
     if case == "rules-offset":  # a monitor away from the origin tells monitor-local from global rule coordinates
         template = template.replace('position = "0x0"', 'position = "500x300"')
     cfg.write_text(template)
@@ -137,14 +139,18 @@ def run(case, out):
         (out / "configerrors.txt").write_text(ctl(signature, "configerrors"))
         write_json(out / "monitors.json", json.loads(ctl(signature, "monitors", "-j")))
 
-        def sample(label, argv=None):
-            nonlocal kitty
+        def nested_env():
             env = os.environ.copy()
             env.update(HOME=str(root / "home"), XDG_CONFIG_HOME=str(root / "config"),
                        XDG_STATE_HOME=str(root / "state"), XDG_CACHE_HOME=str(root / "cache"),
                        WAYLAND_DISPLAY=nested["wl_socket"], HYPRLAND_INSTANCE_SIGNATURE=signature)
             env.pop("DISPLAY", None)
             env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+            return env
+
+        def sample(label, argv=None):
+            nonlocal kitty
+            env = nested_env()
             start = time.monotonic()
             with (out / (label + "-kitty.log")).open("w") as stderr:
                 kitty = subprocess.Popen(argv or ["kitty", "--config", "NONE", "--class", "kwinish-nested-probe",
@@ -195,6 +201,37 @@ def run(case, out):
             (out / "rule-off.txt").write_text(ctl(signature, "eval",
                 'hl.window_rule({ name = "kwinish-nested-mode-1", enabled = false })'))
             sample("off")
+        elif case == "core-mode":
+            # The repository core with workspace 1 floating: two windows open together, a dialog, leaving the mode, one more window.
+            procs, first, log = [], {}, []
+            def kitty_argv(label):
+                return ["kitty", "--config", "NONE", "--class", "kwinish-nested-probe", "--title", "kwinish-nested-" + label,
+                        "-o", "linux_display_server=wayland", "-o", "confirm_os_window_close=0", "/usr/bin/sleep", "30"]
+            def watch(seconds):
+                end = time.monotonic() + seconds
+                while time.monotonic() < end:
+                    for c in clients(signature):
+                        first.setdefault(c["address"], {k: c[k] for k in ("title", "class", "floating", "at", "size", "tags")})
+                    time.sleep(0.015)
+            def spawn(argv):
+                procs.append(subprocess.Popen(argv, env=nested_env(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+            try:
+                spawn(kitty_argv("a")); watch(0.8)
+                spawn(kitty_argv("b")); watch(0.8)
+                spawn(DIALOG); watch(1.0)
+                log.append({"step": "all open", "clients": clients(signature)})
+                (out / "mode-tiling.txt").write_text(ctl(signature, "eval", 'require("kwinish").set_workspace_mode(1, "tiling")'))
+                time.sleep(0.5)
+                log.append({"step": "after tiling", "clients": clients(signature)})
+                spawn(kitty_argv("c")); watch(0.8)
+                write_json(out / "core-first.json", first)
+                write_json(out / "core-steps.json", log)
+            finally:
+                for p in procs:
+                    stop_kitty(p)
+            deadline = time.monotonic() + 3
+            while clients(signature) and time.monotonic() < deadline:
+                time.sleep(0.03)
         elif case in RULE_CASES:
             # One rule per run: by class (known before the first configure) or by workspace with a fixed size.
             (out / "rule-enable.txt").write_text(ctl(signature, "eval", RULE_CASES[case]))
@@ -248,7 +285,7 @@ def run(case, out):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "rules-mode", "core", *RULE_CASES))
+    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "rules-mode", "core", "core-mode", *RULE_CASES))
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     run(args.case, args.out.resolve())

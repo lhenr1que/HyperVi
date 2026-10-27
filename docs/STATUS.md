@@ -32,13 +32,13 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 2. Seletor de layout ao passar o mouse no botão maximizar.
 3. Miniaturas no Alt+Tab (e no Snap Assist, hoje só ícone e título); `rounding > 0` nas zonas e na prévia.
 4. Minimizar janela com filhas/modais (`transientFor`): diálogos ficam para trás.
-5. Bind para ciclar o modo do workspace, indicador na barra, janela nova sem piscar, modo por monitor.
+5. Bind para ciclar o modo do workspace, indicador na barra, modo por monitor. (Janela nova sem piscar: feito em 27/10, `fix-floating-mode-open`, teste ao vivo pendente.)
 6. Página no Ryoku Hub para layouts, regras e barras (hoje JSON + menu).
 7. Opt-out de barra em apps com decoração própria (CSD) por app.
 8. Liga/desliga do encaixe e do Snap Assist nas configurações (hoje `kw.snap_assist=false` no `user.lua`).
 
 **Bugs/pendências conhecidos:**
-- Modo floating: a janela nova nasce em mosaico (área útil inteira) e só flutua ~160 ms depois (relato do dono e medição ao vivo com kitty descartável no ws 3, 27/10: mapeada em mosaico 1827x1000 aos 105 ms, flutuante 1100x682 aos 267 ms). Planejado em `openspec/changes/fix-floating-mode-open/`. Experimento no Hyprland aninhado feito (27/10, Codex + Claude, `spike/nested-open/`): flutuar dentro de `window.open_early` derruba o compositor; uma regra de janela nomeada por workspace com `float` + `size` + `center` faz a janela nascer flutuante no tamanho do modo, sem passar pelo mosaico; "tamanho pedido pelo app" não sai de uma regra por workspace (o app recebe o tamanho do mosaico antes do primeiro quadro). Falta o dono decidir a cascata; tarefas 2–4 abertas, nada implementado no núcleo.
+- Modo floating: a janela nova nasce em mosaico (área útil inteira) e só flutua ~160 ms depois (relato do dono e medição ao vivo com kitty descartável no ws 3, 27/10: mapeada em mosaico 1827x1000 aos 105 ms, flutuante 1100x682 aos 267 ms). Planejado em `openspec/changes/fix-floating-mode-open/`. Experimento no Hyprland aninhado feito (27/10, Codex + Claude, `spike/nested-open/`): flutuar dentro de `window.open_early` derruba o compositor; uma regra de janela nomeada por workspace com `float` + `size` + `center` faz a janela nascer flutuante no tamanho do modo, sem passar pelo mosaico; "tamanho pedido pelo app" não sai de uma regra por workspace (o app recebe o tamanho do mosaico antes do primeiro quadro). O dono escolheu o retângulo do modo com a cascata desde a abertura: implementado em 27/10 (regra nomeada por workspace, redeclarada a cada janela), simulado e verificado com o núcleo no Hyprland aninhado; teste ao vivo pendente (item 7 de "Testes pendentes para o dono").
 - Encaixe depois de arrastar entre monitores volta ao monitor de origem (plugin escolhe a zona pelo ponteiro, núcleo pelo monitor da janela).
 - Clique em área coberta por outra janela aciona a barra da focada (precisa de teste ao vivo).
 - Atalho: o submap anterior não é guardado (sempre `reset`); vários daemons de barras podem coexistir; corrida entre dois diálogos de atalho.
@@ -93,6 +93,18 @@ Testes 6 (encaixe sem opções e restauração, `fix-snap-entrypoints`) e 1 (Sna
 
 ## Testes pendentes para o dono
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (para o fish), o que deve acontecer, como desfazer. Veja a regra em `docs/HANDOFF.md`.
+
+**7. Janela nova no modo floating (fix-floating-mode-open, 27/10)**
+Carregue o plugin e o núcleo do repositório (o núcleo instalado ainda não tem o conserto):
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+fish tools/dev-reload.fish
+```
+Vá a um workspace no modo floating (o 2 ou o 3, pelo seu `workspace-modes.json`) e abra um aplicativo, por exemplo um terminal. Ele deve aparecer **já flutuante e centralizado**, com cerca de 64% x 68% da área útil (no máximo 1100 x 760), **sem ocupar a tela inteira antes**. Abra um segundo: deve nascer 24 px mais abaixo e à direita. Um diálogo (por exemplo, "Abrir arquivo" de um aplicativo) deve manter o tamanho dele. Opcional: troque esse workspace para tiling pelo menu da janela (Mais ações > Modo da área de trabalho > Tiling); as janelas que nasceram flutuantes devem ir para o mosaico, e o diálogo continua flutuante; volte para floating depois.
+Desfazer (volta ao núcleo instalado; a regra de janela some com o reload; nenhum arquivo seu foi mudado pelo teste):
+```fish
+hyprctl reload
+```
 
 **2. Plugin com as correções das revisões (barras sobrepostas, arrasto preso, Esc no Mover/Redimensionar, maximizada que fugia)**
 ```fish

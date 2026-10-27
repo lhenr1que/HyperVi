@@ -186,3 +186,9 @@ Implementação no núcleo:
 - Declarada ao carregar a config para cada workspace floating, de novo em `monitor.added` (na partida o monitor pode ainda não existir) e em `set_workspace_mode`; desligada com `enabled = false` quando o workspace sai de floating.
 - No `window.open`, sem esperar: janela com a marca recebe `kwinish-mode-floated`, a cascata avança e a regra do workspace é redeclarada com o próximo retângulo.
 - O temporizador de 150 ms fica como está: para uma janela que a regra não pegou, faz o que faz hoje.
+
+### Verificação com o núcleo (27/10, Claude)
+
+- Teste que falha: com o simulador aplicando regras, `born floating at the mode rectangle` falhou com o código anterior e passa com o conserto; `bash tools/check.sh` sai 0 (9 suítes Lua em 5.5, também passam em 5.4).
+- Núcleo do repositório no aninhado (`results/core-mode`, monitor de 1827x1000 e workspace 1 floating): a janela A nasce flutuante em (315,112) com 1100x680 (o `open_rect` do passo 0) e a etiqueta `kwinish-mode-floated`; a B, aberta com A ainda aberta, nasce em (339,136); A não se mexe quando a regra é redeclarada; o diálogo de tamanho fixo fica 300x150 sem etiqueta; `set_workspace_mode(1, "tiling")` devolve A e B ao mosaico, guardando os retângulos, e deixa o diálogo flutuante; uma janela aberta depois nasce em mosaico. O Lua vê a etiqueta da regra como `kwinish-mode-new*`, como o simulador modela.
+- `results/core-mode-1280x800`: com o modo do aninhado diferente da janela que a sessão dá a ele, o backend redimensiona a saída depois do `monitor.added` sem nenhum evento para o Lua (ordem registrada em `events.jsonl`), e só a primeira janela sai com o retângulo de 1280x800. Num monitor físico o `monitor.added` já traz o modo real; a regra também é recalculada em `monitor.layout_changed` e depois de cada janela aberta.

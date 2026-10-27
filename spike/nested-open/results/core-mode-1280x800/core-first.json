@@ -1,0 +1,64 @@
+{
+  "0x55d64e27b550": {
+    "title": "kwinish-nested-a",
+    "class": "kwinish-nested-probe",
+    "floating": true,
+    "at": [
+      182,
+      80
+    ],
+    "size": [
+      819,
+      544
+    ],
+    "tags": [
+      "kwinish-mode-floated",
+      "kwinish-mode-new*"
+    ]
+  },
+  "0x55d64e2a4fc0": {
+    "title": "kwinish-nested-b",
+    "class": "kwinish-nested-probe",
+    "floating": true,
+    "at": [
+      339,
+      136
+    ],
+    "size": [
+      1100,
+      680
+    ],
+    "tags": [
+      "kwinish-mode-floated",
+      "kwinish-mode-new*"
+    ]
+  },
+  "0x55d64e2cec00": {
+    "title": "kwinish-nested-dialog",
+    "class": "kwinish.nested.dialog",
+    "floating": true,
+    "at": [
+      764,
+      425
+    ],
+    "size": [
+      300,
+      150
+    ],
+    "tags": []
+  },
+  "0x55d64e2f2040": {
+    "title": "kwinish-nested-c",
+    "class": "kwinish-nested-probe",
+    "floating": false,
+    "at": [
+      0,
+      0
+    ],
+    "size": [
+      914,
+      500
+    ],
+    "tags": []
+  }
+}

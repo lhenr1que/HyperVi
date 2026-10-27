@@ -24,7 +24,8 @@ local function log(event, w, detail)
   if w then
     local values = { address = w.address, class = w.class, mapped = w.mapped, floating = w.floating,
       fullscreen = w.fullscreen, pinned = w.pinned, workspace = w.workspace and w.workspace.id,
-      monitor = w.monitor and w.monitor.name }
+      monitor = w.monitor and w.monitor.name,
+      tags = type(w.tags) == "table" and table.concat(w.tags, ",") or w.tags }
     for k, v in pairs(values) do fields[#fields + 1] = json(k) .. ":" .. json(v) end
     fields[#fields + 1] = '"at":' .. vec(w.at)
     fields[#fields + 1] = '"size":' .. vec(w.size)
@@ -46,10 +47,23 @@ hl.on("window.open_early", function(w)
     log("open_early.after", w, ok and "dispatches accepted" or tostring(err))
   end
 end)
-hl.on("window.open", function(w) log("open", w) end)
+hl.on("window.open", function(w)
+  log("open", w)
+  local again = w.address and hl.get_window("address:" .. w.address)
+  if again then log("open.refetched", again) end
+end)
+
+-- Which monitor events fire, and the size Lua sees then (a rule computed too early gets a stale rectangle).
+for _, ev in ipairs({ "monitor.added", "monitor.layout_changed", "config.reloaded", "workspace.active", "hyprland.start" }) do
+  hl.on(ev, function()
+    local m = (hl.get_monitors() or {})[1]
+    log(ev, nil, m and (m.width .. "x" .. m.height) or "no monitor")
+  end)
+end
+log("config.load", nil, (function() local m = (hl.get_monitors() or {})[1]; return m and (m.width .. "x" .. m.height) or "no monitor" end)())
 
 -- Redirect Lua state I/O before loading the core, never the owner's config.
-if NESTED_CASE == "core" then
+if NESTED_CASE:sub(1, 4) == "core" then
   local getenv = os.getenv
   os.getenv = function(k)
     if k == "HOME" then return NESTED_ROOT .. "/home" end
