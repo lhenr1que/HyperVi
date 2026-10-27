@@ -280,6 +280,17 @@ local function run()
   local k = window("k", 2, true)
   kw.window_action(k.address, "tile:left@NOPE") -- unknown monitor: falls back to the window's own
   assert(k.at[1] == 0, "fallback to own monitor")
+  -- settings.json: plugin options go to hl.config only while the plugin is loaded; snap_assist stays in the core
+  local f = assert(io.open(tmp .. "/XDG_CONFIG_HOME/kwinish/settings.json", "w"))
+  f:write('{"bar_height": 34, "snap_assist": false, "bar_color": "nope"}'); f:close()
+  local plugin_cfg, config = {}, hl.config
+  hl.config = function(t) if t.plugin then plugin_cfg[#plugin_cfg + 1] = t.plugin.kwinish else config(t) end end
+  kw = reload()
+  assert(#plugin_cfg == 0 and kw.snap_assist == false, "no plugin: nothing sent, core key applied")
+  hl.plugin = { kwinish = {} }
+  kw.apply_settings()
+  hl.plugin, hl.config = nil, config
+  assert(#plugin_cfg == 1 and plugin_cfg[1].bar_height == 34, "plugin loaded: valid keys sent, bad colour dropped")
 end
 
 local ok, err = xpcall(run, debug.traceback)

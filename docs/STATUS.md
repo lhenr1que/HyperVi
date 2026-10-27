@@ -43,6 +43,7 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 - Atalho: o submap anterior não é guardado (sempre `reset`); vários daemons de barras podem coexistir; corrida entre dois diálogos de atalho.
 - Busca de ícones com I/O no render; `snap` guarda o retângulo pedido, não o obtido; estado do mostrar-área-de-trabalho em tabela Lua.
 - Auto-raise nunca verificado ao vivo.
+- `rules.json` (e outros arquivos lidos com `load`) pode travar o Hyprland ao carregar a config se tiver um laço Lua escrito à mão (achado do Codex em 26/10 no `settings.json`, já corrigido lá com leitura por padrão, sem `load`; mesma correção pendente nos outros).
 
 **Publicação:** escolher nome definitivo (hoje "Kwinish", provisório); testar remoção do pacote; não provado que nenhum trecho do Omarchy foi adaptado (a implementação é independente, mas não há comparação mecânica).
 
@@ -51,7 +52,8 @@ Plugin recompilado mas **não recarregado** pelo dono: correções das revisões
 **Como carregar o código do repositório:** `cd ~/Downloads/ryoku-work/kwinish; and fish tools/dev-reload.fish` (plugin e núcleo juntos; recarregar só o plugin traz de volta o núcleo de `/usr/share/kwinish`, que ignora `@monitor`). Só vale até o próximo `hyprctl reload`; o pacote ainda não foi reinstalado (precisa de sudo).
 **Armadilhas aprendidas:** o evento `input.mouse.move` do Hyprland chega depois de o ponteiro mover (não cancela); a resistência usa um gancho em `CInputManager::onMouseMoved` (`plugin/main.cpp`). `CEventLoopTimer` não disparou no plugin: a animação do desencaixe é movida pelos eventos do mouse. `doLater` não deve capturar código do plugin. Focar janelas leva o ponteiro ao centro delas (`cursor:no_warps` durante o ajuste de colunas). O mouse simulado (`ryoku-vm/tools/pointer-path.py 3840 1080 ...`, tela total 3840x1080) é absoluto e não passa pelo gancho de movimento relativo.
 **Decisões do dono desta sessão:** desmarcar uma regra desfaz na hora; a resistência de fronteira existe e deve ter espaço nas configurações; revisar o que o usuário configura antes do beta (feito: `docs/CONFIGURAVEL.md`).
-**Próximos passos, em ordem sugerida:** (1) página de opções do plugin (a maior lacuna, ver CONFIGURAVEL.md seção 5 e `ideias/pagina-no-hub.md`); (2) teste ao vivo do Snap Assist (teste 1 abaixo); (3) os bloqueadores do beta em `BETA.md` (nome definitivo, licenças, instalação limpa e hook do pacman, separar docs públicas das internas, limpar o histórico antes de publicar); (4) backlog: duplo clique no ícone fecha a janela, miniaturas no Alt+Tab, modais ao minimizar, layouts por monitor, escala diferente de 1 e monitor rotacionado (a borda e a fronteira foram escritas para isso, mas só testadas com escala 1 e 2 lado a lado). O projeto HDE (`../hde/`) espera até o beta.
+**Feito em 26/10 (fim):** janela de configurações `kwinish-ui settings` (`ui/src/settings.rs`, `core/settings.lua`, `~/.config/kwinish/settings.json`): barras, cores, encaixe, resistência de fronteira e Snap Assist; cada mudança grava o arquivo e chama `apply_settings()` no núcleo; o núcleo também aplica o arquivo a cada carga da config (só com o plugin carregado; chaves e valores validados). Vista aberta ao vivo lendo os valores do compositor; **aplicar ao vivo não testado** (o núcleo em memória é o de `/usr/share`, sem `apply_settings`): teste 5 abaixo.
+**Próximos passos, em ordem sugerida:** (1) teste 5 (janela de configurações) e um jeito de abri-la (item no menu da janela ou bind; hoje só pelo terminal); (2) teste ao vivo do Snap Assist (teste 1 abaixo); (3) os bloqueadores do beta em `BETA.md` (nome definitivo, licenças, instalação limpa e hook do pacman, separar docs públicas das internas, limpar o histórico antes de publicar); (4) backlog: duplo clique no ícone fecha a janela, miniaturas no Alt+Tab, modais ao minimizar, layouts por monitor, escala diferente de 1 e monitor rotacionado (a borda e a fronteira foram escritas para isso, mas só testadas com escala 1 e 2 lado a lado). O projeto HDE (`../hde/`) espera até o beta.
 **Delegação:** `codex exec -s read-only` (revisão) e `-s workspace-write` numa worktree (implementação) funcionaram bem hoje, o dono tem muito limite do Codex. O `agy` está sem cota até ~28/10.
 
 ## Verificado pelo dono em 26/10 (mouse real, dois monitores)
@@ -88,6 +90,16 @@ hyprctl plugin load $PWD/plugin/kwinish-bars.so
 hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts','assist'}) do package.loaded[m]=nil end; require('kwinish')"
 ```
 Com DP-1 e HDMI-A-1: abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: como no teste 2 (descarregar o de teste, carregar o instalado) e `hyprctl reload`.
+
+**5. Janela de configurações (núcleo do repositório carregado)**
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+cargo build --manifest-path ui/Cargo.toml
+fish tools/dev-reload.fish
+./ui/target/debug/kwinish-ui settings
+```
+Mude "Altura" para 34: as barras devem engordar na hora. Troque a cor "Barra, janela focada": a barra da janela ativa muda. Desligue "Snap Assist" e encaixe uma janela numa zona pelo menu: a sobreposição não deve abrir. Depois `hyprctl reload` seguido de `fish tools/dev-reload.fish`: os valores devem continuar (vêm do `settings.json`).
+Desfazer: `rm ~/.config/kwinish/settings.json; hyprctl reload`.
 
 **4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 

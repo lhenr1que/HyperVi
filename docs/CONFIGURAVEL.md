@@ -5,6 +5,7 @@ Lido do código (`plugin/main.cpp`, `core/*.lua`, `ui/src/menu.rs`, `recipes/`).
 
 ## 1. Opções do plugin (`plugin:kwinish:*`, na config do Hyprland ou por `hyprctl eval "hl.config({plugin={kwinish={...}}})"`)
 Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`; as demais não verificado).
+**Desde 26/10** quase todas têm interface: `kwinish-ui settings` grava `~/.config/kwinish/settings.json` (validado por `core/settings.lua`, aplicado pelo núcleo a cada carga da config e na hora pela janela). Fora da janela: `inactive_button_color` (o núcleo aceita, a janela não mostra) e `button` (palavra-chave).
 
 | Grupo | Opção (padrão) |
 |---|---|
@@ -35,7 +36,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das capturas, fixar em todas as workspaces, mover para workspace, encaixar (metades, quartos, eixos), layout de mosaico, modo e colunas da workspace, regras por app, mover/redimensionar, minimizar, maximizar, fechar.
 
 ## 5. Lacunas e perguntas (o que a revisão achou)
-1. **Nenhuma opção do plugin tem interface.** São 29 opções, todas só por config ou eval. É o maior vazio e o conteúdo natural da página no Hub.
+1. ~~Nenhuma opção do plugin tem interface.~~ Resolvido em 26/10: `kwinish-ui settings` (janela própria, não página do Hub; o Hub pode só abri-la). Ainda sem interface: auto-elevar, posição inicial, cantos ativos, teclas padrão (itens 4 e 5).
 2. ~~Desmarcar uma regra não desfazia a janela aberta.~~ Resolvido em 26/10 por decisão do dono: desmarcar (ou "esquecer regras") desfaz na hora acima, abaixo, sem moldura e sem captura. Posição e workspace não voltam.
 3. **Atalhos por app só valem depois de recarregar.** O menu não diz isso.
 4. **As teclas padrão não são visíveis nem editáveis** por interface; só por `override` em Lua.

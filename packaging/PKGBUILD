@@ -26,14 +26,14 @@ build() {
 
 check() {
   cd kwinish
-  for t in geometry binds switcher layouts rules modes kwinish assist; do lua core/test_$t.lua; done
+  for t in geometry binds switcher layouts rules modes kwinish assist settings; do lua core/test_$t.lua; done
 }
 
 package() {
   cd kwinish
   install -Dm755 ui/target/release/kwinish-ui "$pkgdir/usr/bin/kwinish-ui"
   install -d "$pkgdir/usr/share/kwinish/core" "$pkgdir/usr/share/kwinish/recipes"
-  install -m644 core/{kwinish,geometry,binds,switcher,layouts,rules,modes,assist}.lua "$pkgdir/usr/share/kwinish/core/"
+  install -m644 core/{kwinish,geometry,binds,switcher,layouts,rules,modes,assist,settings}.lua "$pkgdir/usr/share/kwinish/core/"
   install -m644 recipes/*.lua "$pkgdir/usr/share/kwinish/recipes/"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README.md "$pkgdir/usr/share/doc/kwinish/README.md"

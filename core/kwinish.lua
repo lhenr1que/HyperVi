@@ -7,6 +7,7 @@ local layouts = require("layouts")
 local rules = require("rules")
 local modes = require("modes")
 local assist = require("assist")
+local settings = require("settings")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -759,6 +760,18 @@ if not KWINISH_RULES_HOOK then
     end, { timeout = 150, type = "oneshot" })
   end)
 end
+
+-- ~/.config/kwinish/settings.json (settings.lua): applied on every config load, and again by `kwinish-ui settings` after it saves.
+-- The plugin's options only while the plugin is loaded (unknown keys would raise config errors); loading it reloads the config.
+function M.apply_settings()
+  local f = io.open(cfg_dir() .. "/settings.json", "r")
+  local s = settings.parse(f and f:read("*a"))
+  if f then f:close() end
+  if s.snap_assist ~= nil then M.snap_assist = s.snap_assist end
+  if not (hl.plugin and hl.plugin.kwinish) then return end
+  for _, c in ipairs(settings.plugin_configs(s)) do pcall(hl.config, c) end
+end
+M.apply_settings()
 
 M._work_area, M._rect_of = work_area, rect_of -- exposed for spikes and tests
 return M

@@ -1,6 +1,6 @@
 # Página do Kwinish no Ryoku Hub
 
-**Estado:** ideia
+**Estado:** em parte feito (26/10): as opções do plugin e o Snap Assist estão em `kwinish-ui settings`, uma janela própria do Kwinish (MIT, funciona sem o Ryoku). A página do Hub, se vier, pode só abrir essa janela.
 
 Hoje as opções do Kwinish estão em arquivos JSON (`~/.config/kwinish/`) e no menu da janela. Uma página no Ryoku Hub permitiria mexer em layouts, regras por app, atalhos e modos de workspace sem tocar em arquivos, seguindo a regra de responder "como faço" primeiro pela interface.
 
