@@ -55,7 +55,7 @@ Achado ao planejar: o Hyprland instalado roda a config em **Lua 5.5** (`readelf`
 - [x] 2. `tools/check.sh`, comando único: suítes Lua, testes de `tools/`, `cargo test --locked`, compilação do plugin num diretório temporário; HOME/XDG temporários e sem sockets da sessão; código ≠ 0 em qualquer falha, ferramenta ausente ou nenhuma suíte encontrada. `tools/test-check.sh` testa o executor com ferramentas simuladas.
 - [x] 3. `packaging/PKGBUILD`: `check()` chama `tools/check.sh --lua-only` (sem lista manual de suítes), `checkdepends=('lua')`.
 - [x] 4. Reversão segura: `tools/live-backup.sh` guarda e restaura arquivo, link (mesmo quebrado) ou ausência; o teste 5 deixa de apagar `settings.json` e o link do `kwinish-ui`.
-- [ ] 5. Documentação: `AGENTS.md`, `README.md`, novo `docs/TESTING.md`, `docs/HANDOFF.md`.
+- [x] 5. Documentação: `AGENTS.md`, `README.md`, novo `docs/TESTING.md`, `docs/HANDOFF.md`.
 - [ ] 6. Evidências registradas aqui; testes 6 e 1 movidos para verificados pelo dono.
 
 ## Para a próxima sessão (fim de 26/10/2026)

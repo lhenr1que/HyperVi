@@ -23,7 +23,7 @@ mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes
    voltar. Workers: sem sudo, sem tocar em ~/.config, sem carregar plugins, sem rede. Nada de commit ou merge no repositório principal sem eu aprovar.
    ```
 3. O planner só delega se for pedido (o painel mostra "0 de 0 workers" até lá). Se um worker pedir rede ou outra pasta no cartão dele, **recuse**.
-4. Ao terminar: ler o diff de cada worker antes de aceitar, rodar `for t in core/test_*.lua; do lua5.4 $t; done` e `cargo test --manifest-path ui/Cargo.toml`, e só então
+4. Ao terminar: ler o diff de cada worker antes de aceitar, rodar `bash tools/check.sh` (sai ≠ 0 se algo falhar), e só então
    copiar para o repositório e commitar. Limpar as worktrees com `git worktree remove` (o dono é leigo no Alethe: faça por ele, depois de conferir que nada se perde).
 5. O que continua exigindo o dono e uma sessão com acesso ao desktop: carregar/descarregar o plugin, `sudo pacman -U` dos pacotes em `dist/`, teste com mouse real e
    com dois monitores. Os pacotes saem de `packaging/` (`KWINISH_SRC=$PWD makepkg -f --nodeps` em pastas de trabalho; no `/tmp`, que some no reinício).
@@ -35,7 +35,7 @@ mesmo limite em qualquer lugar, então ele deve planejar, delegar leitura/testes
 O dono tem Claude Code, Codex e Antigravity (`agy`). Fluxo recomendado: o Claude é o líder (decide, verifica, mexe no plugin e testa ao vivo); o Codex faz
 revisões de leitura e escreve testes, pelo terminal (`codex exec` não interativo, ou uma sessão de Codex na pasta do projeto em somente leitura); o
 Antigravity serve de segunda opinião. Cada um tem cota própria; o Claude gasta o mesmo limite em qualquer lugar, então delegue a leitura pesada.
-Sempre ler o diff antes de aceitar, e rodar `for t in core/test_*.lua; do lua5.4 $t; done` e `cargo test --manifest-path ui/Cargo.toml`.
+Sempre ler o diff antes de aceitar, e rodar `bash tools/check.sh` (sai ≠ 0 se algo falhar; `docs/TESTING.md`).
 **Sobras do Alethe no disco do dono** (decisão dele): app em `~/Apps/alethe` (e `~/Apps/alethe-*.log/png`), CLIs que ele instalou em `~/.local/bin`
 (`claude` quebrado, `codex`, `agy`, `mimo`) e pacotes em `~/.local/lib/node_modules`, `~/.config/opencode/plugin/alethe-bridge.js`, e o controle remoto dele
 (ligado em "Rede local"; desligar). Backup das configurações: `~/Apps/backups/pre-alethe-*`.
@@ -171,7 +171,7 @@ estava só em memória; a edição do `user.lua` do dono depende de autorizaçã
 ```
 make -C plugin abi                  # plugin/kwinish-bars.so e .abi
 cargo build --manifest-path ui/Cargo.toml
-for t in geometry binds switcher layouts; do lua5.4 core/test_$t.lua; done; cargo test --manifest-path ui/Cargo.toml
+bash tools/check.sh                 # todos os testes e a compilação do plugin; ver docs/TESTING.md
 # pacotes: copie packaging/PKGBUILD e packaging/plugin/PKGBUILD para uma pasta de trabalho e rode
 KWINISH_SRC=$PWD makepkg -f --nodeps   # em cada uma; copie os .pkg.tar.zst para dist/
 ```

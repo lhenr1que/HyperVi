@@ -15,14 +15,14 @@ Gerenciamento de janelas estilo KDE para o Hyprland 0.56.2, em três camadas: `p
 
 ## Validar
 ```sh
-for t in core/test_*.lua; do lua5.4 $t || echo FALHOU $t; done
-cargo test --manifest-path ui/Cargo.toml
-make -C plugin
+bash tools/check.sh
 ```
+Roda todas as suítes Lua (Lua 5.5, a do Hyprland instalado), os testes de `tools/`, `cargo test --locked` e compila o plugin num temporário, com HOME/XDG temporários; sai ≠ 0 se qualquer coisa falhar. Validação parcial e detalhes: `docs/TESTING.md`.
 Teste simulado não é teste ao vivo: diga qual foi feito.
 
 ## Limites
 - Não carregue/descarregue o plugin, não use `sudo`, não mexa em `~/.config` do dono sem pedido. Isso é do dono.
 - O que só o dono pode verificar vai em `docs/STATUS.md`, "Testes pendentes para o dono", e também por inteiro na resposta do chat: comando (fish), o que deve acontecer, como desfazer.
+- Teste ao vivo que muda arquivo do dono: `bash tools/live-backup.sh save` antes e `restore` para desfazer; nunca `rm` (ver `docs/TESTING.md`).
 - Todo roteiro de teste ao vivo deve incluir o comando para carregar/recarregar o plugin e depois o núcleo do repositório; nunca presumir que o plugin já está carregado (pedido do dono, 27/10/2026). O dono executa esses comandos.
 - Repositório local: sem push, fork ou PR sem pedido explícito. Commits: `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.

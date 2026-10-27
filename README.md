@@ -52,13 +52,10 @@ switcher (`ALT + F3` window menu). They clash with some Ryoku binds: use `mod` a
 
 ## Tests
 ```
-lua5.4 core/test_geometry.lua
-lua5.4 core/test_binds.lua
-lua5.4 core/test_switcher.lua
-lua5.4 core/test_layouts.lua
-cargo test --manifest-path ui/Cargo.toml
+bash tools/check.sh
 ```
-The plugin and the UI are checked by running them on a live session (see `docs/SPIKE-HYPR-WM-KWIN.md` for what was
+One command for every Lua suite, the tool tests, the Rust tests and a plugin build, in a temporary HOME; it exits non-zero
+on any failure. `--lua-only` runs just the Lua suites. Details: `docs/TESTING.md`. The plugin and the UI are checked by running them on a live session (see `docs/SPIKE-HYPR-WM-KWIN.md` for what was
 exercised and what was not).
 
 ## Known limits
