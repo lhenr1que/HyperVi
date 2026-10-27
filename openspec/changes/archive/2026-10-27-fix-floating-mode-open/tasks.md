@@ -25,3 +25,4 @@
 ## Workflow follow-up
 
 - Arquivar com `/opsx:archive` (ou `$openspec-archive-change` no Codex) depois do teste do dono.
+- Arquivado em 27/10/2026 depois do relato do dono: "os testes passaram" (teste 7 do `docs/STATUS.md`: janela nova já flutuante e centralizada, segunda em cascata, troca para tiling). O passo do diálogo o dono não achou como testar; foi medido ao vivo pelo Claude no mesmo dia com `zenity --info` aberto no workspace 3 (floating): nasceu flutuante em 300x227, no próprio tamanho, sem etiqueta. O seletor de arquivos do GTK4 (`xdg-desktop-portal-gtk`) não flutua sozinho no Hyprland, então recebe o retângulo do modo e a etiqueta, como já recebia antes depois do salto. Não exercidos ao vivo: workspace no segundo monitor e sair da tela cheia dentro do modo.
