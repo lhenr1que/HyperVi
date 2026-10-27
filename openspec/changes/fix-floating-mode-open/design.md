@@ -168,3 +168,21 @@ O dono perguntou se a janela poderia abrir no tamanho que o próprio aplicativo 
 | `match = { workspace = "1" }`, `float = true`, `size = "819 544"`, `center = true` | flutuante, 819x544, centralizada |
 
 Conclusão: o Hyprland manda à janela o tamanho previsto para o mosaico antes do primeiro quadro, a menos que já saiba que ela vai flutuar. Uma regra por classe sabe disso a tempo; uma regra por workspace só age no mapeamento, e o aplicativo então "pede" o tamanho do mosaico. Abrir no tamanho do próprio aplicativo exigiria uma regra para todas as classes ligada e desligada conforme o workspace ativo for floating: frágil (erra janelas abertas em outro workspace e corre contra a troca de workspace) e sem distinguir diálogos. Já `size` + `center` numa regra por workspace faz a janela nascer flutuante no tamanho dado, sem passar pelo mosaico: o retângulo do modo fica comprovado como mecanismo.
+
+### Decisão final (27/10, dono) e rodadas `rules-mode` e `rules-offset`
+
+O dono escolheu o caminho 3, com a cascata desde a abertura feita por redeclaração da regra. Antes de codificar, a regra que o núcleo vai usar foi conferida no aninhado (`results/rules-mode`, `results/rules-offset`; sessão do dono sem janelas acrescentadas):
+
+- Regra `{ name, match = { workspace = "1", float = false, fullscreen = false }, float = true, size = "819 544", move = "100 100", tag = "+kwinish-mode-floated" }`: o kitty nasce flutuante em (100,100) com 819x544, etiquetado. Redeclarada com `move = "124 124"`, o kitty seguinte nasce em (124,124): a cascata vale desde o primeiro quadro.
+- Janela GTK4 de tamanho fixo, que o Hyprland faz flutuar sozinho como a um diálogo: com a regra ligada continua 300x150 e sem etiqueta. `float = false` no `match` exclui as janelas que já nascem flutuantes.
+- Kitty com `--start-as=fullscreen`: nasce no retângulo da regra, etiquetado, e vira tela cheia ~100 ms depois. `fullscreen = false` no `match` não o exclui, porque o pedido de tela cheia chega depois do mapeamento. Resultado aceito: a janela fica em tela cheia e, ao sair dela, volta flutuante no retângulo do modo (com o código atual ela cairia no mosaico, mesmo num workspace floating). A spec foi ajustada; o `fullscreen = false` sai da regra.
+- `enabled = false` com o mesmo nome desliga a regra: a próxima janela volta ao mosaico.
+- Monitor em (500,300): `move = "100 100"` pôs a janela em (600,400). O `move` da regra é relativo ao monitor.
+- A etiqueta posta por uma regra aparece como `nome*` (dinâmica), e o núcleo compara nomes exatos. Por isso a regra põe só a marca `kwinish-mode-new`, e o núcleo, ao ver a janela abrir com ela, grava a etiqueta persistente `kwinish-mode-floated`, que já é a que ele gerencia.
+- Nas rodadas `kitty2` e `off`, o kitty se maximizou ~200 ms depois de abrir: é o estado que o próprio kitty salva no HOME temporário do aninhado, cuja config não tem o `suppress_event = "maximize"` da config do dono. Não é efeito da regra.
+
+Implementação no núcleo:
+- `mode_rule(ws, on)`: regra nomeada `kwinish-mode-floating-<ws>`, `match = { workspace, float = false }`, `float`, `size` e `move` de `modes.open_rect(work_area(mon), mode_cascade)` com o `move` relativo ao monitor, e a marca `kwinish-mode-new`. `mon` é o monitor do workspace (`hl.get_workspace`) ou o ativo, se o workspace ainda não existe. O objeto devolvido nunca é guardado.
+- Declarada ao carregar a config para cada workspace floating, de novo em `monitor.added` (na partida o monitor pode ainda não existir) e em `set_workspace_mode`; desligada com `enabled = false` quando o workspace sai de floating.
+- No `window.open`, sem esperar: janela com a marca recebe `kwinish-mode-floated`, a cascata avança e a regra do workspace é redeclarada com o próximo retângulo.
+- O temporizador de 150 ms fica como está: para uma janela que a regra não pegou, faz o que faz hoje.

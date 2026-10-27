@@ -1,0 +1,48 @@
+{
+  "ms": 270.07,
+  "clients": [
+    {
+      "address": "0x557565181a60",
+      "mapped": true,
+      "hidden": false,
+      "visible": true,
+      "acceptsInput": true,
+      "at": [
+        764,
+        425
+      ],
+      "size": [
+        300,
+        150
+      ],
+      "workspace": {
+        "id": 1,
+        "name": "1"
+      },
+      "floating": true,
+      "monitor": 0,
+      "class": "kwinish.nested.dialog",
+      "title": "kwinish-nested-dialog",
+      "initialClass": "kwinish.nested.dialog",
+      "initialTitle": "kwinish-nested-dialog",
+      "pid": 3356265,
+      "xwayland": false,
+      "pinned": false,
+      "pinFullscreened": false,
+      "fullscreen": 0,
+      "fullscreenClient": 0,
+      "fullscreenHandler": "default",
+      "allowedOverFullscreen": true,
+      "grouped": [],
+      "tags": [],
+      "swallowing": "0x0",
+      "focusHistoryID": 0,
+      "inhibitingIdle": false,
+      "xdgTag": "",
+      "xdgDescription": "",
+      "contentType": "none",
+      "tearingHint": false,
+      "stableId": "18000003"
+    }
+  ]
+}

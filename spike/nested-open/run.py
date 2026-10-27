@@ -15,7 +15,13 @@ REPO = HERE.parent.parent
 RULE_CASES = {
     "rules-class": 'hl.window_rule({ name = "kwinish-nested-class", match = { class = "kwinish-nested-probe" }, float = true })',
     "rules-size": 'hl.window_rule({ name = "kwinish-nested-size", match = { workspace = "1" }, float = true, size = "819 544", center = true })',
+    "rules-offset": 'hl.window_rule({ name = "kwinish-nested-offset", match = { workspace = "1" }, float = true, size = "819 544", move = "100 100" })',
 }
+# A fixed-size GTK4 window: Hyprland floats it on its own, like a dialog.
+DIALOG = ["python3", "-I", "-c", "import gi; gi.require_version('Gtk', '4.0'); from gi.repository import Gtk; "
+          "a = Gtk.Application(application_id='kwinish.nested.dialog'); "
+          "a.connect('activate', lambda a: Gtk.Window(application=a, title='kwinish-nested-dialog', resizable=False, "
+          "default_width=300, default_height=150).present()); a.run(None)"]
 
 
 def ctl(instance, *args, check=True):
@@ -94,6 +100,8 @@ def run(case, out):
     template = template.replace('dofile(os.getenv("KWINISH_NESTED_CASE") or "/tmp/kwinish-nested-case.lua")',
         "\n".join(f"{key} = {json.dumps(value)}" for key, value in
                   (("NESTED_ROOT", str(root)), ("NESTED_CASE", case), ("NESTED_REPO", str(REPO)))))
+    if case == "rules-offset":  # a monitor away from the origin tells monitor-local from global rule coordinates
+        template = template.replace('position = "0x0"', 'position = "500x300"')
     cfg.write_text(template)
     (out / "hyprland.lua").write_text(template)
     cmd = "Hyprland -c " + shlex.quote(str(cfg))
@@ -129,7 +137,7 @@ def run(case, out):
         (out / "configerrors.txt").write_text(ctl(signature, "configerrors"))
         write_json(out / "monitors.json", json.loads(ctl(signature, "monitors", "-j")))
 
-        def sample(label):
+        def sample(label, argv=None):
             nonlocal kitty
             env = os.environ.copy()
             env.update(HOME=str(root / "home"), XDG_CONFIG_HOME=str(root / "config"),
@@ -139,7 +147,7 @@ def run(case, out):
             env.pop("DBUS_SESSION_BUS_ADDRESS", None)
             start = time.monotonic()
             with (out / (label + "-kitty.log")).open("w") as stderr:
-                kitty = subprocess.Popen(["kitty", "--config", "NONE", "--class", "kwinish-nested-probe",
+                kitty = subprocess.Popen(argv or ["kitty", "--config", "NONE", "--class", "kwinish-nested-probe",
                     "--title", "kwinish-nested-" + label, "-o", "linux_display_server=wayland",
                     "-o", "confirm_os_window_close=0", "/usr/bin/sleep", "20"], env=env,
                     stdout=stderr, stderr=stderr)
@@ -170,6 +178,23 @@ def run(case, out):
             disable = 'hl.window_rule({ name = "kwinish-nested-floating-1", enabled = false })'
             (out / "rule-disable.txt").write_text(ctl(signature, "eval", disable))
             sample("disabled")
+        elif case == "rules-mode":
+            # The rule the core would declare per floating workspace, redeclared by name for the cascade.
+            def rule(x, y):
+                return ('hl.window_rule({ name = "kwinish-nested-mode-1", match = { workspace = "1", float = false, '
+                        f'fullscreen = false }}, float = true, size = "819 544", move = "{x} {y}", tag = "+kwinish-mode-floated" }})')
+            kitty_fs = ["kitty", "--config", "NONE", "--class", "kwinish-nested-probe", "--start-as=fullscreen",
+                        "-o", "linux_display_server=wayland", "-o", "confirm_os_window_close=0", "/usr/bin/sleep", "20"]
+            sample("dialog-norule", DIALOG)
+            (out / "rule-1.txt").write_text(ctl(signature, "eval", rule(100, 100)))
+            sample("kitty1")
+            (out / "rule-2.txt").write_text(ctl(signature, "eval", rule(124, 124)))
+            sample("kitty2")
+            sample("dialog", DIALOG)
+            sample("fullscreen", kitty_fs)
+            (out / "rule-off.txt").write_text(ctl(signature, "eval",
+                'hl.window_rule({ name = "kwinish-nested-mode-1", enabled = false })'))
+            sample("off")
         elif case in RULE_CASES:
             # One rule per run: by class (known before the first configure) or by workspace with a fixed size.
             (out / "rule-enable.txt").write_text(ctl(signature, "eval", RULE_CASES[case]))
@@ -223,7 +248,7 @@ def run(case, out):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "core", *RULE_CASES))
+    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "rules-mode", "core", *RULE_CASES))
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     run(args.case, args.out.resolve())

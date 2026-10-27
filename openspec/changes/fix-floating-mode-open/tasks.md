@@ -9,12 +9,12 @@
 
 ## 2. Teste que falha
 
-- [ ] 2.1 Em `core/test_kwinish.lua`, fazer o simulador `hl` emitir o evento antecipado (caminho 2) ou aplicar regras com `match.workspace` (caminho 3) antes de pôr a janela no mosaico simulado, registrando a primeira geometria de cada janela; testar que uma janela aberta num workspace floating tem como primeira geometria um retângulo flutuante igual a `modes.open_rect`, com a etiqueta `kwinish-mode-floated`. Verificar que falha com o código atual (`lua core/test_kwinish.lua` sai ≠ 0).
-- [ ] 2.2 No mesmo arquivo, cobrir: duas janelas seguidas saem em cascata; diálogo que já abre flutuante fica sem etiqueta e não vai ao mosaico ao trocar para tiling; janela em tela cheia não é tocada; workspace tiling continua em mosaico; o temporizador de 150 ms depois do caminho antecipado não move nem redimensiona de novo; trocar para tiling devolve ao mosaico as janelas que nasceram flutuantes. Verificar: os casos novos que dependem do conserto falham antes dele, os outros passam.
+- [ ] 2.1 Em `core/test_kwinish.lua`, fazer o simulador `hl` guardar as regras de `hl.window_rule` por nome (redeclarar substitui; `enabled = false` desliga) e aplicá-las ao abrir uma janela, antes do mosaico simulado (`match.workspace`, `match.float = false`; `float`, `size`, `move` relativo ao monitor, `tag` como etiqueta `nome*`), registrando a primeira geometria de cada janela; testar que uma janela aberta num workspace floating tem como primeira geometria um retângulo flutuante igual a `modes.open_rect`, com a etiqueta `kwinish-mode-floated`. Verificar que falha com o código atual (`lua core/test_kwinish.lua` sai ≠ 0).
+- [ ] 2.2 No mesmo arquivo, cobrir: duas janelas seguidas saem em cascata; diálogo que já abre flutuante fica sem etiqueta e não vai ao mosaico ao trocar para tiling; workspace num monitor fora da origem recebe o `move` relativo a ele; a regra é desligada ao trocar para tiling; workspace tiling continua em mosaico; o temporizador de 150 ms depois do caminho antecipado não move nem redimensiona de novo; trocar para tiling devolve ao mosaico as janelas que nasceram flutuantes. Verificar: os casos novos que dependem do conserto falham antes dele, os outros passam.
 
 ## 3. Conserto
 
-- [ ] 3.1 Implementar em `core/kwinish.lua` o caminho escolhido, reutilizando `float_for_mode`/`modes.open_rect`, sem tocar no temporizador de 150 ms (rede de segurança). Verificar: `bash tools/check.sh` sai 0.
+- [ ] 3.1 Implementar em `core/kwinish.lua` o caminho 3 conforme "Decisão final" do `design.md` (regra por workspace, marca `kwinish-mode-new` convertida em `kwinish-mode-floated`, cascata por redeclaração no `window.open`, `monitor.added`), reutilizando `modes.open_rect`/`work_area`, sem tocar no temporizador de 150 ms (rede de segurança). Verificar: `bash tools/check.sh` sai 0.
 - [ ] 3.2 Rodar o núcleo do repositório no Hyprland aninhado da tarefa 1.1 e confirmar com a amostragem que a primeira amostra de um kitty num workspace floating já é flutuante, 64% x 68%. Verificar: log no `spike/nested-open/` e resumo no `docs/STATUS.md` (teste no aninhado, não ao vivo).
 
 ## 4. Registro

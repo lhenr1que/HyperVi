@@ -1,0 +1,48 @@
+{
+  "ms": 105.06,
+  "clients": [
+    {
+      "address": "0x56543fccc8c0",
+      "mapped": true,
+      "hidden": false,
+      "visible": true,
+      "acceptsInput": true,
+      "at": [
+        600,
+        400
+      ],
+      "size": [
+        819,
+        544
+      ],
+      "workspace": {
+        "id": 1,
+        "name": "1"
+      },
+      "floating": true,
+      "monitor": 0,
+      "class": "kwinish-nested-probe",
+      "title": "kwinish-nested-rules-offset",
+      "initialClass": "kwinish-nested-probe",
+      "initialTitle": "kwinish-nested-rules-offset",
+      "pid": 3395341,
+      "xwayland": false,
+      "pinned": false,
+      "pinFullscreened": false,
+      "fullscreen": 0,
+      "fullscreenClient": 0,
+      "fullscreenHandler": "default",
+      "allowedOverFullscreen": true,
+      "grouped": [],
+      "tags": [],
+      "swallowing": "0x0",
+      "focusHistoryID": 0,
+      "inhibitingIdle": false,
+      "xdgTag": "",
+      "xdgDescription": "",
+      "contentType": "none",
+      "tearingHint": false,
+      "stableId": "18000000"
+    }
+  ]
+}
