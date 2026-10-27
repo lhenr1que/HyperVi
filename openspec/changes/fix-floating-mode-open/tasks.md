@@ -2,10 +2,10 @@
 
 ## 1. Experimento no Hyprland aninhado (nada na sessão do dono)
 
-- [ ] 1.1 Criar `spike/nested-open/` com uma config mínima do Hyprland 0.56.2 (monitor único, dwindle) e um script que: abre esse Hyprland aninhado pela sessão do dono só com `hl.exec_cmd("Hyprland -c <cfg>", { workspace = "9 silent" })`; abre um kitty dentro dele; amostra `hyprctl -i <instância aninhada> clients -j` a cada ~15 ms por 1,5 s; fecha tudo. Verificar: o log mostra a primeira amostra da janela; `hyprctl clients -j` da sessão do dono não lista nenhum kitty nem Hyprland depois do script.
-- [ ] 1.2 Responder no aninhado às perguntas (a) e (b) do `design.md`, com um tratador de `window.open_early` na config aninhada que registra os campos da janela e, numa segunda rodada, faz `float enable` + `resize` + `move`. Verificar: log com a ordem dos eventos e a primeira amostra (flutuante ou não, tamanho), e se o compositor aninhado sobreviveu.
-- [ ] 1.3 Só se (a) ou (b) falharem: responder (c) no aninhado, criando por `hyprctl -i ... eval` uma `hl.window_rule` nomeada com `match.workspace` e depois redeclarando o mesmo nome com `enabled = false`, sem guardar nem chamar métodos no objeto devolvido. Verificar: a próxima janela nasce flutuante com a regra e em mosaico depois de desligada.
-- [ ] 1.4 Registrar as respostas e o caminho escolhido (2 ou 3 do `design.md`) numa seção "Resultado do experimento" no fim do `design.md`. Se nenhum caminho passar, parar aqui e levar o resultado ao dono.
+- [x] 1.1 Criar `spike/nested-open/` com uma config mínima do Hyprland 0.56.2 (monitor único, dwindle) e um script que: abre esse Hyprland aninhado pela sessão do dono só com `hl.exec_cmd("Hyprland -c <cfg>", { workspace = "9 silent" })`; abre um kitty dentro dele; amostra `hyprctl -i <instância aninhada> clients -j` a cada ~15 ms por 1,5 s; fecha tudo. Verificar: o log mostra a primeira amostra da janela; `hyprctl clients -j` da sessão do dono não lista nenhum kitty nem Hyprland depois do script.
+- [x] 1.2 Responder no aninhado às perguntas (a) e (b) do `design.md`, com um tratador de `window.open_early` na config aninhada que registra os campos da janela e, numa segunda rodada, faz `float enable` + `resize` + `move`. Verificar: log com a ordem dos eventos e a primeira amostra (flutuante ou não, tamanho), e se o compositor aninhado sobreviveu.
+- [x] 1.3 Só se (a) ou (b) falharem: responder (c) no aninhado, criando por `hyprctl -i ... eval` uma `hl.window_rule` nomeada com `match.workspace` e depois redeclarando o mesmo nome com `enabled = false`, sem guardar nem chamar métodos no objeto devolvido. Verificar: a próxima janela nasce flutuante com a regra e em mosaico depois de desligada.
+- [x] 1.4 Registrar as respostas e o caminho escolhido (2 ou 3 do `design.md`) numa seção "Resultado do experimento" no fim do `design.md`. Se nenhum caminho passar, parar aqui e levar o resultado ao dono.
 
 ## 2. Teste que falha
 

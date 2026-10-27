@@ -1,0 +1,3 @@
+run.py early-mutate exited 1: nested hyprctl clients -j returned exit status 6.
+The nested compositor crashed in resizeTarget before an open event or first mapped sample.
+Owner session remained active; cleanup.json confirms no added clients/processes.

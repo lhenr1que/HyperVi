@@ -1,0 +1,3 @@
+2026-10-27: bash tools/check.sh -> exit 0, check: tudo passou
+Lua 5.5.1: 9 suites; tools: 3 suites; Rust: 18 passed; plugin built in temporary directory.
+Existing base validation only; regression tests and fix remain pending.

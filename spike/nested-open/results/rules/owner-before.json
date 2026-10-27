@@ -1,0 +1,47 @@
+[
+  {
+    "address": "0x56548336e140",
+    "class": "firefox",
+    "pid": 15365,
+    "workspace": {
+      "id": 1,
+      "name": "1"
+    }
+  },
+  {
+    "address": "0x5654834502b0",
+    "class": "kitty",
+    "pid": 246159,
+    "workspace": {
+      "id": 1,
+      "name": "1"
+    }
+  },
+  {
+    "address": "0x5654839d9330",
+    "class": "kitty",
+    "pid": 2663947,
+    "workspace": {
+      "id": 1,
+      "name": "1"
+    }
+  },
+  {
+    "address": "0x5654833ffed0",
+    "class": "com.anthropic.Claude",
+    "pid": 22067,
+    "workspace": {
+      "id": -98,
+      "name": "special:minimized"
+    }
+  },
+  {
+    "address": "0x5654834bf370",
+    "class": "Chatgpt",
+    "pid": 472692,
+    "workspace": {
+      "id": 1,
+      "name": "1"
+    }
+  }
+]

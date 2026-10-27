@@ -1,0 +1,19 @@
+[0.543] [glfw error 65542]: EGL: Failed to initialize EGL: EGL is not or could not be initialized display_present: 1 egl_platform_present: 1
+[0.553] Traceback (most recent call last):
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 659, in main
+    kitty_main(called_from_panel)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 643, in kitty_main
+    run_app(opts, cli_opts, bad_lines, talk_fd)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 376, in __call__
+    _run_app(opts, args, bad_lines, talk_fd)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 329, in _run_app
+    window_id = create_os_window(
+        run_app.initial_window_size_func(get_os_window_sizing_data(opts, startup_sessions[0] if startup_sessions else None), cached_values),
+    ...<9 lines>...
+        y=pos_y,
+    )
+OSError: Failed to create GLFWwindow with error: EGL: Failed to initialize EGL: EGL is not or could not be initialized display_present: 1 egl_platform_present: 1. This usually happens because of old/broken OpenGL drivers. kitty requires working OpenGL 3.1 drivers.
+

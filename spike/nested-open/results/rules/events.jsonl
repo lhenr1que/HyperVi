@@ -1,0 +1,4 @@
+{"seq":1,"event":"open_early.before","fullscreen":0,"address":"0x55f2520913e0","mapped":true,"pinned":false,"monitor":"WAYLAND-1","class":"kwinish-nested-probe","floating":true,"workspace":1,"at":[0,0],"size":[0,0]}
+{"seq":2,"event":"open","fullscreen":0,"address":"0x55f2520913e0","mapped":true,"pinned":false,"monitor":"WAYLAND-1","class":"kwinish-nested-probe","floating":true,"workspace":1,"at":[0,0],"size":[1827,1000]}
+{"seq":3,"event":"open_early.before","fullscreen":0,"address":"0x55f25209d450","mapped":true,"pinned":false,"monitor":"WAYLAND-1","class":"kwinish-nested-probe","floating":false,"workspace":1,"at":[0,0],"size":[0,0]}
+{"seq":4,"event":"open","fullscreen":0,"address":"0x55f25209d450","mapped":true,"pinned":false,"monitor":"WAYLAND-1","class":"kwinish-nested-probe","floating":false,"workspace":1,"at":[0,0],"size":[1827,1000]}

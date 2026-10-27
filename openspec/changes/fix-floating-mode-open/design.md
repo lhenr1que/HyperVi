@@ -46,3 +46,125 @@ Restrição de segurança: em 23/10 guardar e chamar métodos no objeto devolvid
 ## Migration Plan
 
 Sem migração: `workspace-modes.json` e as etiquetas não mudam. Desfazer é reverter o commit e recarregar a config.
+
+
+## Resultado do experimento
+
+Executado em 27/10/2026, somente num Hyprland **aninhado**, v0.56.2,
+commit `efb50993780079460b0cbed1363e2166a2de1d9f`. Config e executor:
+`spike/nested-open/hyprland.lua` e `spike/nested-open/run.py`; evidências em
+`spike/nested-open/results/`. Nenhum plugin foi carregado, nenhum núcleo foi
+carregado na sessão do dono e nenhum arquivo de `~/.config` foi alterado.
+No dono, cada `eval` continha apenas
+`hl.exec_cmd("Hyprland -c <config temporária>", { workspace = "9 silent" })`.
+Todas as chamadas experimentais selecionaram a assinatura aninhada por `-i`.
+
+### Respostas
+
+- **(a) Sim, para o kitty comum observado.** Em
+  `results/baseline-settled/events.jsonl`, `open_early.before` tem endereço,
+  workspace 1 e monitor `WAYLAND-1`, `mapped=true`, `floating=false`,
+  `fullscreen=0`, `pinned=false`, posição `[0,0]` e tamanho `[0,0]`.
+  O evento seguinte, `open`, já mostra o tamanho de mosaico `[1827,1000]`.
+  A primeira amostra em `baseline-settled/baseline-first.json` está em mosaico.
+  A saída aninhada é única; o backend Wayland usou 1827×1000, apesar da
+  solicitação de modo 1280×800 na config. A amostragem sozinha não comprova
+  todos os quadros; a ordem dos eventos mostra o estado anterior ao layout.
+- **(b) Não.** Na rodada `early-mutate`, o compositor recebeu **SIGSEGV**
+  durante `float enable` + `resize` + `move` em `open_early`. O log tem apenas
+  `open_early.before`; não houve `open_early.after` nem `open`, e o socket
+  deixou de responder antes da primeira amostra mapeada. O relatório de queda
+  aponta `Layout::CSpace::resizeTarget` → `CLayoutManager::resizeTarget` →
+  `Config::Actions::resize`. Trecho preservado em
+  `results/early-mutate/crash-summary.txt`. Não se deve usar o caminho 2.
+- **(c) Sim, para ativar/desativar o float de um kitty comum.** Em
+  `results/rules`, ambos os `eval` responderam `ok`. A regra foi criada como
+  `hl.window_rule({ name = "kwinish-nested-floating-1", match = { workspace = "1" }, float = true })`
+  e desativada com
+  `hl.window_rule({ name = "kwinish-nested-floating-1", enabled = false })`.
+  Nenhum objeto retornado foi guardado e nenhum método nele foi chamado.
+  `enabled-first.json`: primeira amostra aos 105,06 ms, flutuante,
+  `[1827,1000]`, sem etiqueta. `disabled-first.json`: aos 105,07 ms,
+  em mosaico, `[1827,1000]`. O aninhado sobreviveu às duas janelas.
+  Esta rodada comprova a troca da regra, não o tamanho, a etiqueta, a cascata
+  nem as exclusões de diálogos/fullscreen/pinned do plano B completo.
+
+### Caminho escolhido e impedimento
+
+O **caminho 3 é o mecanismo candidato sobrevivente**, pois o caminho 2 caiu
+e a criação/desativação da regra funcionou. A aplicação fica **pausada antes
+da tarefa 2.1**, por conflito entre os artefatos que precisa de decisão do dono:
+
+1. A decisão 3 acima manda aplicar tamanho/posição fixos pela regra e fazer
+   a cascata no temporizador. A spec exige que a segunda janela já apareça
+   deslocada; a tarefa 2.1 exige primeira geometria igual a `modes.open_rect`
+   (com a cascata), e a tarefa 2.2 proíbe novo move/resize pelo timer.
+2. `float_for_mode` retorna cedo quando a regra já fez a janela flutuar;
+   portanto esse timer, mantido como está, nem realiza a cascata prometida
+   pelo desenho. Alterar isso exige reconciliar o desenho e os testes.
+3. A regra `float` + etiqueta por workspace precisa distinguir diálogos
+   naturalmente flutuantes. O experimento com kitty comum não provou essa
+   exclusão; reivindicar todos violaria a spec.
+
+Não foi escrito um teste que aceita uma exceção a esses requisitos nem um
+conserto parcial. As tarefas 2–4 permanecem abertas. Também não se declara
+que nenhum mecanismo funcionou: (c) passou, mas o plano B descrito ainda não
+cumpre o conjunto dos requisitos. O próximo passo depende de revisar o desenho
+preservando a cascata desde a abertura, ou de o dono autorizar uma revisão
+explícita desse comportamento.
+
+### Isolamento e limpeza
+
+A sessão já tinha dois kitties do dono antes do experimento; eles foram
+preservados. A verificação correta é ausência de clientes **adicionados** e
+do processo aninhado, em vez de fechar janelas preexistentes para obter uma
+lista vazia. `cleanup.json` em `baseline-settled`, `early-mutate` e `rules`
+registra `added_owner_clients=[]`, `nested_left=false` e
+`existing_kitty_preserved=true`. A sessão do dono manteve sua assinatura.
+
+A primeira rodada (`results/baseline`) registrou um falso negativo de limpeza:
+a instância aninhada já tinha encerrado, mas o dono ainda processava o fechamento
+assíncrono da superfície `aquamarine`. O executor passou a aguardar a remoção
+da superfície desse PID; a repetição `baseline-settled` terminou com código 0.
+O executor também encerra apenas processos cujo argumento de config coincide
+com o caminho temporário único, inclusive se a inicialização não publicar socket.
+
+
+### Encerramento e opções para retomar
+
+Em 27/10/2026, após ver o resultado, o dono pediu **encerrar por enquanto com
+o experimento registrado** e anotar as alternativas. Nenhuma delas foi
+autorizada para implementação nesta sessão:
+
+1. **Revisar o desenho mantendo a cascata desde a abertura.** Preservar a spec
+   e os testes propostos; encontrar e comprovar no aninhado um mecanismo que
+   aplique o retângulo completo antes do primeiro quadro, sem o `resize` que
+   derrubou `open_early`. Também comprovar as exclusões de diálogos,
+   fullscreen e pinned antes de qualquer implementação no núcleo.
+2. **Aceitar a cascata após 150 ms.** Revisar explicitamente spec, design e
+   tarefas para permitir nascer flutuante no tamanho do modo, com posição
+   inicialmente fixa, e só depois deslocar pela cascata no timer. A tarefa
+   2.2 precisaria permitir esse movimento e os testes da primeira geometria
+   precisariam refletir o comportamento aceito. Ainda seria necessário
+   resolver a identificação das janelas pertencentes ao modo, preservar
+   diálogos sem etiqueta e evitar redimensionar novamente no timer. Esse
+   caminho não foi implementado nem validado como solução completa.
+
+Validação ao encerrar: `bash tools/check.sh` terminou com **código 0** no
+checkout `kwinish-floating`: 9 suítes Lua (Lua 5.5.1), 3 suítes de ferramentas,
+18 testes Rust e compilação do plugin em diretório temporário. É validação
+simulada/de compilação da base existente, não prova de conserto do modo
+floating. O teste de regressão das tarefas 2.1/2.2 e o conserto continuam
+pendentes. `git diff --check` passou. Sem commit, arquivamento ou carga de plugin.
+
+### Complemento (Claude, 27/10): tamanho pedido pelo aplicativo
+
+O dono perguntou se a janela poderia abrir no tamanho que o próprio aplicativo pede. Duas rodadas a mais no mesmo executor, só no aninhado (`results/rules-class`, `results/rules-size`; `cleanup.json` sem janelas acrescentadas na sessão do dono), com o kitty de `--config NONE` e cache vazio, que sozinho escolhe 640x400:
+
+| Regra | Primeira amostra (105 ms) |
+|---|---|
+| `match = { workspace = "1" }`, `float = true` (rodada `rules`, acima) | flutuante, 1827x1000, o tamanho do mosaico |
+| `match = { class = "kwinish-nested-probe" }`, `float = true` | flutuante, 640x400, centralizada |
+| `match = { workspace = "1" }`, `float = true`, `size = "819 544"`, `center = true` | flutuante, 819x544, centralizada |
+
+Conclusão: o Hyprland manda à janela o tamanho previsto para o mosaico antes do primeiro quadro, a menos que já saiba que ela vai flutuar. Uma regra por classe sabe disso a tempo; uma regra por workspace só age no mapeamento, e o aplicativo então "pede" o tamanho do mosaico. Abrir no tamanho do próprio aplicativo exigiria uma regra para todas as classes ligada e desligada conforme o workspace ativo for floating: frágil (erra janelas abertas em outro workspace e corre contra a troca de workspace) e sem distinguir diálogos. Já `size` + `center` numa regra por workspace faz a janela nascer flutuante no tamanho dado, sem passar pelo mosaico: o retângulo do modo fica comprovado como mecanismo.

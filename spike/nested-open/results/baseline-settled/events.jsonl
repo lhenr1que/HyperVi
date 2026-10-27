@@ -1,0 +1,2 @@
+{"seq":1,"event":"open_early.before","class":"kwinish-nested-probe","mapped":true,"floating":false,"address":"0x558c98b46eb0","workspace":1,"pinned":false,"fullscreen":0,"monitor":"WAYLAND-1","at":[0,0],"size":[0,0]}
+{"seq":2,"event":"open","class":"kwinish-nested-probe","mapped":true,"floating":false,"address":"0x558c98b46eb0","workspace":1,"pinned":false,"fullscreen":0,"monitor":"WAYLAND-1","at":[0,0],"size":[1827,1000]}
