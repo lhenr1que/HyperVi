@@ -22,7 +22,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - Licenças: cabeçalhos SPDX em `plugin/`; texto BSD-3 do hyprbars em `plugin/LICENSE.hyprland-plugins` **conferido hoje contra o upstream** (`hyprwm/hyprland-plugins`, ramo main): idêntico, copyright "2023, Hypr Development".
 
 ## Corrigido no código, ainda não verificado ao vivo
-Plugin (27/10, `868f66a`): mudar a "Altura" na janela de configurações redimensiona a barra, não só o ícone; compilado, falta recarregar e testar (teste 5). Plugin recompilado mas **não recarregado** pelo dono: correções das revisões (barras sobrepostas, estado de arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela). O núcleo foi testado no workspace 9; o plugin precisa de `hyprctl plugin unload/load` feito por você.
+Plugin recompilado mas **não recarregado** pelo dono: correções das revisões (barras sobrepostas, estado de arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela). O núcleo foi testado no workspace 9; o plugin precisa de `hyprctl plugin unload/load` feito por você.
 
 ## O que falta
 **Depende de você (desktop real):** recarregar o plugin e testar as correções; `sudo pacman -U dist/*.pkg.tar.zst`; teste com mouse real; Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`.
@@ -80,14 +80,14 @@ Achado ao planejar: o Hyprland instalado roda a config em **Lua 5.5** (`readelf`
 **Feito em 26/10 (fim):** janela de configurações `kwinish-ui settings` (`ui/src/settings.rs`, `core/settings.lua`, `~/.config/kwinish/settings.json`): barras, cores, encaixe, resistência de fronteira e Snap Assist; cada mudança grava o arquivo e chama `apply_settings()` no núcleo; o núcleo também aplica o arquivo a cada carga da config (só com o plugin carregado; chaves e valores validados). Vista aberta ao vivo lendo os valores do compositor; **aplicar ao vivo não testado** (o núcleo em memória é o de `/usr/share`, sem `apply_settings`): teste 5 abaixo.
 **Relato do dono (26/10, noite):** as mudanças da janela não valiam na hora. Causa: o núcleo em memória era o instalado (`/usr/share`), sem `apply_settings`; o `hyprctl eval` falhava calado. Corrigido: sem `apply_settings`, a janela manda a opção direto ao compositor (`hl.config`). Verificado ao vivo (`bar_padding` = 4 aplicou). Manter os valores depois de `hyprctl reload` ainda exige o núcleo novo (pacote reinstalado ou `dev-reload.fish`).
 **OpenSpec adotado (27/10):** `openspec` 1.15.0 instalado em `~/.local` (`npm install -g @fission-ai/openspec@1.15.0`, telemetria desligada), `openspec init --tools claude,codex --language pt-BR`. Regras para agentes em `AGENTS.md` (o `CLAUDE.md` só aponta para ele). Mudanças relevantes passam por `openspec/changes/`; as duas primeiras são os bugs confirmados da auditoria do Codex: `fix-snap-entrypoints` (ALT+setas dava erro) e `fix-assist-drop-context` (Snap Assist nunca abria no Shift+arrastar). Implementadas e revisadas na master em 27/10; testes ao vivo relatados como funcionando pelo dono em 27/10, arquivadas em 27/10. Outros achados da auditoria, a virar mudanças: `rules.json`/`layouts.json` lidos com `load`, gravações sem temporário, Makefile do plugin ignora `.h`, script de rebuild sem checar o `install`, sem CI, docs desatualizados (`PLUGIN.md`).
-**Próximos passos, em ordem sugerida:** (1) teste 5 (janela de configurações; abre também pelo menu da janela, Mais ações > Configurações do Kwinish...); (2) etapa B (`harden-user-data-io`, leitores primeiro); (3) os bloqueadores do beta em `BETA.md` (nome definitivo, licenças, instalação limpa e hook do pacman, separar docs públicas das internas, limpar o histórico antes de publicar); (4) backlog: duplo clique no ícone fecha a janela, miniaturas no Alt+Tab, modais ao minimizar, layouts por monitor, escala diferente de 1 e monitor rotacionado (a borda e a fronteira foram escritas para isso, mas só testadas com escala 1 e 2 lado a lado). O projeto HDE (`../hde/`) espera até o beta.
+**Próximos passos, em ordem sugerida:** (1) ~~teste 5~~ verificado em 27/10; (2) etapa B (`harden-user-data-io`, leitores primeiro); (3) os bloqueadores do beta em `BETA.md` (nome definitivo, licenças, instalação limpa e hook do pacman, separar docs públicas das internas, limpar o histórico antes de publicar); (4) backlog: duplo clique no ícone fecha a janela, miniaturas no Alt+Tab, modais ao minimizar, layouts por monitor, escala diferente de 1 e monitor rotacionado (a borda e a fronteira foram escritas para isso, mas só testadas com escala 1 e 2 lado a lado). O projeto HDE (`../hde/`) espera até o beta.
 **Delegação:** `codex exec -s read-only` (revisão) e `-s workspace-write` numa worktree (implementação) funcionaram bem hoje, o dono tem muito limite do Codex. O `agy` está sem cota até ~28/10.
 
 ## Verificado pelo dono em 26/10 (mouse real, dois monitores)
 Encaixe nas bordas e topo, voltar do topo ao tamanho anterior (com animação de 140 ms), Shift no meio do arrasto, fronteira DP-1/HDMI-A-1 sem o pulo da janela. Correções: escala 2 nas bordas, posição do clique para desencaixar, faixa de 16 px nas fronteiras, monitor sob o ponteiro, `cursor:no_warps` durante o ajuste de colunas. Dev: `fish tools/dev-reload.fish` carrega plugin e núcleo juntos (recarregar só o plugin traz de volta o núcleo de /usr/share). Resistência na fronteira (ideia do dono): não implementada, avaliar se ainda faz falta.
 
 ## Verificado pelo dono em 27/10
-Teste 5, em parte: a cor "Barra, janela focada" muda na hora e desligar o Snap Assist impede a sobreposição ao encaixar pelo menu. Altura, persistência e menu continuam pendentes (item 5 abaixo).
+Teste 5, janela de configurações (relato do dono, 27/10: "tudo funcionou"): a cor "Barra, janela focada" muda na hora; desligar o Snap Assist impede a sobreposição ao encaixar pelo menu; a "Altura" redimensiona a barra inteira (conserto do plugin em `868f66a`); os valores continuam depois de `hyprctl reload` + `dev-reload.fish`; e Mais ações > Configurações do Kwinish... abre a janela. O roteiro está no `docs/STATUS.md` do commit `a431458`; se o "desfazer" não foi rodado, o backup continua em `~/.local/state/kwinish-backup/teste-5`.
 Testes 6 (encaixe sem opções e restauração, `fix-snap-entrypoints`) e 1 (Snap Assist com Shift ao arrastar, `fix-assist-drop-context`): depois dos roteiros, o dono respondeu "os testes funcionaram" (27/10, 17:55, no chat do Codex). O relato não detalha os subcasos (por exemplo, soltar noutro monitor sem Assist). Os roteiros estão no `docs/STATUS.md` do commit `60e19df`.
 
 ## Testes pendentes para o dono
@@ -112,44 +112,6 @@ hyprctl plugin load $PWD/plugin/kwinish-bars.so
 hyprctl eval "package.path='$PWD/core/?.lua;'..package.path; KWINISH_ZONE_HOOKS=nil; for _,m in ipairs({'kwinish','geometry','layouts','assist'}) do package.loaded[m]=nil end; require('kwinish')"
 ```
 Com DP-1 e HDMI-A-1: abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: como no teste 2 (descarregar o de teste, carregar o instalado) e `hyprctl reload`.
-
-**5. Janela de configurações (núcleo do repositório carregado)**
-Rodada de 27/10 (dono): a cor "Barra, janela focada" e desligar o Snap Assist **funcionaram**. A "Altura" só aumentava o ícone: consertado no plugin em `868f66a` (exige recompilar e recarregar o plugin). A persistência e o menu não foram testados por erro do roteiro: a janela prende o terminal, e num terminal novo (aberto em `~`) os caminhos relativos falharam; o `ln -sf $PWD/...` criou o link quebrado `~/.local/bin/kwinish-ui -> ~/ui/target/debug/kwinish-ui`, e o compositor caiu no `/usr/bin/kwinish-ui`, que não tem o item. O backup daquela rodada guardou o link certo que existia antes.
-Todos os comandos abaixo usam caminhos absolutos e funcionam de qualquer terminal.
-Passo 0, fechar a rodada anterior (devolve o `settings.json` e o link do `kwinish-ui` de antes):
-```fish
-bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
-```
-Passo 1, guardar o estado, compilar plugin e interface, carregar plugin e núcleo do repositório e abrir a janela (se o `save` falhar, nada mais roda). A janela prende este terminal; use outro para os passos seguintes:
-```fish
-cd ~/Downloads/ryoku-work/kwinish
-bash tools/live-backup.sh save ~/.local/state/kwinish-backup/teste-5 ~/.config/kwinish/settings.json ~/.local/bin/kwinish-ui
-and make -C plugin
-and cargo build --manifest-path ui/Cargo.toml
-and fish tools/dev-reload.fish
-and ./ui/target/debug/kwinish-ui settings
-```
-Mude "Altura" para 34: a **barra inteira** deve engordar na hora (não só o ícone), e a janela desce para caber.
-Passo 2, persistência, noutro terminal:
-```fish
-hyprctl reload
-fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish
-```
-A altura 34 deve continuar (o núcleo do repositório aplica o `settings.json` ao carregar).
-Passo 3, menu: o menu chama o `kwinish-ui` do PATH, e o de `/usr/bin` ainda não conhece `settings`. Confira para onde aponta o link; se não for para `~/Downloads/ryoku-work/kwinish/ui/target/debug/kwinish-ui`, crie-o (o `save` já guardou o que havia):
-```fish
-readlink ~/.local/bin/kwinish-ui
-ln -sf ~/Downloads/ryoku-work/kwinish/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
-```
-Clique direito na barra de uma janela, Mais ações > Configurações do Kwinish...: a mesma janela abre; abrir de novo só traz a já aberta para a frente.
-Desfazer (volta o `settings.json` e o `kwinish-ui` exatamente como estavam, troca o plugin do repositório pelo instalado e recarrega a config):
-```fish
-bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5
-hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
-hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
-hyprctl reload
-```
-Se o `restore` recusar algo, ele diz o quê e mantém o backup em `~/.local/state/kwinish-backup/teste-5`. **Não use mais o `rm` antigo deste teste**: ele apagava um `settings.json` legítimo e um `kwinish-ui` que já existisse.
 
 **4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 
