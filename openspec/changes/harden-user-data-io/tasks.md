@@ -9,8 +9,8 @@
 
 ## 2. Paridade de layouts
 
-- [ ] 2.1 Adicionar fixtures equivalentes Lua/Rust para gap negativo, gigante, fracionário, string, ausente e zonas pequenas; mostrar os casos divergentes antes do conserto.
-- [ ] 2.2 Alinhar os validadores e impedir geometria final não positiva/não finita na publicação; verificar fixtures e cargo test --manifest-path ui/Cargo.toml. Atualizar docs/CONFIGURAVEL.md com a normalização e o descarte de geometrias inválidas.
+- [x] 2.1 Adicionar fixtures equivalentes Lua/Rust para gap negativo, gigante, fracionário, string, ausente e zonas pequenas; mostrar os casos divergentes antes do conserto.
+- [x] 2.2 Alinhar os validadores e impedir geometria final não positiva/não finita na publicação; verificar fixtures e cargo test --manifest-path ui/Cargo.toml. Atualizar docs/CONFIGURAVEL.md com a normalização e o descarte de geometrias inválidas.
 
 ## 3. Gravação confiável no núcleo
 

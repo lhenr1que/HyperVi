@@ -25,4 +25,22 @@ L.load_user('[{"name":"os","zones":[[0,0,1,1]],"x":os.exit()}]'); assert(#L.user
 L.load_user('[{"name":"a1","zones":[1,2]},{"name":"a2","zones":[["x",0,1,1]]},{"name":"user-ok","zones":[[0,0,1,1]]}]')
 assert(#L.user == 1 and L.user[1].name == "user-ok", "malformed zones are dropped without error, the good entry stays")
 L.load_user(nil); assert(#L.user == 0)
+
+-- a zone smaller than its padding, or any odd number, has no rect (false); the other zones keep their numbers
+local tiny = L.zone_rects({ { 0, 0, 0.5, 1 }, { 0.5, 0.5, 0.004, 0.004 }, { 0.6, 0, 0.4, 1 } }, { x = 0, y = 0, w = 1000, h = 1000 }, 20)
+assert(#tiny == 3 and tiny[1] and tiny[1].w > 0 and tiny[2] == false and tiny[3] and tiny[3].w > 0, "unusable zone is false, numbering kept")
+assert(L.zone_rects({ { 0, 0, 1, 1 } }, { x = 0, y = 0, w = 1 / 0, h = 100 }, 0)[1] == false, "no infinite rect")
+
+-- the same layout cases as kwinish-ui (ui/src/zones.rs reads this file too); every divergence is listed before failing
+local dir = arg[0]:match("(.*/)") or "./"
+local wrong = {}
+for line in io.lines(dir .. "testdata/layout-cases.txt") do
+  local expect, text = line:match("^(%S+) (.*)$")
+  if expect and not line:match("^#") then
+    L.load_user(text)
+    local got = #L.user == 0 and "drop" or #L.user == 1 and ("gap=" .. (L.user[1].gap == nil and "default" or tostring(L.user[1].gap))) or "many"
+    if got ~= expect then wrong[#wrong + 1] = expect .. " but got " .. got .. ": " .. text:sub(1, 70) end
+  end
+end
+assert(#wrong == 0, "layout cases differ from kwinish-ui:\n  " .. table.concat(wrong, "\n  "))
 print("layouts ok")

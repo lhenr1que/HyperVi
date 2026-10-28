@@ -292,6 +292,23 @@ mod tests {
     }
 
     #[test]
+    fn layout_cases_agree_with_the_core() {
+        // core/test_layouts.lua reads the same file
+        let mut wrong = vec![];
+        for line in include_str!("../../core/testdata/layout-cases.txt").lines().filter(|l| !l.starts_with('#')) {
+            let Some((expect, text)) = line.split_once(' ') else { continue };
+            let l = parse(text);
+            let got = match l.as_slice() {
+                [] => "drop".to_string(),
+                [one] => format!("gap={}", one.gap.map_or("default".to_string(), |g| g.to_string())),
+                _ => "many".to_string(),
+            };
+            if got != expect { wrong.push(format!("{expect} but got {got}: {text}")); }
+        }
+        assert!(wrong.is_empty(), "layout cases differ from the core:\n  {}", wrong.join("\n  "));
+    }
+
+    #[test]
     fn atomic_write_keeps_a_backup_of_an_unreadable_file() {
         let d = std::env::temp_dir().join(format!("kwinish-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);

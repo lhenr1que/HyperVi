@@ -20,7 +20,8 @@ function M.find(name)
 end
 
 -- `text` is the editor's JSON: [{"name":..,"label":..,"gap":N?,"zones":[[x,y,w,h],..]},..], read as data (kwjson).
--- Entries that are malformed (bad zones, odd names) are dropped; a bad file leaves no user layouts and gives the reason.
+-- Entries that are malformed (bad zones, odd names) are dropped; a bad file leaves no user layouts and gives the reason. Same rules as
+-- kwinish-ui (core/testdata/layout-cases.txt): name of at most 64 [A-Za-z0-9-], gap an integer clamped to 0-60, anything else no gap.
 function M.load_user(text)
   M.user = {}
   if not text or text == "" then return end
@@ -29,7 +30,7 @@ function M.load_user(text)
   for _, l in ipairs(list) do
     -- one bad entry (a zone that is not a list of numbers, say) must not take the others down: validate under pcall
     local ok, good = pcall(function()
-      local g = kwjson.is_object(l) and type(l.name) == "string" and l.name:match("^[%w%-]+$") and kwjson.is_array(l.zones) and #l.zones > 0
+      local g = kwjson.is_object(l) and type(l.name) == "string" and #l.name <= 64 and l.name:match("^[%w%-]+$") and kwjson.is_array(l.zones) and #l.zones > 0
       for _, z in ipairs(g and l.zones or {}) do
         g = g and type(z) == "table" and #z == 4 and type(z[1]) == "number" and type(z[2]) == "number" and type(z[3]) == "number" and type(z[4]) == "number"
           and z[1] >= 0 and z[2] >= 0 and z[3] > 0 and z[4] > 0 and z[1] + z[3] <= 1 + 1e-6 and z[2] + z[4] <= 1 + 1e-6
@@ -37,13 +38,16 @@ function M.load_user(text)
       return g
     end)
     if ok and good then
-      M.user[#M.user + 1] = { name = l.name, label = type(l.label) == "string" and l.label or l.name, zones = l.zones, gap = tonumber(l.gap), user = true }
+      M.user[#M.user + 1] = { name = l.name, label = type(l.label) == "string" and l.label or l.name, zones = l.zones,
+        gap = math.type(l.gap) == "integer" and math.max(0, math.min(60, l.gap)) or nil, user = true }
     end
   end
 end
 
 -- Pixel rects for `zones` inside `area` {x, y, w, h}. `gap` (the padding between windows) is taken half from each side
--- of an edge two zones share; edges on the border of the area stay where they are.
+-- of an edge two zones share; edges on the border of the area stay where they are. A zone left with no width or height (smaller
+-- than its padding) or with an odd number is `false`, so the others keep their numbers and nothing places a window there.
+local function finite(v) return v == v and v ~= math.huge and v ~= -math.huge end
 function M.zone_rects(zones, area, gap)
   local eps, half, out = 1e-6, (gap or 0) / 2, {}
   for _, z in ipairs(zones) do
@@ -53,10 +57,12 @@ function M.zone_rects(zones, area, gap)
     local t = y0 > eps and half or 0
     local r = x1 < 1 - eps and half or 0
     local b = y1 < 1 - eps and half or 0
-    out[#out + 1] = {
+    local rect = {
       x = area.x + x0 * area.w + l, y = area.y + y0 * area.h + t,
       w = (x1 - x0) * area.w - l - r, h = (y1 - y0) * area.h - t - b,
     }
+    local ok = finite(rect.x) and finite(rect.y) and finite(rect.w) and finite(rect.h) and rect.w > 0 and rect.h > 0
+    out[#out + 1] = ok and rect or false
   end
   return out
 end

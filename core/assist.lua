@@ -1,6 +1,7 @@
 -- Snap Assist logic: after a window is put in a layout zone, which zone is still empty and which windows could fill it.
 -- A window counts as in a zone when it sits on that zone's rect (within a few px), as a snap leaves it. Pure; runs under plain lua. `wins` are {address, class, title, x, y, w, h} (floating windows of the same workspace and monitor,
--- the one just placed excluded), `rects` the zone rects, `placed` the index of the zone just filled.
+-- the one just placed excluded), `rects` the zone rects (false for a zone with no rect, see layouts.zone_rects), `placed` the
+-- index of the zone just filled.
 local M = {}
 
 function M.plan(rects, wins, placed)
@@ -8,7 +9,7 @@ function M.plan(rects, wins, placed)
   for _, w in ipairs(wins) do
     local inside = false
     for i, r in ipairs(rects) do
-      if math.abs(w.x - r.x) <= 4 and math.abs(w.y - r.y) <= 4 and math.abs(w.w - r.w) <= 4 and math.abs(w.h - r.h) <= 4 then
+      if r and math.abs(w.x - r.x) <= 4 and math.abs(w.y - r.y) <= 4 and math.abs(w.w - r.w) <= 4 and math.abs(w.h - r.h) <= 4 then
         taken[i], inside = true, true; break
       end
     end
@@ -16,7 +17,7 @@ function M.plan(rects, wins, placed)
   end
   if #cands == 0 then return nil end
   for i, r in ipairs(rects) do
-    if not taken[i] then return { zone = i, rect = r, candidates = cands } end
+    if r and not taken[i] then return { zone = i, rect = r, candidates = cands } end
   end
 end
 

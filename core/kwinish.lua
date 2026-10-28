@@ -525,7 +525,7 @@ function M.publish_zones()
     end
     -- the active layout's zones, shown while Shift is held during a drag
     for i, r in ipairs(layout_rects(mon)) do
-      pcall(p.set_zone, mon.name, "z:" .. i, r.x, r.y - bh, r.w, r.h + bh)
+      if r then pcall(p.set_zone, mon.name, "z:" .. i, r.x, r.y - bh, r.w, r.h + bh) end -- false: a zone with no usable rect
     end
   end
 end

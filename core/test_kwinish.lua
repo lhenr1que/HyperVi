@@ -397,6 +397,22 @@ local function run()
   io.stderr = stderr
   assert(#calls == calls_before, "truncated rules.json applies nothing")
   assert(#said == 1 and said[1]:find("kwinish: rules.json ignored: ", 1, true), "refused file reported once: " .. table.concat(said, " | "))
+
+  -- a layout zone narrower than its padding: never published to the plugin, and zone:N leaves the window where it is
+  f = assert(io.open(tmp .. "/XDG_CONFIG_HOME/kwinish/layouts.json", "w"))
+  f:write('[{"name":"user-tiny","gap":60,"zones":[[0,0,0.5,1],[0.5,0,0.01,1],[0.6,0,0.4,1]]}]'); f:close()
+  local published = {}
+  hl.plugin = { kwinish = { clear_zones = function() published = {} end,
+    set_zone = function(mon_name, zone, x, y, w, h) if mon_name == "TEST" then published[zone] = { w = w, h = h } end end } }
+  kw.set_layout("user-tiny")
+  hl.plugin = nil
+  assert(published["z:1"] and published["z:3"] and published["z:2"] == nil, "unusable zone not published")
+  for zone, r in pairs(published) do assert(r.w > 0 and r.h > 0, "non-positive zone published: " .. zone) end
+  local loose = window("loose", 1, true)
+  kw.window_action(loose.address, "zone:2")
+  rect(loose, 40, 50, 400, 300)
+  kw.window_action(loose.address, "zone:3")
+  assert(loose.size[1] > 0 and loose.at[1] > 900, "usable zone still works")
 end
 
 local ok, err = xpcall(run, debug.traceback)
