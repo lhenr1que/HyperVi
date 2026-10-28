@@ -5,6 +5,9 @@ ok true
 ok false
 ok 0
 ok -0
+ok -0.0
+ok 1.7976931348623158e308
+ok 1e-400
 ok 12
 ok -12
 ok 1.5
@@ -14,8 +17,8 @@ ok -0.5e+3
 ok 9223372036854775808
 ok ""
 ok "a\"b\\c\/d\b\f\n\r\t"
-ok "é€"
-ok "😀"
+ok "\u00e9\u20ac"
+ok "\ud83d\ude00"
 ok "é"
 ok []
 ok {}
@@ -37,7 +40,7 @@ bad 1e999
 bad -1e999
 bad "\ud800"
 bad "\udc00"
-bad "\ud800A"
+bad "\ud800\u0041"
 bad "\x"
 bad "\u12"
 bad 'a'
@@ -57,3 +60,4 @@ bad [1,2
 bad {"a":
 bad /* c */ 1
 bad {"k":(function() while true do end end)()}
+bad {"x":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]],"x":0}

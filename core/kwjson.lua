@@ -67,6 +67,7 @@ function M.decode(text)
       i = i + #exp
     end
     local n = tonumber(text:sub(pos, i - 1)) -- an integer when it is one and fits, else a float
+    if n == 0 and not frac and not exp and text:sub(pos, pos) == "-" then n = -0.0 end -- -0 stays a float, as in serde_json
     if n ~= n or n == math.huge or n == -math.huge then fail("number out of range") end
     pos = i
     return n

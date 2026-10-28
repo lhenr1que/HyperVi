@@ -31,14 +31,17 @@ assert(J.decode('{"__index":1}').__index == 1 and J.decode('{"__index":1}').x ==
 
 -- strings
 assert(J.decode([["a\"b\\c\/d\b\f\n\r\t"]]) == 'a"b\\c/d\b\f\n\r\t', "simple escapes")
-assert(J.decode([["é€"]]) == "é€" and J.decode([["😀"]]) == "😀", "\\u escapes and surrogate pairs")
+assert(J.decode([["\u00e9\u20ac"]]) == "é€" and J.decode([["\ud83d\ude00"]]) == "😀", "\\u escapes and surrogate pairs")
+assert(J.decode([["\ud83d\ude00"]]) ~= nil and #J.decode([["\ud83d\ude00"]]) == 4, "a pair is one 4-byte character")
 assert(J.decode('"é"') == "é" and J.decode('"a\127b"') == "a\127b", "raw UTF-8 and DEL pass")
 bad('"a\nb"', "raw control character"); bad('"\0"', "raw NUL")
 bad('"\255"', "invalid UTF-8"); bad('"\192\175"', "overlong UTF-8"); bad('"\237\160\128"', "UTF-8 surrogate")
 assert(J.decode('{"k":"v"}').k == "v")
 
 -- numbers: integers stay integers, the rest are floats, never infinite
-assert(math.type(J.decode("12")) == "integer" and J.decode("-12") == -12 and math.type(J.decode("-0")) == "integer")
+assert(math.type(J.decode("12")) == "integer" and J.decode("-12") == -12)
+local nz = J.decode("-0")
+assert(math.type(nz) == "float" and nz == 0 and 1 / nz < 0, "-0 is the float -0.0, as serde_json reads it")
 assert(math.type(J.decode("1.0")) == "float" and J.decode("1e2") == 100.0 and math.type(J.decode("1e2")) == "float")
 assert(J.decode("-0.5e+3") == -500.0 and J.decode("1E-2") == 0.01)
 assert(math.type(J.decode("9223372036854775808")) == "float", "too big for an integer: float, like serde_json's f64")

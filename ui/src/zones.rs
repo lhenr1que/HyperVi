@@ -95,16 +95,23 @@ pub const JSON_LIMIT: usize = 1 << 20;
 pub const JSON_DEPTH: usize = 32;
 
 /// `text` as JSON data, or None when it is not JSON or is over the limits (the core refuses the same: core/testdata/json-cases.txt).
+/// Levels are counted in the text, before parsing, as the core counts them: a repeated member must not hide the deeper one.
 pub fn json(text: &str) -> Option<Value> {
-    fn depth(v: &Value) -> usize {
-        match v {
-            Value::Array(a) => 1 + a.iter().map(depth).max().unwrap_or(0),
-            Value::Object(o) => 1 + o.values().map(depth).max().unwrap_or(0),
-            _ => 0,
+    let (mut depth, mut deepest, mut in_string, mut escaped) = (0usize, 0usize, false, false);
+    for b in text.bytes() {
+        if in_string {
+            if escaped { escaped = false } else if b == b'\\' { escaped = true } else if b == b'"' { in_string = false }
+        } else {
+            match b {
+                b'"' => in_string = true,
+                b'[' | b'{' => { depth += 1; deepest = deepest.max(depth) }
+                b']' | b'}' => depth = depth.saturating_sub(1),
+                _ => {}
+            }
         }
     }
-    if text.len() > JSON_LIMIT { return None }
-    serde_json::from_str(text).ok().filter(|v| depth(v) <= JSON_DEPTH)
+    if text.len() > JSON_LIMIT || deepest > JSON_DEPTH { return None }
+    serde_json::from_str(text).ok()
 }
 
 /// The text of `path`, reading at most JSON_LIMIT + 1 bytes (enough for `json` to refuse a larger file); None when absent or not UTF-8.
