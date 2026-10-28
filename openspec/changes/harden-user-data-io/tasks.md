@@ -20,8 +20,8 @@
 
 ## 4. Gravação confiável na interface
 
-- [ ] 4.1 Adicionar testes Rust para falhas de leitura, backup e rename; mostrar que o helper atual ignora falha de backup, sem depender de permissões reais de ~/.config.
-- [ ] 4.2 Reforçar write_atomic e chamadores em settings/shortcut/editor; verificar arquivo anterior preservado, temporários removidos quando possível e ausência de dispatch de aplicação quando o save falha. Documentar diagnóstico de gravação no contrato existente.
+- [x] 4.1 Adicionar testes Rust para falhas de leitura, backup e rename; mostrar que o helper atual ignora falha de backup, sem depender de permissões reais de ~/.config.
+- [x] 4.2 Reforçar write_atomic e chamadores em settings/shortcut/editor; verificar arquivo anterior preservado, temporários removidos quando possível e ausência de dispatch de aplicação quando o save falha. Documentar diagnóstico de gravação no contrato existente.
 
 ## 5. Integração e revisão
 

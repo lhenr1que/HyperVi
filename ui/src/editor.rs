@@ -35,6 +35,7 @@ fn t(en: &'static str) -> &'static str {
         "Load layout..." => "Carregar layout...",
         "Save" => "Salvar",
         "Cancel" => "Cancelar",
+        "Could not save" => "Não foi possível salvar",
         "Name" => "Nome",
         "My layout" => "Meu layout",
         other => other,
@@ -196,15 +197,19 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
         let a = app.clone();
         cancel.connect_clicked(move |_| a.quit());
         let (a, ed2, name2, pad2) = (app.clone(), ed.clone(), name.clone(), pad.clone());
-        save.connect_clicked(move |_| {
+        save.connect_clicked(move |b| {
             let label = zones::clean_label(&name2.text());
             let label = if label.is_empty() { t("My layout").to_string() } else { label };
             let l = Layout { name: zones::slug(&label), label, gap: Some(pad2.value() as i64), zones: ed2.zones.borrow().clone() };
-            if zones::save(l.clone()).is_ok() {
-                // set_layout re-reads the file, activates the layout and republishes the zones to the plugin
-                let _ = Command::new("hyprctl").args(["eval", &format!("require('kwinish').window_action('','layout:{}')", l.name)]).spawn();
+            match zones::save(l.clone()) {
+                Ok(()) => {
+                    // set_layout re-reads the file, activates the layout and republishes the zones to the plugin
+                    let _ = Command::new("hyprctl").args(["eval", &format!("require('kwinish').window_action('','layout:{}')", l.name)]).spawn();
+                    a.quit();
+                }
+                // nothing is activated and the drawing stays open, so it is not lost; the reason goes to stderr
+                Err(e) => { eprintln!("kwinish-ui: cannot write {}: {e}", zones::file_path().display()); b.set_label(t("Could not save")); }
             }
-            a.quit();
         });
         let keys = gtk4::EventControllerKey::new();
         let a = app.clone();

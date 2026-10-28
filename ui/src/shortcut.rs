@@ -57,6 +57,7 @@ fn t(en: &'static str) -> &'static str {
         "needs SUPER, CTRL or ALT" => "precisa de SUPER, CTRL ou ALT",
         "is already used" => "já está em uso",
         "could not read the current binds" => "não consegui ler os atalhos atuais",
+        "could not save the shortcut" => "não consegui salvar o atalho",
         "The Kwinish core is not up to date: reload Hyprland and try again" => "O núcleo do Kwinish não está atualizado: recarregue o Hyprland e tente de novo",
         other => other,
     }
@@ -147,7 +148,14 @@ pub fn run(addr: String) -> glib::ExitCode {
                 if map.get(class.as_str()) != Some(&c) && conflicts(&binds, mask, &name) { err.set_text(&format!("{c} {}", t("is already used"))); return glib::Propagation::Stop }
                 map.insert(class.to_string(), c);
             }
-            if save(&map).is_ok() { submap("reset"); let _ = Command::new("hyprctl").arg("reload").spawn(); }
+            if let Err(e) = save(&map) {
+                // nothing changed and nothing is reloaded: say why and stay open, like the refusals above (Esc leaves)
+                eprintln!("kwinish-ui: cannot write {}: {e}", file_path().display());
+                err.set_text(t("could not save the shortcut"));
+                return glib::Propagation::Stop
+            }
+            submap("reset");
+            let _ = Command::new("hyprctl").arg("reload").spawn();
             *done.borrow_mut() = true;
             app2.quit();
             glib::Propagation::Stop
