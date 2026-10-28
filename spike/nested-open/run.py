@@ -232,6 +232,31 @@ def run(case, out):
             deadline = time.monotonic() + 3
             while clients(signature) and time.monotonic() < deadline:
                 time.sleep(0.03)
+        elif case == "maximize":
+            # What a shell reading `workspaces -j` sees for the bar's maximize button (the plugin's `fullscreen 1`).
+            proc = subprocess.Popen(["kitty", "--config", "NONE", "--class", "kwinish-nested-probe", "-o", "linux_display_server=wayland",
+                                     "-o", "confirm_os_window_close=0", "/usr/bin/sleep", "20"], env=nested_env(),
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                deadline = time.monotonic() + 5
+                while not clients(signature) and time.monotonic() < deadline:
+                    time.sleep(0.03)
+                steps = []
+                # The core's menu path; the plugin calls the same toggle in-process as the `fullscreen 1` dispatcher.
+                for label, mode in (("none", None), ("maximized", "maximized"), ("back", "maximized"), ("fullscreen", "fullscreen"), ("off", "fullscreen")):
+                    if mode is not None:
+                        ctl(signature, "eval", 'hl.dispatch(hl.dsp.window.fullscreen({ mode = "%s" }))' % mode)
+                        time.sleep(0.4)
+                    steps.append({"step": label, "workspaces": [{k: w[k] for k in ("name", "hasfullscreen")}
+                                                                 for w in json.loads(ctl(signature, "workspaces", "-j"))],
+                                  "clients": [{k: c[k] for k in ("fullscreen", "fullscreenClient", "at", "size")}
+                                              for c in clients(signature)]})
+                write_json(out / "maximize-steps.json", steps)
+            finally:
+                stop_kitty(proc)
+            deadline = time.monotonic() + 3
+            while clients(signature) and time.monotonic() < deadline:
+                time.sleep(0.03)
         elif case in RULE_CASES:
             # One rule per run: by class (known before the first configure) or by workspace with a fixed size.
             (out / "rule-enable.txt").write_text(ctl(signature, "eval", RULE_CASES[case]))
@@ -285,7 +310,7 @@ def run(case, out):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "rules-mode", "core", "core-mode", *RULE_CASES))
+    parser.add_argument("case", choices=("baseline", "early-log", "early-mutate", "rules", "rules-mode", "core", "core-mode", "maximize", *RULE_CASES))
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     run(args.case, args.out.resolve())
