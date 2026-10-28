@@ -1,5 +1,5 @@
--- JSON reader for the user's files. Pure Lua, no `load`: the files are read while Hyprland loads its config, and code in them could
--- hang the compositor. Decodes RFC 8259 JSON as plain data, refusing the whole document on any error; accepts and refuses what
+-- JSON reader and atomic writer for the user's files. Pure Lua, no `load`: the files are read while Hyprland loads its config, and
+-- code in them could hang the compositor. Decodes RFC 8259 JSON as plain data, refusing the whole document on any error; accepts and refuses what
 -- serde_json (kwinish-ui) does, checked by core/testdata/json-cases.txt. Limits: 1 MiB of text, 32 levels of arrays/objects.
 local M = {}
 
@@ -128,6 +128,41 @@ function M.read(path)
   local text = f:read(M.LIMIT + 1)
   f:close()
   return text
+end
+
+local function quote(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
+
+-- Publish `text` at `path` through a temporary file in the same directory and a rename, so readers see the old file or the new
+-- one, never a part. With `check` (text -> true when the reader accepts it), an existing file that fails it is first copied byte
+-- for byte to `<path>.bak`; if it cannot be read or copied, nothing is written. Returns true, or nil and the reason; on any
+-- failure the old file is left as it was. `fs` replaces open/rename/remove/mkdir in tests.
+function M.write(path, text, check, fs)
+  fs = fs or { open = io.open, rename = os.rename, remove = os.remove,
+    mkdir = function(dir) return os.execute("mkdir -p " .. quote(dir)) end }
+  if type(text) ~= "string" then return nil, "nothing to write" end
+  local dir = path:match("^(.*)/[^/]*$")
+  if dir and dir ~= "" then fs.mkdir(dir) end
+  if check then
+    local f = fs.open(path, "rb")
+    if f then
+      local old, err = f:read("a")
+      f:close()
+      if not old then return nil, "cannot read " .. path .. ": " .. tostring(err) end
+      if old:match("%S") and not check(old) then
+        local ok, berr = M.write(path .. ".bak", old, nil, fs)
+        if not ok then return nil, "cannot keep a copy of " .. path .. ": " .. tostring(berr) end
+      end
+    end
+  end
+  local tmp = path .. ".tmp"
+  local f, err = fs.open(tmp, "wb")
+  if not f then return nil, err end
+  local wrote, werr = f:write(text)
+  local closed, cerr = f:close()
+  if not wrote or not closed then fs.remove(tmp); return nil, werr or cerr end
+  local renamed, rerr = fs.rename(tmp, path)
+  if not renamed then fs.remove(tmp); return nil, rerr end
+  return true
 end
 
 return M

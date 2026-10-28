@@ -72,4 +72,59 @@ assert(J.read(file) == "{}")
 os.remove(file)
 assert(J.read(file) == nil, "missing file")
 
+-- write: a temporary file in the same directory and a rename. Tested on a file system in memory where one operation fails.
+local function fakefs(files, fail)
+  local fs = {}
+  function fs.mkdir() return true end
+  function fs.open(path, mode)
+    if fail == "open:" .. path then return nil, path .. ": open failed" end
+    if mode:match("r") then
+      if files[path] == nil then return nil, path .. ": absent" end
+      return { read = function() if fail == "read:" .. path then return nil, "read failed" end return files[path] end, close = function() return true end }
+    end
+    files[path] = "" -- "w" truncates, as io.open does
+    return {
+      write = function(self, s) if fail == "write:" .. path then return nil, "disk full" end files[path] = files[path] .. s; return self end,
+      close = function() if fail == "close:" .. path then return nil, "close failed" end return true end,
+    }
+  end
+  function fs.rename(a, b) if fail == "rename:" .. b then return nil, "rename failed" end files[b], files[a] = files[a], nil; return true end
+  function fs.remove(p) files[p] = nil; return true end
+  return fs
+end
+local P = "/cfg/kwinish/rules.json"
+local function files_after(fail, old, check, text)
+  local files = { [P] = old }
+  local ok, err = J.write(P, text == nil and "{}" or text, check, fakefs(files, fail))
+  return files, ok, err
+end
+local fs_ok, ok, err = files_after(nil, "old")
+assert(ok == true and fs_ok[P] == "{}" and fs_ok[P .. ".tmp"] == nil, "written through a temporary file, none left")
+for _, fail in ipairs({ "open:" .. P .. ".tmp", "write:" .. P .. ".tmp", "close:" .. P .. ".tmp", "rename:" .. P }) do
+  local files, ok2, err2 = files_after(fail, "old bytes")
+  assert(ok2 == nil and type(err2) == "string", fail .. ": failure reported")
+  assert(files[P] == "old bytes" and files[P .. ".tmp"] == nil, fail .. ": old file intact, temporary removed")
+  files = files_after(fail, nil)
+  assert(files[P] == nil and files[P .. ".tmp"] == nil, fail .. ": first write leaves no file")
+end
+local files = files_after(nil, "old", nil, false)
+assert(files[P] == "old", "nothing to write (serialization failed): nothing touched")
+-- check: an existing file the reader refuses is kept byte for byte before being replaced, and is never lost
+local function object(t) return J.is_object((J.decode(t))) end
+files = files_after(nil, '{"kitty":{"above":true}', object)
+assert(files[P] == "{}" and files[P .. ".bak"] == '{"kitty":{"above":true}', "refused file copied to .bak, then replaced")
+files = files_after(nil, '{"kitty":{}}', object)
+assert(files[P] == "{}" and files[P .. ".bak"] == nil, "a valid file needs no copy")
+files = files_after(nil, " \n", object)
+assert(files[P] == "{}" and files[P .. ".bak"] == nil, "an empty file needs no copy")
+for _, fail in ipairs({ "write:" .. P .. ".bak.tmp", "rename:" .. P .. ".bak", "read:" .. P }) do
+  files, ok, err = files_after(fail, "not json", object)
+  assert(ok == nil and err and files[P] == "not json" and files[P .. ".tmp"] == nil, fail .. ": no copy, no replacement")
+end
+-- the real thing, in a new directory (created by write)
+local base = os.tmpname(); os.remove(base)
+local real = base .. "/sub/x.json"
+assert(J.write(real, '{"a":1}') == true and J.read(real) == '{"a":1}' and io.open(real .. ".tmp") == nil, "real write")
+os.remove(real); os.remove(base .. "/sub"); os.remove(base)
+
 print("kwjson ok")

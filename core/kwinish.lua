@@ -254,12 +254,18 @@ end
 
 local function load_rules() return read_cfg("rules.json", rules.parse) end
 
+-- Write a file of cfg_dir() atomically (kwjson.write). With `object`, an existing file that is not a JSON object (one the reader
+-- refuses) is kept as <name>.bak first. Returns true, or false after one stderr line; the old file is then untouched.
+local function json_object(text) return kwjson.is_object((kwjson.decode(text))) end
+local function save_cfg(name, text, object)
+  local ok, err = kwjson.write(cfg_dir() .. "/" .. name, text, object and json_object or nil)
+  if not ok then io.stderr:write("kwinish: cannot write ", name, ": ", tostring(err), "\n") end
+  return ok == true
+end
+
 local function save_rules(r)
-  os.execute("mkdir -p '" .. cfg_dir() .. "'")
-  local ok, text = pcall(rules.serialize, r) -- before opening: a failure must not leave a truncated file
-  if not ok then return end
-  local f = io.open(cfg_dir() .. "/rules.json", "w")
-  if f then f:write(text, "\n"); f:close() end
+  local ok, text = pcall(rules.serialize, r) -- serialized before anything is opened
+  return save_cfg("rules.json", ok and text .. "\n", true)
 end
 
 function M.apply_rules(w)
@@ -502,10 +508,7 @@ function M.set_layout(name)
   load_user_layouts() -- the editor may have just saved
   if name ~= "off" and not layouts.find(name) then return end
   M.layout = name
-  local dir, file = layout_file()
-  os.execute("mkdir -p '" .. dir .. "'")
-  local f = io.open(file, "w")
-  if f then f:write(name, "\n"); f:close() end
+  save_cfg("layout", name .. "\n")
   M.publish_zones()
 end
 
@@ -548,11 +551,7 @@ local mode_cascade = 0
 
 local function load_modes() return read_cfg("workspace-modes.json", modes.parse) end
 
-local function save_modes(t)
-  os.execute("mkdir -p '" .. cfg_dir() .. "'")
-  local f = io.open(cfg_dir() .. "/workspace-modes.json", "w")
-  if f then f:write(modes.serialize(t), "\n"); f:close() end
-end
+local function save_modes(t) return save_cfg("workspace-modes.json", modes.serialize(t) .. "\n", true) end
 
 -- A window's floating rectangle is kept in a tag (kwinish-rect-X-Y-W-H, X and Y shifted by 10000 to stay positive) when the mode
 -- ends, and put back when it begins again: Hyprland itself does not return a re-floated window to where it was.
@@ -675,9 +674,7 @@ function M.set_scrolling_columns(ws, n, keep) -- keep: address of the window tha
   if not ws or ws < 1 or not n or n < 1 or n > 3 then return end
   local cols = load_columns()
   if cols[tostring(ws)] == n then cols[tostring(ws)] = nil else cols[tostring(ws)] = n end
-  os.execute("mkdir -p '" .. cfg_dir() .. "'")
-  local f = io.open(cfg_dir() .. "/workspace-columns.json", "w")
-  if f then f:write(modes.serialize_columns(cols), "\n"); f:close() end
+  save_cfg("workspace-columns.json", modes.serialize_columns(cols) .. "\n", true)
   if cols[tostring(ws)] then
     if load_modes()[tostring(ws)] ~= "scrolling" then
       M.set_workspace_mode(ws, "scrolling")

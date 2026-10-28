@@ -13,9 +13,14 @@ os.getenv = function(key)
   if key:match("^XDG_.*_HOME$") or key == "XDG_RUNTIME_DIR" then return tmp .. "/" .. key end
   return getenv(key)
 end
+local failing_write -- while set, writes to any file opened for writing under a path containing it fail (a full disk)
 io.open = function(path, mode)
   assert(type(path) == "string" and path:sub(1, #tmp + 1) == tmp .. "/" and not path:find("..", 1, true), "state escaped temporary directory")
-  return open(path, mode)
+  local f, err = open(path, mode)
+  if f and failing_write and (mode or "r"):match("[wa]") and path:find(failing_write, 1, true) then
+    return { write = function() return nil, "No space left on device" end, close = function() return f:close() end }
+  end
+  return f, err
 end
 os.execute = function(cmd)
   assert(cmd == "mkdir -p '" .. tmp .. "/XDG_CONFIG_HOME/kwinish'" or cmd == "mkdir -p '" .. tmp .. "/XDG_RUNTIME_DIR/kwinish'", "unexpected core command: " .. cmd)
@@ -413,6 +418,37 @@ local function run()
   rect(loose, 40, 50, 400, 300)
   kw.window_action(loose.address, "zone:3")
   assert(loose.size[1] > 0 and loose.at[1] > 900, "usable zone still works")
+
+  -- a failed write leaves the old bytes and no temporary file, and is reported (rules, modes, columns, active layout)
+  local cfg = tmp .. "/XDG_CONFIG_HOME/kwinish/"
+  local function put(file, text) local h = assert(io.open(cfg .. file, "w")); h:write(text); h:close() end
+  local before = { ["rules.json"] = '{"Test":{"above":true}}', ["workspace-modes.json"] = '{"2":"floating"}', ["workspace-columns.json"] = '{"2":2}', layout = "halves\n" }
+  for file, text in pairs(before) do put(file, text) end
+  said = {}
+  io.stderr = { write = function(_, ...) said[#said + 1] = table.concat({ ... }) end }
+  failing_write = cfg
+  kw.window_action(a.address, "rule:below")
+  kw.set_workspace_mode(2, "tiling")
+  kw.set_scrolling_columns(2, 3)
+  kw.set_layout("grid")
+  failing_write = nil
+  io.stderr = stderr
+  for file, text in pairs(before) do
+    assert(state(file) == text, file .. " lost its bytes to a failed write: " .. state(file))
+    assert(io.open(cfg .. file .. ".tmp") == nil, file .. ": temporary file left")
+  end
+  assert(#said >= 4 and table.concat(said):find("kwinish: cannot write rules.json", 1, true), "failed writes reported: " .. table.concat(said, " | "))
+  -- a rules.json the reader refuses is copied to rules.json.bak before it is replaced; without that copy nothing is replaced
+  put("rules.json", '{"Test":{"above":true}')
+  kw.window_action(a.address, "rule:below")
+  assert(state("rules.json.bak") == '{"Test":{"above":true}', "refused rules.json kept as .bak")
+  assert(require("rules").parse(state("rules.json")).Test.below, "then replaced")
+  put("rules.json", "not json")
+  io.stderr = { write = function() end }
+  failing_write = "rules.json.bak"
+  kw.window_action(a.address, "rule:below")
+  failing_write, io.stderr = nil, stderr
+  assert(state("rules.json") == "not json", "no copy, no replacement")
 end
 
 local ok, err = xpcall(run, debug.traceback)
