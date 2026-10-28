@@ -155,29 +155,41 @@ pub fn render(layouts: &[Layout]) -> String {
 
 pub fn load() -> Vec<Layout> { read_text(&file_path()).map(|t| parse(&t)).unwrap_or_default() }
 
-/// Write `text` to `path` through a temporary file and a rename, so a crash or a second writer never leaves a half-written file. A file
-/// that exists but does not parse (`parses`, the reader's own test) is first copied byte for byte to `<name>.bak`, since saving over it
-/// would silently drop whatever it held. Nothing is written when that file cannot be read or copied; on any error the old file is left
-/// as it was and the temporary file is removed.
+/// Write `text` to `path` through a temporary file and a rename, so a crash or a second writer never leaves a half-written file.
+/// `parses` is the reader's own test: `text` must pass it, and a file that exists but fails it (judged on its first JSON_LIMIT + 1
+/// bytes, as the reader reads it) is first copied byte for byte to `<name>.bak`, since saving over it would silently drop whatever
+/// it held. An old file that cannot be read, or a copy that cannot be made, stops the save; on any error the old file is left as it
+/// was and the temporary file is removed.
 pub fn write_atomic(path: &std::path::Path, text: &str, parses: impl Fn(&str) -> bool) -> std::io::Result<()> {
+    use std::io::{Read, Write};
+    if !parses(text) { return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "the new text would be refused by its own reader")) }
     if let Some(d) = path.parent() { std::fs::create_dir_all(d)?; }
-    match std::fs::read(path) {
-        Ok(old) => {
-            let blank = String::from_utf8_lossy(&old).trim().is_empty();
-            if !blank && !std::str::from_utf8(&old).is_ok_and(&parses) { publish(&path.with_extension("json.bak"), &old, |a, b| std::fs::rename(a, b))?; }
+    match std::fs::File::open(path) {
+        Ok(f) => {
+            let mut head = vec![];
+            f.take(JSON_LIMIT as u64 + 1).read_to_end(&mut head)?;
+            // an empty file has nothing to keep; anything else the reader refuses is copied whole, in blocks
+            if !head.is_empty() && !std::str::from_utf8(&head).is_ok_and(&parses) {
+                publish(&path.with_extension("json.bak"), |out| std::io::copy(&mut std::fs::File::open(path)?, out).map(|_| ()), |a, b| std::fs::rename(a, b))?;
+            }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(e),
     }
-    publish(path, text.as_bytes(), |a, b| std::fs::rename(a, b))
+    publish(path, |out| out.write_all(text.as_bytes()), |a, b| std::fs::rename(a, b))
 }
 
-/// `bytes` to `path` through `<path>.tmp<pid>` and `rename` (a parameter so tests can make it fail); the temporary file goes on error.
-fn publish(path: &std::path::Path, bytes: &[u8], rename: impl Fn(&std::path::Path, &std::path::Path) -> std::io::Result<()>) -> std::io::Result<()> {
+/// `fill` writes the content to `<path>.tmp<pid>`, which `rename` (a parameter so tests can make it fail) then puts in place; the
+/// temporary file goes on error. sync_all reports the write errors that closing the file would otherwise drop.
+fn publish(
+    path: &std::path::Path,
+    fill: impl FnOnce(&mut std::fs::File) -> std::io::Result<()>,
+    rename: impl Fn(&std::path::Path, &std::path::Path) -> std::io::Result<()>,
+) -> std::io::Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(format!(".tmp{}", std::process::id()));
     let tmp = PathBuf::from(tmp);
-    let done = std::fs::write(&tmp, bytes).and_then(|_| rename(&tmp, path));
+    let done = std::fs::File::create(&tmp).and_then(|mut f| { fill(&mut f)?; f.sync_all() }).and_then(|_| rename(&tmp, path));
     if done.is_err() { let _ = std::fs::remove_file(&tmp); }
     done
 }
@@ -389,10 +401,35 @@ mod tests {
         let d = scratch("rename");
         let p = d.join("layouts.json");
         std::fs::write(&p, "[1]").unwrap();
-        let e = publish(&p, b"[]", |_, _| Err(std::io::Error::other("simulated"))).unwrap_err();
+        let e = publish(&p, |f| std::io::Write::write_all(f, b"[]"), |_, _| Err(std::io::Error::other("simulated"))).unwrap_err();
         assert_eq!(e.to_string(), "simulated");
         assert_eq!(std::fs::read_to_string(&p).unwrap(), "[1]");
         assert!(leftovers(&d).is_empty(), "temporary file removed: {:?}", leftovers(&d));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn text_the_reader_refuses_is_never_written() {
+        let d = scratch("refuse");
+        let p = d.join("settings.json");
+        std::fs::write(&p, "{}").unwrap();
+        assert!(write_atomic(&p, "[1]", |t| json(t).is_some_and(|v| v.is_object())).is_err());
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "{}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn whitespace_is_kept_an_empty_file_is_not() {
+        let d = scratch("blank");
+        let p = d.join("shortcuts.json");
+        let object = |t: &str| json(t).is_some_and(|v| v.is_object());
+        std::fs::write(&p, " \n").unwrap();
+        write_atomic(&p, "{}", object).unwrap();
+        assert_eq!(std::fs::read_to_string(p.with_extension("json.bak")).unwrap(), " \n", "refused by the reader, so kept");
+        std::fs::remove_file(p.with_extension("json.bak")).unwrap();
+        std::fs::write(&p, "").unwrap();
+        write_atomic(&p, "{}", object).unwrap();
+        assert!(!p.with_extension("json.bak").exists(), "nothing to keep");
         let _ = std::fs::remove_dir_all(&d);
     }
 

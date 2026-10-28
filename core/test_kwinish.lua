@@ -16,11 +16,11 @@ end
 local failing_write -- while set, writes to any file opened for writing under a path containing it fail (a full disk)
 io.open = function(path, mode)
   assert(type(path) == "string" and path:sub(1, #tmp + 1) == tmp .. "/" and not path:find("..", 1, true), "state escaped temporary directory")
-  local f, err = open(path, mode)
+  local f, err, code = open(path, mode)
   if f and failing_write and (mode or "r"):match("[wa]") and path:find(failing_write, 1, true) then
     return { write = function() return nil, "No space left on device" end, close = function() return f:close() end }
   end
-  return f, err
+  return f, err, code -- the errno too, as io.open gives it
 end
 os.execute = function(cmd)
   assert(cmd == "mkdir -p '" .. tmp .. "/XDG_CONFIG_HOME/kwinish'" or cmd == "mkdir -p '" .. tmp .. "/XDG_RUNTIME_DIR/kwinish'", "unexpected core command: " .. cmd)

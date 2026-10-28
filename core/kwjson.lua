@@ -135,32 +135,13 @@ end
 function M.quote(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
 local quote = M.quote
 
--- Publish `text` at `path` through a temporary file in the same directory and a rename, so readers see the old file or the new
--- one, never a part. With `check` (text -> true when the reader accepts it), an existing file that fails it is first copied byte
--- for byte to `<path>.bak`; if it cannot be read or copied, nothing is written. Returns true, or nil and the reason; on any
--- failure the old file is left as it was. `fs` replaces open/rename/remove/mkdir in tests.
-function M.write(path, text, check, fs)
-  fs = fs or { open = io.open, rename = os.rename, remove = os.remove,
-    mkdir = function(dir) return os.execute("mkdir -p " .. quote(dir)) end }
-  if type(text) ~= "string" then return nil, "nothing to write" end
-  local dir = path:match("^(.*)/[^/]*$")
-  if dir and dir ~= "" then fs.mkdir(dir) end
-  if check then
-    local f = fs.open(path, "rb")
-    if f then
-      local old, err = f:read("a")
-      f:close()
-      if not old then return nil, "cannot read " .. path .. ": " .. tostring(err) end
-      if old:match("%S") and not check(old) then
-        local ok, berr = M.write(path .. ".bak", old, nil, fs)
-        if not ok then return nil, "cannot keep a copy of " .. path .. ": " .. tostring(berr) end
-      end
-    end
-  end
+-- `fill(f)` writes the content to an open temporary file next to `path`, which a rename then puts in place; the temporary file
+-- goes on any error. Returns true, or nil and the reason.
+local function publish(path, fill, fs)
   local tmp = path .. ".tmp"
   local f, err = fs.open(tmp, "wb")
   if not f then return nil, err end
-  local wrote, werr = f:write(text)
+  local wrote, werr = fill(f)
   local closed, cerr = f:close()
   if not wrote or not closed then fs.remove(tmp); return nil, werr or cerr end
   local renamed, rerr = fs.rename(tmp, path)
@@ -168,4 +149,40 @@ function M.write(path, text, check, fs)
   return true
 end
 
+-- Publish `text` at `path` through a temporary file in the same directory and a rename, so readers see the old file or the new
+-- one, never a part. With `check` (text -> true when the reader accepts it), `text` must pass it, and an existing file that fails
+-- it (judged on its first LIMIT + 1 bytes, as the reader reads it) is first copied byte for byte, in blocks, to `<path>.bak`;
+-- an old file that cannot be opened (other than absent), read or copied stops the write. Returns true, or nil and the reason; on
+-- any failure the old file is left as it was. `fs` replaces open/rename/remove/mkdir in tests.
+function M.write(path, text, check, fs)
+  fs = fs or { open = io.open, rename = os.rename, remove = os.remove,
+    mkdir = function(dir) return os.execute("mkdir -p " .. quote(dir)) end }
+  if type(text) ~= "string" then return nil, "nothing to write" end
+  if check and not check(text) then return nil, "the new text would be refused by its own reader" end
+  local dir = path:match("^(.*)/[^/]*$")
+  if dir and dir ~= "" then fs.mkdir(dir) end
+  if check then
+    local old, oerr, code = fs.open(path, "rb")
+    if not old and code ~= 2 then return nil, "cannot read " .. path .. ": " .. tostring(oerr) end -- 2: ENOENT, the first write
+    if old then
+      local head, rerr = old:read(M.LIMIT + 1)
+      local ok, why = rerr == nil, "cannot read " .. path .. ": " .. tostring(rerr)
+      if ok and head and not check(head) then -- an empty file has nothing to keep
+        ok, why = publish(path .. ".bak", function(out)
+          local done, err = out:write(head)
+          while done do
+            local block, berr = old:read(65536)
+            if not block then if berr then return nil, berr end break end
+            done, err = out:write(block)
+          end
+          return done, err
+        end, fs)
+        why = "cannot keep a copy of " .. path .. ": " .. tostring(why)
+      end
+      old:close()
+      if not ok then return nil, why end
+    end
+  end
+  return publish(path, function(out) return out:write(text) end, fs)
+end
 return M

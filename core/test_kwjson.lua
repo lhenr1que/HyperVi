@@ -80,10 +80,17 @@ local function fakefs(files, fail)
   local fs = {}
   function fs.mkdir() return true end
   function fs.open(path, mode)
-    if fail == "open:" .. path then return nil, path .. ": open failed" end
+    if fail == "open:" .. path then return nil, path .. ": Permission denied", 13 end
     if mode:match("r") then
-      if files[path] == nil then return nil, path .. ": absent" end
-      return { read = function() if fail == "read:" .. path then return nil, "read failed" end return files[path] end, close = function() return true end }
+      if files[path] == nil then return nil, path .. ": No such file or directory", 2 end
+      local at = 1
+      return { close = function() return true end, read = function(_, n)
+        if fail == "read:" .. path then return nil, "read failed", 5 end
+        assert(type(n) == "number", "the old file must be read in bounded blocks, not whole")
+        local s = files[path]:sub(at, at + n - 1); at = at + n
+        if s == "" then return nil end
+        return s
+      end }
     end
     files[path] = "" -- "w" truncates, as io.open does
     return {
@@ -112,6 +119,8 @@ for _, fail in ipairs({ "open:" .. P .. ".tmp", "write:" .. P .. ".tmp", "close:
 end
 local files = files_after(nil, "old", nil, false)
 assert(files[P] == "old", "nothing to write (serialization failed): nothing touched")
+files, ok, err = files_after("open:" .. P, "old bytes", function() return true end)
+assert(ok == nil and err and files[P] == "old bytes" and files[P .. ".tmp"] == nil, "an old file that cannot be opened is not taken for an absent one")
 -- check: an existing file the reader refuses is kept byte for byte before being replaced, and is never lost
 local function object(t) return J.is_object((J.decode(t))) end
 files = files_after(nil, '{"kitty":{"above":true}', object)
@@ -119,7 +128,14 @@ assert(files[P] == "{}" and files[P .. ".bak"] == '{"kitty":{"above":true}', "re
 files = files_after(nil, '{"kitty":{}}', object)
 assert(files[P] == "{}" and files[P .. ".bak"] == nil, "a valid file needs no copy")
 files = files_after(nil, " \n", object)
-assert(files[P] == "{}" and files[P .. ".bak"] == nil, "an empty file needs no copy")
+assert(files[P] == "{}" and files[P .. ".bak"] == " \n", "whitespace is refused by the reader too, so it is kept")
+files = files_after(nil, "", object)
+assert(files[P] == "{}" and files[P .. ".bak"] == nil, "an empty file has nothing to keep")
+local huge = string.rep("x", 2 * J.LIMIT + 5)
+files = files_after(nil, huge, object)
+assert(files[P] == "{}" and files[P .. ".bak"] == huge, "a file over the limit is copied whole, in blocks")
+files, ok, err = files_after(nil, "old", object, "[1]")
+assert(ok == nil and err and files[P] == "old", "text its own reader would refuse is never published")
 for _, fail in ipairs({ "write:" .. P .. ".bak.tmp", "rename:" .. P .. ".bak", "read:" .. P }) do
   files, ok, err = files_after(fail, "not json", object)
   assert(ok == nil and err and files[P] == "not json" and files[P .. ".tmp"] == nil, fail .. ": no copy, no replacement")
@@ -130,6 +146,12 @@ assert(io.popen("printf %s " .. J.quote("it's $HOME `x`")):read("a") == "it's $H
 local base = os.tmpname(); os.remove(base)
 local real = base .. "/sub/x.json"
 assert(J.write(real, '{"a":1}') == true and J.read(real) == '{"a":1}' and io.open(real .. ".tmp") == nil, "real write")
+os.execute("chmod 000 " .. J.quote(real))
+if not io.open(real) then -- not root: the file is there but cannot be read
+  assert(J.write(real, "{}", object) == nil, "an unreadable file is not replaced")
+  os.execute("chmod 644 " .. J.quote(real))
+  assert(J.read(real) == '{"a":1}' and io.open(real .. ".bak") == nil, "and left as it was")
+else os.execute("chmod 644 " .. J.quote(real)) end
 os.remove(real); os.remove(base .. "/sub"); os.remove(base)
 
 print("kwjson ok")
