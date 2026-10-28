@@ -17,6 +17,10 @@ O sistema SHALL interpretar arquivos JSON exclusivamente como dados e rejeitar c
 - **WHEN** um arquivo excede 1 MiB ou 32 níveis de aninhamento
 - **THEN** o leitor recusa o conteúdo antes de processá-lo integralmente e não aplica entradas extraídas por busca textual
 
+#### Scenario: Leitura pela interface
+- **WHEN** `kwinish-ui` lê um arquivo de configuração ou runtime acima dos limites
+- **THEN** trata o conteúdo como inválido, como o núcleo, e uma gravação posterior preserva o original em backup antes de substituí-lo
+
 ### Requirement: Estrutura dos documentos é respeitada
 O sistema SHALL aplicar somente entradas no nível e tipo de raiz definidos pelo contrato de cada arquivo. Erros de sintaxe ou tipo de raiz invalidam o documento; entradas semanticamente inválidas num documento válido SHALL ser descartadas individualmente. Campos desconhecidos SHALL ser ignorados.
 
@@ -31,6 +35,10 @@ O sistema SHALL aplicar somente entradas no nível e tipo de raiz definidos pelo
 #### Scenario: Documento truncado
 - **WHEN** um documento contém uma entrada aparentemente válida mas termina com sintaxe incompleta
 - **THEN** nenhuma entrada desse documento é aplicada
+
+#### Scenario: Interface mostra o que o núcleo aplica
+- **WHEN** rules.json traz `{"kitty":{"above":"yes"}}` ou workspace-modes.json traz um modo desconhecido
+- **THEN** o menu da janela não marca a regra nem o modo, como o núcleo não os aplica
 
 ### Requirement: Layouts têm os mesmos limites no núcleo e na interface
 O sistema SHALL usar validação equivalente em Lua e Rust para os layouts do contrato existente. Gap inteiro fora de 0–60 SHALL ser limitado a esse intervalo; gap ausente ou de tipo inválido SHALL usar o padrão. Nenhuma zona SHALL ser publicada com largura ou altura não positiva ou coordenadas não finitas.

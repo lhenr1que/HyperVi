@@ -23,6 +23,6 @@ Nenhuma especificação principal existente; os contratos atuais estão em `docs
 
 ## Impact
 
-`core/rules.lua`, `layouts.lua`, `settings.lua`, `modes.lua` e seus testes; leitores/escritores em `core/kwinish.lua`, `switcher.lua`, `assist.lua`; helper compartilhado novo em Lua; `ui/src/zones.rs` e chamadores (`settings`, `shortcut`, editor); `packaging/PKGBUILD` para instalar/testar o helper; `docs/API.md` e `CONFIGURAVEL.md`.
+`core/rules.lua`, `layouts.lua`, `settings.lua`, `modes.lua` e seus testes; leitores/escritores em `core/kwinish.lua`, `switcher.lua`, `assist.lua`; helper compartilhado novo em Lua; `ui/src/zones.rs` e chamadores (`settings`, `shortcut`, editor) e os leitores de `menu.rs`, `main.rs` e `assist.rs`; `packaging/PKGBUILD` para instalar/testar o helper; `docs/API.md` e `CONFIGURAVEL.md`.
 
 Sem mudança no plugin, sem dependência de Ryoku e sem pacote externo obrigatório novo. Fora do escopo: recuperação dos modos, sessão, bloqueios entre múltiplos editores, CI e loja de rices.

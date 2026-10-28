@@ -2,9 +2,10 @@
 
 ## 1. Leitor JSON e limites
 
-- [ ] 1.1 Criar regressões para laços em rules/layouts, JSON truncado, raiz errada e settings com campo aninhado; mostrar falha no código anterior com subprocesso e timeout para os laços, nunca dentro do Hyprland.
-- [ ] 1.2 Criar o decoder JSON Lua compartilhado; verificar com nova suíte pura para null/arrays/objetos vazios, strings escapadas/Unicode, números, trailing garbage, profundidade 32/33 e tamanho 1 MiB/1 MiB+1. Incluir o helper e a suíte nas listas do PKGBUILD; conferir instalação em staging temporário.
-- [ ] 1.3 Migrar leitores rules/layouts/settings/modes/shortcuts, limitando também a leitura do arquivo a limite+1 bytes. Rodar regressões e todas as suítes Lua com runtime temporário; documentar sintaxe, limites e política de erros em docs/API.md.
+- [ ] 1.1 Criar `core/test_userdata.lua` com regressões dos leitores Lua: laço em rules e layouts (subprocesso com `timeout`, nunca dentro do Hyprland), JSON truncado e raiz errada em rules, layouts, settings, modes, columns e shortcuts, e settings com campo aninhado. Mostrar a falha no código anterior (módulos extraídos do Git para um temporário, sem worktree).
+- [ ] 1.2 Criar o decoder JSON Lua compartilhado (`core/json.lua`); verificar com nova suíte pura (`core/test_json.lua`) para null/arrays/objetos vazios, strings escapadas/Unicode (inclusive surrogates), UTF-8 inválido, números (inclusive não finitos), trailing garbage, profundidade 32/33 e tamanho 1 MiB/1 MiB+1. Guardar os casos de aceitar/recusar numa lista de texto (`core/testdata/json-cases.txt`) que a suíte Rust da 1.4 também lê. Incluir o helper na lista de instalação do PKGBUILD (a suíte entra pelo glob do check.sh); conferir instalação em staging temporário.
+- [ ] 1.3 Migrar os leitores Lua de rules, layouts, settings, modes, columns (`workspace-columns.json`) e shortcuts, lendo no máximo limite+1 bytes num só helper, com diagnóstico em stderr uma vez por arquivo e erro. Rodar regressões e todas as suítes Lua com runtime temporário; carregar o núcleo com `Hyprland --verify-config` numa config temporária, sem sessão; documentar sintaxe, limites e política de erros em docs/API.md.
+- [ ] 1.4 Leitores Rust da `ui/` (serde_json não executa código; faltam limites e forma): criar em `ui/src/zones.rs` um leitor único que lê no máximo 1 MiB + 1 byte e recusa mais de 32 níveis (mesma contagem do Lua); testes que falham antes: 1 MiB/1 MiB+1, 32/33 níveis, UTF-8 inválido, ausente, e os casos de `core/testdata/json-cases.txt` com o mesmo resultado do Lua. Migrar todo leitor de arquivo JSON da interface: `zones::load` (layouts.json), `settings::load`, `shortcut::load`, `menu.rs` (rules.json, workspace-modes.json, workspace-columns.json), `main.rs` (switcher.json) e `assist.rs` (assist.json, duas leituras). O `parses` passado a `write_atomic` usa o mesmo leitor e a mesma raiz, para que um arquivo que a leitura recusa vá para `.bak` antes de ser substituído. As marcas do menu seguem os tipos do núcleo (regra booleana só `true`, workspace inteiro > 0, rect de 4 inteiros com w,h > 0; modo só tiling/scrolling/floating). Fora, por não serem arquivos do usuário: a saída do `hyprctl` e o arquivo de texto `layout`. Verificar com `cargo test --locked --manifest-path ui/Cargo.toml`.
 
 ## 2. Paridade de layouts
 
@@ -25,7 +26,7 @@
 ## 5. Integração e revisão
 
 - [ ] 5.1 Executar todas as suítes Lua com XDG_RUNTIME_DIR temporário, cargo test --locked e testes de staging do PKGBUILD; conferir formatos válidos antigos com fixtures e registrar resultados em docs/STATUS.md sem apresentar teste simulado como ao vivo.
-- [ ] 5.2 Revisar independentemente parser, limites e caminhos de falha de I/O; verificar que não restou load sobre dados de usuário, nem publicação direta dos arquivos abrangidos, e validar com openspec validate harden-user-data-io --strict.
+- [ ] 5.2 Revisar independentemente parser, limites e caminhos de falha de I/O; verificar que não restou load sobre dados de usuário, nem leitor de arquivo JSON em `ui/src` fora do helper com limites, nem publicação direta dos arquivos abrangidos, e validar com openspec validate harden-user-data-io --strict.
 
 ## Workflow follow-up
 
