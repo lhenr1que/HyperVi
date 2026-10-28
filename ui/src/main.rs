@@ -30,10 +30,7 @@ fn state_path() -> PathBuf {
 }
 
 fn render(win: &ApplicationWindow, row: &GtkBox, path: &PathBuf) {
-    let state: serde_json::Value = std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(serde_json::Value::Null);
+    let state = zones::read_json(path).unwrap_or(serde_json::Value::Null);
     let items = state["items"].as_array().cloned().unwrap_or_default();
     if state["open"] != true || items.is_empty() {
         win.set_visible(false);

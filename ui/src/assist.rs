@@ -19,7 +19,7 @@ window.kwa { background: alpha(#000000, 0.25); }
 pub struct Assist { pub generation: u64, pub monitor: String, pub zone: u32, pub rect: [i32; 4], pub items: Vec<(String, String, String)> } // items: address, class, title
 
 pub fn parse(json: &str) -> Option<Assist> {
-    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    let v = crate::zones::json(json)?;
     let r = v["rect"].as_array()?;
     let n = |i: usize| r.get(i).and_then(|x| x.as_i64()).map(|x| x as i32);
     let s = |it: &serde_json::Value, k: &str| it[k].as_str().unwrap_or("").to_string();
@@ -33,7 +33,7 @@ fn state_path() -> std::path::PathBuf {
 }
 
 fn same_generation(path: &std::path::Path, generation: u64) -> bool {
-    std::fs::read_to_string(path).ok().and_then(|s| parse(&s))
+    crate::zones::read_text(path).and_then(|s| parse(&s))
         .is_some_and(|a| a.generation == generation)
 }
 
@@ -45,7 +45,7 @@ fn valid_choice(path: &std::path::Path, generation: u64, addr: &str, clients: &s
 }
 
 pub fn run() -> glib::ExitCode {
-    let Some(a) = std::fs::read_to_string(state_path()).ok().and_then(|t| parse(&t)) else {
+    let Some(a) = crate::zones::read_text(&state_path()).and_then(|t| parse(&t)) else {
         eprintln!("kwinish-ui assist: no state to show");
         return glib::ExitCode::FAILURE;
     };
@@ -157,6 +157,8 @@ mod tests {
         assert_eq!(a.items, vec![("0x1".to_string(), "kitty".to_string(), "a\"b".to_string())]);
         assert!(parse(r#"{"generation":1,"monitor":"A","zone":1,"rect":[0,0,1,1],"items":[]}"#).is_none());
         assert!(parse("garbage").is_none());
+        let big = format!(r#"{{"generation":1,"monitor":"A","zone":1,"rect":[0,0,1,1],"items":[{{"address":"0x1","title":"{}"}}]}}"#, "a".repeat(1 << 20));
+        assert!(parse(&big).is_none(), "over 1 MiB, as the core's reader");
     }
 }
 

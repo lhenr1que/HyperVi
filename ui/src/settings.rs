@@ -73,7 +73,7 @@ fn live(key: &str) -> Option<Value> {
 }
 
 fn load() -> Map<String, Value> {
-    std::fs::read_to_string(file_path()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+    match crate::zones::read_json(&file_path()) { Some(Value::Object(m)) => m, _ => Map::new() }
 }
 
 /// Set one key, re-reading the file first so an edit made while the window is open is kept.
@@ -96,7 +96,7 @@ fn save(key: &str, v: Value) {
     let mut map = load();
     map.insert(key.to_string(), v);
     let text = serde_json::to_string_pretty(&map).unwrap_or_else(|_| "{}".into());
-    if let Err(e) = crate::zones::write_atomic(&file_path(), &text, |t| serde_json::from_str::<Value>(t).is_ok()) {
+    if let Err(e) = crate::zones::write_atomic(&file_path(), &text, |t| crate::zones::json(t).is_some_and(|v| v.is_object())) {
         eprintln!("kwinish-ui: cannot write {}: {e}", file_path().display());
         return;
     }

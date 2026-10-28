@@ -40,12 +40,12 @@ pub fn conflicts(binds_json: &str, mask: u32, key: &str) -> bool {
 pub fn file_path() -> std::path::PathBuf { crate::zones::file_path().with_file_name("shortcuts.json") }
 
 pub fn load() -> BTreeMap<String, String> {
-    let v: Value = std::fs::read_to_string(file_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let v: Value = crate::zones::read_json(&file_path()).unwrap_or_default();
     v.as_object().map(|o| o.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect()).unwrap_or_default()
 }
 
 pub fn save(map: &BTreeMap<String, String>) -> std::io::Result<()> {
-    crate::zones::write_atomic(&file_path(), &serde_json::to_string_pretty(map).unwrap_or_else(|_| "{}".into()), |t| serde_json::from_str::<Value>(t).is_ok())
+    crate::zones::write_atomic(&file_path(), &serde_json::to_string_pretty(map).unwrap_or_else(|_| "{}".into()), |t| crate::zones::json(t).is_some_and(|v| v.is_object()))
 }
 
 fn t(en: &'static str) -> &'static str {

@@ -90,9 +90,37 @@ pub fn file_path() -> PathBuf {
     PathBuf::from(base).join("kwinish").join("layouts.json")
 }
 
+/// Limits shared with the core's reader (core/kwjson.lua): bytes of JSON text in one file, levels of arrays and objects.
+pub const JSON_LIMIT: usize = 1 << 20;
+pub const JSON_DEPTH: usize = 32;
+
+/// `text` as JSON data, or None when it is not JSON or is over the limits (the core refuses the same: core/testdata/json-cases.txt).
+pub fn json(text: &str) -> Option<Value> {
+    fn depth(v: &Value) -> usize {
+        match v {
+            Value::Array(a) => 1 + a.iter().map(depth).max().unwrap_or(0),
+            Value::Object(o) => 1 + o.values().map(depth).max().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    if text.len() > JSON_LIMIT { return None }
+    serde_json::from_str(text).ok().filter(|v| depth(v) <= JSON_DEPTH)
+}
+
+/// The text of `path`, reading at most JSON_LIMIT + 1 bytes (enough for `json` to refuse a larger file); None when absent or not UTF-8.
+pub fn read_text(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut buf = vec![];
+    std::fs::File::open(path).ok()?.take(JSON_LIMIT as u64 + 1).read_to_end(&mut buf).ok()?;
+    String::from_utf8(buf).ok()
+}
+
+/// The JSON data in `path`: every JSON file kwinish-ui reads goes through here.
+pub fn read_json(path: &std::path::Path) -> Option<Value> { read_text(path).as_deref().and_then(json) }
+
 /// Entries the core (core/layouts.lua) would reject are dropped here too, so the picker never offers what cannot be used.
 pub fn parse(text: &str) -> Vec<Layout> {
-    let v: Value = serde_json::from_str(text).unwrap_or_default();
+    let v = json(text).unwrap_or_default();
     v.as_array().map(|a| a.iter().filter_map(|l| {
         let name = l["name"].as_str()?.to_string();
         if name.is_empty() || name.len() > 64 || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') { return None }
@@ -118,7 +146,7 @@ pub fn render(layouts: &[Layout]) -> String {
     serde_json::to_string_pretty(&list).unwrap_or_else(|_| "[]".into())
 }
 
-pub fn load() -> Vec<Layout> { std::fs::read_to_string(file_path()).map(|t| parse(&t)).unwrap_or_default() }
+pub fn load() -> Vec<Layout> { read_text(&file_path()).map(|t| parse(&t)).unwrap_or_default() }
 
 /// Write `text` to `path` through a temporary file and a rename, so a crash or a second writer never leaves a half-written file. A file
 /// that exists but does not parse is first copied to `<name>.bak`, since saving over it would silently drop whatever it held.
@@ -136,7 +164,7 @@ pub fn write_atomic(path: &std::path::Path, text: &str, parses: impl Fn(&str) ->
 pub fn save(l: Layout) -> std::io::Result<()> {
     let mut all = load();
     match all.iter_mut().find(|x| x.name == l.name) { Some(x) => *x = l, None => all.push(l) }
-    write_atomic(&file_path(), &render(&all), |t| serde_json::from_str::<Value>(t).is_ok())
+    write_atomic(&file_path(), &render(&all), |t| json(t).is_some_and(|v| v.is_array())) // what load refuses goes to .bak first
 }
 
 /// The presets of core/layouts.lua, to load as a starting point (keep in step with it).
@@ -198,6 +226,69 @@ mod tests {
         let l = parse(t);
         assert_eq!(l.len(), 1);
         assert_eq!((l[0].name.as_str(), l[0].gap), ("ok", Some(60)));
+    }
+
+    #[test]
+    fn parse_refuses_what_the_core_refuses() {
+        // over 1 MiB or 32 levels the whole file is refused, as core/kwjson.lua does (list, entry and member are levels 1 to 3)
+        let entry = |x: &str| format!(r#"[{{"name":"a","zones":[[0,0,1,1]],"x":{x}}}]"#);
+        let nest = |n: usize| format!("{}{}", "[".repeat(n), "]".repeat(n));
+        assert_eq!(parse(&entry(&nest(30))).len(), 1, "32 levels");
+        assert!(parse(&entry(&nest(31))).is_empty(), "33 levels");
+        assert!(parse(&entry(&format!("\"{}\"", "a".repeat(1 << 20)))).is_empty(), "over 1 MiB");
+    }
+
+    #[test]
+    fn json_agrees_with_the_core() {
+        // core/test_kwjson.lua checks the core's reader against the same file
+        let mut n = 0;
+        for line in include_str!("../../core/testdata/json-cases.txt").lines() {
+            let (verdict, text) = line.split_once(' ').unwrap_or((line, ""));
+            match verdict {
+                "ok" => assert!(json(text).is_some(), "should decode: {text}"),
+                "bad" => assert!(json(text).is_none(), "should be refused: {text}"),
+                _ => continue,
+            }
+            n += 1;
+        }
+        assert!(n > 50, "cases file read");
+        let nest = |n: usize| format!("{}{}", "[".repeat(n), "]".repeat(n));
+        assert!(json(&nest(32)).is_some() && json(&nest(33)).is_none(), "32 levels pass, 33 do not");
+        let big = format!("\"{}\"", "a".repeat(JSON_LIMIT - 2));
+        assert!(json(&big).is_some() && json(&format!("{big} ")).is_none(), "1 MiB passes, one byte more does not");
+    }
+
+    #[test]
+    fn read_stops_after_the_limit() {
+        let d = std::env::temp_dir().join(format!("kwinish-read-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join("x.json");
+        std::fs::write(&p, format!("\"{}\"", "a".repeat(2 * JSON_LIMIT))).unwrap();
+        assert_eq!(read_text(&p).map(|t| t.len()), Some(JSON_LIMIT + 1), "reads LIMIT + 1 bytes, not the whole file");
+        assert!(read_json(&p).is_none(), "a larger file is refused");
+        std::fs::write(&p, b"[\"\xff\"]").unwrap();
+        assert!(read_json(&p).is_none(), "not UTF-8");
+        std::fs::write(&p, "[1]").unwrap();
+        assert_eq!(read_json(&p), Some(json!([1])));
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(read_json(&p).is_none(), "missing");
+    }
+
+    #[test]
+    fn a_file_the_reader_refuses_is_backed_up_before_saving() {
+        // valid JSON over 1 MiB: load() gives nothing, so saving over it without a copy would lose it (same check as save())
+        let d = std::env::temp_dir().join(format!("kwinish-big-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let p = d.join("layouts.json");
+        let big = format!("[\"{}\"]", "a".repeat(JSON_LIMIT));
+        std::fs::write(&p, &big).unwrap();
+        write_atomic(&p, "[]", |t| json(t).is_some_and(|v| v.is_array())).unwrap();
+        assert_eq!(std::fs::read_to_string(p.with_extension("json.bak")).unwrap(), big);
+        std::fs::write(&p, r#"{"a":1}"#).unwrap();
+        write_atomic(&p, "[]", |t| json(t).is_some_and(|v| v.is_array())).unwrap();
+        assert_eq!(std::fs::read_to_string(p.with_extension("json.bak")).unwrap(), r#"{"a":1}"#, "wrong root too");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]

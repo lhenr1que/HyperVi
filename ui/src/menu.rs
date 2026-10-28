@@ -62,9 +62,9 @@ fn read_state(addr: &str) -> State {
     let ws: serde_json::Value = serde_json::from_str(&hyprctl(&["workspaces", "-j"])).unwrap_or_default();
     st.workspaces = ws.as_array().map(|a| a.iter().filter_map(|w| w["id"].as_i64()).filter(|id| *id > 0).collect()).unwrap_or_default();
     // mode of the window's workspace: the one the core saved, else what Hyprland's tiled layout stands for (core/modes.lua)
-    let saved: serde_json::Value = std::fs::read_to_string(crate::zones::file_path().with_file_name("workspace-modes.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+    let saved = crate::zones::read_json(&crate::zones::file_path().with_file_name("workspace-modes.json")).unwrap_or_default();
     let tiled = ws.as_array().and_then(|a| a.iter().find(|w| w["id"].as_i64() == Some(st.ws))).and_then(|w| w["tiledLayout"].as_str()).unwrap_or("dwindle").to_string();
-    st.mode = saved[st.ws.to_string()].as_str().map(String::from).unwrap_or_else(|| if tiled == "scrolling" { "scrolling".into() } else { "tiling".into() });
+    st.mode = saved_mode(&saved, st.ws).unwrap_or_else(|| if tiled == "scrolling" { "scrolling".into() } else { "tiling".into() });
     st.workspaces.sort();
     if st.ws > 0 && !st.workspaces.contains(&st.ws) { st.workspaces.push(st.ws); st.workspaces.sort(); }
     st
@@ -167,19 +167,34 @@ fn shortcut_item(st: &State, addr: &str) -> Item {
     Item::Spawn { label, args: vec!["shortcut".into(), addr.into()] }
 }
 
-// Rules saved for this window's app (core/rules.lua writes ~/.config/kwinish/rules.json).
+// The mode the core saved for workspace `ws`; core/modes.lua keeps only these three.
+fn saved_mode(saved: &serde_json::Value, ws: i64) -> Option<String> {
+    saved[ws.to_string()].as_str().filter(|m| ["tiling", "scrolling", "floating"].contains(m)).map(String::from)
+}
+
+// Rules saved for this window's app (core/rules.lua writes ~/.config/kwinish/rules.json); the core ignores odd class names.
 fn rules_for(class: &str) -> serde_json::Value {
-    let path = crate::zones::file_path().with_file_name("rules.json");
-    let all: serde_json::Value = std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-    all[class].clone()
+    let valid = !class.is_empty() && class.len() <= 80 && class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c));
+    let all = crate::zones::read_json(&crate::zones::file_path().with_file_name("rules.json")).unwrap_or_default();
+    if valid { all[class].clone() } else { serde_json::Value::Null }
+}
+
+// Whether rule `k` is on by the core's own test (core/rules.lua): booleans only when true, workspace an integer > 0, rect four
+// integers with width and height > 0. The menu marks only what the core applies.
+fn rule_on(r: &serde_json::Value, k: &str) -> bool {
+    match k {
+        "workspace" => r[k].as_i64().is_some_and(|n| n > 0),
+        "rect" => r[k].as_array().is_some_and(|a| a.len() == 4 && a.iter().all(|x| x.as_i64().is_some()) && a[2].as_i64() > Some(0) && a[3].as_i64() > Some(0)),
+        _ => r[k] == true,
+    }
 }
 
 fn rule_items(st: &State) -> Vec<Item> {
     let r = rules_for(&st.class);
-    let on = |k: &str| !r[k].is_null();
+    let on = |k: &str| rule_on(&r, k);
     let mut items = vec![];
     if st.floating { items.push(tog(t("Remember position and size"), on("rect"), "rule:rect")); }
-    items.push(tog(&match r["workspace"].as_i64() { Some(n) => format!("{} {n}", t("Always on workspace")), None => t("Always on this workspace").to_string() }, on("workspace"), "rule:workspace"));
+    items.push(tog(&match r["workspace"].as_i64().filter(|n| *n > 0) { Some(n) => format!("{} {n}", t("Always on workspace")), None => t("Always on this workspace").to_string() }, on("workspace"), "rule:workspace"));
     items.push(tog(t("Always keep above others"), on("above"), "rule:above"));
     items.push(tog(t("Always keep below others"), on("below"), "rule:below"));
     items.push(tog(t("Always without title bar and frame"), on("noframe"), "rule:noframe"));
@@ -221,7 +236,7 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
         if st.mode == "scrolling" {
             items.push(Item::Sep);
             // the width kept for this workspace (core/kwinish.lua redraws the columns to it); choosing it again turns that off
-            let kept: serde_json::Value = std::fs::read_to_string(crate::zones::file_path().with_file_name("workspace-columns.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+            let kept = crate::zones::read_json(&crate::zones::file_path().with_file_name("workspace-columns.json")).unwrap_or_default();
             let n = kept[st.ws.to_string()].as_i64().unwrap_or(0);
             items.push(tog(t("One column per screen"), n == 1, "columns:1"));
             items.push(tog(t("Two columns per screen"), n == 2, "columns:2"));
@@ -443,4 +458,23 @@ fn run_inner(addr: String, args: Vec<String>, layouts_only: bool) -> glib::ExitC
         win.present();
     });
     app.run_with_args::<&str>(&[])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn marks_follow_the_core() {
+        let r = json!({"above": "yes", "below": true, "noframe": 1, "nocapture": null, "workspace": -2, "rect": [0, 0, 300.5, 200]});
+        assert!(!rule_on(&r, "above") && rule_on(&r, "below") && !rule_on(&r, "noframe") && !rule_on(&r, "nocapture"));
+        assert!(!rule_on(&r, "workspace") && !rule_on(&r, "rect"), "values the core drops are not marked");
+        let r = json!({"workspace": 3, "rect": [10, -20, 300, 200]});
+        assert!(rule_on(&r, "workspace") && rule_on(&r, "rect"));
+        assert!(!rule_on(&json!({"rect": [0, 0, 300, 0]}), "rect") && !rule_on(&json!({"rect": [0, 0, 300]}), "rect"));
+        let saved = json!({"2": "floating", "3": "bogus", "4": ["tiling"]});
+        assert_eq!(saved_mode(&saved, 2).as_deref(), Some("floating"));
+        assert_eq!((saved_mode(&saved, 3), saved_mode(&saved, 4), saved_mode(&saved, 5)), (None, None, None), "unknown modes are not shown");
+    }
 }
