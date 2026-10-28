@@ -26,11 +26,12 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - Correções das revisões no plugin: barras sobrepostas, arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela. O plugin do repositório já foi carregado em 27/10 (testes 5 e 7), mas esses cenários não foram exercidos de propósito: teste 2 abaixo.
 - Encaixe depois de arrastar para o 2º monitor: teste 3 abaixo (hoje só o DP-1 está ligado).
 - Snap Assist com geração, `flock` e revalidação do clique; o desfazer das regras ao desmarcar; `force_no_accel`; auto-raise.
+- **Dicas no fixar e no ícone do aplicativo** (`add-pin-and-icon-tooltips`, 27/10, pedido do dono depois do teste 8): textos testados (`tools/test-plugin-tooltip.sh`), plugin compilado; ao vivo: teste 10 abaixo.
 - Modo floating: workspace no 2º monitor (o `move` relativo ao monitor foi conferido só no Hyprland aninhado e no simulador) e sair da tela cheia dentro do modo (a spec diz que volta flutuante).
 
 ## Base de testes (etapa A, concluída em 27/10)
 - **Comando único:** `bash tools/check.sh` (Lua 5.5, todas as suítes `core/test_*.lua`, os testes `tools/test-*.sh`, `cargo test --locked`, plugin compilado num temporário; HOME/XDG temporários, sem sockets da sessão). Sai 1 em qualquer falha ou ferramenta ausente. `--lua-only` é o que o `check()` do PKGBUILD roda. Detalhes, limites e uso futuro em CI: `docs/TESTING.md`.
-- Último resultado (27/10, com `add-titlebar-button-tooltips`): código 0; 9 suítes Lua, 4 testes de `tools/` (o novo `test-plugin-tooltip.sh` compila e roda a lógica pura da dica, 22 casos), 18 testes Rust, plugin compilado.
+- Último resultado (27/10, com `add-pin-and-icon-tooltips`): código 0; 11 suítes Lua, 4 testes de `tools/` (`test-plugin-tooltip.sh` compila e roda a lógica pura da dica, 28 casos), 23 testes Rust, plugin compilado.
 - `tools/live-backup.sh` guarda e restaura o que um teste ao vivo muda (arquivo, link, mesmo quebrado, ou ausência); nunca `rm` em arquivo do dono.
 - `spike/nested-open/run.py`: Hyprland aninhado aberto escondido no workspace 9 para testar Lua arriscado do compositor sem tocar na sessão do dono (casos `rules-mode`, `core-mode` e outros; ver o `README.md` dele). Janelas que vêm de outro processo (portal) abrem no workspace ativo do dono: não use para isso.
 - Evidências completas da etapa A: commit `67376af` (este arquivo naquela versão).
@@ -41,7 +42,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
    - Medido em 27/10: o Lua da carga da config do Hyprland 0.56.2 tem um vigia, e um laço é interrompido depois de ~1,5 s de CPU (`[Lua] execution timed out in config reload`). O núcleo antigo, portanto, atrasava a carga em vez de travá-la; a leitura de `rules.json` ao abrir janela roda num timer, onde o vigia não foi medido.
    - 1.4 feita (4/13): `ui/src/zones.rs` tem `json`, `read_text` e `read_json` (no máximo 1 MiB + 1 byte, 32 níveis contados como no Lua); passam por eles os oito leitores de arquivo JSON da interface (layouts, settings, shortcuts, rules, workspace-modes, workspace-columns, switcher, assist). Os mesmos casos de `core/testdata/json-cases.txt` dão o mesmo veredito no serde_json e no `kwjson`. O teste de backup do `write_atomic` usa o mesmo leitor e a raiz certa, então um arquivo que a leitura recusa vai para `.bak` antes de ser substituído. O menu marca só o que o núcleo aplica (regras, modo, classe válida). Antes do conserto: `zones::parse` aceitava 33 níveis e `assist::parse` aceitava mais de 1 MiB (testes vermelhos). Fora: saída do `hyprctl`, o `.abi` do plugin e o arquivo de texto `layout`.
    - Próximo: seção 2 (paridade de layouts: gap e geometria final), depois 3 e 4 (gravação). Até a 3.2, os gravadores Lua (regras, modos, colunas) ainda sobrescrevem sem backup um arquivo que a leitura recusa.
-2. **Testes ao vivo do dono:** itens 2 e 3 abaixo.
+2. **Testes ao vivo do dono:** itens 2, 3 e 10 abaixo.
 3. **Reinstalar os pacotes** (dono, `sudo`): sem isso, `hyprctl reload` volta ao núcleo e plugin antigos de `/usr/share` e `/usr/lib`, e tudo de 26–27/10 só vale depois de `fish tools/dev-reload.fish`. Procedimento: `docs/HANDOFF.md`, "Construir".
 4. **Achados da auditoria do Codex (27/10) ainda não corrigidos** (reproduzidos em isolamento, não vistos no desktop); cada um vira mudança no OpenSpec:
    - ciclo de vida (etapa C): minimizar apaga a procedência do modo floating (a janela pode não voltar ao mosaico); "mostrar área de trabalho" perde as origens depois de um reload; um ajuste de colunas atrasado sobrescreve a escolha mais nova; recarregar o módulo mantém callbacks antigos; `zone` não confere tela cheia como `tile` confere;
@@ -56,7 +57,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 1. Ler `AGENTS.md`, este arquivo e `docs/HANDOFF.md` (armadilhas: objetos de `hl.bind` por `hyprctl eval` derrubam o Hyprland; `window.open_early` não aceita flutuar/redimensionar; etiqueta posta por regra aparece como `nome*`).
 2. `git status` e `git log --oneline -5`: a `master` deve estar limpa em `f6090d6` ou depois. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
 3. `bash tools/check.sh` deve sair 0 antes de começar.
-4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `harden-user-data-io` e `add-titlebar-button-tooltips` (tarefas feitas; arquivar depois do teste 8 do dono); aplicar a `harden-user-data-io` com `/opsx:apply` (Claude) ou `$openspec-apply-change` (Codex), começando por um teste que falha.
+4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `harden-user-data-io` e `add-pin-and-icon-tooltips` (tarefas feitas; arquivar depois do teste 10 do dono); aplicar a `harden-user-data-io` com `/opsx:apply` (Claude) ou `$openspec-apply-change` (Codex), começando por um teste que falha.
 5. Carregar o código do repositório no desktop é do dono: `fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish` (plugin e núcleo juntos; vale até o próximo `hyprctl reload`). Mudanças dentro de blocos protegidos por `KWINISH_*` só valem com um bloco novo ou com o pacote reinstalado.
 6. Delegação: `codex exec -s read-only` para revisão e `-s workspace-write` numa worktree nova para implementar funcionaram; o dono tem cota do Codex (GPT-6.1). Revisar o diff antes de juntar.
 7. O backup do teste 5 continua em `~/.local/state/kwinish-backup/teste-5` (o dono não rodou o desfazer). Para voltar ao `settings.json` de antes: `bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5`; para manter as configurações atuais, o dono pode apagar essa pasta.
@@ -85,6 +86,27 @@ make -C plugin
 fish tools/dev-reload.fish
 ```
 Abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: os mesmos três comandos do teste 2.
+
+**10. Dicas no fixar e no ícone do aplicativo (add-pin-and-icon-tooltips, 27/10)**
+Carregue o plugin e o núcleo do repositório (o primeiro `unload` só vale se o plugin instalado estiver carregado; se não estiver, o erro dele pode ser ignorado):
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+make -C plugin
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
+fish tools/dev-reload.fish
+```
+Teste, numa janela flutuante com a barra do Kwinish (por exemplo um `kitty`):
+1. Pare o ponteiro 1 s no botão de fixar (à esquerda): aparece "Em todas as áreas de trabalho".
+2. Clique nele (a janela fica fixada; a dica some). Saia do botão e pare de novo: agora diz "Só nesta área de trabalho". Clique de novo para desfixar.
+3. Pare o ponteiro 1 s no ícone do aplicativo (canto esquerdo da barra): aparece "Menu da janela", abaixo do ícone e dentro da tela.
+4. Clique no ícone: o menu da janela abre como antes e a dica some.
+5. Os botões de minimizar, maximizar e fechar continuam com as dicas do teste 8.
+Desfazer (volta ao plugin e ao núcleo instalados; nenhum arquivo seu é mudado pelo teste):
+```fish
+hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
+hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl reload
+```
 
 **4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; workspace floating no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 
