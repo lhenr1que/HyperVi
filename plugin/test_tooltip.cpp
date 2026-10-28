@@ -28,7 +28,7 @@ int main() {
     check(!KwTip::portuguese(nullptr, nullptr, "C"), "LANG=C is English");
     check(!KwTip::portuguese(nullptr, nullptr, nullptr), "no locale is English");
 
-    // text by action
+    // text by action; the flag is the button state (maximized for maximize, pinned for pin)
     check(KwTip::text("minimize", false, true) == "Minimizar", "minimize pt");
     check(KwTip::text("minimize", false, false) == "Minimize", "minimize en");
     check(KwTip::text("maximize", false, true) == "Maximizar", "maximize pt");
@@ -37,7 +37,13 @@ int main() {
     check(KwTip::text("maximize", true, false) == "Restore", "maximize on a maximized window en");
     check(KwTip::text("close", true, true) == "Fechar", "close pt");
     check(KwTip::text("close", false, false) == "Close", "close en");
-    check(KwTip::text("pin", false, true).empty(), "pin has no tip");
+    check(KwTip::text("pin", false, true) == "Em todas as áreas de trabalho", "pin pt");
+    check(KwTip::text("pin", false, false) == "On all workspaces", "pin en");
+    check(KwTip::text("pin", true, true) == "Só nesta área de trabalho", "pin on a pinned window pt");
+    check(KwTip::text("pin", true, false) == "Only on this workspace", "pin on a pinned window en");
+    check(KwTip::text("menu", false, true) == "Menu da janela", "menu (the app icon) pt");
+    check(KwTip::text("menu", false, false) == "Window menu", "menu (the app icon) en");
+    check(KwTip::text("float", false, true).empty(), "float has no tip");
     check(KwTip::text("fullscreen", false, true).empty(), "fullscreen has no tip");
     check(KwTip::text("exec:kitty", false, false).empty(), "exec: has no tip");
 

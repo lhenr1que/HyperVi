@@ -17,14 +17,19 @@ namespace KwTip {
         return false;
     }
 
-    // The tip for a button action, "" for an action that has none. Maximize says what the click does (KDE's "Restore").
-    inline std::string text(std::string_view action, bool maximized, bool pt) {
+    // The tip for a button action ("menu" also for the app icon), "" for an action that has none. checked is the button's
+    // state (maximized for maximize, pinned for pin): the tip says what the click does, as KDE's "Restore" and "On one desktop".
+    inline std::string text(std::string_view action, bool checked, bool pt) {
         if (action == "minimize")
             return pt ? "Minimizar" : "Minimize";
         if (action == "maximize")
-            return maximized ? (pt ? "Restaurar" : "Restore") : (pt ? "Maximizar" : "Maximize");
+            return checked ? (pt ? "Restaurar" : "Restore") : (pt ? "Maximizar" : "Maximize");
         if (action == "close")
             return pt ? "Fechar" : "Close";
+        if (action == "pin")
+            return checked ? (pt ? "Só nesta área de trabalho" : "Only on this workspace") : (pt ? "Em todas as áreas de trabalho" : "On all workspaces");
+        if (action == "menu")
+            return pt ? "Menu da janela" : "Window menu";
         return "";
     }
 
