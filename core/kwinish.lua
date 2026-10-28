@@ -742,13 +742,10 @@ end
 -- (hl.bind from a running eval can crash Hyprland 0.56.2); the guard also keeps a core reload by eval from re-binding.
 if not KWINISH_SHORTCUTS then
   KWINISH_SHORTCUTS = true
-  local f = io.open(cfg_dir() .. "/shortcuts.json", "r")
-  local text = f and f:read("*a")
-  if f then f:close() end
   -- `kwinish-ui shortcut` enters this empty submap while it listens for keys, so no bind runs instead of being captured
   -- (a submap with no bind in it is never registered, hence the bind on a key combination nobody types)
   hl.define_submap("kwcapture", function() hl.bind("CTRL + ALT + SHIFT + SUPER + F24", function() end) end)
-  for class, combo in pairs(rules.parse_shortcuts(text)) do
+  for class, combo in pairs(read_cfg("shortcuts.json", rules.parse_shortcuts)) do
     hl.bind(combo, function()
       hl.dispatch(hl.dsp.focus({ window = "class:" .. class }))
       local w = hl.get_window("class:" .. class)

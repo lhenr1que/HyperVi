@@ -36,12 +36,15 @@ Config (user data, `$XDG_CONFIG_HOME/kwinish/`):
 |---|---|
 | `layouts.json` | `[{"name","label","gap"?,"zones":[[x,y,w,h],..]}]`, fractions of the work area |
 | `rules.json` | `{"<class>":{"above","below","noframe","nocapture":true,"workspace":N,"rect":[x,y,w,h]}}` |
-| `shortcuts.json` | per-class window shortcuts (shape **TODO**) |
-| `workspace-modes.json` | workspace to mode |
+| `settings.json` | `{"<option>":value}`, the options of `docs/CONFIGURAVEL.md` |
+| `shortcuts.json` | `{"<class>":"SUPER + ALT + K"}`: capital letters, digits, `+` and spaces, at most 40 characters |
+| `workspace-modes.json` | `{"3":"floating"}`: workspace to `tiling`, `scrolling` or `floating` |
 | `workspace-columns.json` | `{"2":3}`: workspace 2 keeps 3 columns |
 
 Runtime (`$XDG_RUNTIME_DIR/kwinish/`, written by the core, read by `kwinish-ui`): `switcher.json` (`open`, `selected`, `items[]` with `class`, `title`), `assist.json` (`{"generation":N,"monitor":name,"zone":N,"rect":[x,y,w,h],"items":[{"address","class","title"}]}`; generation increases on each atomic publication, including core reloads; core launches are serialized with `flock` on `assist.lock`, obsolete queued launches are skipped, overlays close when their generation is replaced and recheck it and window existence before acting).
 Writers must be atomic (temp file plus rename); readers must tolerate a bad file (the core drops bad entries, never crashes).
+
+Reading (the core, through `core/kwjson.lua`): every file above is JSON read as data, never run as Lua. RFC 8259: UTF-8, no comments, no trailing commas, finite numbers. At most 1 MiB (the core reads 1 MiB + 1 byte and refuses a larger file) and 32 levels of arrays and objects. A file with a syntax error, over a limit, or whose root is not the shape in the table is ignored whole: no entries, the defaults apply, and the core writes one line `kwinish: <file> ignored: <reason>` to Hyprland's stderr per file and reason. In a valid file only the top-level members of the shape count; an entry of the wrong type or out of range is dropped alone, unknown members are ignored, and a repeated member takes its last value (as serde_json in `kwinish-ui`). Until 27/10 the core ran `rules.json` and `layouts.json` as Lua and picked the other files' entries out of the text: Lua expressions, entries of truncated files, of a wrong root or nested in another object no longer count.
 
 ## 5. Window tags (set by the core, readable by a dock)
 `kwinish-above`, `kwinish-below`, `kwinish-noframe`, `kwinish-nocapture`, `kwinish-mode-floated`, `kwinish-rect-X-Y-W-H` (geometry before a mode change).

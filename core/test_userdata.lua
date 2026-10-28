@@ -64,5 +64,10 @@ check("columns: array root", empty(modes.parse_columns('[{"2":3}]')))
 check("columns: nested object ignored", empty(modes.parse_columns('{"x":{"2":3}}')))
 check("columns: a string is not a number", empty(modes.parse_columns('{"2":"3"}')))
 
+check("shortcuts: truncated", empty(rules.parse_shortcuts('{"kitty":"SUPER + K"')))
+check("shortcuts: array root", empty(rules.parse_shortcuts('[{"kitty":"SUPER + K"}]')))
+check("shortcuts: nested object ignored", empty(rules.parse_shortcuts('{"x":{"kitty":"SUPER + K"}}')))
+check("shortcuts: escaped combo decoded", rules.parse_shortcuts('{"kitty":"SUPER\\u0020+ K"}').kitty == "SUPER + K")
+
 if failed > 0 then print(failed .. " failure(s)"); os.exit(1) end
 print("userdata ok")
