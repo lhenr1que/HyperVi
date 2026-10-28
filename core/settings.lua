@@ -1,6 +1,7 @@
 -- User settings, kept in ~/.config/kwinish/settings.json (written by `kwinish-ui settings`) and applied each time the core loads.
 -- Pure; runs under plain lua. Shape: {"bar_height":28,"bar_color":"rgba(26262ef7)","snap_assist":false, ...}
 -- Every key except snap_assist is a plugin:kwinish:* option; ui/src/settings.rs has the same list (keep them in step).
+local kwjson = require("kwjson")
 local M = {}
 
 local enum = function(...) local t = {}; for _, v in ipairs({ ... }) do t[v] = true end; return t end
@@ -26,19 +27,15 @@ local function valid(kind, v)
   return type(v) == "string" and kind[v] == true
 end
 
--- Text of settings.json -> { key = value } with unknown keys and bad values dropped. Each known key is matched on its own (no `load`:
--- the file is read during config load, and code in it could hang the compositor), so one odd entry never costs the others.
--- Strings with escapes are dropped; no valid value needs one.
+-- Text of settings.json -> { key = value } with unknown keys and bad values dropped, so one odd entry never costs the others. Read as
+-- data (kwjson, no `load`: the file is read during config load); only top-level members count. A refused text gives {} and the reason.
 function M.parse(text)
   local out = {}
-  if type(text) ~= "string" then return out end
+  if type(text) ~= "string" or text == "" then return out end
+  local t, err = kwjson.decode(text)
+  if not kwjson.is_object(t) then return out, err or "not a JSON object" end
   for k, kind in pairs(M.spec) do
-    local head = '"' .. k:gsub("%p", "%%%0") .. '"%s*:%s*'
-    local raw, v = text:match(head .. '([^,}%s]*)'), nil
-    if raw and raw:sub(1, 1) == '"' then v = text:match(head .. '"([^"\\]*)"') -- a string stays a string
-    elseif raw == "true" or raw == "false" then v = raw == "true"
-    elseif raw and raw:match("^%-?%d+$") then v = math.tointeger(tonumber(raw)) end
-    if valid(kind, v) then out[k] = v end
+    if valid(kind, t[k]) then out[k] = t[k] end
   end
   return out
 end

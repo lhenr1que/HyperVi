@@ -813,9 +813,7 @@ end
 -- ~/.config/kwinish/settings.json (settings.lua): applied on every config load, and again by `kwinish-ui settings` after it saves.
 -- The plugin's options only while the plugin is loaded (unknown keys would raise config errors); loading it reloads the config.
 function M.apply_settings()
-  local f = io.open(cfg_dir() .. "/settings.json", "r")
-  local s = settings.parse(f and f:read("*a"))
-  if f then f:close() end
+  local s = read_cfg("settings.json", settings.parse)
   if s.snap_assist ~= nil then M.snap_assist = s.snap_assist end
   if not (hl.plugin and hl.plugin.kwinish) then return end
   for _, c in ipairs(settings.plugin_configs(s)) do pcall(hl.config, c) end

@@ -49,5 +49,11 @@ layouts.load_user('[{"name":"a","label":"Left [wide]","zones":[[0,0,1,1]]}]')
 check("layouts: brackets inside a label kept", layouts.user[1] and layouts.user[1].label == "Left [wide]")
 layouts.load_user('[{"name":"a","zones":{"1":[0,0,1,1]}}]'); check("layouts: zones that are not a list", #layouts.user == 0)
 
+check("settings: truncated", empty(settings.parse('{"enabled":false,')))
+check("settings: array root", empty(settings.parse('[{"enabled":false}]')))
+check("settings: nested name ignored, top-level value kept", settings.parse('{"unknown":{"enabled":false},"enabled":true}').enabled == true)
+check("settings: escaped string decoded", settings.parse('{"bar_text_font":"Noto\\u0020Sans"}').bar_text_font == "Noto Sans")
+check("settings: a string is not a boolean", settings.parse('{"enabled":"false"}').enabled == nil)
+
 if failed > 0 then print(failed .. " failure(s)"); os.exit(1) end
 print("userdata ok")
