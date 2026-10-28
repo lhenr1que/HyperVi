@@ -55,5 +55,14 @@ check("settings: nested name ignored, top-level value kept", settings.parse('{"u
 check("settings: escaped string decoded", settings.parse('{"bar_text_font":"Noto\\u0020Sans"}').bar_text_font == "Noto Sans")
 check("settings: a string is not a boolean", settings.parse('{"enabled":"false"}').enabled == nil)
 
+check("modes: truncated", empty(modes.parse('{"3":"floating"')))
+check("modes: array root", empty(modes.parse('[{"3":"floating"}]')))
+check("modes: nested object ignored", empty(modes.parse('{"x":{"3":"floating"}}')))
+check("modes: valid entries next to an odd one", modes.parse('{"3":"floating","4":["tiling"],"x":"tiling"}')["3"] == "floating")
+check("columns: truncated", empty(modes.parse_columns('{"2":3')))
+check("columns: array root", empty(modes.parse_columns('[{"2":3}]')))
+check("columns: nested object ignored", empty(modes.parse_columns('{"x":{"2":3}}')))
+check("columns: a string is not a number", empty(modes.parse_columns('{"2":"3"}')))
+
 if failed > 0 then print(failed .. " failure(s)"); os.exit(1) end
 print("userdata ok")

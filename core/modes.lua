@@ -1,6 +1,7 @@
 -- Workspace modes: tiling (Hyprland's dwindle), scrolling (its scrolling layout) or floating (every window floats). Pure; runs
 -- under plain lua. The floating mode works on the windows themselves, as Hyprland has no floating layout (idea and numbers as in
 -- Omarchy's workspace-modes.lua, MIT; this is an independent implementation).
+local kwjson = require("kwjson")
 local M = {}
 
 M.valid = { tiling = true, scrolling = true, floating = true }
@@ -16,11 +17,15 @@ function M.next(mode, back)
   return order[mode or "tiling"] or "tiling"
 end
 
--- {"3":"floating","4":"scrolling"} -> { ["3"] = "floating", ["4"] = "scrolling" }; anything else is dropped.
+-- {"3":"floating","4":"scrolling"} -> { ["3"] = "floating", ["4"] = "scrolling" }; odd entries are dropped, a refused text gives {}
+-- and the reason (kwjson: data only).
 function M.parse(text)
   local out = {}
-  for ws, mode in (text or ""):gmatch('"(%d+)"%s*:%s*"(%a+)"') do
-    if M.valid[mode] and tonumber(ws) >= 1 then out[ws] = mode end
+  if not text or text == "" then return out end
+  local t, err = kwjson.decode(text)
+  if not kwjson.is_object(t) then return out, err or "not a JSON object" end
+  for ws, mode in pairs(t) do
+    if ws:match("^%d+$") and tonumber(ws) >= 1 and M.valid[mode] then out[ws] = mode end
   end
   return out
 end
@@ -42,12 +47,14 @@ function M.open_rect(area, step)
   return { x = math.floor(area.x + (area.w - w) / 2) + off, y = math.floor(area.y + (area.h - h) / 2) + off, w = w, h = h }
 end
 
--- workspace-columns.json: {"2":3} = workspace 2 keeps 3 columns per screen (1 to 3). Absent = left alone.
+-- workspace-columns.json: {"2":3} = workspace 2 keeps 3 columns per screen (1 to 3). Absent = left alone. Read like M.parse.
 function M.parse_columns(text)
   local out = {}
-  for ws, n in (text or ""):gmatch('"(%d+)"%s*:%s*([^,}%s]+)') do
-    n = tonumber(n)
-    if tonumber(ws) >= 1 and math.type(n) == "integer" and n >= 1 and n <= 3 then out[ws] = n end
+  if not text or text == "" then return out end
+  local t, err = kwjson.decode(text)
+  if not kwjson.is_object(t) then return out, err or "not a JSON object" end
+  for ws, n in pairs(t) do
+    if ws:match("^%d+$") and tonumber(ws) >= 1 and math.type(n) == "integer" and n >= 1 and n <= 3 then out[ws] = n end
   end
   return out
 end

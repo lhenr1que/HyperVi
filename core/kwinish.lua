@@ -546,12 +546,7 @@ M.publish_zones()
 -- put back when the mode returns (see saved_rect).
 local mode_cascade = 0
 
-local function load_modes()
-  local f = io.open(cfg_dir() .. "/workspace-modes.json", "r")
-  local text = f and f:read("*a")
-  if f then f:close() end
-  return modes.parse(text)
-end
+local function load_modes() return read_cfg("workspace-modes.json", modes.parse) end
 
 local function save_modes(t)
   os.execute("mkdir -p '" .. cfg_dir() .. "'")
@@ -673,12 +668,7 @@ end
 
 -- workspace-columns.json remembers n per workspace: while it is set, the columns are redrawn to that width whenever a window opens or
 -- closes there. Choosing the same n again clears it (columns are left alone again).
-local function load_columns()
-  local f = io.open(cfg_dir() .. "/workspace-columns.json", "r")
-  local text = f and f:read("*a")
-  if f then f:close() end
-  return modes.parse_columns(text)
-end
+local function load_columns() return read_cfg("workspace-columns.json", modes.parse_columns) end
 
 function M.set_scrolling_columns(ws, n, keep) -- keep: address of the window that ends up focused (the one the menu was opened on)
   ws, n = tonumber(ws), tonumber(n)
