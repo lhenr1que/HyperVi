@@ -8,6 +8,7 @@ local rules = require("rules")
 local modes = require("modes")
 local assist = require("assist")
 local settings = require("settings")
+local kwjson = require("kwjson")
 local M = {}
 
 -- shortcut: restore rects live in this table, so a config reload forgets them; move to window tags to survive reloads.
@@ -239,12 +240,19 @@ end
 -- Per-app rules (rules.lua), kept in ~/.config/kwinish/rules.json and applied a moment after a window opens.
 local function cfg_dir() return (os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config")) .. "/kwinish" end
 
-local function load_rules()
-  local f = io.open(cfg_dir() .. "/rules.json", "r")
-  local text = f and f:read("*a")
-  if f then f:close() end
-  return rules.parse(text)
+-- A file of cfg_dir() through `parse` (text -> result, reason). The text is read with kwjson's size limit, never as code; a file that
+-- is there but refused gives what parse gives for it (no entries) and is reported once per reason on stderr.
+local warned = {}
+local function read_cfg(name, parse)
+  local out, err = parse(kwjson.read(cfg_dir() .. "/" .. name))
+  if err and not warned[name .. err] then
+    warned[name .. err] = true
+    io.stderr:write("kwinish: ", name, " ignored: ", err, "\n")
+  end
+  return out
 end
+
+local function load_rules() return read_cfg("rules.json", rules.parse) end
 
 local function save_rules(r)
   os.execute("mkdir -p '" .. cfg_dir() .. "'")

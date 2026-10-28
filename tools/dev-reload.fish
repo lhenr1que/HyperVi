@@ -5,4 +5,4 @@
 set root (path resolve (status dirname)/..)
 hyprctl plugin unload $root/plugin/kwinish-bars.so
 hyprctl plugin load $root/plugin/kwinish-bars.so
-hyprctl eval "package.path='$root/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings'}) do package.loaded[m]=nil end; require('kwinish')"
+hyprctl eval "package.path='$root/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"

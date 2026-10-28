@@ -1,5 +1,6 @@
 -- Per-app window rules (by window class), kept in ~/.config/kwinish/rules.json and applied when a window opens.
 -- Pure; runs under plain lua. Shape: {"kitty":{"above":true,"workspace":3,"rect":[x,y,w,h]}, ...}
+local kwjson = require("kwjson")
 local M = {}
 
 M.bools = { above = true, below = true, noframe = true, nocapture = true }
@@ -13,17 +14,15 @@ local function valid_rect(r)
   return r[3] > 0 and r[4] > 0
 end
 
--- Text of rules.json -> { class = { above = true, workspace = 3, rect = {x,y,w,h} } }; bad entries are dropped, bad text gives {}.
+-- Text of rules.json -> { class = { above = true, workspace = 3, rect = {x,y,w,h} } }; bad entries are dropped, bad text gives {}
+-- and the reason as a second value.
 function M.parse(text)
   local out = {}
   if not text or text == "" then return out end
-  -- JSON arrays become tables first, then the "key": pairs become ["key"]= (those brackets are Lua's, added last)
-  local src = text:gsub("%[", "{"):gsub("%]", "}"):gsub('"([^"]*)"%s*:', function(k) return string.format("[%q]=", k) end)
-  local chunk = load("return " .. src, "rules.json", "t", {})
-  local ok, t = pcall(chunk or error)
-  if not ok or type(t) ~= "table" then return out end
+  local t, err = kwjson.decode(text)
+  if not kwjson.is_object(t) then return out, err or "not a JSON object" end
   for class, r in pairs(t) do
-    if M.valid_class(class) and type(r) == "table" then
+    if M.valid_class(class) and kwjson.is_object(r) then
       local e = {}
       for k in pairs(M.bools) do if r[k] == true then e[k] = true end end
       if math.type(r.workspace) == "integer" and r.workspace > 0 then e.workspace = r.workspace end

@@ -387,6 +387,16 @@ local function run()
   kw.apply_settings()
   hl.plugin, hl.config = nil, config
   assert(#plugin_cfg == 1 and plugin_cfg[1].bar_height == 34, "plugin loaded: valid keys sent, bad colour dropped")
+
+  -- a file that is there but refused gives no entries, and one stderr line per reason however often it is read
+  local said, stderr = {}, io.stderr
+  io.stderr = { write = function(_, ...) said[#said + 1] = table.concat({ ... }) end }
+  f = assert(io.open(tmp .. "/XDG_CONFIG_HOME/kwinish/rules.json", "w")); f:write('{"Test":{"above":true}'); f:close()
+  local calls_before = #calls
+  kw.apply_rules(a); kw.apply_rules(a)
+  io.stderr = stderr
+  assert(#calls == calls_before, "truncated rules.json applies nothing")
+  assert(#said == 1 and said[1]:find("kwinish: rules.json ignored: ", 1, true), "refused file reported once: " .. table.concat(said, " | "))
 end
 
 local ok, err = xpcall(run, debug.traceback)
