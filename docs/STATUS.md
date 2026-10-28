@@ -46,8 +46,9 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
    - 3.3 feita (9/13): switcher e Snap Assist publicam pelo `kwjson.write` (sem backup: runtime é descartável). Antes, uma gravação que falhava deixava `switcher.json` vazio para o `kwinish-ui` (teste novo em `test_switcher.lua`, que continua isolado num runtime temporário). O Assist mantém formato e geração (agora lida como JSON, não por busca no texto), e seus testes de atomicidade passam sem mudança. Todo caminho que vai ao shell passa por `kwjson.quote` (o `mkdir` e o `flock` do Assist).
    - Seção 4 feita (11/13): `write_atomic` lê o arquivo antigo em bytes (um arquivo que não é UTF-8 também vai para `.bak`), para se não conseguir lê-lo (fora "não existe") ou copiá-lo, e grava o backup e o destino por `publish` (temporário + rename, temporário removido em erro). Testes com falhas reais num diretório temporário (o `.bak` ocupado por um diretório, bytes que não são UTF-8, destino que é diretório) e um `rename` simulado: os três primeiros falhavam no código antigo. O editor de zonas e o diálogo de atalho agora avisam a falha (stderr e na própria janela), ficam abertos e não ativam nada; a janela de configurações já não enviava nada. Contrato em `docs/API.md`, seção 4.
    - 5.1 feita (12/13). Tudo simulado ou em isolamento, nada ao vivo. `bash tools/check.sh` saiu 0: 11 suítes Lua com XDG temporário, 4 testes de `tools/`, 29 testes Rust, plugin compilado. `check.sh --lua-only`, o `check()` do PKGBUILD, também saiu 0. Staging das linhas `install` do PKGBUILD: todos os módulos do núcleo, `kwjson` incluído, carregam só do pacote. Amostras `core/testdata/formats/` dos arquivos válidos como os gravadores sempre os fizeram (`zones::render` confere byte a byte): o núcleo novo e o antigo leem as mesmas entradas, então não há migração. `Hyprland --verify-config` com o núcleo do staging e essas amostras (HOME e XDG temporários, sem sessão) carrega, aplica e não grava nada.
-   - Próximo: 5.2, revisão independente (parser, limites, caminhos de falha de I/O) e as conferências mecânicas; depois o teste ao vivo do dono (item 10 abaixo) e o arquivamento da mudança.
-2. **Testes ao vivo do dono:** itens 2, 3 e 10 abaixo.
+   - 5.2 em parte (27/10): as conferências mecânicas passaram. Não restou `load` nem `io.open` de escrita no núcleo fora do `kwjson`. Na `ui/`, nenhum arquivo JSON é lido fora de `zones::read_text`/`read_json`, e o único `fs::write` é o temporário do `publish`. Sobram fora do escopo o arquivo de texto `layout`, o `.abi` do plugin e a saída do `hyprctl`. `openspec validate harden-user-data-io --strict` passou.
+   - Próximo: a revisão independente da 5.2 (parser, limites, caminhos de falha de I/O; sugestão: `codex exec -s read-only`, com cota do dono, ou um revisor Claude), depois o teste ao vivo 11 e o arquivamento.
+2. **Testes ao vivo do dono:** itens 2, 3, 10 e 11 abaixo.
 3. **Reinstalar os pacotes** (dono, `sudo`): sem isso, `hyprctl reload` volta ao núcleo e plugin antigos de `/usr/share` e `/usr/lib`, e tudo de 26–27/10 só vale depois de `fish tools/dev-reload.fish`. Procedimento: `docs/HANDOFF.md`, "Construir".
 4. **Achados da auditoria do Codex (27/10) ainda não corrigidos** (reproduzidos em isolamento, não vistos no desktop); cada um vira mudança no OpenSpec:
    - ciclo de vida (etapa C): minimizar apaga a procedência do modo floating (a janela pode não voltar ao mosaico); "mostrar área de trabalho" perde as origens depois de um reload; um ajuste de colunas atrasado sobrescreve a escolha mais nova; recarregar o módulo mantém callbacks antigos; `zone` não confere tela cheia como `tile` confere;
@@ -60,9 +61,9 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 
 ## Para a próxima sessão
 1. Ler `AGENTS.md`, este arquivo e `docs/HANDOFF.md` (armadilhas: objetos de `hl.bind` por `hyprctl eval` derrubam o Hyprland; `window.open_early` não aceita flutuar/redimensionar; etiqueta posta por regra aparece como `nome*`).
-2. `git status` e `git log --oneline -5`: a `master` deve estar limpa em `f6090d6` ou depois. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
+2. `git status` e `git log --oneline -5`: a `master` deve estar limpa em `b1bc52e` ou depois. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
 3. `bash tools/check.sh` deve sair 0 antes de começar.
-4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `harden-user-data-io` e `add-pin-and-icon-tooltips` (tarefas feitas; arquivar depois do teste 10 do dono); aplicar a `harden-user-data-io` com `/opsx:apply` (Claude) ou `$openspec-apply-change` (Codex), começando por um teste que falha.
+4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `add-pin-and-icon-tooltips` (tarefas feitas; arquivar depois do teste 10 do dono) e `harden-user-data-io` (12/13; falta a revisão independente da 5.2, e as conferências mecânicas e o `validate --strict` passaram em 27/10; arquivar depois da revisão e do teste 11).
 5. Carregar o código do repositório no desktop é do dono: `fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish` (plugin e núcleo juntos; vale até o próximo `hyprctl reload`). Mudanças dentro de blocos protegidos por `KWINISH_*` só valem com um bloco novo ou com o pacote reinstalado.
 6. Delegação: `codex exec -s read-only` para revisão e `-s workspace-write` numa worktree nova para implementar funcionaram; o dono tem cota do Codex (GPT-6.1). Revisar o diff antes de juntar.
 7. O backup do teste 5 continua em `~/.local/state/kwinish-backup/teste-5` (o dono não rodou o desfazer). Para voltar ao `settings.json` de antes: `bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5`; para manter as configurações atuais, o dono pode apagar essa pasta.
@@ -108,6 +109,29 @@ Teste, numa janela flutuante com a barra do Kwinish (por exemplo um `kitty`):
 5. Os botões de minimizar, maximizar e fechar continuam com as dicas do teste 8.
 Desfazer (volta ao plugin e ao núcleo instalados; nenhum arquivo seu é mudado pelo teste):
 ```fish
+hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
+hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl reload
+```
+
+**11. Leitura e gravação dos seus arquivos com o núcleo novo (harden-user-data-io, 27/10)**
+Antes do teste, os leitores novos já foram rodados sobre os seus arquivos reais, só lendo e fora do compositor: aceitam todos, com as mesmas entradas dos antigos (2 layouts, 4 opções, workspaces 1 a 3 em floating, colunas `2=1`). O `kwinish-ui` do seu PATH é o do repositório (`~/.local/bin/kwinish-ui` aponta para `ui/target/debug/`) e já tem o código novo da interface. Guarde o que o teste pode mudar e carregue o plugin e o núcleo do repositório (o `unload` do instalado só vale se ele estiver carregado; se não estiver, ignore o erro):
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+bash tools/live-backup.sh save ~/.local/state/kwinish-backup/teste-11 ~/.config/kwinish/rules.json ~/.config/kwinish/layout ~/.config/kwinish/settings.json ~/.config/kwinish/workspace-modes.json ~/.config/kwinish/workspace-columns.json
+make -C plugin
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
+fish tools/dev-reload.fish
+```
+Teste:
+1. Nada muda ao carregar: as barras mantêm altura e preenchimento das suas configurações e os workspaces 1, 2 e 3 continuam em floating. `kwinish-ui layouts` mostra "teste" e "meu layout".
+2. Nenhum aviso do núcleo: `tail -n 100 ~/.local/share/sddm/wayland-session.log | string match '*kwinish:*'` não mostra nada.
+3. Gravação de regra: num `kitty` flutuante, clique direito na barra > Mais ações > Regras da janela > "Sempre manter acima das outras". `cat ~/.config/kwinish/rules.json` mostra `{"kitty":{"above":true}}` e `ls -a ~/.config/kwinish/` não mostra nenhum `.tmp`. Abra outro `kitty`: nasce acima. Reabra o menu: a regra aparece marcada; desmarque.
+4. Gravação de layout: em `kwinish-ui layouts`, escolha outro layout. `cat ~/.config/kwinish/layout` mostra o nome escolhido. Volte ao de antes.
+5. Gravação pela interface: `kwinish-ui settings`, mude a "Altura" da barra (muda na hora) e volte ao valor de antes. `ls -a ~/.config/kwinish/` continua sem `.tmp` nem `.bak`.
+Desfazer (devolve os cinco arquivos como estavam; o `rules.json`, que não existia, deixa de existir) e volta ao plugin e ao núcleo instalados:
+```fish
+bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-11
 hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
 hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
 hyprctl reload
