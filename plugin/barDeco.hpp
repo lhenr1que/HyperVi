@@ -114,6 +114,7 @@ class CHyprBar : public IHyprWindowDecoration {
     };
     std::vector<SBtnSlot> layoutButtons(float barW, float& leftEnd, float& rightStart);
     float                 iconSlot();
+    CBox                  iconBox();
     bool                  barActive();
     void                  updateIcon(float scale);
     void                  runAction(const std::string& action);

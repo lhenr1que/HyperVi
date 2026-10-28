@@ -41,6 +41,8 @@ struct SZone {
 
 class CHyprBar;
 
+inline constexpr size_t TIP_ICON = SIZE_MAX - 1; // tip.button for the app icon
+
 struct SGlobalState {
     std::vector<SHyprButton>  buttons;
     std::vector<WP<CHyprBar>> bars;
@@ -58,7 +60,7 @@ struct SGlobalState {
     // The button tooltip: one pointer, one tip, owned by the bar whose button the pointer rests on, drawn after the windows
     struct {
         WP<CHyprBar>         bar;
-        size_t               button  = SIZE_MAX; // index in buttons
+        size_t               button  = SIZE_MAX; // index in buttons, or TIP_ICON
         std::string          text;
         PHLMONITORREF        monitor;
         bool                 shown   = false; // the delay has passed

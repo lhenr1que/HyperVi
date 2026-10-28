@@ -398,7 +398,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
         return;
 
     // click on the app icon: the window menu, under the icon
-    if (const float ICON = iconSlot(); ICON > 0 && VECINRECT(COORDS, BARPADDING, (HEIGHT - ICON) / 2.0, BARPADDING + ICON, (HEIGHT + ICON) / 2.0)) {
+    if (const auto IB = iconBox(); !IB.empty() && VECINRECT(COORDS, IB.x, IB.y, IB.x + IB.w, IB.y + IB.h)) {
         const auto BOX = assignedBoxGlobal();
         openMenu(BOX.x + BARPADDING, BOX.y + BOX.h);
         m_bDragPending = false;
@@ -724,6 +724,14 @@ float CHyprBar::iconSlot() {
     if (m_szIconClass == W->m_class && !m_pIconTex)
         return 0;
     return std::max(12, (int)g_pGlobalState->config.barHeight->value() - 12);
+}
+
+// The app icon, bar-local and unscaled (empty without an icon): a click opens the window menu, resting on it shows its tip.
+CBox CHyprBar::iconBox() {
+    const float ICON = iconSlot();
+    if (ICON <= 0)
+        return {};
+    return {(double)g_pGlobalState->config.barPadding->value(), (g_pGlobalState->config.barHeight->value() - ICON) / 2.0, ICON, ICON};
 }
 
 std::vector<CHyprBar::SBtnSlot> CHyprBar::layoutButtons(float barW, float& leftEnd, float& rightStart) {
@@ -1198,6 +1206,9 @@ void CHyprBar::damageOnButtonHover() {
         m_bButtonHovered = hovered != SIZE_MAX;
         damageEntire();
     }
+    if (hovered == SIZE_MAX)
+        if (const auto IB = iconBox(); !IB.empty() && VECINRECT(COORDS, IB.x, IB.y, IB.x + IB.w, IB.y + IB.h))
+            hovered = TIP_ICON;
     updateTip(hovered);
 }
 
@@ -1230,8 +1241,10 @@ void CHyprBar::updateTip(size_t hovered) {
     std::string text;
     if (hovered != SIZE_MAX && inputIsValid(true)) {
         static const bool PT = KwTip::portuguese(getenv("LC_ALL"), getenv("LC_MESSAGES"), getenv("LANG"));
-        const auto        W  = m_pWindow.lock();
-        text = KwTip::text(g_pGlobalState->buttons[hovered].cmd, W && Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED), PT);
+        const auto        W      = m_pWindow.lock();
+        const std::string ACTION = hovered == TIP_ICON ? "menu" : g_pGlobalState->buttons[hovered].cmd;
+        const bool        CHECKED = W && (ACTION == "pin" ? W->m_pinned : Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED));
+        text = KwTip::text(ACTION, CHECKED, PT);
     }
 
     if (text.empty()) {
@@ -1275,7 +1288,7 @@ void CHyprBar::updateTip(size_t hovered) {
 void CHyprBar::drawTip(PHLMONITOR M) {
     auto&      tip = g_pGlobalState->tip;
     const auto W   = m_pWindow.lock();
-    if (!tip.shown || tip.monitor != M || tip.button >= g_pGlobalState->buttons.size() || !barActive() || !validMapped(m_pWindow) ||
+    if (!tip.shown || tip.monitor != M || (tip.button >= g_pGlobalState->buttons.size() && tip.button != TIP_ICON) || !barActive() || !validMapped(m_pWindow) ||
         !W->m_ruleApplicator->decorate().valueOrDefault())
         return;
 
@@ -1292,11 +1305,17 @@ void CHyprBar::drawTip(PHLMONITOR M) {
     const auto  HEIGHT = g_pGlobalState->config.barHeight->value();
     float       leftEnd = 0, rightStart = 0;
     KwTip::SRect button;
-    for (const auto& s : layoutButtons(BAR.w, leftEnd, rightStart))
-        if (s.idx == tip.button) {
-            const float SZ = g_pGlobalState->buttons[s.idx].size;
-            button         = {BAR.x + s.x + s.drawDx, BAR.y + std::floor((HEIGHT - SZ) / 2.0), SZ, SZ};
-        }
+    if (tip.button == TIP_ICON) {
+        const auto IB = iconBox();
+        if (IB.empty())
+            return;
+        button = {BAR.x + IB.x, BAR.y + IB.y, IB.w, IB.h};
+    } else
+        for (const auto& s : layoutButtons(BAR.w, leftEnd, rightStart))
+            if (s.idx == tip.button) {
+                const float SZ = g_pGlobalState->buttons[s.idx].size;
+                button         = {BAR.x + s.x + s.drawDx, BAR.y + std::floor((HEIGHT - SZ) / 2.0), SZ, SZ};
+            }
 
     const double PADX = 8, PADY = 4;
     const auto   R    = KwTip::place(button, {BAR.x, BAR.y, BAR.w, BAR.h}, tip.tex->m_size.x / SCALE + 2 * PADX, tip.tex->m_size.y / SCALE + 2 * PADY,

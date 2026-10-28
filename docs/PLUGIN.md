@@ -40,10 +40,12 @@ every Hyprland update needs a rebuild. Options for the user, all compatible with
   `raise`, `lower`, `menu`, `exec:<cmd>`. `on_double_click` takes the same names (default `maximize`).
 - `add_button` ignores a button with the same icon and action (the duplicated-buttons bug seen with the Hub's live apply).
 - Wheel over the bar raises (up) or lowers (down) the window.
-- Hover tips (27/10/2026, `add-titlebar-button-tooltips`): resting the pointer 700 ms on a `minimize`, `maximize` or `close`
-  button shows its name under the button, KDE style (Minimizar/Minimize, Maximizar/Maximize, Restaurar/Restore on a
-  maximized window, Fechar/Close; Portuguese when the first non-empty of `LC_ALL`, `LC_MESSAGES`, `LANG` starts with
-  `pt`). Drawn after every window (`RENDER_POST_WINDOWS`), hidden by any click until the pointer leaves the button; no
+- Hover tips (27/10/2026, `add-titlebar-button-tooltips`, verified by the owner; pin and icon in `add-pin-and-icon-tooltips`):
+  resting the pointer 700 ms on a `minimize`, `maximize`, `close`, `pin` or `menu` button, or on the app icon, shows its name
+  under it, KDE style (Minimizar/Minimize, Maximizar/Maximize, Restaurar/Restore on a maximized window, Fechar/Close,
+  Em todas as áreas de trabalho/On all workspaces, Só nesta área de trabalho/Only on this workspace on a pinned window,
+  Menu da janela/Window menu for the icon and `menu`; Portuguese when the first non-empty of `LC_ALL`, `LC_MESSAGES`,
+  `LANG` starts with `pt`). Drawn after every window (`RENDER_POST_WINDOWS`), hidden by any click until the pointer leaves the button; no
   option. Text and placement live in `tooltip.hpp`, tested by `tools/test-plugin-tooltip.sh`.
 - `make -C plugin` builds `kwinish-bars.so`; `make -C plugin abi` writes `kwinish-bars.abi` with the same formula the
   Ryoku package uses (it matched the installed hyprbars receipt byte for byte).
