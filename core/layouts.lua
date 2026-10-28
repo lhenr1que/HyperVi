@@ -45,8 +45,8 @@ function M.load_user(text)
 end
 
 -- Pixel rects for `zones` inside `area` {x, y, w, h}. `gap` (the padding between windows) is taken half from each side
--- of an edge two zones share; edges on the border of the area stay where they are. A zone left with no width or height (smaller
--- than its padding) or with an odd number is `false`, so the others keep their numbers and nothing places a window there.
+-- of an edge two zones share; edges on the border of the area stay where they are. A zone left with less than 1 px of width or
+-- height (smaller than its padding) or with an odd number is `false`, so the others keep their numbers and nothing places a window there.
 local function finite(v) return v == v and v ~= math.huge and v ~= -math.huge end
 function M.zone_rects(zones, area, gap)
   local eps, half, out = 1e-6, (gap or 0) / 2, {}
@@ -61,7 +61,8 @@ function M.zone_rects(zones, area, gap)
       x = area.x + x0 * area.w + l, y = area.y + y0 * area.h + t,
       w = (x1 - x0) * area.w - l - r, h = (y1 - y0) * area.h - t - b,
     }
-    local ok = finite(rect.x) and finite(rect.y) and finite(rect.w) and finite(rect.h) and rect.w > 0 and rect.h > 0
+    -- at least 1 px: windows are placed at whole pixels, and 0.4 px would round to none
+    local ok = finite(rect.x) and finite(rect.y) and finite(rect.w) and finite(rect.h) and rect.w >= 1 and rect.h >= 1
     out[#out + 1] = ok and rect or false
   end
   return out

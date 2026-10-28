@@ -19,7 +19,7 @@ local function write(open, selected, items)
   for _, it in ipairs(items or {}) do
     parts[#parts + 1] = string.format('{"class":"%s","title":"%s"}', esc(it.class), esc(it.title))
   end
-  kwjson.write(state_file(), string.format('{"open":%s,"selected":%d,"items":[%s]}', tostring(open), selected or 0, table.concat(parts, ",")))
+  return kwjson.write(state_file(), string.format('{"open":%s,"selected":%d,"items":[%s]}', tostring(open), selected or 0, table.concat(parts, ",")))
 end
 
 local opts = {}
@@ -57,6 +57,7 @@ end
 
 -- dir = 1 (forward) or -1 (backward); first call opens the overlay.
 function M.step(dir)
+  local was_open, was_sel = open, sel
   if not open then
     items = build()
     if #items < 2 then return end
@@ -68,7 +69,10 @@ function M.step(dir)
   else
     sel = (sel + dir) % #items
   end
-  write(true, sel, items)
+  -- kwinish-ui keeps drawing the last state it got: never act on a selection it did not show
+  if not write(true, sel, items) then
+    if was_open then sel = was_sel else open = false; gen = gen + 1 end
+  end
 end
 
 function M.setup(o)
@@ -82,7 +86,7 @@ function M.setup(o)
     for i, a in ipairs(mru) do if a == w.address then table.remove(mru, i) break end end
     if open then -- the selection on screen must not keep a window that is gone (its address may be reused)
       for i = #items, 1, -1 do if items[i].address == w.address then table.remove(items, i) end end
-      if #items == 0 then close(false) else sel = math.min(sel, #items - 1); write(true, sel, items) end
+      if #items == 0 then close(false) else sel = math.min(sel, #items - 1); if not write(true, sel, items) then close(false) end end
     end
   end)
   hl.on("input.keyboard.key", function(code, _, state)

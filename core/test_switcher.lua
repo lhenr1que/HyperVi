@@ -54,7 +54,19 @@ sw.step(1)
 disk_full = false
 assert(state() == before, "a failed write leaves the previous state for kwinish-ui, not an empty file")
 assert(real_open(tmp .. "/kwinish/switcher.json.tmp") == nil, "no temporary file left")
-on_key(9, 0, 1)
+-- kwinish-ui keeps drawing the last state it got: nothing it never showed is ever focused
+assert(not sw._state(), "a switcher that never showed is not open")
+focused = nil
+on_key(64, 0, 0)
+assert(focused == nil, "releasing Alt focuses nothing that was never shown")
+sw.step(1)
+local J = require("kwjson")
+local shown = J.decode(state())
+disk_full = true
+sw.step(1)
+disk_full = false
+on_key(64, 0, 0)
+assert(focused == "address:" .. shown.items[shown.selected + 1].class:lower(), "the selection on screen is the one focused, got " .. tostring(focused))
 os.getenv, os.execute, io.open = real_getenv, real_execute, real_open
 assert(real_execute("rm -rf -- '" .. tmp .. "'"))
 print("switcher ok")

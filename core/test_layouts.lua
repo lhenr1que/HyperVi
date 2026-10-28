@@ -30,6 +30,7 @@ L.load_user(nil); assert(#L.user == 0)
 local tiny = L.zone_rects({ { 0, 0, 0.5, 1 }, { 0.5, 0.5, 0.004, 0.004 }, { 0.6, 0, 0.4, 1 } }, { x = 0, y = 0, w = 1000, h = 1000 }, 20)
 assert(#tiny == 3 and tiny[1] and tiny[1].w > 0 and tiny[2] == false and tiny[3] and tiny[3].w > 0, "unusable zone is false, numbering kept")
 assert(L.zone_rects({ { 0, 0, 1, 1 } }, { x = 0, y = 0, w = 1 / 0, h = 100 }, 0)[1] == false, "no infinite rect")
+assert(L.zone_rects({ { 0, 0, 0.0001, 1 } }, { x = 0, y = 0, w = 1000, h = 1000 }, 0)[1] == false, "0.1 px would be placed as 0 px: no rect")
 
 -- the same layout cases as kwinish-ui (ui/src/zones.rs reads this file too); every divergence is listed before failing
 local dir = arg[0]:match("(.*/)") or "./"
