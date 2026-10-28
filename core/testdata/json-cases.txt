@@ -1,0 +1,59 @@
+# One case per line: "ok <json>" must decode, "bad <json>" must be refused (whole document).
+# Read by core/test_kwjson.lua and by the Rust tests (ui/src/zones.rs), so the core and kwinish-ui agree.
+ok null
+ok true
+ok false
+ok 0
+ok -0
+ok 12
+ok -12
+ok 1.5
+ok 1e2
+ok 1E-2
+ok -0.5e+3
+ok 9223372036854775808
+ok ""
+ok "a\"b\\c\/d\b\f\n\r\t"
+ok "é€"
+ok "😀"
+ok "é"
+ok []
+ok {}
+ok [null,1,"x",true,{},[]]
+ok {"a":1,"a":2}
+ok {"a":{"b":[1,{"c":null}]}}
+ok  [ 1 , 2 ]  
+bad
+bad 01
+bad 1.
+bad .5
+bad +1
+bad 1e
+bad -
+bad 0x10
+bad NaN
+bad Infinity
+bad 1e999
+bad -1e999
+bad "\ud800"
+bad "\udc00"
+bad "\ud800A"
+bad "\x"
+bad "\u12"
+bad 'a'
+bad "abc
+bad [1,]
+bad {"a":1,}
+bad {"a" 1}
+bad {a:1}
+bad {1:2}
+bad [1 2]
+bad [1]]
+bad {} x
+bad 1 2
+bad tru
+bad nul
+bad [1,2
+bad {"a":
+bad /* c */ 1
+bad {"k":(function() while true do end end)()}
