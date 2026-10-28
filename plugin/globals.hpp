@@ -12,6 +12,7 @@
 #include <hyprland/src/config/values/types/StringValue.hpp>
 #include <hyprland/src/config/values/types/ColorValue.hpp>
 #include <hyprland/src/config/values/types/FontWeightValue.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
 
 inline HANDLE PHANDLE = nullptr;
 
@@ -53,6 +54,19 @@ struct SGlobalState {
     uint32_t                  nobarRuleIdx      = 0;
     uint32_t                  barColorRuleIdx   = 0;
     uint32_t                  titleColorRuleIdx = 0;
+
+    // The button tooltip: one pointer, one tip, owned by the bar whose button the pointer rests on, drawn after the windows
+    struct {
+        WP<CHyprBar>         bar;
+        size_t               button  = SIZE_MAX; // index in buttons
+        std::string          text;
+        PHLMONITORREF        monitor;
+        bool                 shown   = false; // the delay has passed
+        bool                 pressed = false; // a click hid it: it stays hidden until the pointer leaves the button
+        SP<Render::ITexture> tex;
+        float                texScale = 0;
+        SP<CEventLoopTimer>  timer; // the event loop holds it too: removed in PLUGIN_EXIT
+    } tip;
 
     struct {
         SP<Config::Values::CColorValue>      barColor, textColor, inactiveButtonColor;

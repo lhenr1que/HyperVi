@@ -23,6 +23,9 @@ namespace Event {
     struct SCallbackInfo;
 }
 
+// Takes the button tooltip off the screen; forget: also drop the bar and button that own it.
+void tipHide(bool forget);
+
 class CHyprBar : public IHyprWindowDecoration {
   public:
     CHyprBar(PHLWINDOW);
@@ -57,6 +60,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                               onConfigReloaded();
     void                               rearmDrag();
     bool                               holdAtSeam(IPointer::SMotionEvent& e);
+    void                               drawTip(PHLMONITOR);
 
     WP<CHyprBar>                       m_self;
 
@@ -90,8 +94,9 @@ class CHyprBar : public IHyprWindowDecoration {
     void renderBarButtons(CBox* barBox, const float scale, const float a);
     void renderBarButtonsText(CBox* barBox, const float scale, const float a);
     void damageOnButtonHover();
+    void updateTip(size_t hovered);
 
-    bool inputIsValid();
+    bool inputIsValid(bool underPointer = false);
     void onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e);
     void onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e);
     void onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e);

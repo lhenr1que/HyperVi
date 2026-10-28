@@ -473,6 +473,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
     static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
         auto& g = *g_pGlobalState;
+        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+            tipHide(false); // any click puts the button tooltip away until the pointer leaves the button (KDE)
+            g.tip.pressed = true;
+        }
         if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
             g.grabActive       = false;
             g.grabSwallowPress = true;
@@ -494,6 +498,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         for (auto& b : g_pGlobalState->bars)
             if (b && b->getOwner() == w)
                 b->onFloatingChanged();
+    });
+    // the button tooltip goes after every window: drawn with its bar it would sit under the bar's own window
+    static auto PR = Event::bus()->m_events.render.stage.listen([&](eRenderStage stage) {
+        if (stage != RENDER_POST_WINDOWS)
+            return;
+        const auto M = g_pHyprRenderer->m_renderData.pMonitor.lock();
+        if (const auto& tip = g_pGlobalState->tip; M && !tip.bar.expired())
+            tip.bar->drawTip(M);
     });
     static auto P4 = Event::bus()->m_events.config.preReload.listen([&] { onPreConfigReload(); });
     static auto P5 = Event::bus()->m_events.config.reloaded.listen([&] { onConfigReloaded(); });
@@ -517,6 +529,12 @@ APICALL EXPORT void PLUGIN_EXIT() {
 
     g_pHyprRenderer->m_renderPass.removeAllOfType("CBarPassElement");
     g_pHyprRenderer->m_renderPass.removeAllOfType("CPreviewPassElement"); // queued by the drag preview: it would outlive the library
+
+    // the event loop keeps its own reference to the tooltip timer, and its callback is code of this library
+    tipHide(true);
+    if (g_pGlobalState->tip.timer)
+        g_pEventLoopManager->removeTimer(g_pGlobalState->tip.timer);
+    g_pGlobalState->tip.timer.reset();
 
     Desktop::Rule::windowEffects()->unregisterEffect(g_pGlobalState->barColorRuleIdx);
     Desktop::Rule::windowEffects()->unregisterEffect(g_pGlobalState->titleColorRuleIdx);

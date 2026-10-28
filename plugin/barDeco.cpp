@@ -28,11 +28,14 @@
 #include <hyprland/src/pointer/PointerManager.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopTimer.hpp>
+#include <hyprland/src/render/pass/RectPassElement.hpp>
+#include <hyprland/src/render/pass/TexPassElement.hpp>
 
 #include "globals.hpp"
 #include "BarPassElement.hpp"
 #include "icon.hpp"
 #include "PreviewPassElement.hpp"
+#include "tooltip.hpp"
 
 #include <climits>
 #include <filesystem>
@@ -66,6 +69,8 @@ CHyprBar::CHyprBar(PHLWINDOW pWindow) : IHyprWindowDecoration(pWindow) {
 }
 
 CHyprBar::~CHyprBar() {
+    if (g_pGlobalState->tip.bar == m_self)
+        tipHide(true);
     std::erase(g_pGlobalState->bars, m_self);
 }
 
@@ -94,7 +99,8 @@ std::string CHyprBar::getDisplayName() {
     return "KwinishBar";
 }
 
-bool CHyprBar::inputIsValid() {
+// underPointer: this bar's window must be the one under the pointer (by default the focused window's bar also counts)
+bool CHyprBar::inputIsValid(bool underPointer) {
     if (!barActive())
         return false;
 
@@ -114,7 +120,7 @@ bool CHyprBar::inputIsValid() {
     auto                    focusState = Desktop::focusState();
     auto                    window     = focusState->window();
 
-    if (WINDOWATCURSOR != m_pWindow && m_pWindow != window)
+    if (WINDOWATCURSOR != m_pWindow && (underPointer || m_pWindow != window))
         return false;
 
     PHLLS    foundSurface = nullptr;
@@ -1177,17 +1183,145 @@ void CHyprBar::damageOnButtonHover() {
     const auto HEIGHT = g_pGlobalState->config.barHeight->value();
     const auto COORDS = cursorRelativeToBar();
 
-    bool       any = false;
+    size_t     hovered = SIZE_MAX;
     float      leftEnd = 0, rightStart = 0;
     for (const auto& s : layoutButtons(assignedBoxGlobal().w, leftEnd, rightStart)) {
         const auto& b = g_pGlobalState->buttons[s.idx];
         const float y = std::floor((HEIGHT - b.size) / 2.0);
-        if (VECINRECT(COORDS, std::floor(s.x), y, std::floor(s.x) + b.size + g_pGlobalState->config.barButtonPadding->value(), y + b.size))
-            any = true;
+        if (VECINRECT(COORDS, std::floor(s.x), y, std::floor(s.x) + b.size + g_pGlobalState->config.barButtonPadding->value(), y + b.size)) {
+            hovered = s.idx;
+            break;
+        }
     }
 
-    if (any != m_bButtonHovered) {
-        m_bButtonHovered = any;
+    if ((hovered != SIZE_MAX) != m_bButtonHovered) {
+        m_bButtonHovered = hovered != SIZE_MAX;
         damageEntire();
     }
+    updateTip(hovered);
+}
+
+static void damageMonitor(PHLMONITOR M) {
+    if (M)
+        g_pHyprRenderer->damageBox(CBox{M->m_position.x, M->m_position.y, M->m_size.x, M->m_size.y});
+}
+
+void tipHide(bool forget) {
+    auto& tip = g_pGlobalState->tip;
+    if (tip.shown)
+        damageMonitor(tip.monitor.lock()); // the box was measured while drawing: the whole monitor is simplest, once per tip
+    tip.shown = false;
+    tip.tex   = nullptr;
+    if (tip.timer)
+        tip.timer->updateTimeout(std::nullopt);
+    if (forget) {
+        tip.bar.reset();
+        tip.button  = SIZE_MAX;
+        tip.pressed = false;
+        tip.text.clear();
+    }
+}
+
+// Who owns the tooltip after a pointer motion. Only the bar whose window is really under the pointer takes it: two stacked
+// bars would otherwise keep taking it from each other and the delay would never run out.
+void CHyprBar::updateTip(size_t hovered) {
+    auto&       tip  = g_pGlobalState->tip;
+    const bool  MINE = tip.bar == m_self;
+    std::string text;
+    if (hovered != SIZE_MAX && inputIsValid(true)) {
+        static const bool PT = KwTip::portuguese(getenv("LC_ALL"), getenv("LC_MESSAGES"), getenv("LANG"));
+        const auto        W  = m_pWindow.lock();
+        text = KwTip::text(g_pGlobalState->buttons[hovered].cmd, W && Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED), PT);
+    }
+
+    if (text.empty()) {
+        if (MINE)
+            tipHide(true);
+        return;
+    }
+    if (MINE && tip.button == hovered) {
+        if (tip.text != text) { // e.g. maximized from the keyboard under a resting pointer: Maximize became Restore
+            tip.text = text;
+            tip.tex  = nullptr;
+            if (tip.shown)
+                damageMonitor(tip.monitor.lock());
+        }
+        return;
+    }
+
+    tipHide(true);
+    tip.bar     = m_self;
+    tip.button  = hovered;
+    tip.text    = text;
+    tip.monitor = monitorAtPointer(g_pInputManager->getMouseCoordsInternal());
+    if (!tip.timer) {
+        // the callback only reads the global state; PLUGIN_EXIT takes the timer out of the event loop
+        tip.timer = makeShared<CEventLoopTimer>(
+            std::nullopt,
+            [](SP<CEventLoopTimer>, void*) {
+                auto& t = g_pGlobalState->tip;
+                if (t.bar.expired() || t.pressed)
+                    return;
+                t.shown = true;
+                damageMonitor(t.monitor.lock());
+            },
+            nullptr);
+        g_pEventLoopManager->addTimer(tip.timer);
+    }
+    tip.timer->updateTimeout(std::chrono::milliseconds(700)); // Qt's and so KDE's tooltip delay
+}
+
+// Queued by main.cpp after every window (RENDER_POST_WINDOWS): drawn with the bar, it would sit under the bar's own window.
+void CHyprBar::drawTip(PHLMONITOR M) {
+    auto&      tip = g_pGlobalState->tip;
+    const auto W   = m_pWindow.lock();
+    if (!tip.shown || tip.monitor != M || tip.button >= g_pGlobalState->buttons.size() || !barActive() || !validMapped(m_pWindow) ||
+        !W->m_ruleApplicator->decorate().valueOrDefault())
+        return;
+
+    const float SCALE = M->m_scale;
+    if (!tip.tex || tip.texScale != SCALE) {
+        tip.tex      = g_pHyprRenderer->renderText(tip.text, configColor(g_pGlobalState->config.textColor->value()), std::round(g_pGlobalState->config.barTextSize->value() * SCALE),
+                                                   false, g_pGlobalState->config.barTextFont->value(), 0, g_pGlobalState->config.barTextWeight->value().m_value);
+        tip.texScale = SCALE;
+    }
+    if (!tip.tex || tip.tex->m_texID == 0)
+        return;
+
+    const auto  BAR    = assignedBoxGlobal();
+    const auto  HEIGHT = g_pGlobalState->config.barHeight->value();
+    float       leftEnd = 0, rightStart = 0;
+    KwTip::SRect button;
+    for (const auto& s : layoutButtons(BAR.w, leftEnd, rightStart))
+        if (s.idx == tip.button) {
+            const float SZ = g_pGlobalState->buttons[s.idx].size;
+            button         = {BAR.x + s.x + s.drawDx, BAR.y + std::floor((HEIGHT - SZ) / 2.0), SZ, SZ};
+        }
+
+    const double PADX = 8, PADY = 4;
+    const auto   R    = KwTip::place(button, {BAR.x, BAR.y, BAR.w, BAR.h}, tip.tex->m_size.x / SCALE + 2 * PADX, tip.tex->m_size.y / SCALE + 2 * PADY,
+                                     {M->m_position.x, M->m_position.y, M->m_size.x, M->m_size.y});
+    const CBox   BOX  = CBox{R.x - M->m_position.x, R.y - M->m_position.y, R.w, R.h}.scale(SCALE).round();
+
+    CHyprColor fill = configColor(g_pGlobalState->config.barColor->value());
+    fill.a          = std::max(fill.a, 0.95); // readable over any window
+    CHyprColor line = configColor(g_pGlobalState->config.textColor->value());
+    line.a *= 0.25;
+    const int  ROUND = std::round(4 * SCALE);
+
+    CRectPassElement::SRectData outer;
+    outer.box   = BOX;
+    outer.color = line;
+    outer.round = ROUND;
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(outer));
+    CRectPassElement::SRectData inner;
+    inner.box   = BOX.copy().expand(-std::max(1.0, std::round((double)SCALE)));
+    inner.color = fill;
+    inner.round = std::max(0, ROUND - 1);
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(inner));
+
+    CTexPassElement::SRenderData text;
+    text.tex = tip.tex;
+    text.box = CBox{BOX.x + std::round(PADX * SCALE), BOX.y + std::round(PADY * SCALE), tip.tex->m_size.x, tip.tex->m_size.y};
+    g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(std::move(text)));
 }
