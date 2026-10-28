@@ -14,7 +14,7 @@ R.toggle(r, "kitty", "below", true); assert(r.kitty == nil, "empty class entry i
 assert(not R.toggle(r, "bad class!", "above", true) and r["bad class!"] == nil, "invalid class refused")
 assert(next((R.parse("garbage {{"))) == nil and next((R.parse(nil))) == nil and next((R.parse(""))) == nil)
 assert(next((R.parse('{"a b":{"above":true},"ok":{"workspace":-2,"rect":[1,2,0,5],"above":"yes"}}'))) == nil, "bad entries dropped")
-assert(next((R.parse('{"k":{"x":os.exit()}}'))) == nil, "no environment")
+-- code in the file (os.exit, loops): core/test_userdata.lua, in a child process, as it would end this suite with success
 R.forget(back, "kitty"); assert(back.kitty == nil)
 local sc = R.parse_shortcuts('{\n "kitty": "SUPER + ALT + K",\n "bad class": "SUPER + A",\n "x": "super + a", "com.y": "CTRL + F5"}')
 assert(sc.kitty == "SUPER + ALT + K" and sc["com.y"] == "CTRL + F5" and sc["bad class"] == nil and sc.x == nil, "shortcuts parsed and filtered")

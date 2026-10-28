@@ -11,7 +11,8 @@ local function check(name, ok)
 end
 local function empty(t) return type(t) == "table" and next(t) == nil end
 
--- Parse `text` with module `mod`'s function `fn` in a child lua, at most 5 s. Returns "empty", "entries" or "timeout"/"error".
+-- Parse `text` with module `mod`'s function `fn` in a child lua, at most 5 s. Returns "empty", "entries", "timeout" or "exited"
+-- (any other end: a crash, or os.exit() run from the file, which exits 0, so 0 never means "empty").
 local function sh(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
 local function isolated(mod, fn, text)
   local file, child = os.tmpname(), os.tmpname()
@@ -23,25 +24,30 @@ local M = require(%q)
 local f = io.open(%q); local text = f:read("a"); f:close()
 local r = M[%q](text)
 if %q == "load_user" then r = M.user end
-os.exit((type(r) == "table" and next(r) == nil) and 0 or 3)]], dir, mod, file, fn, fn))
+os.exit((type(r) == "table" and next(r) == nil) and 10 or 11)]], dir, mod, file, fn, fn))
   f:close()
   local _, how, n = os.execute("timeout 5 " .. sh(arg[-1]) .. " " .. sh(child))
   os.remove(file); os.remove(child)
-  if how == "exit" and n == 0 then return "empty" elseif how == "exit" and n == 3 then return "entries" end
-  return n == 124 and "timeout" or "error"
+  if how == "exit" and n == 10 then return "empty" elseif how == "exit" and n == 11 then return "entries" end
+  return n == 124 and "timeout" or "exited"
 end
 
 local loop = "(function() while true do end end)()"
-local function hostile(name, mod, fn, text) local r = isolated(mod, fn, text); check(name .. ": Lua loop in the file ends, gives nothing (" .. r .. ")", r == "empty") end
+local function hostile(name, mod, fn, text, what)
+  local r = isolated(mod, fn, text)
+  check(name .. ": " .. (what or "Lua loop") .. " in the file is not run, gives nothing (" .. r .. ")", r == "empty")
+end
 
 -- Each reader: a Lua loop (child process), truncated text (an entry that looks complete is not applied) and a wrong root (the right
 -- entries one level down are not the file's entries).
 hostile("rules", "rules", "parse", '{"k":' .. loop .. '}')
+hostile("rules", "rules", "parse", '{"k":{"x":os.exit()}}', "os.exit()")
 check("rules: truncated", empty(rules.parse('{"kitty":{"above":true}')))
 check("rules: array root", empty(rules.parse('[{"kitty":{"above":true}}]')))
 check("rules: entry that is not an object", empty(rules.parse('{"kitty":[true]}')))
 
 hostile("layouts", "layouts", "load_user", "[" .. loop .. "]")
+hostile("layouts", "layouts", "load_user", '[{"name":"os","zones":[[0,0,1,1]],"x":os.exit()}]', "os.exit()")
 layouts.load_user('[{"name":"a","zones":[[0,0,1,1]]}'); check("layouts: truncated", #layouts.user == 0)
 layouts.load_user('{"name":"a","zones":[[0,0,1,1]]}'); check("layouts: object root", #layouts.user == 0)
 layouts.load_user('[{"name":"a","made-by":"me","zones":[[0,0,1,1]]}]'); check("layouts: unknown member with a dash ignored", #layouts.user == 1)
@@ -49,6 +55,7 @@ layouts.load_user('[{"name":"a","label":"Left [wide]","zones":[[0,0,1,1]]}]')
 check("layouts: brackets inside a label kept", layouts.user[1] and layouts.user[1].label == "Left [wide]")
 layouts.load_user('[{"name":"a","zones":{"1":[0,0,1,1]}}]'); check("layouts: zones that are not a list", #layouts.user == 0)
 
+hostile("settings", "settings", "parse", '{"enabled":false,"k":os.exit()}', "os.exit()")
 check("settings: truncated", empty(settings.parse('{"enabled":false,')))
 check("settings: array root", empty(settings.parse('[{"enabled":false}]')))
 check("settings: nested name ignored, top-level value kept", settings.parse('{"unknown":{"enabled":false},"enabled":true}').enabled == true)
