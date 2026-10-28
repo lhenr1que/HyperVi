@@ -19,3 +19,4 @@
 ## Workflow follow-up
 
 - Arquivar com `/opsx:archive` (ou `$openspec-archive-change` no Codex) depois do teste do dono.
+- Arquivado em 27/10/2026 depois do relato do dono: "testes passaram" (no chat do Claude), após os roteiros 8 (dicas) e 9 (causa do QS Bar vazio) do `docs/STATUS.md` (commit `16b20cc`). O relato não detalha passo a passo; o inglês não foi exercido ao vivo (coberto por `tools/test-plugin-tooltip.sh`).

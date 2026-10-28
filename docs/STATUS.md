@@ -18,6 +18,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - **Janela de configurações** `kwinish-ui settings` (teste 5, 27/10): cor da barra e Snap Assist mudam na hora, a "Altura" redimensiona a barra inteira (plugin, `868f66a`), os valores voltam depois de `hyprctl reload` + `dev-reload.fish`.
 - Três modos por workspace (tiling, scrolling, floating), geometria guardada em etiquetas, colunas por tela lembradas. **Janela nova no modo floating nasce flutuante**, centralizada no retângulo do modo e em cascata, sem passar pelo mosaico (`fix-floating-mode-open`, teste 7, 27/10; diálogo de tamanho fixo mantém o próprio tamanho, medido ao vivo com `zenity --info`).
 - Manter acima/abaixo, minimizar/restaurar (`special:minimized`), mostrar área de trabalho, empacotar, eixo, cantos ativos.
+- **Dicas nos botões** minimizar/maximizar/fechar, estilo KDE, em português (`add-titlebar-button-tooltips`, teste 8, 27/10; o inglês só no teste automático `tools/test-plugin-tooltip.sh`).
 - Vários monitores: menu e editor abrem no monitor sob o ponteiro (HDMI-A-1 + DP-1).
 - Licenças: cabeçalhos SPDX em `plugin/`; BSD-3 do hyprbars em `plugin/LICENSE.hyprland-plugins` conferido contra o upstream.
 
@@ -25,7 +26,6 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - Correções das revisões no plugin: barras sobrepostas, arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela. O plugin do repositório já foi carregado em 27/10 (testes 5 e 7), mas esses cenários não foram exercidos de propósito: teste 2 abaixo.
 - Encaixe depois de arrastar para o 2º monitor: teste 3 abaixo (hoje só o DP-1 está ligado).
 - Snap Assist com geração, `flock` e revalidação do clique; o desfazer das regras ao desmarcar; `force_no_accel`; auto-raise.
-- **Dicas nos botões** minimizar/maximizar/fechar (`add-titlebar-button-tooltips`, 27/10): texto e posição testados (`tools/test-plugin-tooltip.sh`), plugin compilado; desenho, atraso e descarregar com a dica na tela: teste 8 abaixo.
 - Modo floating: workspace no 2º monitor (o `move` relativo ao monitor foi conferido só no Hyprland aninhado e no simulador) e sair da tela cheia dentro do modo (a spec diz que volta flutuante).
 
 ## Base de testes (etapa A, concluída em 27/10)
@@ -40,14 +40,14 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
    - Progresso (27/10): 1.1, 1.2 e 1.3 feitas (3/13). Decoder `core/kwjson.lua` (nome próprio: um módulo `json` de outra config venceria o `require`), com `core/test_kwjson.lua` e os casos compartilhados `core/testdata/json-cases.txt`, instalado pelo PKGBUILD (conferido em staging). Os seis leitores Lua (rules, layouts, settings, modes, columns, shortcuts) decodificam com ele, e `kwinish.lua` lê todos por `read_cfg` (no máximo 1 MiB + 1 byte, aviso `kwinish: <arquivo> ignored: <motivo>` em stderr uma vez por arquivo e motivo). Regressões em `core/test_userdata.lua`: contra os módulos de `d26c348`, 18 de 27 casos falham, e os laços de rules e layouts só param no `timeout`. `Hyprland --verify-config` numa config temporária (HOME e XDG temporários, sem sessão) com arquivos hostis: o núcleo novo carrega, avisa e ignora; o antigo aplicava o `settings.json` truncado. Contrato em `docs/API.md`, seção 4.
    - Medido em 27/10: o Lua da carga da config do Hyprland 0.56.2 tem um vigia, e um laço é interrompido depois de ~1,5 s de CPU (`[Lua] execution timed out in config reload`). O núcleo antigo, portanto, atrasava a carga em vez de travá-la; a leitura de `rules.json` ao abrir janela roda num timer, onde o vigia não foi medido.
    - Próximo: 1.4 (leitores Rust da `ui/`), depois a seção 2 (paridade de layouts).
-2. **Testes ao vivo do dono:** itens 2, 3, 8 e 9 abaixo.
+2. **Testes ao vivo do dono:** itens 2 e 3 abaixo.
 3. **Reinstalar os pacotes** (dono, `sudo`): sem isso, `hyprctl reload` volta ao núcleo e plugin antigos de `/usr/share` e `/usr/lib`, e tudo de 26–27/10 só vale depois de `fish tools/dev-reload.fish`. Procedimento: `docs/HANDOFF.md`, "Construir".
 4. **Achados da auditoria do Codex (27/10) ainda não corrigidos** (reproduzidos em isolamento, não vistos no desktop); cada um vira mudança no OpenSpec:
    - ciclo de vida (etapa C): minimizar apaga a procedência do modo floating (a janela pode não voltar ao mosaico); "mostrar área de trabalho" perde as origens depois de um reload; um ajuste de colunas atrasado sobrescreve a escolha mais nova; recarregar o módulo mantém callbacks antigos; `zone` não confere tela cheia como `tile` confere;
    - entrada e comunicação (etapa D): a barra da janela focada aceita o clique destinado à janela da frente; leitura sem tempo-limite no socket das barras; o Assist não revalida workspace, monitor e layout na escolha; cache de símbolos dos botões sem escala;
    - entrega (etapa E): o `Makefile` do plugin ignora os `.hpp`; `kwinish-bars-rebuild` anuncia sucesso sem conferir os `install`; CI.
 5. **Funcionalidades:** duplo clique no ícone fecha a janela; seletor de layout ao passar o mouse no maximizar; miniaturas no Alt+Tab e no Snap Assist, `rounding > 0` nas zonas e na prévia; minimizar com filhas/modais; bind para ciclar o modo do workspace, indicador na barra, modo por monitor; página no Ryoku Hub; opt-out de barra por app com decoração própria.
-6. **Bug do shell achado em 27/10 (não é do Kwinish):** maximizar uma janela esvazia o QS Bar e deixa só o espaço reservado. Causa e correção proposta: seção "Relato do dono: maximizar esvazia o QS Bar" abaixo; confirmação ao vivo: teste 9.
+6. **Bug do shell achado em 27/10 (não é do Kwinish):** maximizar uma janela esvazia o QS Bar e deixa só o espaço reservado. Causa e correção proposta: seção "Relato do dono: maximizar esvazia o QS Bar" abaixo; causa confirmada pelo dono (teste 9, 27/10). A correção é do shell.
 7. **Bugs conhecidos:** encaixe depois de arrastar entre monitores volta ao de origem (teste 3); atalho: o submap anterior não é guardado, vários daemons de barras podem coexistir, corrida entre dois diálogos de atalho; busca de ícones com I/O no render; `snap` guarda o retângulo pedido, não o obtido.
 8. **Publicação/beta** (`docs/BETA.md`): nome definitivo (hoje "Kwinish"), instalação limpa e remoção do pacote, hook do pacman num upgrade real do `hyprland`, separar docs públicas das internas, limpar o histórico. O projeto HDE (`../hde/`) espera o beta.
 
@@ -85,44 +85,6 @@ fish tools/dev-reload.fish
 ```
 Abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: os mesmos três comandos do teste 2.
 
-**8. Dicas nos botões da barra (add-titlebar-button-tooltips, 27/10)**
-Carregue o plugin e o núcleo do repositório (o primeiro `unload` só vale se o plugin instalado estiver carregado; se não estiver, o erro dele pode ser ignorado):
-```fish
-cd ~/Downloads/ryoku-work/kwinish
-make -C plugin
-hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
-fish tools/dev-reload.fish
-```
-Teste, numa janela com a barra do Kwinish (por exemplo um `kitty` flutuante):
-1. Pare o ponteiro sobre o botão de minimizar e não mexa por 1 s: aparece logo abaixo do botão, por cima do conteúdo da janela, uma caixinha "Minimizar". Faça o mesmo no maximizar ("Maximizar") e no fechar ("Fechar").
-2. Passe o ponteiro rápido pelos três botões sem parar: nenhuma dica.
-3. Pare no maximizar até a dica aparecer e clique: a janela maximiza, a dica some e não volta enquanto o ponteiro não sair do botão. Saia e pare de novo no maximizar: a dica diz "Restaurar". Clique para restaurar.
-4. Numa janela encostada na borda direita da tela, pare no fechar: a dica fica inteira dentro da tela.
-5. Pare no botão de fixar (à esquerda): nenhuma dica.
-6. Descarregar com a dica na tela: rode o comando abaixo, leve o ponteiro a um botão de minimizar de outra janela em menos de 5 s e espere. A dica aparece, depois o plugin é recarregado: a dica some, o compositor continua funcionando e as barras voltam.
-```fish
-sleep 5; fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish
-```
-O inglês ("Minimize", "Maximize", "Restore", "Close") vale quando o locale do Hyprland não começa por `pt`; não precisa testar ao vivo (exigiria reiniciar a sessão com outro `LANG`; está no teste automático).
-Desfazer (volta ao plugin e ao núcleo instalados; nenhum arquivo seu é mudado pelo teste):
-```fish
-hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
-hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
-hyprctl reload
-```
-
-**9. Confirmar a causa do QS Bar vazio ao maximizar (só leitura; vale com o plugin instalado ou o do repositório)**
-Abra um terminal com a barra do Kwinish, maximize-o pelo botão de maximizar da barra (o QS Bar esvazia) e rode nele:
-```fish
-hyprctl activeworkspace -j | string match -r '"hasfullscreen": \w+'
-hyprctl activewindow -j | string match -r '"fullscreen": \d'
-```
-Deve aparecer `"hasfullscreen": true` e `"fullscreen": 1` (1 = maximizada, 2 = tela cheia de verdade). Restaure pelo mesmo botão. Para ver que não depende do Kwinish, maximize o terminal pelo próprio Hyprland, sem a barra:
-```fish
-hyprctl eval 'hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized" }))'
-```
-O QS Bar deve esvaziar do mesmo jeito. Desfazer: rode o mesmo `hyprctl eval` de novo (ele alterna) ou clique no maximizar da barra.
-
 **4. Sem comando pronto ainda:** Shift ao arrastar no 2º monitor; workspace floating no 2º monitor; monitores com escala ≠ 1 ou girados; hook do pacman num upgrade real do `hyprland`; auto-raise.
 
 ## Relato do dono: maximizar esvazia o QS Bar (27/10; causa no shell, não corrigido aqui)
@@ -135,7 +97,7 @@ Correção proposta ao dono (no shell, que este repositório não altera): no `r
 
 ## Verificado pelo dono (histórico curto)
 - 26/10, mouse real e dois monitores: encaixe nas bordas e topo, volta do topo (140 ms), Shift no meio do arrasto, fronteira sem pulo; correções de escala 2 nas bordas, posição do clique para desencaixar, faixa de 16 px nas fronteiras, monitor sob o ponteiro, `cursor:no_warps` no ajuste de colunas.
-- 27/10: testes 6 e 1 ("os testes funcionaram"; roteiros no commit `60e19df`), teste 5 ("tudo funcionou"; roteiro no commit `a431458`), teste 7 ("os testes passaram"; diálogo medido pelo Claude). Mudanças arquivadas em `openspec/changes/archive/2026-10-27-*`; specs principais `window-snapping`, `snap-assist` e `workspace-modes`.
+- 27/10: testes 6 e 1 ("os testes funcionaram"; roteiros no commit `60e19df`), teste 5 ("tudo funcionou"; roteiro no commit `a431458`), teste 7 ("os testes passaram"; diálogo medido pelo Claude), testes 8 e 9 ("testes passaram"; roteiros no commit `16b20cc`: dicas nos botões e a causa do QS Bar vazio). Mudanças arquivadas em `openspec/changes/archive/2026-10-27-*`; specs principais `window-snapping`, `snap-assist`, `workspace-modes` e `title-bar`.
 
 ## Fora de escopo / descartado
 Mexer na memória do `CWindow` para esconder janelas; copiar código GPL (KWin, Pop Shell, HyDE); distro própria (ideia registrada, nada iniciado); abrir a janela no "tamanho pedido pelo app" no modo floating (uma regra por workspace não sabe a tempo que a janela vai flutuar; medido em 27/10).
