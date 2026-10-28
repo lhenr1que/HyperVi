@@ -1,4 +1,5 @@
 -- Tiling presets: a layout is a list of zones, each {x, y, w, h} as fractions of the work area. Pure; runs under plain lua.
+local kwjson = require("kwjson")
 local M = {}
 
 M.presets = {
@@ -18,20 +19,17 @@ function M.find(name)
   end
 end
 
--- `text` is the editor's JSON: [{"name":..,"label":..,"gap":N?,"zones":[[x,y,w,h],..]},..]. The editor writes only
--- [A-Za-z0-9 -] inside strings, so the file is turned into a Lua table and evaluated with an empty environment.
--- Entries that are malformed (bad zones, odd names) are dropped; a bad file leaves no user layouts.
+-- `text` is the editor's JSON: [{"name":..,"label":..,"gap":N?,"zones":[[x,y,w,h],..]},..], read as data (kwjson).
+-- Entries that are malformed (bad zones, odd names) are dropped; a bad file leaves no user layouts and gives the reason.
 function M.load_user(text)
   M.user = {}
   if not text or text == "" then return end
-  local src = text:gsub('"(%w+)"%s*:', "%1="):gsub("%[", "{"):gsub("%]", "}")
-  local chunk = load("return " .. src, "layouts.json", "t", {})
-  local ok, list = pcall(chunk or error)
-  if not ok or type(list) ~= "table" then return end
+  local list, err = kwjson.decode(text)
+  if not kwjson.is_array(list) then return nil, err or "not a JSON array" end
   for _, l in ipairs(list) do
     -- one bad entry (a zone that is not a list of numbers, say) must not take the others down: validate under pcall
     local ok, good = pcall(function()
-      local g = type(l) == "table" and type(l.name) == "string" and l.name:match("^[%w%-]+$") and type(l.zones) == "table" and #l.zones > 0
+      local g = kwjson.is_object(l) and type(l.name) == "string" and l.name:match("^[%w%-]+$") and kwjson.is_array(l.zones) and #l.zones > 0
       for _, z in ipairs(g and l.zones or {}) do
         g = g and type(z) == "table" and #z == 4 and type(z[1]) == "number" and type(z[2]) == "number" and type(z[3]) == "number" and type(z[4]) == "number"
           and z[1] >= 0 and z[2] >= 0 and z[3] > 0 and z[4] > 0 and z[1] + z[3] <= 1 + 1e-6 and z[2] + z[4] <= 1 + 1e-6

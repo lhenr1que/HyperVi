@@ -476,11 +476,7 @@ local function load_layout()
 end
 
 local function load_user_layouts()
-  local dir = layout_file()
-  local f = io.open(dir .. "/layouts.json", "r")
-  local ok = pcall(function() layouts.load_user(f and f:read("*a") or nil) end)
-  if not ok then layouts.user = {} end
-  if f then f:close() end
+  if not pcall(read_cfg, "layouts.json", layouts.load_user) then layouts.user = {} end
 end
 load_user_layouts()
 

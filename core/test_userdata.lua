@@ -41,5 +41,13 @@ check("rules: truncated", empty(rules.parse('{"kitty":{"above":true}')))
 check("rules: array root", empty(rules.parse('[{"kitty":{"above":true}}]')))
 check("rules: entry that is not an object", empty(rules.parse('{"kitty":[true]}')))
 
+hostile("layouts", "layouts", "load_user", "[" .. loop .. "]")
+layouts.load_user('[{"name":"a","zones":[[0,0,1,1]]}'); check("layouts: truncated", #layouts.user == 0)
+layouts.load_user('{"name":"a","zones":[[0,0,1,1]]}'); check("layouts: object root", #layouts.user == 0)
+layouts.load_user('[{"name":"a","made-by":"me","zones":[[0,0,1,1]]}]'); check("layouts: unknown member with a dash ignored", #layouts.user == 1)
+layouts.load_user('[{"name":"a","label":"Left [wide]","zones":[[0,0,1,1]]}]')
+check("layouts: brackets inside a label kept", layouts.user[1] and layouts.user[1].label == "Left [wide]")
+layouts.load_user('[{"name":"a","zones":{"1":[0,0,1,1]}}]'); check("layouts: zones that are not a list", #layouts.user == 0)
+
 if failed > 0 then print(failed .. " failure(s)"); os.exit(1) end
 print("userdata ok")
