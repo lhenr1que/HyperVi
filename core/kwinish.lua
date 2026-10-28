@@ -117,11 +117,10 @@ local function snap_assist(w, i, rects)
   local plan = assist.plan(rects, wins, i)
   if not plan then return end
   local dir = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish"
-  os.execute("mkdir -p '" .. dir .. "'")
-  local generation = assist.write(dir .. "/assist.json", w.monitor.name, plan)
+  local generation = assist.write(dir .. "/assist.json", w.monitor.name, plan) -- creates dir
   if not generation then return end
   -- Serialize UI lifetimes; queued launches for superseded generations exit without showing.
-  hl.exec_cmd("flock '" .. dir .. "/assist.lock' env KWINISH_ASSIST_GENERATION=" .. generation .. " kwinish-ui assist")
+  hl.exec_cmd("flock " .. kwjson.quote(dir .. "/assist.lock") .. " env KWINISH_ASSIST_GENERATION=" .. generation .. " kwinish-ui assist")
 end
 
 -- where: left right top bottom topleft topright bottomleft bottomright max

@@ -16,7 +16,7 @@
 
 - [x] 3.1 Criar testes de preservação do destino em falha de serialização, abertura, escrita, close e rename, incluindo primeira gravação; usar I/O injetado e /tmp. Mostrar os testes que falham com a gravação direta atual.
 - [x] 3.2 Implementar helper atômico Lua com propagação de erro e backup obrigatório de configuração inválida. Migrar rules, modos, colunas e layout ativo; verificar bytes anteriores intactos em cada falha e registrar o contrato em docs/API.md.
-- [ ] 3.3 Usar o helper em switcher e Assist sem alterar formato/geração; verificar leitor vendo JSON completo, regressões do Assist e isolamento de test_switcher.lua em runtime temporário. Documentar que runtime é descartável e não exige backup.
+- [x] 3.3 Usar o helper em switcher e Assist sem alterar formato/geração; verificar leitor vendo JSON completo, regressões do Assist e isolamento de test_switcher.lua em runtime temporário. Documentar que runtime é descartável e não exige backup.
 
 ## 4. Gravação confiável na interface
 

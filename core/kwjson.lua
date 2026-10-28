@@ -130,7 +130,9 @@ function M.read(path)
   return text
 end
 
-local function quote(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
+-- `s` as one shell word, whatever it holds (paths reach os.execute and hl.exec_cmd only through this).
+function M.quote(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
+local quote = M.quote
 
 -- Publish `text` at `path` through a temporary file in the same directory and a rename, so readers see the old file or the new
 -- one, never a part. With `check` (text -> true when the reader accepts it), an existing file that fails it is first copied byte

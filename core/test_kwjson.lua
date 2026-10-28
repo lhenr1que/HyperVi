@@ -121,6 +121,8 @@ for _, fail in ipairs({ "write:" .. P .. ".bak.tmp", "rename:" .. P .. ".bak", "
   files, ok, err = files_after(fail, "not json", object)
   assert(ok == nil and err and files[P] == "not json" and files[P .. ".tmp"] == nil, fail .. ": no copy, no replacement")
 end
+assert(J.quote("/a b/it's") == [['/a b/it'\''s']], "one shell word")
+assert(io.popen("printf %s " .. J.quote("it's $HOME `x`")):read("a") == "it's $HOME `x`", "the shell gets the text back unchanged")
 -- the real thing, in a new directory (created by write)
 local base = os.tmpname(); os.remove(base)
 local real = base .. "/sub/x.json"

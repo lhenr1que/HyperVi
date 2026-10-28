@@ -2,6 +2,7 @@
 -- A window counts as in a zone when it sits on that zone's rect (within a few px), as a snap leaves it. Pure; runs under plain lua. `wins` are {address, class, title, x, y, w, h} (floating windows of the same workspace and monitor,
 -- the one just placed excluded), `rects` the zone rects (false for a zone with no rect, see layouts.zone_rects), `placed` the
 -- index of the zone just filled.
+local kwjson = require("kwjson")
 local M = {}
 
 function M.plan(rects, wins, placed)
@@ -36,20 +37,12 @@ function M.json(monitor, plan, generation)
     math.floor(r.x + 0.5), math.floor(r.y + 0.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5), table.concat(items, ","))
 end
 
--- Preserve the last published generation across core reloads; never expose partial JSON.
+-- Preserve the last published generation across core reloads; never expose partial JSON (kwjson.write: temporary file + rename;
+-- runtime state is disposable, so no backup).
 function M.write(path, monitor, plan)
-  local old = io.open(path, "r")
-  local generation = 0
-  if old then generation = tonumber(old:read("*a"):match('"generation":(%d+)')) or 0; old:close() end
-  generation = generation + 1
-  local text = M.json(monitor, plan, generation)
-  local tmp = path .. ".tmp"
-  local f = io.open(tmp, "w")
-  if not f then return nil end
-  local ok = f:write(text)
-  local closed = f:close()
-  if ok and closed and os.rename(tmp, path) then return generation end
-  os.remove(tmp)
+  local old = kwjson.decode(kwjson.read(path))
+  local generation = (kwjson.is_object(old) and math.type(old.generation) == "integer" and old.generation or 0) + 1
+  if kwjson.write(path, M.json(monitor, plan, generation)) then return generation end
 end
 
 return M

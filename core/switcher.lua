@@ -1,30 +1,25 @@
 -- Alt+Tab logic. Keys and focus stay here (Lua sees key releases through input.keyboard.key);
 -- kwinish-ui only draws the state file. Nothing grabs the keyboard, so a stuck switcher cannot lock input.
+local kwjson = require("kwjson")
 local M = {}
 
 local ALT_KEYS = { [64] = true, [108] = true } -- xkb keycodes (evdev + 8): Alt_L, Alt_R
 local ESC = 9
 local TIMEOUT_MS = 15000
 
-local function state_file()
-  local dir = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish"
-  os.execute("mkdir -p '" .. dir .. "'")
-  return dir .. "/switcher.json"
-end
+local function state_file() return (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish/switcher.json" end
 
 local function esc(s)
   return (tostring(s or ""):gsub('[%c"\\]', function(c) return string.format("\\u%04x", c:byte()) end))
 end
 
+-- Runtime state, disposable: published whole (kwjson.write, temporary file + rename) so kwinish-ui never draws half a file; no backup.
 local function write(open, selected, items)
-  local f = io.open(state_file(), "w")
-  if not f then return end
   local parts = {}
   for _, it in ipairs(items or {}) do
     parts[#parts + 1] = string.format('{"class":"%s","title":"%s"}', esc(it.class), esc(it.title))
   end
-  f:write(string.format('{"open":%s,"selected":%d,"items":[%s]}', tostring(open), selected or 0, table.concat(parts, ",")))
-  f:close()
+  kwjson.write(state_file(), string.format('{"open":%s,"selected":%d,"items":[%s]}', tostring(open), selected or 0, table.concat(parts, ",")))
 end
 
 local opts = {}
