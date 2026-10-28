@@ -69,5 +69,21 @@ check("shortcuts: array root", empty(rules.parse_shortcuts('[{"kitty":"SUPER + K
 check("shortcuts: nested object ignored", empty(rules.parse_shortcuts('{"x":{"kitty":"SUPER + K"}}')))
 check("shortcuts: escaped combo decoded", rules.parse_shortcuts('{"kitty":"SUPER\\u0020+ K"}').kitty == "SUPER + K")
 
+-- valid files as the writers have always made them (core/testdata/formats) keep giving the same entries
+local function fixture(name) local f = assert(io.open(dir .. "testdata/formats/" .. name)); local s = f:read("a"); f:close(); return s end
+local r = rules.parse(fixture("rules.json"))
+check("formats: rules.json", r.kitty and r.kitty.above and r.kitty.nocapture and r.kitty.rect[3] == 800 and r["com.example.App"].workspace == 3)
+layouts.load_user(fixture("layouts.json"))
+local l1, l2 = layouts.user[1], layouts.user[2]
+check("formats: layouts.json (kwinish-ui's pretty JSON)", #layouts.user == 2 and l1.name == "user-my-layout" and l1.label == "My layout" and l1.gap == 8
+  and #l1.zones == 2 and l1.zones[2][1] == 0.5 and l2.gap == nil and math.abs(l2.zones[1][3] - 0.333333) < 1e-9)
+local s = settings.parse(fixture("settings.json"))
+check("formats: settings.json", s.bar_height == 32 and s.bar_color == "rgba(26262ef7)" and s["col.text"] == "rgba(f0f0f6ff)" and s.bar_text_font == "JetBrains Mono"
+  and s.on_double_click == "maximize" and s.snap_assist == false)
+local sc = rules.parse_shortcuts(fixture("shortcuts.json"))
+check("formats: shortcuts.json", sc.kitty == "SUPER + ALT + K" and sc["com.example.App"] == "CTRL + ALT + F5")
+local m, c = modes.parse(fixture("workspace-modes.json")), modes.parse_columns(fixture("workspace-columns.json"))
+check("formats: workspace-modes.json and workspace-columns.json", m["2"] == "floating" and m["10"] == "scrolling" and c["2"] == 3 and c["4"] == 1)
+
 if failed > 0 then print(failed .. " failure(s)"); os.exit(1) end
 print("userdata ok")

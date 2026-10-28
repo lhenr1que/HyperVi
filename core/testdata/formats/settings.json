@@ -1,0 +1,8 @@
+{
+  "bar_color": "rgba(26262ef7)",
+  "bar_height": 32,
+  "bar_text_font": "JetBrains Mono",
+  "col.text": "rgba(f0f0f6ff)",
+  "on_double_click": "maximize",
+  "snap_assist": false
+}

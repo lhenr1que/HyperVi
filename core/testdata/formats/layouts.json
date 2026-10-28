@@ -1,0 +1,33 @@
+[
+  {
+    "gap": 8,
+    "label": "My layout",
+    "name": "user-my-layout",
+    "zones": [
+      [
+        0.0,
+        0.0,
+        0.5,
+        1.0
+      ],
+      [
+        0.5,
+        0.0,
+        0.5,
+        1.0
+      ]
+    ]
+  },
+  {
+    "label": "Thirds",
+    "name": "user-thirds",
+    "zones": [
+      [
+        0.0,
+        0.0,
+        0.333333,
+        1.0
+      ]
+    ]
+  }
+]

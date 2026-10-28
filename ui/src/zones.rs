@@ -307,6 +307,26 @@ mod tests {
     }
 
     #[test]
+    fn valid_files_as_written_are_read_back() {
+        // core/testdata/formats: the files this crate writes, byte for byte, which core/test_userdata.lua reads too
+        let layouts = vec![
+            Layout { name: "user-my-layout".into(), label: "My layout".into(), gap: Some(8), zones: vec![[0., 0., 0.5, 1.], [0.5, 0., 0.5, 1.]] },
+            Layout { name: "user-thirds".into(), label: "Thirds".into(), gap: None, zones: vec![[0., 0., 1. / 3., 1.]] },
+        ];
+        let file = include_str!("../../core/testdata/formats/layouts.json");
+        assert_eq!(render(&layouts), file, "zones::render writes exactly the fixture");
+        assert_eq!(parse(file).len(), 2);
+        for name in ["settings.json", "shortcuts.json"] {
+            let text = match name { "settings.json" => include_str!("../../core/testdata/formats/settings.json"), _ => include_str!("../../core/testdata/formats/shortcuts.json") };
+            let v = json(text).unwrap_or_else(|| panic!("{name} refused"));
+            assert!(v.is_object());
+            assert_eq!(serde_json::to_string_pretty(&v).unwrap() + if text.ends_with('\n') { "\n" } else { "" }, text, "{name} is what to_string_pretty writes");
+        }
+        let rules = json(include_str!("../../core/testdata/formats/rules.json")).unwrap();
+        assert!(rules["kitty"]["above"] == true && rules["com.example.App"]["workspace"] == 3);
+    }
+
+    #[test]
     fn layout_cases_agree_with_the_core() {
         // core/test_layouts.lua reads the same file
         let mut wrong = vec![];
