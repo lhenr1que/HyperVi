@@ -26,7 +26,7 @@
 ## 5. Integração e revisão
 
 - [x] 5.1 Executar todas as suítes Lua com XDG_RUNTIME_DIR temporário, cargo test --locked e testes de staging do PKGBUILD; conferir formatos válidos antigos com fixtures e registrar resultados em docs/STATUS.md sem apresentar teste simulado como ao vivo.
-- [ ] 5.2 Revisar independentemente parser, limites e caminhos de falha de I/O; verificar que não restou load sobre dados de usuário, nem leitor de arquivo JSON em `ui/src` fora do helper com limites, nem publicação direta dos arquivos abrangidos, e validar com openspec validate harden-user-data-io --strict.
+- [x] 5.2 Revisar independentemente parser, limites e caminhos de falha de I/O; verificar que não restou load sobre dados de usuário, nem leitor de arquivo JSON em `ui/src` fora do helper com limites, nem publicação direta dos arquivos abrangidos, e validar com openspec validate harden-user-data-io --strict.
 
 ## Workflow follow-up
 
