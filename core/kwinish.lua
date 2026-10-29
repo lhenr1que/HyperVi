@@ -171,7 +171,7 @@ function M.show_desktop(opts)
   end
 end
 
--- Keep above: windows in `above` are raised again whenever focus changes (floating windows only).
+-- Keep above: windows in `above` are raised again whenever focus changes (floating windows only), with or without setup().
 local above, below = {}, {}
 local hooked = false
 -- The state also goes into a window tag so other programs (the window menu) can read it from `hyprctl clients`.
@@ -214,6 +214,27 @@ pcall(function()
     if has_tag(w, "kwinish-below") then below[w.address] = true end
   end
 end)
+
+-- Puts the kept windows back: those kept above on top, those kept below at the bottom; closed ones are forgotten.
+function M.restack()
+  for addr in pairs(above) do
+    if hl.get_window("address:" .. addr) then
+      hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
+    else above[addr] = nil end
+  end
+  for addr in pairs(below) do
+    if hl.get_window("address:" .. addr) then
+      hl.dispatch(hl.dsp.window.alter_zorder({ mode = "bottom", window = "address:" .. addr }))
+    else below[addr] = nil end
+  end
+end
+-- the focus event fires before the newly focused window is raised, so restack on a short timer; one hook for every core reload
+if not KWINISH_STACK_HOOK then
+  KWINISH_STACK_HOOK = true
+  hl.on("window.active", function()
+    hl.timer(function() local kw = package.loaded.kwinish; if kw then kw.restack() end end, { timeout = 30, type = "oneshot" })
+  end)
+end
 
 -- Window addresses are reused: forget what was kept for a window that closed.
 function M.forget_window(addr)
@@ -309,27 +330,20 @@ function M.setup(opts)
   local function raise(addr)
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
   end
-  -- the event fires before the newly focused window is raised, so raise on a short timer
-  hl.on("window.active", function()
-    local cur = hl.get_active_window()
-    local cur_addr = cur and cur.address
-    hl.timer(function()
-      for addr in pairs(above) do
-        if hl.get_window("address:" .. addr) then raise(addr) else above[addr] = nil end
-      end
-      for addr in pairs(below) do
-        if hl.get_window("address:" .. addr) then
-          hl.dispatch(hl.dsp.window.alter_zorder({ mode = "bottom", window = "address:" .. addr }))
-        else below[addr] = nil end
-      end
-    end, { timeout = 30, type = "oneshot" })
-    if opts.autoraise_ms and cur_addr then
+  if opts.autoraise_ms then
+    hl.on("window.active", function()
+      local cur = hl.get_active_window()
+      local cur_addr = cur and cur.address
+      if not cur_addr then return end
       hl.timer(function()
         local now = hl.get_active_window()
-        if now and now.address == cur_addr and now.floating and (not opts.filter or opts.filter(now)) then raise(cur_addr) end
+        if now and now.address == cur_addr and now.floating and (not opts.filter or opts.filter(now)) then
+          raise(cur_addr)
+          local kw = package.loaded.kwinish; if kw then kw.restack() end -- never over a window kept above
+        end
       end, { timeout = opts.autoraise_ms, type = "oneshot" })
-    end
-  end)
+    end)
+  end
   if opts.placement then
     hl.on("window.open", function(w)
       local addr = w.address -- re-fetched below: the window may be gone when the timer fires

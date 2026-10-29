@@ -35,6 +35,7 @@ local function run()
     { id = -99, name = "special:minimized" }, { id = 4, name = "4", tiled_layout = "dwindle", monitor = side } }
   local wins, events, timers, calls, execs, rules = {}, {}, {}, {}, {}, {}
   local clock, serial, active, home, refused = 0, 0, nil, workspaces[1], nil
+  local tops = {}
   local function window(addr, ws, floating)
     local w = { address = addr, class = "Test", title = addr, mapped = true, hidden = false, fullscreen = 0,
       floating = floating or false, monitor = mon, workspace = workspaces[ws or 1], at = { 40, 50 }, size = { 400, 300 }, tags = {} }
@@ -135,7 +136,9 @@ local function run()
     elseif kind == "resize" then assert(a.exact); w.size = { a.x, a.y }
     elseif kind == "move" then
       if a.workspace then w.workspace = ws_lookup(a.workspace) else w.at = { a.x, a.y } end
-    elseif kind == "alter_zorder" then w.zorder = a.mode
+    elseif kind == "alter_zorder" then
+      w.zorder = a.mode
+      if a.mode == "top" then tops[#tops + 1] = w.address end -- the last one raised is on top
     else error("unsupported dispatch " .. tostring(kind)) end
   end
   -- A window opening: enabled rules for its workspace act before the tiled layout (match.float = false skips windows that float
@@ -306,6 +309,10 @@ local function run()
   kw.keep_below({ window = b }); kw.keep_below({ window = b })
   assert(not tag(b, "kwinish-below"), "below toggles off")
   kw.keep_below({ window = b })
+  -- the owner's config only requires the core, never calls setup(): the kept stack must hold on every focus change anyway
+  manual.zorder, b.zorder = nil, nil
+  emit("window.active", a); advance(30)
+  assert(manual.zorder == "top" and b.zorder == "bottom", "kept above/below hold on focus change without setup()")
   kw = reload(); kw.setup()
   manual.zorder, b.zorder = nil, nil
   active = a; emit("window.active", a)
@@ -315,6 +322,15 @@ local function run()
   assert(not tag(manual, "kwinish-above"), "above toggle reads surviving tag")
   manual.zorder = nil
   emit("window.active", a); advance(30); assert(manual.zorder == nil, "disabled above no longer raised")
+  -- auto-raise (the recipe's autoraise_ms) lifts the focused floating window, but never over one kept above
+  kw = reload(); kw.setup({ autoraise_ms = 400 })
+  kw.keep_above({ window = manual })
+  local raiser = window("raiser", 1, true)
+  active = raiser; emit("window.active", raiser); advance(400)
+  local raised = false
+  for _, addr in ipairs(tops) do raised = raised or addr == "raiser" end
+  assert(raised and tops[#tops] == "manual", "auto-raise happened and the window kept above is on top again")
+  kw.keep_above({ window = manual }); close(raiser); active = a
 
   -- Unchecking a rule takes the switch off the open window too
   manual.class = "RuleApp"

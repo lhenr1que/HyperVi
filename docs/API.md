@@ -11,7 +11,7 @@ Loaded from the Hyprland Lua config (see `recipes/hyprland-snippet.lua`). Public
 | `setup(opts)` | `placement`, `autoraise_ms` |
 | `window_action(addr, action)` | the single entry point for UIs, see section 2 |
 | `tile(where)`, `maximize_axis(axis)`, `pack(dir)` | keyboard actions |
-| `show_desktop()`, `keep_above()`, `keep_below()` | |
+| `show_desktop()`, `keep_above()`, `keep_below()` | the kept stack is restored on every focus change, without `setup()`; auto-raise never lifts a window over one kept above |
 | `layout_names()`, `set_layout(name)` | tiling layouts (zones) |
 | `set_workspace_mode(ws, mode)`, `cycle_workspace_mode(back)` | tiling / scrolling / floating per workspace |
 | `set_scrolling_columns(ws, n)` | 1 to 3 columns per screen |
