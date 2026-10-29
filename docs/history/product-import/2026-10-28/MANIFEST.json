@@ -1,0 +1,1981 @@
+{
+  "schema": "kwinish-document-migration/v1",
+  "date": "2026-10-29",
+  "baseline_head": "a2506c63dad16384414dc95919b8292aead284df",
+  "scope": "documentation-only; no source, OpenSpec, runtime, shell selection or system migration",
+  "sources_index": "SOURCES.json",
+  "sources_count": 60,
+  "records": [
+    {
+      "kind": "repository-document",
+      "source": "AGENTS.md",
+      "source_sha256": "0e18f62db42fb591f04f2a59942611b033ebc547d3f54004a1c1fb78c593c62c",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "AGENTS.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "AGENTS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "CLAUDE.md",
+      "source_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "CLAUDE.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "README.md",
+      "source_sha256": "2af3ff9cd62eda57571293dd475a0af2df0e5943c39fff9c6b11d51ad04da138",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "README.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "README.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "core/testdata/formats/README.md",
+      "source_sha256": "d9c55c0f48969c5b6ec98860a4c6553fb75eb6c652eb42eb3ef09e38e360f82c",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "core/testdata/formats/README.md",
+      "preserved_path": null,
+      "treatment": "unchanged-in-place",
+      "destinations": [
+        "core/testdata/formats/README.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/API.md",
+      "source_sha256": "ebc71596743e554e98fdf17603bfab41fdb4133619d62a5c41e160d38a92f5e8",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/API.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "docs/API.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/BETA.md",
+      "source_sha256": "cdef7aef173a565f66aaf31ae9dae4fcccbf0c21214a801db08be1c21ef29b1d",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/BETA.md",
+      "preserved_path": "docs/history/initial-research/BETA.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/initial-research/BETA.md",
+        "docs/CONTRIBUTING.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/BRIEF-HYPR-WM-KWIN.md",
+      "source_sha256": "8ac1ea1aa1910df2db673822d45fef0e494a6bd0584a994e556a8dcfcbfa3947",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/BRIEF-HYPR-WM-KWIN.md",
+      "preserved_path": "docs/history/initial-research/BRIEF-HYPR-WM-KWIN.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/initial-research/BRIEF-HYPR-WM-KWIN.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/CONFIGURAVEL.md",
+      "source_sha256": "9aac2ad8e0cc1402a938a49e8fb9704da0bfb00397652e8d3d5d8d70960196b7",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/CONFIGURAVEL.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "docs/CONFIGURAVEL.md",
+        "docs/product/SETTINGS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/HANDOFF.md",
+      "source_sha256": "a27e2504841e25c35ed9229acec22133059616d76cb29274aa213d55f70c60f7",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/HANDOFF.md",
+      "preserved_path": "docs/history/handoffs/HANDOFF.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/handoffs/HANDOFF.md",
+        "docs/HANDOFF.md",
+        "docs/CONTRIBUTING.md",
+        "docs/ARCHITECTURE.md",
+        "docs/STATUS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/PLANO-HYPR-WM-KWIN.md",
+      "source_sha256": "17443221b6156e0ebe0f36c09c4f27ee2125c672089bcdff5f4bc82e366fed27",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/PLANO-HYPR-WM-KWIN.md",
+      "preserved_path": "docs/history/initial-research/PLANO-HYPR-WM-KWIN.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/initial-research/PLANO-HYPR-WM-KWIN.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/PLUGIN.md",
+      "source_sha256": "816df764d3aa32970173a3e6eb8a4a0550af772a72c890b12dd7152f1207cd6b",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/PLUGIN.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "docs/PLUGIN.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/SPIKE-HYPR-WM-KWIN.md",
+      "source_sha256": "f942df16b63c729b11928f7131e13721539d98e8423c24f385c9d1b7b4877855",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/SPIKE-HYPR-WM-KWIN.md",
+      "preserved_path": "docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md",
+        "docs/ARCHITECTURE.md",
+        "docs/STATUS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/STATUS.md",
+      "source_sha256": "5cecd138b03d1b7a352ed906bd8cc3ec12f53d7b9a51ee6964ea04fa5af7a575",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/STATUS.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "docs/STATUS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/TESTING.md",
+      "source_sha256": "1b5e9c80556e8481000e1b0407f4287cd9ff3a58547ccbcbf9cc7755cf02ea59",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/TESTING.md",
+      "preserved_path": null,
+      "treatment": "reconciled-in-place",
+      "destinations": [
+        "docs/TESTING.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/INDICE.md",
+      "source_sha256": "64f0f77cb517c149799d85b99a0048a992eebf6f82c8230b182fe65acbd446dc",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/INDICE.md",
+      "preserved_path": "docs/history/reference/ideias/INDICE.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/INDICE.md",
+        "docs/README.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/comportamentos-windows-macos.md",
+      "source_sha256": "c5b04a9e0dffb201b0ec4789568abb5c16508c0864b3b3ef8e80abb954a387cf",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/comportamentos-windows-macos.md",
+      "preserved_path": "docs/history/reference/ideias/comportamentos-windows-macos.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/comportamentos-windows-macos.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/distro-arch.md",
+      "source_sha256": "e41475aa92d5377df3113759a8ba385640a43a7250289c677bded3a3916a9517",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/distro-arch.md",
+      "preserved_path": "docs/history/reference/ideias/distro-arch.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/distro-arch.md",
+        "docs/product/README.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/encaixe-entre-monitores.md",
+      "source_sha256": "ff7dff815725f4d679e73133edac06aff25ad1507c0c49b2fbf7d8aa5a958285",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/encaixe-entre-monitores.md",
+      "preserved_path": "docs/history/reference/ideias/encaixe-entre-monitores.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/encaixe-entre-monitores.md",
+        "docs/STATUS.md",
+        "docs/TESTING.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/modais-ao-minimizar.md",
+      "source_sha256": "73d490b5662b307a39551c216435ffdb33caeb84abf1325740a4b9324b829e1e",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/modais-ao-minimizar.md",
+      "preserved_path": "docs/history/reference/ideias/modais-ao-minimizar.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/modais-ao-minimizar.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/pagina-no-hub.md",
+      "source_sha256": "c792bfed3dbc44c19ca276ad33b57e2e5c9903cd8fcc6d92c07dfda9d5b5f330",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/pagina-no-hub.md",
+      "preserved_path": "docs/history/reference/ideias/pagina-no-hub.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/pagina-no-hub.md",
+        "docs/product/SETTINGS.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/referencia-omarchy.md",
+      "source_sha256": "bf2491210120fc2717210ab2765c91d6d936a61cd0a8f775452cbf0c71b586b4",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/referencia-omarchy.md",
+      "preserved_path": "docs/history/reference/ideias/referencia-omarchy.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/referencia-omarchy.md",
+        "docs/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/referencias-e-ferramentas.md",
+      "source_sha256": "e21ba6d801ea4a1d7f796c60fb243da32250a666fb13fdcfd174d62741564439",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/referencias-e-ferramentas.md",
+      "preserved_path": "docs/history/reference/ideias/referencias-e-ferramentas.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/referencias-e-ferramentas.md",
+        "docs/CONTRIBUTING.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/seletor-em-cruz.md",
+      "source_sha256": "f594733d46e8bce15cff0be22a0d1701a4832e64fffba931d39f9f04b92f4412",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/seletor-em-cruz.md",
+      "preserved_path": "docs/history/reference/ideias/seletor-em-cruz.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/seletor-em-cruz.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/ideias/vxwm-canvas-infinito.md",
+      "source_sha256": "31e9df99325d3a3145f00cfcd8bf3046c5d238bdf644c573bf810f56d9f2b951",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/ideias/vxwm-canvas-infinito.md",
+      "preserved_path": "docs/history/reference/ideias/vxwm-canvas-infinito.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/ideias/vxwm-canvas-infinito.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/referencia/REVISAO-GEMINI-KWIN.md",
+      "source_sha256": "fb87a6ffd017312daf1a844c096eb98c44e8328c810b43c2b388bbb6c60aca6b",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/referencia/REVISAO-GEMINI-KWIN.md",
+      "preserved_path": "docs/history/reference/referencia/REVISAO-GEMINI-KWIN.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/referencia/REVISAO-GEMINI-KWIN.md",
+        "docs/CONTRIBUTING.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/referencia/kwin-vs-hyprland-marcado.md",
+      "source_sha256": "0569b150680883136e70d69bf439cc3fd74f0e39f6f1dfc3c0a403865d123ad0",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/referencia/kwin-vs-hyprland-marcado.md",
+      "preserved_path": "docs/history/reference/referencia/kwin-vs-hyprland-marcado.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/referencia/kwin-vs-hyprland-marcado.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "docs/referencia/kwin-vs-hyprland.md",
+      "source_sha256": "c10cba0dc09d792a0a9e1a799e7e87bd70acae2d4915781731df27da7b46c751",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "docs/referencia/kwin-vs-hyprland.md",
+      "preserved_path": "docs/history/reference/referencia/kwin-vs-hyprland.md",
+      "treatment": "moved-byte-identical",
+      "destinations": [
+        "docs/history/reference/referencia/kwin-vs-hyprland.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "repository-document",
+      "source": "spike/nested-open/README.md",
+      "source_sha256": "65a47673bc17113fbc30b58aed5aa5a543303de2732e515cd441747e8c808a09",
+      "preserved_archive": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "archive_entry": "spike/nested-open/README.md",
+      "preserved_path": null,
+      "treatment": "unchanged-in-place",
+      "destinations": [
+        "spike/nested-open/README.md"
+      ]
+    },
+    {
+      "kind": "external-package",
+      "source": "Kwinish_Product_Docs_2026-10-28.zip",
+      "source_sha256": "be2386572a81ed9840b2f881413a43891ece080712e33801a02abbba522f3f7a",
+      "preserved_path": "docs/history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip",
+      "treatment": "original-and-byte-identical-copy",
+      "destinations": [
+        "Kwinish_Product_Docs_2026-10-28.zip",
+        "docs/history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "LEIA_ANTES_DE_COPIAR.md",
+      "source_sha256": "b411a3f13dd570ca38db4ff786aad859e8cb947f91a28146a7e1b21d8ea7a1e7",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/LEIA_ANTES_DE_COPIAR.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/history/product-import/2026-10-28/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/AGENTS_ROOT_SNIPPET.md",
+      "source_sha256": "044ca0263e7350f37bdfbf96be5d373dd702d28e8862b14fcf829f532b58d5be",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENTS_ROOT_SNIPPET.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "AGENTS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/AGENT_GUIDE.md",
+      "source_sha256": "3f86d9e6a5a0a30d16eaab6130ba73c46c49cfbc1caeffa5e4b46c3cebb4d505",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENT_GUIDE.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "AGENTS.md",
+        "docs/product/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/README.md",
+      "source_sha256": "313e6213b5a8feb9bbab7e09627af2d51f8bd4ed449633eb2c6a9a4fece4d558",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/README.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md",
+      "source_sha256": "8705977ef597459e71cee9af382406742d7cc087a218762638c44e0f4a671a2c",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md",
+      "source_sha256": "c63756c01422cc0ba8527cd7f3f1c985df3e1336e6a1dc3be91ee10071f101eb",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt",
+      "source_sha256": "fb06ecd1cf9b3944de0dcb5c7fce9879b950f80b6a0b8103af14adb130e8f9aa",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/history/audits/2026-10-28/README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/STATUS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md",
+      "source_sha256": "d3eafb5a929747ab8e7b01a387dcbcf655da57bc9d136fc875ba2cfc57de5d7c",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/history/audits/2026-10-28/README.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md",
+      "source_sha256": "95c512a891179f6b79675c9cbf03640e555c3773033d26933e86c2e718249bbe",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/WORKSPACES.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md",
+      "source_sha256": "989dc6c6a7ba0c5a47694291824c827aa26346babd217fee4872d74e39f99a6a",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/history/audits/2026-10-28/README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/STATUS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md",
+      "source_sha256": "637063744429e09e795753aca767f6d1d1a00ec06517a12afa4ea81ea09a0063",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/WORKSPACES.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md",
+      "source_sha256": "1c5cee1dfcb6eb9ee1ee67789664f464f822d4003d97a2faff416b7d553e79ea",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md",
+      "source_sha256": "f597b4e6fffcef531de573f53e19c9cf1f3eda597028295b2ee3248717cb9627",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md",
+      "source_sha256": "2c57409fd01a7bc16544784f75e4b64c01cfc4860d36b305f4b0be11380fe26f",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/INTERFACE.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md",
+      "source_sha256": "3a3fe264cc6271f8cc639e5efcf5f56d8343d150eff0fcec554e89510183add5",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/WORKSPACES.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md",
+      "source_sha256": "278e6a5af95ae948a22358e98e879a45afc5ac653b42d1c372fb4ef4c555fce0",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/INTERFACE.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md",
+      "source_sha256": "c99a5cb03db0ae563ac406429f2deea1346cff474c3359022b262036ed85e1af",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/SETTINGS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md",
+      "source_sha256": "5fb76d7f1285bc00d200bce94956e95ddc7854dad8390ed2f967dcb35a97b952",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/WORKSPACES.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "source_sha256": "335401dfd20aba369ec6579085962412a23dffc0a7c69bae7180b627685fb744",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "source_sha256": "9c82b9cc89fc0972acbf3045ab70a2706ba5f6b67fc6eb8bf6447e79faabe051",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "source_sha256": "4466d1adcde6bc7939e9d0ade38d7519404373ecd0676c2d09a710244bfaf2a3",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "source_sha256": "efa0655c74e74736f7d3feb7f97702f239637c90789df47cb7a8097b5e0a27ee",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "source_sha256": "4d4bc398d800b1360b4949c72c734c8f62bcd6ad3330f022e1d3a3886ab00329",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "source_sha256": "bc354ffc244097e5c2a5c292263738133d977d49fc93421369db4219e708c1d6",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "treatment": "original-image-copy-and-caption",
+      "destinations": [
+        "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+        "docs/product/DESIGN.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md",
+      "source_sha256": "33512cf7f6e2f51abfcc4fdbd7580c9f35e1b9648486c2d7fb1df51dd503fe52",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/PROPOSALS.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml",
+      "source_sha256": "85b53dd24fbe7d19c8b0f0ddccf5e82600c5c372c76b57a2a89dc34dfb0fc5b9",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml",
+      "treatment": "byte-identical-draft-outside-openspec",
+      "destinations": [
+        "docs/product/drafts/stabilize-show-desktop-restoration/.openspec.yaml",
+        "docs/product/drafts/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/stabilize-show-desktop-restoration/design.md",
+      "source_sha256": "ea15df16aff2d14605c6d0e6fb4e6a266462178bc7d9084820ad53c5883e7542",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/design.md",
+      "treatment": "byte-identical-draft-outside-openspec",
+      "destinations": [
+        "docs/product/drafts/stabilize-show-desktop-restoration/design.md",
+        "docs/product/drafts/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/stabilize-show-desktop-restoration/proposal.md",
+      "source_sha256": "8c7ce2aed0f83f2c3966dd9514a61f0be7ddd9a5a767b1c4af92ec3f187b2f3d",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/proposal.md",
+      "treatment": "byte-identical-draft-outside-openspec",
+      "destinations": [
+        "docs/product/drafts/stabilize-show-desktop-restoration/proposal.md",
+        "docs/product/drafts/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "source_sha256": "b8bfcc0d83f9105079cf5173098cbb6d2699020a6e84806a6bc712f68502edf1",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "treatment": "byte-identical-draft-outside-openspec",
+      "destinations": [
+        "docs/product/drafts/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+        "docs/product/drafts/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/proposals/stabilize-show-desktop-restoration/tasks.md",
+      "source_sha256": "cb23c7ad23a62c4fd8b81c535c447ae0514a3e5750fa6b1a66757e54fc5aae99",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/tasks.md",
+      "treatment": "byte-identical-draft-outside-openspec",
+      "destinations": [
+        "docs/product/drafts/stabilize-show-desktop-restoration/tasks.md",
+        "docs/product/drafts/README.md"
+      ]
+    },
+    {
+      "kind": "external-zip-entry",
+      "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md",
+      "source_sha256": "816ab25f45d9cb6e47858648c04cab19f3a42a5605be51a47d6f83b6ae7bca55",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md",
+      "treatment": "preserved-source-and-consolidated-reading",
+      "destinations": [
+        "docs/product/README.md",
+        "docs/product/DECISIONS.md",
+        "docs/product/INTERFACE.md",
+        "docs/product/SETTINGS.md",
+        "docs/product/WORKSPACES.md",
+        "docs/product/PROPOSALS.md"
+      ]
+    }
+  ],
+  "consolidated_document_hashes": {
+    "AGENTS.md": "b3911171c24b9fa20dd96491b50d54e77fc85fc7cbe07725887e462fb4f8ca4b",
+    "CLAUDE.md": "f069c916abb13bddf6a68b776d46634984041b691db74d6e84ccbd6f5f3d7392",
+    "README.md": "66ffa328b18933a11911fb476a1024aa17c7390c19bf43c18a8d553e354fa93e",
+    "core/testdata/formats/README.md": "d9c55c0f48969c5b6ec98860a4c6553fb75eb6c652eb42eb3ef09e38e360f82c",
+    "docs/API.md": "d08d7e602d42148e5b5b81ed8ed693afd2d7511170f7796c59f1c9362e191588",
+    "docs/ARCHITECTURE.md": "bd170d74cbcb6f6ed0c4c397508655c08f09b44f9702988721c02541df5cdd3c",
+    "docs/CONFIGURAVEL.md": "d918f2f897bd713a6903c6625f6cce96be5a39203e037874814cca1746bc9658",
+    "docs/CONTRIBUTING.md": "8f29de2c479deee99781e517ed46ac5220af56a0b470fa6313be32cbc11b6460",
+    "docs/HANDOFF.md": "ee9dfcc168478caf13979430a008443fb403431b11d5a5ecd38318057629bf6f",
+    "docs/PLUGIN.md": "24d5ead2c5c13fedb3d4a10c3180d39331519bec829f96403cd4f1e885b4e246",
+    "docs/README.md": "564cae09b5e1d5aa3ddbe4e5714bafab7148ae20dfdc7b02b635a28615ae30dc",
+    "docs/STATUS.md": "22e17feb5b78bf6f5dfe94ca9b03b48db55cc9c4de4633d4f57de7946464b83a",
+    "docs/TESTING.md": "5883f0d2ba2b730801d1651cc98569bf8ddc14fab739c10e2e7bb95028cc035d",
+    "docs/history/README.md": "bbce8e9c573f362a9d61597fd57772ab76dbabcba05076bb5283bea265ed2949",
+    "docs/history/audits/2026-10-28/README.md": "8b84d2756e6ac29137e41285b51390361254c45ee878e6b81e6969a5a61dcc9c",
+    "docs/history/handoffs/HANDOFF.md": "a27e2504841e25c35ed9229acec22133059616d76cb29274aa213d55f70c60f7",
+    "docs/history/initial-research/BETA.md": "cdef7aef173a565f66aaf31ae9dae4fcccbf0c21214a801db08be1c21ef29b1d",
+    "docs/history/initial-research/BRIEF-HYPR-WM-KWIN.md": "8ac1ea1aa1910df2db673822d45fef0e494a6bd0584a994e556a8dcfcbfa3947",
+    "docs/history/initial-research/PLANO-HYPR-WM-KWIN.md": "17443221b6156e0ebe0f36c09c4f27ee2125c672089bcdff5f4bc82e366fed27",
+    "docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md": "f942df16b63c729b11928f7131e13721539d98e8423c24f385c9d1b7b4877855",
+    "docs/history/product-import/2026-10-28/README.md": "5b16cbf4020dd8786e16d3e144bdfd24f7e09a13d8e6de4b7a5aceecde2e0f7f",
+    "docs/history/reference/ideias/INDICE.md": "64f0f77cb517c149799d85b99a0048a992eebf6f82c8230b182fe65acbd446dc",
+    "docs/history/reference/ideias/comportamentos-windows-macos.md": "c5b04a9e0dffb201b0ec4789568abb5c16508c0864b3b3ef8e80abb954a387cf",
+    "docs/history/reference/ideias/distro-arch.md": "e41475aa92d5377df3113759a8ba385640a43a7250289c677bded3a3916a9517",
+    "docs/history/reference/ideias/encaixe-entre-monitores.md": "ff7dff815725f4d679e73133edac06aff25ad1507c0c49b2fbf7d8aa5a958285",
+    "docs/history/reference/ideias/modais-ao-minimizar.md": "73d490b5662b307a39551c216435ffdb33caeb84abf1325740a4b9324b829e1e",
+    "docs/history/reference/ideias/pagina-no-hub.md": "c792bfed3dbc44c19ca276ad33b57e2e5c9903cd8fcc6d92c07dfda9d5b5f330",
+    "docs/history/reference/ideias/referencia-omarchy.md": "bf2491210120fc2717210ab2765c91d6d936a61cd0a8f775452cbf0c71b586b4",
+    "docs/history/reference/ideias/referencias-e-ferramentas.md": "e21ba6d801ea4a1d7f796c60fb243da32250a666fb13fdcfd174d62741564439",
+    "docs/history/reference/ideias/seletor-em-cruz.md": "f594733d46e8bce15cff0be22a0d1701a4832e64fffba931d39f9f04b92f4412",
+    "docs/history/reference/ideias/vxwm-canvas-infinito.md": "31e9df99325d3a3145f00cfcd8bf3046c5d238bdf644c573bf810f56d9f2b951",
+    "docs/history/reference/referencia/REVISAO-GEMINI-KWIN.md": "fb87a6ffd017312daf1a844c096eb98c44e8328c810b43c2b388bbb6c60aca6b",
+    "docs/history/reference/referencia/kwin-vs-hyprland-marcado.md": "0569b150680883136e70d69bf439cc3fd74f0e39f6f1dfc3c0a403865d123ad0",
+    "docs/history/reference/referencia/kwin-vs-hyprland.md": "c10cba0dc09d792a0a9e1a799e7e87bd70acae2d4915781731df27da7b46c751",
+    "docs/product/DECISIONS.md": "029e2c6250a310aec45067a8258f3bc1736f326233fab7e90dfd52309c4e1e14",
+    "docs/product/DESIGN.md": "1fb1c08ee589894afe8756021f79adc4288df74e377c008fda6a957f1019691c",
+    "docs/product/INTERFACE.md": "ab82ee1eeafef08d7ab2864956a847faf833525499c222f47effd3a521ee54a1",
+    "docs/product/PROPOSALS.md": "3a3c6c135ee674216d59c8af99873e7d593ec6d2ecfb2c77ac61f34e52c91d30",
+    "docs/product/README.md": "49ebad55ebac5817b37f71849ddbc9c2900e87bb670405090acddead5e5fe29b",
+    "docs/product/SETTINGS.md": "97f506ebb0eb66904a747201681fd30e290d2f2eb73f25a573f4c0411d2e9610",
+    "docs/product/WORKSPACES.md": "8ce78a655df7bb24b5515ba6a0da4b6762b11e34db0fb5dfd9ac2cd1ada0e027",
+    "docs/product/drafts/README.md": "cddf647b2e102fafe3986cfd86af354a36972d64733101aa60b8a363183702f6",
+    "docs/product/drafts/stabilize-show-desktop-restoration/design.md": "ea15df16aff2d14605c6d0e6fb4e6a266462178bc7d9084820ad53c5883e7542",
+    "docs/product/drafts/stabilize-show-desktop-restoration/proposal.md": "8c7ce2aed0f83f2c3966dd9514a61f0be7ddd9a5a767b1c4af92ec3f187b2f3d",
+    "docs/product/drafts/stabilize-show-desktop-restoration/specs/show-desktop/spec.md": "b8bfcc0d83f9105079cf5173098cbb6d2699020a6e84806a6bc712f68502edf1",
+    "docs/product/drafts/stabilize-show-desktop-restoration/tasks.md": "cb23c7ad23a62c4fd8b81c535c447ae0514a3e5750fa6b1a66757e54fc5aae99",
+    "spike/nested-open/README.md": "65a47673bc17113fbc30b58aed5aa5a543303de2732e515cd441747e8c808a09"
+  },
+  "outputs": [
+    {
+      "path": "AGENTS.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "AGENTS.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/AGENTS_ROOT_SNIPPET.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/AGENT_GUIDE.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "CLAUDE.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "README.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/API.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/API.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "README.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/API.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/BRIEF-HYPR-WM-KWIN.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/HANDOFF.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/PLANO-HYPR-WM-KWIN.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/PLUGIN.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/SPIKE-HYPR-WM-KWIN.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/referencia-omarchy.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/CONFIGURAVEL.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/CONFIGURAVEL.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/CONTRIBUTING.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/BETA.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/HANDOFF.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/referencias-e-ferramentas.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/REVISAO-GEMINI-KWIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/HANDOFF.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/HANDOFF.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/PLUGIN.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/PLUGIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/INDICE.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/STATUS.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/HANDOFF.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/SPIKE-HYPR-WM-KWIN.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/STATUS.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/encaixe-entre-monitores.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/TESTING.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/TESTING.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/encaixe-entre-monitores.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/README.md",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/audits/2026-10-28/README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/handoffs/HANDOFF.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/HANDOFF.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/initial-research/BETA.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/BETA.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/initial-research/BRIEF-HYPR-WM-KWIN.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/BRIEF-HYPR-WM-KWIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/initial-research/PLANO-HYPR-WM-KWIN.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/PLANO-HYPR-WM-KWIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/SPIKE-HYPR-WM-KWIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/DIFF-SUMMARY.txt",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/GIT-STATUS.txt",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-package",
+          "source": "Kwinish_Product_Docs_2026-10-28.zip"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/MANIFEST.json",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/MANIFEST.md",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/PROTECTED.json",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "LEIA_ANTES_DE_COPIAR.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/SHA256SUMS",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/SOURCES.json",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/VALIDATION.json",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/VALIDATION.md",
+      "role": "metadata-or-navigation",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/LEIA_ANTES_DE_COPIAR.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "LEIA_ANTES_DE_COPIAR.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENTS_ROOT_SNIPPET.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/AGENTS_ROOT_SNIPPET.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENT_GUIDE.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/AGENT_GUIDE.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/README.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/README.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/design.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/design.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/proposal.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/proposal.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/tasks.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/tasks.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/external-originals/docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/product-import/2026-10-28/repository-originals.zip",
+      "role": "preserved-source",
+      "origins": [],
+      "generated_in_documentation_consolidation": true
+    },
+    {
+      "path": "docs/history/reference/ideias/INDICE.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/INDICE.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/comportamentos-windows-macos.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/comportamentos-windows-macos.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/distro-arch.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/distro-arch.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/encaixe-entre-monitores.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/encaixe-entre-monitores.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/modais-ao-minimizar.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/modais-ao-minimizar.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/pagina-no-hub.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/pagina-no-hub.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/referencia-omarchy.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/referencia-omarchy.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/referencias-e-ferramentas.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/referencias-e-ferramentas.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/seletor-em-cruz.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/seletor-em-cruz.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/ideias/vxwm-canvas-infinito.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/vxwm-canvas-infinito.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/referencia/REVISAO-GEMINI-KWIN.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/REVISAO-GEMINI-KWIN.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/referencia/kwin-vs-hyprland-marcado.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/kwin-vs-hyprland-marcado.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/history/reference/referencia/kwin-vs-hyprland.md",
+      "role": "preserved-source",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/kwin-vs-hyprland.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/DECISIONS.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/DESIGN.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/INTERFACE.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/PROPOSALS.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/comportamentos-windows-macos.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/distro-arch.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/modais-ao-minimizar.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/pagina-no-hub.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/referencias-e-ferramentas.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/seletor-em-cruz.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/vxwm-canvas-infinito.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/kwin-vs-hyprland-marcado.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/referencia/kwin-vs-hyprland.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/distro-arch.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/AGENT_GUIDE.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/README.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/SETTINGS.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "repository-document",
+          "source": "docs/CONFIGURAVEL.md"
+        },
+        {
+          "kind": "repository-document",
+          "source": "docs/ideias/pagina-no-hub.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/WORKSPACES.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/README.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/design.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/proposal.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md"
+        },
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/tasks.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/stabilize-show-desktop-restoration/.openspec.yaml",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/stabilize-show-desktop-restoration/design.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/design.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/stabilize-show-desktop-restoration/proposal.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/proposal.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/drafts/stabilize-show-desktop-restoration/tasks.md",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/proposals/stabilize-show-desktop-restoration/tasks.md"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    },
+    {
+      "path": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "role": "consolidated-reading",
+      "origins": [
+        {
+          "kind": "external-zip-entry",
+          "source": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png"
+        }
+      ],
+      "generated_in_documentation_consolidation": false
+    }
+  ]
+}

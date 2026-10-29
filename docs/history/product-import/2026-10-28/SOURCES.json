@@ -1,0 +1,343 @@
+{
+  "baseline_head": "a2506c63dad16384414dc95919b8292aead284df",
+  "date": "2026-10-29",
+  "repository_originals_archive": {
+    "path": "docs/history/product-import/2026-10-28/repository-originals.zip",
+    "sha256": "703714d760952b5b3beddc6197d716e9a887428bdb169b46d4a401899aef9879"
+  },
+  "repository_originals": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "0e18f62db42fb591f04f2a59942611b033ebc547d3f54004a1c1fb78c593c62c",
+      "archive_entry": "AGENTS.md"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "archive_entry": "CLAUDE.md"
+    },
+    {
+      "path": "README.md",
+      "sha256": "2af3ff9cd62eda57571293dd475a0af2df0e5943c39fff9c6b11d51ad04da138",
+      "archive_entry": "README.md"
+    },
+    {
+      "path": "core/testdata/formats/README.md",
+      "sha256": "d9c55c0f48969c5b6ec98860a4c6553fb75eb6c652eb42eb3ef09e38e360f82c",
+      "archive_entry": "core/testdata/formats/README.md"
+    },
+    {
+      "path": "docs/API.md",
+      "sha256": "ebc71596743e554e98fdf17603bfab41fdb4133619d62a5c41e160d38a92f5e8",
+      "archive_entry": "docs/API.md"
+    },
+    {
+      "path": "docs/BETA.md",
+      "sha256": "cdef7aef173a565f66aaf31ae9dae4fcccbf0c21214a801db08be1c21ef29b1d",
+      "archive_entry": "docs/BETA.md"
+    },
+    {
+      "path": "docs/BRIEF-HYPR-WM-KWIN.md",
+      "sha256": "8ac1ea1aa1910df2db673822d45fef0e494a6bd0584a994e556a8dcfcbfa3947",
+      "archive_entry": "docs/BRIEF-HYPR-WM-KWIN.md"
+    },
+    {
+      "path": "docs/CONFIGURAVEL.md",
+      "sha256": "9aac2ad8e0cc1402a938a49e8fb9704da0bfb00397652e8d3d5d8d70960196b7",
+      "archive_entry": "docs/CONFIGURAVEL.md"
+    },
+    {
+      "path": "docs/HANDOFF.md",
+      "sha256": "a27e2504841e25c35ed9229acec22133059616d76cb29274aa213d55f70c60f7",
+      "archive_entry": "docs/HANDOFF.md"
+    },
+    {
+      "path": "docs/PLANO-HYPR-WM-KWIN.md",
+      "sha256": "17443221b6156e0ebe0f36c09c4f27ee2125c672089bcdff5f4bc82e366fed27",
+      "archive_entry": "docs/PLANO-HYPR-WM-KWIN.md"
+    },
+    {
+      "path": "docs/PLUGIN.md",
+      "sha256": "816df764d3aa32970173a3e6eb8a4a0550af772a72c890b12dd7152f1207cd6b",
+      "archive_entry": "docs/PLUGIN.md"
+    },
+    {
+      "path": "docs/SPIKE-HYPR-WM-KWIN.md",
+      "sha256": "f942df16b63c729b11928f7131e13721539d98e8423c24f385c9d1b7b4877855",
+      "archive_entry": "docs/SPIKE-HYPR-WM-KWIN.md"
+    },
+    {
+      "path": "docs/STATUS.md",
+      "sha256": "5cecd138b03d1b7a352ed906bd8cc3ec12f53d7b9a51ee6964ea04fa5af7a575",
+      "archive_entry": "docs/STATUS.md"
+    },
+    {
+      "path": "docs/TESTING.md",
+      "sha256": "1b5e9c80556e8481000e1b0407f4287cd9ff3a58547ccbcbf9cc7755cf02ea59",
+      "archive_entry": "docs/TESTING.md"
+    },
+    {
+      "path": "docs/ideias/INDICE.md",
+      "sha256": "64f0f77cb517c149799d85b99a0048a992eebf6f82c8230b182fe65acbd446dc",
+      "archive_entry": "docs/ideias/INDICE.md"
+    },
+    {
+      "path": "docs/ideias/comportamentos-windows-macos.md",
+      "sha256": "c5b04a9e0dffb201b0ec4789568abb5c16508c0864b3b3ef8e80abb954a387cf",
+      "archive_entry": "docs/ideias/comportamentos-windows-macos.md"
+    },
+    {
+      "path": "docs/ideias/distro-arch.md",
+      "sha256": "e41475aa92d5377df3113759a8ba385640a43a7250289c677bded3a3916a9517",
+      "archive_entry": "docs/ideias/distro-arch.md"
+    },
+    {
+      "path": "docs/ideias/encaixe-entre-monitores.md",
+      "sha256": "ff7dff815725f4d679e73133edac06aff25ad1507c0c49b2fbf7d8aa5a958285",
+      "archive_entry": "docs/ideias/encaixe-entre-monitores.md"
+    },
+    {
+      "path": "docs/ideias/modais-ao-minimizar.md",
+      "sha256": "73d490b5662b307a39551c216435ffdb33caeb84abf1325740a4b9324b829e1e",
+      "archive_entry": "docs/ideias/modais-ao-minimizar.md"
+    },
+    {
+      "path": "docs/ideias/pagina-no-hub.md",
+      "sha256": "c792bfed3dbc44c19ca276ad33b57e2e5c9903cd8fcc6d92c07dfda9d5b5f330",
+      "archive_entry": "docs/ideias/pagina-no-hub.md"
+    },
+    {
+      "path": "docs/ideias/referencia-omarchy.md",
+      "sha256": "bf2491210120fc2717210ab2765c91d6d936a61cd0a8f775452cbf0c71b586b4",
+      "archive_entry": "docs/ideias/referencia-omarchy.md"
+    },
+    {
+      "path": "docs/ideias/referencias-e-ferramentas.md",
+      "sha256": "e21ba6d801ea4a1d7f796c60fb243da32250a666fb13fdcfd174d62741564439",
+      "archive_entry": "docs/ideias/referencias-e-ferramentas.md"
+    },
+    {
+      "path": "docs/ideias/seletor-em-cruz.md",
+      "sha256": "f594733d46e8bce15cff0be22a0d1701a4832e64fffba931d39f9f04b92f4412",
+      "archive_entry": "docs/ideias/seletor-em-cruz.md"
+    },
+    {
+      "path": "docs/ideias/vxwm-canvas-infinito.md",
+      "sha256": "31e9df99325d3a3145f00cfcd8bf3046c5d238bdf644c573bf810f56d9f2b951",
+      "archive_entry": "docs/ideias/vxwm-canvas-infinito.md"
+    },
+    {
+      "path": "docs/referencia/REVISAO-GEMINI-KWIN.md",
+      "sha256": "fb87a6ffd017312daf1a844c096eb98c44e8328c810b43c2b388bbb6c60aca6b",
+      "archive_entry": "docs/referencia/REVISAO-GEMINI-KWIN.md"
+    },
+    {
+      "path": "docs/referencia/kwin-vs-hyprland-marcado.md",
+      "sha256": "0569b150680883136e70d69bf439cc3fd74f0e39f6f1dfc3c0a403865d123ad0",
+      "archive_entry": "docs/referencia/kwin-vs-hyprland-marcado.md"
+    },
+    {
+      "path": "docs/referencia/kwin-vs-hyprland.md",
+      "sha256": "c10cba0dc09d792a0a9e1a799e7e87bd70acae2d4915781731df27da7b46c751",
+      "archive_entry": "docs/referencia/kwin-vs-hyprland.md"
+    },
+    {
+      "path": "spike/nested-open/README.md",
+      "sha256": "65a47673bc17113fbc30b58aed5aa5a543303de2732e515cd441747e8c808a09",
+      "archive_entry": "spike/nested-open/README.md"
+    }
+  ],
+  "external_package": {
+    "original_path": "Kwinish_Product_Docs_2026-10-28.zip",
+    "preserved_path": "docs/history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip",
+    "sha256": "be2386572a81ed9840b2f881413a43891ece080712e33801a02abbba522f3f7a"
+  },
+  "external_entries": [
+    {
+      "archive_path": "LEIA_ANTES_DE_COPIAR.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/LEIA_ANTES_DE_COPIAR.md",
+      "sha256": "b411a3f13dd570ca38db4ff786aad859e8cb947f91a28146a7e1b21d8ea7a1e7",
+      "size": 1170
+    },
+    {
+      "archive_path": "docs/product/AGENTS_ROOT_SNIPPET.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENTS_ROOT_SNIPPET.md",
+      "sha256": "044ca0263e7350f37bdfbf96be5d373dd702d28e8862b14fcf829f532b58d5be",
+      "size": 791
+    },
+    {
+      "archive_path": "docs/product/AGENT_GUIDE.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/AGENT_GUIDE.md",
+      "sha256": "3f86d9e6a5a0a30d16eaab6130ba73c46c49cfbc1caeffa5e4b46c3cebb4d505",
+      "size": 1689
+    },
+    {
+      "archive_path": "docs/product/README.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/README.md",
+      "sha256": "313e6213b5a8feb9bbab7e09627af2d51f8bd4ed449633eb2c6a9a4fece4d558",
+      "size": 2461
+    },
+    {
+      "archive_path": "docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md",
+      "sha256": "8705977ef597459e71cee9af382406742d7cc087a218762638c44e0f4a671a2c",
+      "size": 19386
+    },
+    {
+      "archive_path": "docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md",
+      "sha256": "c63756c01422cc0ba8527cd7f3f1c985df3e1336e6a1dc3be91ee10071f101eb",
+      "size": 86521
+    },
+    {
+      "archive_path": "docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt",
+      "sha256": "fb06ecd1cf9b3944de0dcb5c7fce9879b950f80b6a0b8103af14adb130e8f9aa",
+      "size": 22148
+    },
+    {
+      "archive_path": "docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md",
+      "sha256": "d3eafb5a929747ab8e7b01a387dcbcf655da57bc9d136fc875ba2cfc57de5d7c",
+      "size": 9966
+    },
+    {
+      "archive_path": "docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md",
+      "sha256": "95c512a891179f6b79675c9cbf03640e555c3773033d26933e86c2e718249bbe",
+      "size": 30062
+    },
+    {
+      "archive_path": "docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md",
+      "sha256": "989dc6c6a7ba0c5a47694291824c827aa26346babd217fee4872d74e39f99a6a",
+      "size": 2738
+    },
+    {
+      "archive_path": "docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md",
+      "sha256": "637063744429e09e795753aca767f6d1d1a00ec06517a12afa4ea81ea09a0063",
+      "size": 10054
+    },
+    {
+      "archive_path": "docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md",
+      "sha256": "1c5cee1dfcb6eb9ee1ee67789664f464f822d4003d97a2faff416b7d553e79ea",
+      "size": 2212
+    },
+    {
+      "archive_path": "docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md",
+      "sha256": "f597b4e6fffcef531de573f53e19c9cf1f3eda597028295b2ee3248717cb9627",
+      "size": 3103
+    },
+    {
+      "archive_path": "docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md",
+      "sha256": "2c57409fd01a7bc16544784f75e4b64c01cfc4860d36b305f4b0be11380fe26f",
+      "size": 5863
+    },
+    {
+      "archive_path": "docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md",
+      "sha256": "3a3fe264cc6271f8cc639e5efcf5f56d8343d150eff0fcec554e89510183add5",
+      "size": 5906
+    },
+    {
+      "archive_path": "docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md",
+      "sha256": "278e6a5af95ae948a22358e98e879a45afc5ac653b42d1c372fb4ef4c555fce0",
+      "size": 17821
+    },
+    {
+      "archive_path": "docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md",
+      "sha256": "c99a5cb03db0ae563ac406429f2deea1346cff474c3359022b262036ed85e1af",
+      "size": 18628
+    },
+    {
+      "archive_path": "docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md",
+      "sha256": "5fb76d7f1285bc00d200bce94956e95ddc7854dad8390ed2f967dcb35a97b952",
+      "size": 28003
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png",
+      "sha256": "335401dfd20aba369ec6579085962412a23dffc0a7c69bae7180b627685fb744",
+      "size": 406377
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png",
+      "sha256": "9c82b9cc89fc0972acbf3045ab70a2706ba5f6b67fc6eb8bf6447e79faabe051",
+      "size": 422851
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png",
+      "sha256": "4466d1adcde6bc7939e9d0ade38d7519404373ecd0676c2d09a710244bfaf2a3",
+      "size": 672591
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png",
+      "sha256": "efa0655c74e74736f7d3feb7f97702f239637c90789df47cb7a8097b5e0a27ee",
+      "size": 2046037
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png",
+      "sha256": "4d4bc398d800b1360b4949c72c734c8f62bcd6ad3330f022e1d3a3886ab00329",
+      "size": 2051286
+    },
+    {
+      "archive_path": "docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png",
+      "sha256": "bc354ffc244097e5c2a5c292263738133d977d49fc93421369db4219e708c1d6",
+      "size": 234825
+    },
+    {
+      "archive_path": "docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md",
+      "sha256": "33512cf7f6e2f51abfcc4fdbd7580c9f35e1b9648486c2d7fb1df51dd503fe52",
+      "size": 3386
+    },
+    {
+      "archive_path": "docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml",
+      "sha256": "85b53dd24fbe7d19c8b0f0ddccf5e82600c5c372c76b57a2a89dc34dfb0fc5b9",
+      "size": 20
+    },
+    {
+      "archive_path": "docs/product/proposals/stabilize-show-desktop-restoration/design.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/design.md",
+      "sha256": "ea15df16aff2d14605c6d0e6fb4e6a266462178bc7d9084820ad53c5883e7542",
+      "size": 6408
+    },
+    {
+      "archive_path": "docs/product/proposals/stabilize-show-desktop-restoration/proposal.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/proposal.md",
+      "sha256": "8c7ce2aed0f83f2c3966dd9514a61f0be7ddd9a5a767b1c4af92ec3f187b2f3d",
+      "size": 2894
+    },
+    {
+      "archive_path": "docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md",
+      "sha256": "b8bfcc0d83f9105079cf5173098cbb6d2699020a6e84806a6bc712f68502edf1",
+      "size": 7749
+    },
+    {
+      "archive_path": "docs/product/proposals/stabilize-show-desktop-restoration/tasks.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/tasks.md",
+      "sha256": "cb23c7ad23a62c4fd8b81c535c447ae0514a3e5750fa6b1a66757e54fc5aae99",
+      "size": 4638
+    },
+    {
+      "archive_path": "docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md",
+      "preserved_path": "docs/history/product-import/2026-10-28/external-originals/docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md",
+      "sha256": "816ab25f45d9cb6e47858648c04cab19f3a42a5605be51a47d6f83b6ae7bca55",
+      "size": 255410
+    }
+  ]
+}

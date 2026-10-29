@@ -1,0 +1,121 @@
+Baseline HEAD: a2506c63dad16384414dc95919b8292aead284df
+Command: GIT_OPTIONAL_LOCKS=0 git status --short --untracked-files=all
+
+ M AGENTS.md
+ M CLAUDE.md
+ M README.md
+ M docs/API.md
+ D docs/BETA.md
+ D docs/BRIEF-HYPR-WM-KWIN.md
+ M docs/CONFIGURAVEL.md
+ M docs/HANDOFF.md
+ D docs/PLANO-HYPR-WM-KWIN.md
+ M docs/PLUGIN.md
+ D docs/SPIKE-HYPR-WM-KWIN.md
+ M docs/STATUS.md
+ M docs/TESTING.md
+ D docs/ideias/INDICE.md
+ D docs/ideias/comportamentos-windows-macos.md
+ D docs/ideias/distro-arch.md
+ D docs/ideias/encaixe-entre-monitores.md
+ D docs/ideias/modais-ao-minimizar.md
+ D docs/ideias/pagina-no-hub.md
+ D docs/ideias/referencia-omarchy.md
+ D docs/ideias/referencias-e-ferramentas.md
+ D docs/ideias/seletor-em-cruz.md
+ D docs/ideias/vxwm-canvas-infinito.md
+ D docs/referencia/REVISAO-GEMINI-KWIN.md
+ D docs/referencia/kwin-vs-hyprland-marcado.md
+ D docs/referencia/kwin-vs-hyprland.md
+?? .agents/skills/source-command-opsx-apply/SKILL.md
+?? .agents/skills/source-command-opsx-archive/SKILL.md
+?? .agents/skills/source-command-opsx-explore/SKILL.md
+?? .agents/skills/source-command-opsx-propose/SKILL.md
+?? .agents/skills/source-command-opsx-sync/SKILL.md
+?? .agents/skills/source-command-opsx-update/SKILL.md
+?? Kwinish_Product_Docs_2026-10-28.zip
+?? docs/ARCHITECTURE.md
+?? docs/CONTRIBUTING.md
+?? docs/README.md
+?? docs/history/README.md
+?? docs/history/audits/2026-10-28/README.md
+?? docs/history/handoffs/HANDOFF.md
+?? docs/history/initial-research/BETA.md
+?? docs/history/initial-research/BRIEF-HYPR-WM-KWIN.md
+?? docs/history/initial-research/PLANO-HYPR-WM-KWIN.md
+?? docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md
+?? docs/history/product-import/2026-10-28/DIFF-SUMMARY.txt
+?? docs/history/product-import/2026-10-28/GIT-STATUS.txt
+?? docs/history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip
+?? docs/history/product-import/2026-10-28/MANIFEST.json
+?? docs/history/product-import/2026-10-28/MANIFEST.md
+?? docs/history/product-import/2026-10-28/PROTECTED.json
+?? docs/history/product-import/2026-10-28/README.md
+?? docs/history/product-import/2026-10-28/SHA256SUMS
+?? docs/history/product-import/2026-10-28/SOURCES.json
+?? docs/history/product-import/2026-10-28/VALIDATION.json
+?? docs/history/product-import/2026-10-28/VALIDATION.md
+?? docs/history/product-import/2026-10-28/external-originals/LEIA_ANTES_DE_COPIAR.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/AGENTS_ROOT_SNIPPET.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/AGENT_GUIDE.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/README.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/design/BRIEF_MOCKUPS_INTERFACE_OFICIAL_v1.1.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/design/DESIGN_SYSTEM_INTERFACE_OFICIAL_v1.8.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AUDITORIA_CODEX_ORIGINAL_2026-10-28.txt
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/AVALIACAO_AUDITORIA_E_ROADMAP_GERENCIADOR_v1.0.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/CONTRATO_VISAO_GERAL_FOCO_RESTAURACAO_v1.4.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/MATRIZ_TESTES_SHOW_DESKTOP_D43_D44_D45_v1.2.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_HYPRLAND_057.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/engineering/PROMPT_CODEX_POS_AUDITORIA_v1.0.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/features/DOCK_ESPECIFICACAO_CONSOLIDADA_v1.2.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/features/FOCO_SHOW_DESKTOP_MULTIMONITOR_v0.5.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/features/LAUNCHER_HIBRIDO_ESPECIFICACAO_CONSOLIDADA_v1.0.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/features/SETTINGS_ARQUITETURA_FUNCIONAL_CONSOLIDADA_v1.0.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/features/VISUALIZACAO_WORKSPACES_AREA_DE_TRABALHO_v1.0.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/PROMPT_CODEX_OPENSPEC_D43_D44_D45.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/.openspec.yaml
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/design.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/proposal.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/specs/show-desktop/spec.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/proposals/stabilize-show-desktop-restoration/tasks.md
+?? docs/history/product-import/2026-10-28/external-originals/docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md
+?? docs/history/product-import/2026-10-28/repository-originals.zip
+?? docs/history/reference/ideias/INDICE.md
+?? docs/history/reference/ideias/comportamentos-windows-macos.md
+?? docs/history/reference/ideias/distro-arch.md
+?? docs/history/reference/ideias/encaixe-entre-monitores.md
+?? docs/history/reference/ideias/modais-ao-minimizar.md
+?? docs/history/reference/ideias/pagina-no-hub.md
+?? docs/history/reference/ideias/referencia-omarchy.md
+?? docs/history/reference/ideias/referencias-e-ferramentas.md
+?? docs/history/reference/ideias/seletor-em-cruz.md
+?? docs/history/reference/ideias/vxwm-canvas-infinito.md
+?? docs/history/reference/referencia/REVISAO-GEMINI-KWIN.md
+?? docs/history/reference/referencia/kwin-vs-hyprland-marcado.md
+?? docs/history/reference/referencia/kwin-vs-hyprland.md
+?? docs/product/DECISIONS.md
+?? docs/product/DESIGN.md
+?? docs/product/INTERFACE.md
+?? docs/product/PROPOSALS.md
+?? docs/product/README.md
+?? docs/product/SETTINGS.md
+?? docs/product/WORKSPACES.md
+?? docs/product/drafts/README.md
+?? docs/product/drafts/stabilize-show-desktop-restoration/.openspec.yaml
+?? docs/product/drafts/stabilize-show-desktop-restoration/design.md
+?? docs/product/drafts/stabilize-show-desktop-restoration/proposal.md
+?? docs/product/drafts/stabilize-show-desktop-restoration/specs/show-desktop/spec.md
+?? docs/product/drafts/stabilize-show-desktop-restoration/tasks.md
+?? docs/product/mockups/MOCKUP_M01_BARRA_CONTINUA_v0.2.png
+?? docs/product/mockups/MOCKUP_M02_BARRA_MODULAR_v0.2.png
+?? docs/product/mockups/MOCKUP_M09_A_SUPERFICIE_UNICA_v0.1.png
+?? docs/product/mockups/MOCKUP_M10_COMPARACAO_4_QUADROS_v0.1.png
+?? docs/product/mockups/MOCKUP_M10_FLUXO_E_RESTAURACAO_v0.1.png
+?? docs/product/mockups/MOCKUP_VISAO_GERAL_TODOS_v0.1.png

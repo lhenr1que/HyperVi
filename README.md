@@ -1,13 +1,15 @@
 # Kwinish
 
-KWin-style window management for **Hyprland 0.55+** (Lua config). Early work, tested on Hyprland 0.56.2 only.
+KWin-style window management for **Hyprland 0.56.2** (Lua config), the documented test baseline. Early work; compatibility with other releases, including 0.57, is not established by this repository.
 
-Three layers, each usable without the next:
+Start with the [documentation index](docs/README.md), [implemented architecture](docs/ARCHITECTURE.md) and [current status](docs/STATUS.md). The [product documentation](docs/product/README.md) describes the future suite; approval of a product decision does not imply implementation.
+
+Three cooperating layers; the Lua core owns window-management policy, and the UI and plugin provide its surfaces:
 
 | Layer | What | Needs |
 |---|---|---|
-| `core/` (Lua) | quick tile, one-axis maximize, pack to edge, show desktop, keep above, smart placement, auto-raise, hot corners, Alt+Tab logic, default binds | Hyprland with a Lua config |
-| `ui/` (Rust, `kwinish-ui`) | Alt+Tab overlay, window menu, fallback title bars | GTK4, gtk4-layer-shell |
+| `core/` (Lua) | Tiling/Scroll/Floating workspace policies, rules, quick tile/zones, one-axis maximize, pack to edge, show desktop, keep above, placement, auto-raise, hot corners, Alt+Tab logic and binds | Hyprland with a Lua config |
+| `ui/` (Rust, `kwinish-ui`) | Alt+Tab overlay, window menu, layout picker/editor, Snap Assist, settings, shortcut dialog and fallback title bars | GTK4, gtk4-layer-shell |
 | `plugin/` (C++, `kwinish-bars`) | the title bar: a compositor plugin forked from hyprbars | Hyprland headers, librsvg; rebuilt for each Hyprland update |
 
 ## Title bars
@@ -18,7 +20,7 @@ double click maximizes, the wheel over the bar raises or lowers the window, and 
 right screen edge snaps it to a half, and on the top edge maximizes it (`snap_top_edge`, on by default). Dragging across the seam between two monitors takes an extra push of `seam_resistance` pixels (default 200, 0 turns it off). Bars show on every window; `floating_only`
 limits them to floating ones.
 
-**Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + CTRL + T`) or in the window menu. Make your own with the zone editor (`kwinish-ui zones`, `SUPER + CTRL + E`, or "Edit zones..." in the picker): split, add floating blocks, set the padding, load a preset to start from; layouts are saved in `~/.config/kwinish/layouts.json` and show up in the picker. Dragging a snapped window by its bar gives back its old size.
+**Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + T`) or in the window menu. Make your own with the zone editor (`kwinish-ui zones`, `SUPER + CTRL + E`, or "Edit zones..." in the picker): split, add floating blocks, set the padding, load a preset to start from; layouts are saved in `~/.config/kwinish/layouts.json` and show up in the picker. Dragging a snapped window by its bar gives back its old size.
 
 **Settings.** `kwinish-ui settings` (or "Kwinish settings..." under More actions in the window menu) opens a window with the title-bar, colour and snapping options (and the Snap Assist switch). Changes apply at once and are kept in `~/.config/kwinish/settings.json`, which the core applies on every config load; options you never touch there keep coming from your Hyprland config.
 
@@ -28,7 +30,7 @@ A plugin is locked to one Hyprland build, so after a Hyprland update the plugin 
 **emergency mode**: it does not load the plugin, shows a notification, and `kwinish-ui bars` draws fallback bars
 (layer-shell surfaces that sit above all windows, so they hide or clip when another window covers them). The pacman hook
 in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo kwinish-bars-rebuild`. Details in
-`docs/PLUGIN.md`.
+[plugin operations](docs/PLUGIN.md).
 
 ## Try it
 > **The plugin alone is not enough.** Snap, the drag preview, Shift-drag zones, the window menu actions and every bind live in
@@ -46,22 +48,23 @@ in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo
 Packages (drafts, `makepkg --nodeps` works, nothing published): `packaging/PKGBUILD` (core and UI) and
 `packaging/plugin/PKGBUILD` (plugin, rebuild script, pacman hook).
 
-Default binds (`recipes/hyprland-snippet.lua`): `SUPER + ALT + arrows` halves, top and bottom; `Q W A S` corners;
-`Return` maximize; `H`/`V` one axis; `CTRL + ALT + arrows` pack; `SUPER + D` show desktop; `ALT + T` keep above; `SUPER + CTRL + T` layout picker; `ALT + Tab`
-switcher (`ALT + F3` window menu). They clash with some Ryoku binds: use `mod` and `override`.
+Default binds with the default `mod = "SUPER"` ([table](core/binds.lua), installed by `recipes/hyprland-snippet.lua`):
+`SUPER + ALT + arrows` halves/top/bottom; `SUPER + ALT + Q/W/A/S` corners; `SUPER + ALT + Return` maximize;
+`SUPER + ALT + H/V` one axis; `SUPER + CTRL + ALT + arrows` pack; `SUPER + D` show desktop;
+`SUPER + ALT + T` keep above; `SUPER + T` layout picker; `SUPER + CTRL + E` zone editor.
+The recipe also enables `ALT + Tab` and `ALT + F3` (window menu). Check local conflicts and use `mod`/`override`.
 
 ## Tests
 ```
 bash tools/check.sh
 ```
 One command for every Lua suite, the tool tests, the Rust tests and a plugin build, in a temporary HOME; it exits non-zero
-on any failure. `--lua-only` runs just the Lua suites. Details: `docs/TESTING.md`. The plugin and the UI are checked by running them on a live session (see `docs/SPIKE-HYPR-WM-KWIN.md` for what was
-exercised and what was not).
+on any failure. `--lua-only` runs just the Lua suites. Details: [testing guide](docs/TESTING.md). Registered live-session results and their limits are preserved in the [spike history](docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md) and [STATUS](docs/STATUS.md). No software tests were rerun during the documentation consolidation of 2026-10-29.
 
 ## Known limits
-- Restore state, show-desktop origins and the keep-above list live in Lua tables and are lost on a config reload.
+- Restore geometry and show-desktop origins live in Lua tables and are lost on a core/config reload. Keep-above and keep-below lists are rebuilt from window tags when the core is loaded; this does not make every state reload-safe.
 - The fallback bars are layer-shell surfaces: not at window level, and they trail animated windows by up to 80 ms.
-- Not tested with several monitors, XWayland-only setups or an upgrade of Hyprland through pacman.
+- Recorded tests include two monitors, but cross-monitor drops, workspace modes on the second monitor and non-default scale/rotation still have pending scenarios. XWayland-only setups and a real Hyprland package upgrade are not established as validated.
 - The name Kwinish is provisional.
 
 ## License

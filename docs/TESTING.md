@@ -1,5 +1,7 @@
 # Testes do Kwinish
 
+Guia operacional. A consolidação documental de 29/10/2026 **não executou** as suítes abaixo, builds ou testes ao vivo. Resultados anteriores estão datados em [STATUS](STATUS.md); a existência de um teste não equivale à sua execução nesta revisão.
+
 ## Comando único
 ```sh
 bash tools/check.sh
@@ -23,10 +25,10 @@ O `check.sh` dá aos testes `HOME` e `XDG_*` temporários, apagados ao sair, e r
 Não é uma sandbox de segurança: um teste ainda pode ler caminhos absolutos e usar o `/tmp`.
 
 ## Pré-requisitos (Arch)
-`lua`, `bash`, `coreutils`, `cargo` (pacote `rust`), `gtk4`, `gtk4-layer-shell`, `make`, `gcc`, `pkg-config` e os cabeçalhos do Hyprland (pacote `hyprland`, mesma versão do compositor). Os 18 testes Rust não precisam de tela.
+`lua`, `bash`, `coreutils`, `cargo` (pacote `rust`), `gtk4`, `gtk4-layer-shell`, `make`, `gcc`, `pkg-config` e os cabeçalhos do Hyprland (pacote `hyprland`, mesma versão do compositor). Os testes Rust do executor não precisam de tela. Evita-se fixar uma contagem neste guia: o resultado registrado em 28/10 foi de 31 testes Rust, com escopo e demais suítes em [STATUS](STATUS.md).
 
 ## Testes ao vivo
-O `check.sh` não cobre o desktop real: carregar o plugin, mouse real e vários monitores são do dono (`docs/STATUS.md`, "Testes pendentes para o dono"). Todo roteiro começa por `fish tools/dev-reload.fish` (plugin e núcleo do repositório). Se o teste muda arquivo do dono, guarde antes e desfaça depois:
+O `check.sh` não cobre o desktop real: carregar o plugin, mouse real e vários monitores são do dono ([STATUS](STATUS.md), "Testes pendentes para o dono"). Todo roteiro começa por `fish tools/dev-reload.fish` (plugin e núcleo do repositório). Se o teste muda arquivo do dono, guarde antes e desfaça depois:
 ```fish
 bash tools/live-backup.sh save ~/.local/state/kwinish-backup/<teste> <caminho absoluto>...
 bash tools/live-backup.sh restore ~/.local/state/kwinish-backup/<teste>

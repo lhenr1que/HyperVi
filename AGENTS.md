@@ -3,9 +3,17 @@
 Gerenciamento de janelas estilo KDE para o Hyprland 0.56.2, em três camadas: `plugin/` (C++), `core/` (Lua), `ui/` (Rust GTK4).
 
 ## Ler antes de mexer
-1. `docs/STATUS.md`, seção "Para a próxima sessão": estado atual e próximos passos.
-2. `docs/HANDOFF.md`: armadilhas e histórico.
+1. [Mapa documental](docs/README.md), [arquitetura atual](docs/ARCHITECTURE.md) e `docs/STATUS.md`, seção "Para a próxima sessão": implementação, estado e próximos passos.
+2. [Contribuição e armadilhas operacionais](docs/CONTRIBUTING.md); [handoff original preservado](docs/history/handoffs/HANDOFF.md) para contexto histórico. `docs/HANDOFF.md` mantém um apontador de compatibilidade.
 3. `docs/API.md` (contratos e formatos) e `docs/CONFIGURAVEL.md` (opções do usuário): atualize-os quando mudar um contrato ou uma opção.
+4. [Produto](docs/product/README.md) e [decisões D-01 a D-45](docs/product/DECISIONS.md) quando a tarefa tratar da suíte futura. Aprovação de produto, implementação e validação são estados distintos. Preserve o grau literal de aprovação e a fonte; não transforme propostas técnicas, prompts ou mockups em requisitos atuais.
+
+## Documentação e proveniência
+- Arquitetura atual deve citar código e evidências datadas; divergências com requisitos vigentes continuam registradas em `docs/STATUS.md`.
+- API/CONFIGURAVEL mantêm os contratos e formatos atuais; OpenSpec mantém requisitos observáveis e mudanças incrementais. Produto futuro não substitui nenhum deles.
+- [Histórico e manifesto](docs/history/README.md) preservam originais e hashes. Não edite os originais preservados; corrija a leitura consolidada e registre a divergência.
+- `docs/product/drafts/` contém minutas externas, fora do OpenSpec vigente. Sua existência não autoriza aplicar tarefas, sincronizar specs ou arquivar mudanças.
+- Consolidação documental não autoriza migração do Hyprland, escolha de shell, implementação, publicação ou limpeza de worktrees.
 
 ## Mudanças
 - Mudança de comportamento ou de contrato: pelo OpenSpec (`openspec/changes/`, `/opsx:propose` no Claude Code, `$openspec-propose` no Codex). Correção pequena e óbvia: direto, com teste.

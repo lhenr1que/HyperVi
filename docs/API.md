@@ -1,7 +1,9 @@
 # Kwinish contract (v0, draft)
 
-What other software (a shell, a settings app, a store) may rely on. Anything not listed here is internal and may change.
-Facts below were read from the code on 2026-10-26; items marked **TODO** are not documented yet, not absent.
+Current integration surface read from the implementation, still **v0 / draft**, without a stable versioned shell service. Anything not listed here is internal and may change.
+Originally surveyed on 2026-10-26; reconciled with baseline `a2506c6` on 2026-10-29 by static reading only. No new software or live-session tests were executed. Items marked **TODO** are documentation gaps, not proof that a feature is absent.
+
+See [implemented architecture](ARCHITECTURE.md), [validation evidence and pending cases](STATUS.md), and [future product contracts](product/WORKSPACES.md). Product decisions and external draft APIs do not extend this current interface.
 
 ## 1. Lua core: `require("kwinish")`
 Loaded from the Hyprland Lua config (see `recipes/hyprland-snippet.lua`). Public functions on the returned table:
@@ -26,7 +28,7 @@ Loaded from the Hyprland Lua config (see `recipes/hyprland-snippet.lua`). Public
 
 ## 3. Compositor plugin `kwinish-bars` (Lua namespace `hl.plugin.kwinish`)
 `add_button`, `set_zone(monitor, name, x, y, w, h)`, `clear_zones`, `set_bar_hidden(address, bool)`, `grab("move"|"resize", address)`,
-`remember`, `forget`. Config namespace `plugin:kwinish:*` (`enabled`, `bar_height`, `floating_only`, ...; full list **TODO**, see `docs/PLUGIN.md`).
+`remember`, `forget`. Config namespace `plugin:kwinish:*` (`enabled`, `bar_height`, `floating_only`, ...; user-facing catalogue in [CONFIGURAVEL](CONFIGURAVEL.md), operations in [PLUGIN](PLUGIN.md); the complete native namespace is still not enumerated here).
 The plugin is locked to one Hyprland build; `<plugin>.abi` records which.
 
 ## 4. Files
@@ -36,10 +38,11 @@ Config (user data, `$XDG_CONFIG_HOME/kwinish/`):
 |---|---|
 | `layouts.json` | `[{"name","label","gap"?,"zones":[[x,y,w,h],..]}]`, fractions of the work area |
 | `rules.json` | `{"<class>":{"above","below","noframe","nocapture":true,"workspace":N,"rect":[x,y,w,h]}}` |
-| `settings.json` | `{"<option>":value}`, the options of `docs/CONFIGURAVEL.md` |
+| `settings.json` | `{"<option>":value}`, the options of [CONFIGURAVEL](CONFIGURAVEL.md) |
 | `shortcuts.json` | `{"<class>":"SUPER + ALT + K"}`: capital letters, digits, `+` and spaces, at most 40 characters |
 | `workspace-modes.json` | `{"3":"floating"}`: workspace to `tiling`, `scrolling` or `floating` |
 | `workspace-columns.json` | `{"2":3}`: workspace 2 keeps 3 columns |
+| `layout` | Plain text: the active preset name or `off`, written with a newline. `load_layout()` reads the first line, removes whitespace and checks the preset; absent or unknown names fall back to `grid`. This file is not JSON. |
 
 Runtime (`$XDG_RUNTIME_DIR/kwinish/`, written by the core, read by `kwinish-ui`): `switcher.json` (`open`, `selected`, `items[]` with `class`, `title`), `assist.json` (`{"generation":N,"monitor":name,"zone":N,"rect":[x,y,w,h],"items":[{"address","class","title"}]}`; generation increases on each atomic publication, including core reloads; core launches are serialized with `flock` on `assist.lock`, obsolete queued launches are skipped, overlays close when their generation is replaced and recheck it and window existence before acting). Runtime files are disposable: the core publishes each one whole through `kwjson.write` (temporary file + rename, so `kwinish-ui` never reads half a file; a failed write leaves the previous state) and never backs them up.
 Writers must be atomic (temp file plus rename); readers must tolerate a bad file (the core drops bad entries, never crashes).
@@ -48,7 +51,7 @@ Writing (the core through `kwjson.write`: `rules.json`, `workspace-modes.json`, 
 
 `kwinish-ui` (`zones::write_atomic`: `layouts.json`, `settings.json`, `shortcuts.json`) follows the same rule: the new text must pass the file's reader, it goes to `<file>.tmp<pid>` (checked with `sync_all`, which reports the write errors closing would drop) + rename, the temporary file removed on any error, and a file its reader refuses (by `read_json` and the file's root, on its first 1 MiB + 1 byte) copied byte for byte to `<file>.bak` first; an existing file it cannot read, or a copy it cannot make, stops the save. A failed save writes `kwinish-ui: cannot write <path>: <reason>` to stderr and applies nothing: the settings window does not send the change to the core, the zone editor stays open with the drawing and its button reads "Could not save", and the shortcut dialog stays open with the reason and does not reload Hyprland.
 
-Reading (the core through `core/kwjson.lua`, `kwinish-ui` through `zones::read_json`, with the same verdicts on `core/testdata/json-cases.txt`): every file above, runtime ones included, is JSON read as data, never run as Lua. RFC 8259: UTF-8, no comments, no trailing commas, finite numbers. At most 1 MiB (the core reads 1 MiB + 1 byte and refuses a larger file) and 32 levels of arrays and objects. A file with a syntax error, over a limit, or whose root is not the shape in the table is ignored whole: no entries, the defaults apply, and the core writes one line `kwinish: <file> ignored: <reason>` to Hyprland's stderr per file and reason. In a valid file only the top-level members of the shape count; an entry of the wrong type or out of range is dropped alone, unknown members are ignored, and a repeated member takes its last value. `kwinish-ui` treats a refused file as absent, copies it to `<name>.bak` before saving over it, and its window menu marks only the rules and modes the core applies. Until 27/10 the core ran `rules.json` and `layouts.json` as Lua and picked the other files' entries out of the text: Lua expressions, entries of truncated files, of a wrong root or nested in another object no longer count.
+Reading JSON (the core through `core/kwjson.lua`, `kwinish-ui` through `zones::read_json`, with the same verdicts on `core/testdata/json-cases.txt`): the `.json` files above, runtime ones included, are read as data, never run as Lua. RFC 8259: UTF-8, no comments, no trailing commas, finite numbers. At most 1 MiB (the core reads 1 MiB + 1 byte and refuses a larger file) and 32 levels of arrays and objects. A JSON file with a syntax error, over a limit, or whose root is not the shape in the table is ignored whole: no entries, the defaults apply, and the core writes one line `kwinish: <file> ignored: <reason>` to Hyprland's stderr per file and reason. In a valid file only the top-level members of the shape count; an entry of the wrong type or out of range is dropped alone, unknown members are ignored, and a repeated member takes its last value. `kwinish-ui` treats a refused file as absent, copies it to `<name>.bak` before saving over it, and its window menu marks only the rules and modes the core applies. The plain-text `layout` has its own reader described in the table; the JSON limits do not describe `load_layout()`. Until 27/10 the core ran `rules.json` and `layouts.json` as Lua and picked the other files' entries out of the text: Lua expressions, entries of truncated files, of a wrong root or nested in another object no longer count.
 
 ## 5. Window tags (set by the core, readable by a dock)
 `kwinish-above`, `kwinish-below`, `kwinish-noframe`, `kwinish-nocapture`, `kwinish-mode-floated`, `kwinish-rect-X-Y-W-H` (geometry before a mode change).
@@ -58,8 +61,16 @@ Reading (the core through `core/kwjson.lua`, `kwinish-ui` through `zones::read_j
 and restores through `focus` (the core restores for real: moves to the active workspace, raises, focuses). **TODO:** a tag or
 event that marks "minimized" without relying on the workspace name.
 
+### Show desktop is a separate mechanism
+
+[`show_desktop()`](../core/kwinish.lua) moves eligible windows from the active workspace to `special:kwinish_desktop` and records their origins in one module-local `stashed` table. The next invocation restores that table. Reloading the core forgets it. This is separate from `special:minimized`; the focus hook described above restores minimized windows, not the full future show-desktop contract.
+
+No current command here implements D-43/D-44/D-45 restoration on workspace departure, eligible window creation or dock selection. `request_restore`, generation/journal proposals and a public snapshot/event service belong to [product proposals](product/PROPOSALS.md), not this v0 API. Current state read from `core/kwinish.lua`, `show_desktop`, `window_action`, and the `KWINISH_RULES_HOOK` focus hook.
+
 ## 7. `kwinish-ui` subcommands
-`menu <addr> [--at X,Y]`, `layouts`, `zones [--edit NAME]`, `shortcut <addr>`, `assist`, `bars [--only <prefix>] [--skip a,b]`, none = Alt+Tab overlay (daemon).
+`menu <addr> [--at X,Y]`, `layouts`, `zones [--edit NAME]`, `shortcut <addr>`, `assist`, `settings`, `bars [--only <prefix>] [--skip a,b]`, none = Alt+Tab overlay (daemon).
+
+The dispatch table and usage are in [ui/src/main.rs](../ui/src/main.rs), `main()`. `settings` opens the existing plugin/Snap Assist settings window, not the future suite Settings.
 
 ## Stability
 v0 until beta: names above may still change. From beta, changes to sections 1 to 6 follow semver and are listed in a changelog.

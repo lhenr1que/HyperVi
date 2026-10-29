@@ -1,0 +1,224 @@
+Auditoria técnica e arquitetural do Kwinish (28/10/2026, somente leitura)
+Escopo e método. Li por inteiro o núcleo Lua (core/), o main.cpp e as partes principais do barDeco.cpp do plugin, os pontos de comunicação e de leitura/gravação da UI Rust, o empacotamento, todos os documentos de docs/ e todo o openspec/. Também conferi o git e as worktrees.
+
+O que rodei:
+
+tools/check.sh, com TMPDIR e CARGO_TARGET_DIR apontados para um diretório temporário fora do repositório;
+openspec list e openspec validate --all --strict.
+O git status ficou idêntico antes e depois. Não carreguei o plugin, não usei sudo e não fiz nenhum teste no desktop real.
+
+Legenda: [C] confirmado (no código, na saída de um comando ou num relato registrado do dono) · [P] risco plausível · [H] hipótese que precisa de teste.
+
+1. Resumo executivo
+O que o projeto é de fato. O Kwinish não é um gerenciador de janelas independente. É uma camada estilo KWin sobre o Hyprland 0.56.2:
+o modo Tiling é o motor dwindle do próprio Hyprland;
+o modo Scroll é o motor scrolling nativo do Hyprland, mais um ajuste de colunas;
+o modo Floating é uma emulação montada pelo núcleo, com janelas flutuantes, uma regra de janela por workspace e etiquetas.
+Isso é bom, porque há menos código e ele acompanha o Hyprland. Mas define o teto do projeto: não existe algoritmo de layout próprio [C] (core/modes.lua:10).
+
+Maturidade. Pré-beta. Repositório só local: 173 commits, master limpa, sem remoto e sem tags. Há dois pacotes instalados (r172.5333087), a um commit de documentação do HEAD.
+Validação. check.sh saiu com código 0: 11 suítes Lua (Lua 5.5.1), 4 testes de tools/, 31 testes Rust e o plugin compilou, com avisos. O openspec validate --strict deu 6/6.
+Pontos fortes:
+um ponto único de entrada, window_action(addr, action);
+leitura de JSON como dados, com casos de teste compartilhados entre Lua e Rust;
+gravação atômica com backup;
+estado guardado em etiquetas das janelas;
+modo de emergência com recibo de ABI;
+disciplina de testes (check.sh isolado, Hyprland aninhado para experimentos).
+Riscos principais:
+a cascata do modo floating não avança ao vivo, e a spec arquivada exige que avance;
+minimizar ou “mostrar área de trabalho” apaga a marca do modo floating;
+janelas podem ficar presas na workspace especial depois de um reload;
+o projeto depende de detalhes internos do Hyprland 0.56.2, e plugin, núcleo e UI não conferem a versão uns dos outros;
+a coordenação depende de temporizadores (30 a 300 ms).
+Maiores lacunas:
+o OpenSpec cobre só 4 capacidades;
+o plugin C++ quase não tem teste automático;
+vários documentos divergem do código e do estado real;
+não há CI.
+2. Estado do repositório
+Item	Estado
+Branch / HEAD	master em a2506c6 (28/10, docs)
+Pendências	só os diretórios não rastreados .agents/skills/source-command-opsx-*
+Worktrees	kwinish-apply (openspec-apply) e .alethe/worktrees/job-03/04/05. Todas têm alterações não commitadas (por exemplo, o job-03 mexe em core/kwinish.lua, plugin/barDeco.cpp e docs/STATUS.md). Parecem trabalho superado, mas não conferi linha a linha [C]
+Remoto / tags	nenhum
+Pacotes	pacman -Q: kwinish-git e kwinish-bars-plugin-git 0.0.0.r172.5333087-1; hyprland 0.56.2-4. O STATUS.md:3 ainda diz r86 [C]
+Artefatos ignorados pelo git	dist/ (25 pacotes, 12 MB), ui/target (1,2 GB)
+Dependências	Rust: gtk4 0.11.5, gtk4-layer-shell 0.8.1, serde_json 1.0.154. Plugin: headers do Hyprland 0.56.2, cairo, librsvg. Núcleo: Lua 5.5 do Hyprland
+Tamanho	núcleo: 1.595 linhas de produção e 1.005 de teste; plugin: ~2.560; UI: ~2.550; tools/: ~330
+Histórico	23/10 início · 24/10 fork do hyprbars e modos · 25/10 revisões e Snap Assist · 26/10 configurações e resistência de fronteira · 27/10 OpenSpec, check.sh e harden-user-data-io · 28/10 correção do “manter acima”
+3. Mapa da arquitetura
+Responsabilidades
+
+Camada	Faz	Não faz
+Lua (core/)	regras de negócio: encaixe, zonas, modos, regras por app, Alt+Tab (teclas e foco), Snap Assist, atalhos, configurações, persistência	desenhar
+C++ (plugin/)	barra de título, entrada do mouse na barra, prévia, resistência de fronteira, ações embutidas (fechar, maximizar…), grab, dicas	calcular retângulos: isso volta ao Lua por hyprctl eval
+Rust (ui/)	todas as views GTK; detecção do modo de emergência (ui/src/mode.rs)	decidir comportamento: só despacha ações
+Canais de comunicação
+
+Canal	Direção	Observação
+hyprctl eval "<Lua>"	plugin e UI → núcleo	ida e volta pelo socket; o texto é saneado na UI (ui/src/menu.rs:272)
+hl.plugin.kwinish.*	núcleo → plugin	set_zone, clear_zones, remember, forget, grab, set_bar_hidden
+JSON de runtime + monitor de diretório	núcleo → UI	o Alt+Tab só desenha; o Assist usa número de geração e flock
+Etiquetas de janela	núcleo → todos	kwinish-above/below/noframe/nocapture/mode-floated/rect-X-Y-W-H
+Socket do Hyprland direto	bars.rs	leitura sem tempo-limite
+Persistência e o que sobrevive
+
+Estado	Onde	Recarga do núcleo por eval	hyprctl reload	Reinício
+Config do usuário	~/.config/kwinish/*.json	sim	sim	sim
+Acima/abaixo, flutuada pelo modo, retângulo do modo	etiquetas	sim	sim	não (as janelas morrem)
+Restauração do encaixe (saved)	tabela Lua	não	não	não
+Origens do “mostrar área de trabalho” (stashed)	tabela Lua	não	não: as janelas ficam na workspace especial	—
+Restauração ao arrastar (restores)	C++	sim	sim	não
+Eventos e temporizadores [C]
+
+window.active tem até 5 tratadores: restack (30 ms), publish_zones (imediato), restauração de minimizada (30 ms), histórico do Alt+Tab e auto-elevar.
+window.open dispara a regra do modo, um timer de 150 ms (modo, regras e colunas) e o posicionamento (30 ms).
+Os grabs e as colunas esperam 250 ms; a troca de motor antes das colunas espera 300 ms.
+Os cantos ativos usam um timer repetido de 100 ms.
+O plugin escuta o barramento de eventos e faz um hook por nome de símbolo em CInputManager::onMouseMoved (plugin/main.cpp:447).
+4. Inventário de funcionalidades
+Graus: V implementado e verificado ao vivo pelo dono (segundo o STATUS) · I implementado, com testes só simulados · P parcial · E só especificado ou documentado · A ausente.
+
+Gerenciamento de janelas
+
+Funcionalidade	Grau	Notas
+Tiling	V	É o dwindle forçado: escolher “tiling” troca um master do usuário por dwindle [C] (core/modes.lua:10). Encaixe, zonas, empacotar e eixo ignoram janelas ladrilhadas (decisão de 24/10, core/kwinish.lua:82)
+Scroll	V	Motor nativo. As colunas (1 a 3 por tela) são ajustadas focando cada janela e mudando cursor.no_warps globalmente por um instante (core/kwinish.lua:654)
+Floating, janela nova já flutuante	V (teste 7)	Regra nomeada por workspace + timer de 150 ms como rede de segurança
+Floating, cascata	P, quebrada ao vivo	Ver A1
+Troca dinâmica de modo	V pelo menu	cycle_workspace_mode existe, mas sem atalho; sem indicador; não há modo por monitor; só workspaces numéricas (core/modes.lua:28)
+Geometria guardada entre modos	V	Etiqueta kwinish-rect-*
+Minimizar / restaurar	V	Usa special:minimized; não há marca própria de minimizada (TODO no API.md §6); modais e janelas filhas: A
+Encaixe por teclado, menu e arrasto	V	Restauração em tabela Lua, perdida no reload
+Layouts e zonas (5 prontos + do usuário), Shift ao arrastar	V	Arrasto dos divisores no editor não testado com mouse
+Snap Assist	V pelo menu e com Shift no mesmo monitor	Soltar em outro monitor: não exercido
+Foco	Hyprland	Auto-elevar: I (nunca verificado ao vivo). Manter acima/abaixo: corrigido em 28/10, teste 12 pendente
+Mostrar área de trabalho	V	Origens só em tabela Lua
+Vários monitores	P	Resistência de fronteira: V. Encaixe depois de arrastar para o 2º monitor: I (teste 3). Escala ≠ 1 e monitor girado: não testados
+Posicionamento inteligente	I	Opção de setup
+Cantos ativos	V	Consulta o ponteiro a cada 100 ms; só para com reload
+Regras por app	P-V	Acima e área verificadas
+Atalho por app	I	Só vale depois de recarregar a config; captura e conflito não verificados com o núcleo novo
+Interface
+
+Item	Grau	Notas
+Barra de título (ícone, fixar, título, 3 botões, cores, duplo clique, roda)	V	—
+Dicas em minimizar, maximizar e fechar	V	Dicas no fixar e no ícone: I (teste 10)
+Menu da janela estilo KDE	V	—
+Alt+Tab	V (lógica)	Overlay só com texto (classe e título): sem ícones nem miniaturas (ui/src/main.rs:32). Teclas Alt fixas no código (core/switcher.lua:192)
+Configurações (kwinish-ui settings)	V (teste 5)	Cobre as opções do plugin e o Snap Assist. Fora dela: auto-elevar, posicionamento, cantos ativos e atalhos padrão
+Seletor e editor de zonas, diálogo de atalho	V / I	—
+Barras de reserva e modo de emergência	I	A lógica de decisão tem teste unitário; um upgrade real do Hyprland nunca foi testado
+Pacotes + hook do pacman	I	Rascunho; o hook nunca rodou num upgrade real
+Só documentados ou ausentes (E/A): duplo clique no ícone fecha; seletor de layout ao passar o mouse no maximizar; miniaturas; rounding nas zonas e na prévia; modais ao minimizar; atalho para ciclar o modo; indicador de modo; modo por monitor; página no Hub; desligar a barra por app; hook opcional que segura o upgrade do Hyprland; CI; seletor em cruz; canvas infinito (VXWM).
+
+5. Avaliação do OpenSpec
+Estrutura. config.yaml em pt-BR; 4 specs principais (snap-assist, title-bar, window-snapping, workspace-modes); 2 mudanças ativas com 100% das tarefas feitas, esperando os testes 10 e 11 do dono; 4 mudanças arquivadas, todas em 27/10. A validação estrita passa.
+Cobertura pequena. Não há spec para: menu da janela, Alt+Tab, layouts e editor, regras, atalhos, mostrar área de trabalho, manter acima/abaixo, minimizar, posicionamento, cantos ativos, janela de configurações, barras de reserva e modo de emergência, empacotamento e reconstrução, arrasto, desencaixe e fronteira no plugin, e o contrato window_action. Em workspace-modes, falta o scroll e as colunas, a persistência do modo e a restauração de geometria. Hoje esse comportamento só existe em API.md, CONFIGURAVEL.md, STATUS.md e HANDOFF.md.
+Divergências:
+workspace-modes, cenário “duas janelas em sequência saem em cascata”: violado ao vivo (STATUS:87, 28/10), com a mudança já arquivada [C].
+A spec principal title-bar ainda diz que o fixar não tem dica; o código já mostra (9aec971). É esperado até arquivar a mudança, mas hoje spec ≠ código.
+A capacidade user-data-io está implementada, mas só existe como delta de mudança.
+A proposta fix-snap-entrypoints fala em “ALT+setas”; o atalho real é SUPER+ALT (core/binds.lua:261 com mod = "SUPER").
+Processo. O arquivamento depende de um relato informal do dono (“os testes passaram”). Subcasos não exercidos foram arquivados como feitos: soltar em outro monitor, sair da tela cheia dentro do modo, o atalho real de encaixe. Seria melhor marcar os cenários “não verificados ao vivo” na própria spec.
+6. Problemas e riscos por gravidade
+Alta
+A1. A cascata do modo floating não avança ao vivo [C, relato do dono em 28/10]. O mecanismo: mode_window_opened declara de novo a regra com o próximo passo (core/kwinish.lua:727-734, core/kwinish.lua:605-614). No simulador funciona; no Hyprland, quando chamado de dentro de window.open, aparentemente não [H sobre a causa]. Mostra que o simulador de hl diverge do compositor real.
+A2. Minimizar ou “mostrar área de trabalho” apaga a marca do modo floating [C pela leitura; reproduzido em isolamento pelo Codex, STATUS:136]. A cadeia:
+minimizar move a janela para special:minimized (core/kwinish.lua:432);
+o tratador de window.move_to_workspace tira a etiqueta kwinish-mode-floated (core/kwinish.lua:783-786);
+na volta, float_for_mode retorna cedo porque a janela já é flutuante (core/kwinish.lua:587).
+Resultado: trocar a workspace para tiling não devolve a janela ao mosaico. O mesmo vale para show_desktop (core/kwinish.lua:169).
+
+A3. Janelas presas em special:kwinish_desktop depois de um reload [C no mecanismo, P no cenário]. As origens ficam numa tabela Lua (core/kwinish.lua:152). Salvar um atalho por app roda hyprctl reload (ui/src/shortcut.rs:158), e editar a config dispara o autoreload. Para o usuário, as janelas somem. Está documentado no README como limite, sem mitigação.
+A4. Acoplamento a detalhes internos do Hyprland, sem conferência de versão entre as peças [C]:
+o plugin usa cabeçalhos internos (Desktop::, Event::bus, Config::Actions, Config::Lua::Bindings::Internal) e um hook por nome de símbolo;
+addConfigKeyword já está obsoleto (aviso de compilação hoje, plugin/main.cpp:436);
+snapOnRelease devolve a janela à posição de início do arrasto antes de chamar o núcleo de forma assíncrona (plugin/barDeco.cpp:616-619). Com um núcleo ausente ou antigo, a janela simplesmente volta, sem aviso; o próprio tools/dev-reload.fish descreve esse descompasso;
+a UI já tem um caminho alternativo para núcleo antigo (ui/src/settings.rs, live_code);
+a API Lua de config do Hyprland é recente e deve mudar [P].
+Média
+M1. Recarregar o núcleo por eval (o caminho oficial de teste ao vivo) [C]:
+hooked e hot_started são locais do módulo (core/kwinish.lua:16, core/kwinish.lua:176), então setup() e hotcorners() registram tratadores e timers de novo;
+os atalhos guardam kw[b.action] no momento da instalação (core/binds.lua:294): depois do dev-reload, o teclado roda o código antigo com a tabela saved antiga, e o menu roda o novo. Testes “verificados” assim podem ter exercitado uma mistura de versões.
+O hyprctl reload recria o estado Lua (segundo HANDOFF:113; não conferi).
+
+M2. Coordenação por temporizadores:
+refresh_columns lê o número de colunas no agendamento e o aplica 250 ms depois sem reler (core/kwinish.lua:709, core/kwinish.lua:715) [C];
+a escolha no Assist não revalida layout, workspace e monitor (clique → zone:N no layout atual) [C];
+janela que não mapeia em 150 ms não recebe as regras de rules.json (o timer pula se not win.mapped, core/kwinish.lua:805) [P].
+M3. zone:N não passa por target(), então não confere tela cheia nem mapeamento, ao contrário de tile, axis e pack (core/kwinish.lua:399-405 contra core/kwinish.lua:73-77) [C].
+M4. A barra da janela focada aceita um clique numa área coberta por outra janela: inputIsValid() usa o padrão underPointer=false (plugin/barDeco.cpp:103-124, chamado na linha 175). Herdado do hyprbars [C no código; impacto ao vivo H].
+M5. Minimizar, maximizar e tela cheia na barra agem na janela ativa, não na dona da barra (plugin/barDeco.cpp:703-708). Se o foco for recusado (por exemplo, com um overlay segurando o teclado), a ação cai em outra janela [P].
+M6. Trabalho repetido dentro do compositor [C no código; impacto não medido]:
+publish_zones roda a cada troca de foco (core/kwinish.lua:552);
+cada barra escuta todos os eventos de ponteiro e recalcula hover e dica a cada movimento (plugin/barDeco.cpp:57-63);
+filesystem::exists a cada movimento de arrasto, por causa do trace (plugin/barDeco.cpp:281);
+os.execute("mkdir -p") síncrono a cada gravação (core/kwjson.lua:158).
+M7. Entrega [C]:
+o Makefile não acompanha os .hpp (plugin/Makefile:18);
+kwinish-bars-rebuild anuncia sucesso sem conferir os install (packaging/plugin/kwinish-bars-rebuild:19-22);
+a fonte dos PKGBUILD é git+file local e a url é example.invalid;
+não há CI.
+M8. Alt+Tab para uma janela escondida por “mostrar área de trabalho”: o switcher lista todas as janelas (core/switcher.lua:240), mas só special:minimized é restaurado de verdade. Focar uma janela escondida deve abrir a workspace especial por cima da tela [P].
+M9. hl.bind dos atalhos por app roda fora de pcall durante a carga (core/kwinish.lua:758-764), e a combinação só é validada pelos caracteres (core/rules.lua:148). Uma tecla desconhecida pode interromper o resto da carga do núcleo [H]. O seletor class: é regex e a classe pode ter . [H].
+M10. Higiene: 4 worktrees com alterações não commitadas e um diretório de skills não rastreado [C].
+Baixa
+hypr() em bars.rs lê o socket sem tempo-limite, na thread do GTK; zorder interpola o endereço sem limpar (ui/src/bars.rs:111, ui/src/bars.rs:151) [C].
+Já documentados: o submap anterior não é guardado; dois diálogos de atalho podem disputar; vários daemons de barras podem coexistir; snap guarda o retângulo pedido, não o obtido.
+Código morto: was_floating é sempre verdadeiro em place() (core/kwinish.lua:88, core/kwinish.lua:91) [C].
+geometry.place("cursor") dá erro com pos nil dentro do timer (core/geometry.lua:59) [C].
+Os arquivos de runtime caem em /tmp sem XDG_RUNTIME_DIR; o trace grava em /tmp/kwinish-drag.log, caminho fixo, só quando ligado [C].
+Avisos de compilação: estreitamentos e -Wno-c++11-narrowing, que o gcc não reconhece [C, compilação de hoje].
+CSS com cores fixas em 5 arquivos da UI (ui/src/main.rs:18, menu.rs:11, editor.rs:14, assist.rs:8, shortcut.rs:84) e tradução pt/en repetida em cada arquivo. Pesa para os rices [C].
+7. Lacunas de testes e documentação
+Testes executados hoje: check.sh com código 0. Nada ao vivo.
+
+Lacunas de teste:
+
+Plugin C++: só a lógica pura das dicas (tooltip.hpp) tem teste. Arrasto, fronteira, desencaixe, snapOnRelease, validação de entrada, grab e render não têm nenhum teste automático.
+O simulador hl é um modelo escrito à mão; a divergência já apareceu (A1). O Hyprland aninhado (spike/nested-open/) é manual e não está no check.sh.
+UI: as views GTK não têm teste (menu: 1, editor: 0, main: 0).
+Não há teste de regressão para A2, A3, M1, M2 e M3.
+Não há teste de vários monitores, escala ≠ 1, rotação, XWayland, upgrade de pacote nem desempenho.
+Documentação divergente [C]:
+
+README.md:3 diz “Hyprland 0.55+”; o AGENTS.md e o OpenSpec dizem 0.56.2, e o plugin está preso a essa versão.
+README.md:21 e README.md:50 dizem SUPER+CTRL+T; o código dá SUPER+T (core/binds.lua:271), como diz o CONFIGURAVEL.md:22.
+README.md:62 diz que a lista de “manter acima” se perde no reload; ela é refeita a partir das etiquetas (core/kwinish.lua:210-216). A tabela de camadas (linhas 9-11) também está desatualizada.
+docs/PLUGIN.md ainda diz “never loaded”, “compiles only” e “Open work: load it once”.
+docs/TESTING.md:26 fala em “18 testes Rust”; são 31.
+docs/STATUS.md:3 fala em “140 commits” (são 173) e em pacotes r86 (o instalado é o r172). O teste 12 aparentemente foi instalado, mas o resultado não está registrado.
+HANDOFF.md tem data de 24/10 e mistura história, Alethe abandonado e estado atual.
+API.md tem TODOs: a lista de opções do plugin e a marca de minimizada.
+Não há documento de arquitetura (fluxo de eventos, diagrama), CHANGELOG nem CONTRIBUTING.
+8. Componentes a preservar
+window_action(addr, action) com o sufixo de monitor: a junção natural para qualquer shell.
+A delegação aos motores do Hyprland, em vez de um tiler próprio.
+O kwjson e o read_json com casos compartilhados (core/testdata/*), a gravação atômica com backup e a regra de “nunca load”.
+O padrão de ganchos protegidos por variável global que chamam package.loaded.kwinish (falta estender a setup e hotcorners).
+Estado em etiquetas de janela; UIs que só desenham (o Lua é dono das teclas); o Assist com geração e flock.
+No plugin: ações embutidas sem chamar shell, modo de emergência com recibo .abi e a tabela de decisão em mode.rs, e o hook do pacman que nunca derruba a transação.
+tools/check.sh, live-backup.sh, o Hyprland aninhado, o AGENTS.md e o fluxo OpenSpec com “teste que falha primeiro”.
+9. Oportunidades de evolução incremental (sem reescrita)
+Versionar o contrato: expor uma versão da API do núcleo, criar um handshake entre plugin, núcleo e UI (o plugin não devolve a janela se o núcleo não responder) e funções de consulta que devolvem JSON (estado da janela, modos, layouts).
+Um arquivo de estado em runtime (state.json: modos, layout ativo, minimizadas) no mesmo padrão do switcher.json, para que o shell e a dock não precisem consultar o hyprctl periodicamente.
+Uma etiqueta kwinish-minimized (TODO do API.md §6), pré-requisito para dock e barra de tarefas.
+Temas: tirar o CSS fixo da UI para uma folha de estilo carregável, tokens de cor compartilhados com o plugin, que já tem as cores configuráveis.
+Um esquema único das opções, hoje duplicado entre settings.lua e settings.rs, para que o Hub ou o shell desenhe a mesma página.
+Guardar “mostrar área de trabalho” e a restauração do encaixe em etiquetas (o padrão já existe).
+Atalho e indicador para cycle_workspace_mode, que já existe.
+CI com o check.sh num contêiner Arch.
+10. Próximos passos recomendados (por dependência e prioridade)
+Fechar o ciclo atual: testes do dono 10, 11 (passos 1, 2, 4 e 5) e 12 (o pacote já está instalado; falta registrar o resultado), depois arquivar as duas mudanças.
+Decidir a higiene das 4 worktrees com alterações e do diretório não rastreado (decisão do dono, depois de ler os diffs).
+Pôr os documentos em dia (README, PLUGIN, TESTING, cabeçalho do STATUS) e criar um ARCHITECTURE.md antes de juntar documentos de design novos.
+Reproduzir A1 no Hyprland aninhado e decidir entre corrigir a cascata e rever a spec.
+Ciclo de vida (etapa C já prevista): A2, A3, M1, M2 e M3, cada um com um teste que falha primeiro, por OpenSpec.
+Entrada e comunicação (etapa D): M4, M5, M8, revalidação do Assist e tempo-limite no socket.
+Contrato e compatibilidade: handshake de versão, inventário da superfície de API do Hyprland usada e plano para a 0.57 (addConfigKeyword).
+Entrega (etapa E): dependências do Makefile, conferência no script de reconstrução, CI.
+Completar as specs que faltam (menu, Alt+Tab, minimizar, mostrar área de trabalho, scroll e colunas, contrato window_action) antes de integrar um shell.
+Só então os itens de evolução do item 9 da seção anterior.
+Não li linha a linha zones.rs, editor.rs, menu.rs (fora os pontos de comunicação), icon.cpp e a parte de render do barDeco.cpp. Nenhum achado foi exercitado ao vivo: os marcados [H] e [P] precisam de teste.

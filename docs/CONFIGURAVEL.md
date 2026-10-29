@@ -1,7 +1,8 @@
-# O que o usuário pode configurar no Kwinish (levantamento de 26/10/2026)
+# O que o usuário pode configurar no Kwinish
 
-Lido do código (`plugin/main.cpp`, `core/*.lua`, `ui/src/menu.rs`, `recipes/`). Base para a página no Hub (`ideias/pagina-no-hub.md`).
-**Aplica** diz quando a mudança vale. Onde está "não verificado", li no código mas não testei ao vivo.
+Levantamento original de 26/10/2026; revisão documental por leitura estática em 29/10/2026, baseline `a2506c6`, sem novos testes. Fontes: [plugin](../plugin/main.cpp), [núcleo](../core/kwinish.lua), [Settings GTK](../ui/src/settings.rs) e [teclas](../core/binds.lua). A ideia de [página no Hub](history/reference/ideias/pagina-no-hub.md) foi preservada no histórico.
+
+**Aplica** diz quando a mudança vale. "Não verificado" significa ausência de teste ao vivo registrado para aquele item. A janela atual configura plugin e Snap Assist; o [Settings da futura suíte](product/SETTINGS.md) não está implementado por ela.
 
 ## 1. Opções do plugin (`plugin:kwinish:*`, na config do Hyprland ou por `hyprctl eval "hl.config({plugin={kwinish={...}}})"`)
 Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`; as demais não verificado).
@@ -19,15 +20,16 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 | Arquivo | O que guarda | Quem edita hoje | Aplica |
 |---|---|---|---|
 | `layouts.json` | layouts de zonas e o espaçamento (`gap`) | editor de zonas (`kwinish-ui zones`, Super+Ctrl+E) | ao reabrir o seletor de layouts (relê ao mudar de layout) |
+| `settings.json` | opções do plugin e `snap_assist` | `kwinish-ui settings` | na hora, por `apply_settings`, e em cada carga do núcleo |
 | `layout` | nome do layout ativo (uma linha; `off` desliga) | seletor (`kwinish-ui layouts`, Super+T) | na hora |
 | `rules.json` | regras por app: acima, abaixo, sem moldura, sem captura, workspace, lembrar posição | menu da janela, "Regras da janela" | na próxima janela do app; desmarcar desfaz o efeito na janela já aberta (acima, abaixo, sem moldura, sem captura; posição e workspace não voltam) |
 | `shortcuts.json` | uma tecla por app que o foca | `kwinish-ui shortcut` | **só ao recarregar a config** (o Hyprland 0.56.2 pode cair com `hl.bind` por eval) |
 | `workspace-modes.json` | modo de cada workspace: tiling, scrolling, floating | menu da janela, "Modo da workspace"; `cycle_workspace_mode` | na hora |
 | `workspace-columns.json` | 1 a 3 colunas por tela no modo scrolling | menu da janela | na hora, em workspace no modo scrolling |
 
-## 3. Configurável só em Lua (config do Hyprland, `recipes/hyprland-snippet.lua`)
+## 3. Configuração do núcleo (Lua, com as exceções de UI indicadas)
 - `kw.setup({ placement = "smart", autoraise_ms = 400 })`: posição inicial das janelas e auto-elevar ao focar. Nenhum tem interface.
-- `kw.snap_assist = false` desliga o Snap Assist. `kw.layout_gap` troca o espaçamento entre zonas.
+- `kw.snap_assist = false` desliga o Snap Assist; essa opção também existe em `kwinish-ui settings`. `kw.layout_gap` troca o espaçamento entre zonas via Lua.
 - `binds.install(kw, { mod, switcher, menu, override })`: teclas padrão (`binds.rows`, 19 linhas) e as que o dono troca em `override`. Nenhuma interface lista nem troca as teclas.
 - `kw.hotcorners({ corners, delay_ms, edge, tick_ms })`: cantos ativos. O temporizador só para recarregando a config.
 - `switcher.setup()` e as teclas de Alt+Tab (`switcher_keys`).
@@ -41,6 +43,6 @@ Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das captura
 2. ~~Desmarcar uma regra não desfazia a janela aberta.~~ Resolvido em 26/10 por decisão do dono: desmarcar (ou "esquecer regras") desfaz na hora acima, abaixo, sem moldura e sem captura. Posição e workspace não voltam.
 3. **Atalhos por app só valem depois de recarregar.** O menu não diz isso.
 4. **As teclas padrão não são visíveis nem editáveis** por interface; só por `override` em Lua.
-5. **Auto-elevar, posição inicial e cantos ativos** (seção 3) não têm interface nem sinal de que existem; uma página nova deve expô-los.
-6. **Validação:** todos os arquivos são lidos como JSON, nunca executados; um arquivo com erro de sintaxe, acima de 1 MiB ou de 32 níveis, ou com a raiz errada é ignorado inteiro, e uma entrada inválida num arquivo válido cai sozinha (contrato em `docs/API.md`, seção 4). Em `layouts.json`, núcleo e `kwinish-ui` aplicam as mesmas regras (`core/testdata/layout-cases.txt`): nome com até 64 caracteres `[A-Za-z0-9-]`; `gap` inteiro limitado a 0–60 (`-5` vale 0, `999999` vale 60); `gap` fracionário (`2.5`, `6.0`), string, `null` ou ausente usa o espaçamento padrão (`kw.layout_gap` ou o `gaps_in` do Hyprland). Uma zona que, depois do espaçamento, ficaria com menos de 1 px de largura ou altura (menor que o próprio espaçamento) não é publicada ao plugin, não aparece no Shift ao arrastar nem no Snap Assist, e `zone:N` não move a janela para ela; as outras zonas mantêm o número. As opções do plugin dependem da validação do Hyprland (não verificado).
+5. **Auto-elevar, posição inicial e cantos ativos** (seção 3) não têm interface nem sinal de que existem; uma página futura pode expô-los; isso continua planejamento de produto.
+6. **Validação:** os arquivos `.json` são lidos como dados JSON, nunca executados; um JSON com erro de sintaxe, acima de 1 MiB ou de 32 níveis, ou com a raiz errada é ignorado inteiro, e uma entrada inválida num documento válido cai sozinha (contrato em [API](API.md), seção 4). O arquivo `layout` é texto, com leitor separado: a primeira linha, sem espaços, deve ser `off` ou um preset conhecido; na ausência ou nome desconhecido usa `grid`. Os limites JSON não descrevem esse leitor. Em `layouts.json`, núcleo e `kwinish-ui` aplicam as mesmas regras (`core/testdata/layout-cases.txt`): nome com até 64 caracteres `[A-Za-z0-9-]`; `gap` inteiro limitado a 0–60 (`-5` vale 0, `999999` vale 60); `gap` fracionário (`2.5`, `6.0`), string, `null` ou ausente usa o espaçamento padrão (`kw.layout_gap` ou o `gaps_in` do Hyprland). Uma zona que, depois do espaçamento, ficaria com menos de 1 px de largura ou altura (menor que o próprio espaçamento) não é publicada ao plugin, não aparece no Shift ao arrastar nem no Snap Assist, e `zone:N` não move a janela para ela; as outras zonas mantêm o número. As opções do plugin dependem da validação do Hyprland (não verificado).
 7. **Dois lugares para o mesmo ajuste** (config e eval) e nenhum comando que mostre os valores atuais. Uma página no Hub poderia ler com `hyprctl getoption`.
