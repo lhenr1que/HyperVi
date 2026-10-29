@@ -16,8 +16,8 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 - **Snap Assist** pelo menu (25/10) e com Shift ao arrastar no mesmo monitor (`fix-assist-drop-context`, teste 1, 27/10; o relato não detalha soltar noutro monitor).
 - Menu da janela estilo KDE: submenus, Mover/Redimensionar, regras por janela/app, atalho por janela, Mais ações > Configurações do Kwinish...
 - **Janela de configurações** `kwinish-ui settings` (teste 5, 27/10): cor da barra e Snap Assist mudam na hora, a "Altura" redimensiona a barra inteira (plugin, `868f66a`), os valores voltam depois de `hyprctl reload` + `dev-reload.fish`.
-- Três modos por workspace (tiling, scrolling, floating), geometria guardada em etiquetas, colunas por tela lembradas. **Janela nova no modo floating nasce flutuante**, centralizada no retângulo do modo e em cascata, sem passar pelo mosaico (`fix-floating-mode-open`, teste 7, 27/10; diálogo de tamanho fixo mantém o próprio tamanho, medido ao vivo com `zenity --info`).
-- Manter acima/abaixo, minimizar/restaurar (`special:minimized`), mostrar área de trabalho, empacotar, eixo, cantos ativos.
+- Três modos por workspace (tiling, scrolling, floating), geometria guardada em etiquetas, colunas por tela lembradas. **Janela nova no modo floating nasce flutuante**, centralizada no retângulo do modo, sem passar pelo mosaico (`fix-floating-mode-open`, teste 7, 27/10; diálogo de tamanho fixo mantém o próprio tamanho, medido ao vivo com `zenity --info`). Só com o núcleo do repositório ou um pacote de 27/10 em diante: o pacote instalado (`r86`, 25/10) ainda faz a janela flutuar 150 ms depois de abrir (relato do dono em 28/10, teste 12). **A cascata não anda ao vivo** (28/10): três `kitty` abertos no ws 3 com o núcleo do repositório nasceram flutuantes, sem evento `changefloatingmode`, mas todos em (385, 168) 1100x682, passo 1, embora cada um tenha recebido `kwinish-mode-floated` (então `mode_window_opened` rodou e redeclarou a regra). No simulador a redeclaração troca o retângulo; no Hyprland 0.56.2, chamada de dentro do `window.open`, aparentemente não. Não corrigido.
+- Minimizar/restaurar (`special:minimized`), mostrar área de trabalho, empacotar, eixo, cantos ativos.
 - **Dicas nos botões** minimizar/maximizar/fechar, estilo KDE, em português (`add-titlebar-button-tooltips`, teste 8, 27/10; o inglês só no teste automático `tools/test-plugin-tooltip.sh`).
 - Vários monitores: menu e editor abrem no monitor sob o ponteiro (HDMI-A-1 + DP-1).
 - Licenças: cabeçalhos SPDX em `plugin/`; BSD-3 do hyprbars em `plugin/LICENSE.hyprland-plugins` conferido contra o upstream.
@@ -25,6 +25,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 ## Feito, falta verificar ao vivo
 - Correções das revisões no plugin: barras sobrepostas, arrasto preso, limpeza ao fechar janela, Esc no Mover/Redimensionar, maximizada que fugia da tela. O plugin do repositório já foi carregado em 27/10 (testes 5 e 7), mas esses cenários não foram exercidos de propósito: teste 2 abaixo.
 - Encaixe depois de arrastar para o 2º monitor: teste 3 abaixo (hoje só o DP-1 está ligado).
+- **Manter acima/abaixo das outras** sem `kw.setup()` (`5333087`, 28/10): o reerguimento a cada troca de foco só existia dentro de `setup()`, que o `user.lua` do dono não chama, e por isso a janela subia uma vez e perdia o lugar no clique seguinte (relato do dono no teste 11); o auto-elevar da receita também passava por cima dela. Ao vivo: teste 12.
 - Snap Assist com geração, `flock` e revalidação do clique; o desfazer das regras ao desmarcar; `force_no_accel`; auto-raise.
 - **Dicas no fixar e no ícone do aplicativo** (`add-pin-and-icon-tooltips`, 27/10, pedido do dono depois do teste 8): textos testados (`tools/test-plugin-tooltip.sh`), plugin compilado; ao vivo: teste 10 abaixo.
 - Modo floating: workspace no 2º monitor (o `move` relativo ao monitor foi conferido só no Hyprland aninhado e no simulador) e sair da tela cheia dentro do modo (a spec diz que volta flutuante).
@@ -74,7 +75,7 @@ Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, e
 
 ## Para a próxima sessão
 1. Ler `AGENTS.md`, este arquivo e `docs/HANDOFF.md` (armadilhas: objetos de `hl.bind` por `hyprctl eval` derrubam o Hyprland; `window.open_early` não aceita flutuar/redimensionar; etiqueta posta por regra aparece como `nome*`).
-2. `git status` e `git log --oneline -5`: a `master` deve estar limpa em `d1d274d` ou depois. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
+2. `git status` e `git log --oneline -5`: a `master` deve estar limpa em `5333087` ou depois. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
 3. `bash tools/check.sh` deve sair 0 antes de começar.
 4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `add-pin-and-icon-tooltips` (tarefas feitas; arquivar depois do teste 10 do dono) e `harden-user-data-io` (13/13, revisada pelo Codex em 28/10; arquivar depois do teste 11).
 5. Carregar o código do repositório no desktop é do dono: `fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish` (plugin e núcleo juntos; vale até o próximo `hyprctl reload`). Mudanças dentro de blocos protegidos por `KWINISH_*` só valem com um bloco novo ou com o pacote reinstalado.
@@ -142,10 +143,35 @@ Teste:
 3. Gravação de regra: num `kitty` flutuante, clique direito na barra > Mais ações > Regras da janela > "Sempre manter acima das outras". `cat ~/.config/kwinish/rules.json` mostra `{"kitty":{"above":true}}` e `ls -a ~/.config/kwinish/` não mostra nenhum `.tmp`. Abra outro `kitty`: nasce acima. Reabra o menu: a regra aparece marcada; desmarque.
 4. Gravação de layout: em `kwinish-ui layouts`, escolha outro layout. `cat ~/.config/kwinish/layout` mostra o nome escolhido. Volte ao de antes.
 5. Gravação pela interface: `kwinish-ui settings`, mude a "Altura" da barra (muda na hora) e volte ao valor de antes. `ls -a ~/.config/kwinish/` continua sem `.tmp` nem `.bak`.
+Resultado parcial (dono, 28/10): passo 3 gravou o arquivo, o segundo `kitty` nasceu acima e a regra apareceu marcada. O item desmarcado depois foi o "Manter acima das outras" da janela (sem arquivo): `rules.json` continua `{"kitty":{"above":true}}`, e o desfazer abaixo o remove. A janela mantida acima perdia o lugar ao clicar noutra: defeito à parte, corrigido em `5333087` (teste 12). Faltam os passos 1, 2, 4 e 5. Sem terminal, os passos 4 e 5 vão pelo menu da janela (clique direito na barra): Mais ações > Layout de tiling (o escolhido aparece marcado, é o que o arquivo `layout` guarda) e Mais ações > Configurações do Kwinish...
 Desfazer (devolve os cinco arquivos como estavam; o `rules.json`, que não existia, deixa de existir) e volta ao plugin e ao núcleo instalados:
 ```fish
 bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-11
 hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
+hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl reload
+```
+
+**12. Pacote novo da master: janela nova no modo floating e "Manter acima das outras" (28/10)**
+O pacote instalado (`kwinish-git r86.260f15b` e `kwinish-bars-plugin-git r85.738905b`, 25/10) é anterior à correção da abertura no modo floating; o núcleo dele faz a janela flutuar 150 ms depois de abrir, por isso ela aparece primeiro no tamanho do tiling, mais ou menos visível conforme a velocidade do app. Rode depois do desfazer do teste 11. Gerar os pacotes (fora do repositório; o `check()` roda as suítes Lua) e instalar:
+```fish
+set w (mktemp -d); mkdir $w/core $w/plugin
+cp ~/Downloads/ryoku-work/kwinish/packaging/PKGBUILD $w/core/; cp ~/Downloads/ryoku-work/kwinish/packaging/plugin/* $w/plugin/
+cd $w/core; KWINISH_SRC=$HOME/Downloads/ryoku-work/kwinish makepkg -f --nodeps
+cd $w/plugin; KWINISH_SRC=$HOME/Downloads/ryoku-work/kwinish makepkg -f --nodeps
+sudo pacman -U $w/core/kwinish-git-0.0.0.r*-x86_64.pkg.tar.zst $w/plugin/kwinish-bars-plugin-git-0.0.0.r*-x86_64.pkg.tar.zst
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+hyprctl reload
+```
+(O `*` exclui os pacotes `-debug`.) Teste:
+1. No workspace 1 (floating), abra várias vezes o `kitty` e o app em que o problema apareceu: cada janela aparece direto flutuante, no tamanho final, nunca primeiro no tamanho do tiling. Elas ainda nascem no mesmo lugar (cascata parada, achado de 28/10).
+2. Num `kitty` flutuante, clique direito na barra > "Manter acima das outras". Clique numa janela que fica por baixo dele: o foco vai para ela (dá para digitar nela), mas o `kitty` continua desenhado por cima. Desmarque no mesmo item.
+Desfazer (volta aos pacotes de 25/10, guardados em `dist/`):
+```fish
+cd ~/Downloads/ryoku-work/kwinish
+sudo pacman -U dist/kwinish-git-0.0.0.r86.260f15b-1-x86_64.pkg.tar.zst dist/kwinish-bars-plugin-git-0.0.0.r85.738905b-1-x86_64.pkg.tar.zst
+hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
 hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
 hyprctl reload
 ```
