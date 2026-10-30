@@ -2,7 +2,17 @@
 
 Atualizado em **2026-10-30 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — P8-A (30/10/2026): dispatchers K4–K8, K10–K13 sobre a 0.57
+## Resultado mais recente — P8-B (30/10/2026): drag K1–K3/K9 (parcial; aprovada e commitada)
+
+**K1/K2 (início) implementados e testados; K3, K9 e os dois rearm BLOQUEADOS por dependência de Q4.** Detalhe: `docs/port-0-57/P8-DRAG.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`; commits: `943aea4` P5, `d34c88d` P6, `1e4aca1` P8-A e o commit isolado de P8-B (`refactor(plugin): port drag initiation to Hyprland 0.57`, ver `git log`); sem merge/rebase/push. Prompts de revisão e o traço completo de P8-B ficam não rastreados. O plugin **continua incompatível com Hyprland 0.57** (não compila).
+
+- **Mudança:** `KwDrag::begin(mode)` = ramo de início do `changeMouseBindMode` 0.56.2 sobre `g_layoutManager`/hit-test/`checkInputOnDecorations` da 0.57; recusa se há qualquer drag (não encerra nem substitui), janela sob o cursor, padrões `exclusiveDeviceGrab=false`. Usado em `handleMovement` (K1) e `luaGrab` (K2). Sem estado, ouvinte, timer ou callback; foco e `binds:drag_center_window` intocados.
+- **Bloqueio:** a 0.57 não expõe identidade de sessão do drag; a única invalidação é o sinal `ended` (ouvinte = Q4). Demonstrado: fim incondicional, por alvo e por alvo+modo encerram o drag do usuário na sequência "drag da barra encerrado pelo host → drag do usuário na mesma janela → release da barra". Pontos que ficam: K3 `barDeco.cpp:278,566,586,630,649`, `main.cpp:484`; K9 `:381`; rearm `:278–279`, `:586–587`. Nenhum `endDragTarget()` introduzido.
+- **Validação real:** host falso com o corpo 0.56.2 verbatim: 216 cenários idênticos (incl. drag de terceiros e próprio ativos), nenhum drag ativo encerrado/substituído, oráculo exaustivo de retorno (108), auditoria do diff, condições envolventes; 18/18 mutantes; sonda B 18 OK + 12/12; regressões (geometria, tooltip, dispatchers host-free e harness P8-A, sondas K/A/P5/P6) verdes. `make` isolado exit 2, sem `.so`; erros vs P8-A: GCC 63→61, Clang 73→69, **0 novos**.
+- **Revisão** (`gpt-6.1-sol`, 2 rodadas): **approve** nas duas; só minors de teste/doc, tratados; a correção da rodada 2 não foi re-revisada.
+- **Próxima ação:** Q4-A (especificação e provas host-free da posse por sessão) autorizada em 30/10/2026, sem código de produção; implementação de Q4 exige nova autorização. Render/GL e ownership de decorações seguem separados.
+
+## Anterior — P8-A (30/10/2026): dispatchers K4–K8, K10–K13 sobre a 0.57
 
 **Implementado, testado (host-free, host falso, sondas, build isolado), aprovado pela revisão independente e aprovado pelo dono (portabilidade parcial); sem teste ao vivo. O plugin ainda NÃO compila no Hyprland 0.57** (K1–K3/K9, render/GL). Detalhe: `docs/port-0-57/P8-DISPATCHERS.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`; P5, P6 e P8-A consolidadas em três commits incrementais sobre `3285517` (ver `git log`; sem merge/rebase/push). Logs brutos de build, prompts de revisão e `P31-*` ficam fora dos commits, não rastreados. Desta etapa: `plugin/barDeco.cpp` (M, sobre P5+P6), `docs/port-0-57/P8-DISPATCHERS.md`, este arquivo (M); novos `plugin/{hostActions.hpp,actionGate.hpp,test_actions.cpp}`, `tools/test-plugin-actions.sh`, `docs/port-0-57/evidence/P8-*` (hashes em `P8-sha256.txt`). Dirty de P5/P6/P7 preservado: 59/61 hashes iguais aos do início de P8; os 2 diferentes são `plugin/barDeco.cpp` (a mudança desta etapa; a auditoria do diff mostra só as linhas de P8-A) e este arquivo (atualização autorizada).
 

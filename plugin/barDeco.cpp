@@ -34,6 +34,7 @@
 
 #include "globals.hpp"
 #include "hostActions.hpp"
+#include "hostDrag.hpp"
 #include "BarPassElement.hpp"
 #include "icon.hpp"
 #include "PreviewPassElement.hpp"
@@ -672,7 +673,7 @@ void CHyprBar::handleMovement() {
         if (Desktop::focusState()->window() != W)
             Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
     }
-    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    KwDrag::begin(MBIND_MOVE);
     m_bDraggingThis = true;
     warnIfNoCore();
     Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());

@@ -1,0 +1,42 @@
+OK   - extracted: old K1-handleMovement:barDeco.cpp:675 K2-luaGrab:main.cpp:314; new K1-handleMovement:barDeco.cpp:676 K2-luaGrab:main.cpp:315
+OK   - enclosing guards identical
+OK   - diff audit barDeco: diff audit: {'+include': 1, 'realigned': 0, '-stmt': 1, '+stmt': 1} unexplained: 0
+OK   - diff audit main: diff audit: {'+include': 1, 'realigned': 0, '-stmt': 1, '+stmt': 1} unexplained: 0
+OK   - g++ OLD (verbatim 0.56.2 changeMouseBindMode) built and ran (216 runs)
+OK   - g++ NEW (hostDrag.hpp) built and ran
+OK   - g++ no active drag (third-party or own) ended or replaced, both sides
+OK   - g++ NEW never calls endDragTarget
+OK   - g++ host-call traces identical OLD vs NEW (216 runs)
+OK   - g++ begin() results: 9 ok
+OK   - g++ K3/K9 blocker demonstrated: blocker demonstrated: 3 of 3 end candidates end the user's drag
+OK   - clang++ OLD (verbatim 0.56.2 changeMouseBindMode) built and ran (216 runs)
+OK   - clang++ NEW (hostDrag.hpp) built and ran
+OK   - clang++ no active drag (third-party or own) ended or replaced, both sides
+OK   - clang++ NEW never calls endDragTarget
+OK   - clang++ host-call traces identical OLD vs NEW (216 runs)
+OK   - clang++ begin() results: 9 ok
+OK   - clang++ K3/K9 blocker demonstrated: blocker demonstrated: 3 of 3 end candidates end the user's drag
+result: PASS
+
+######## results-g++.txt ########
+ok - exhaustive result oracle: 108 combinations
+ok - started (result 0, calls: windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false))
+ok - third-party drag kept (result 1, calls: (no host call))
+ok - no window (result 2, calls: windowAt((412.5,37.25), props=19, ignore=none))
+ok - deco refuses move (result 3, calls: windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)))
+ok - fullscreen skips deco (result 0, calls: windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false))
+ok - resize skips deco (result 0, calls: windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false))
+ok - INVALID does nothing (not an end) (result 4, calls: (no host call))
+ok - INVALID with no drag (result 4, calls: (no host call))
+
+######## blocker-g++.txt ########
+UNSAFE: unconditional end (0.56.2 changeMouseBindMode(INVALID) semantics) -> user's drag ENDED
+UNSAFE: end only if target() == remembered target -> user's drag ENDED
+UNSAFE: end only if target() == remembered target && mode() == MOVE -> user's drag ENDED
+rearm with begin() only: result 1 (ALREADY_DRAGGING) -> the drag is not restarted
+blocker demonstrated: 3 of 3 end candidates end the user's drag
+
+######## calls.inc.guards ########
+K1-handleMovement: void CHyprBar::handleMovement() {
+K2-luaGrab: for (auto& w : Desktop::windowState()->windows()) { <- int luaGrab(lua_State* L) {
+

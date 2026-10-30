@@ -1,0 +1,474 @@
+######## fake/fakedrag.hpp ########
+// P8-B fake host for drag START: enough of Hyprland for (a) the verbatim 0.56.2 CKeybindManager::changeMouseBindMode
+// body and (b) plugin/hostDrag.hpp. Every host call is recorded in g_trace.
+#pragma once
+#include <any>
+#include <cstdint>
+#include <format>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+inline std::vector<std::string> g_trace;
+inline void                     T(std::string s) { g_trace.push_back(std::move(s)); }
+
+struct Vector2D {
+    double x = 0, y = 0;
+};
+template <typename X>
+using SP = std::shared_ptr<X>;
+template <typename X>
+using UP = std::unique_ptr<X>;
+template <typename X>
+using WP = std::weak_ptr<X>;
+
+enum eMouseBindMode : int8_t { MBIND_INVALID = -1, MBIND_MOVE = 0, MBIND_RESIZE = 1 };
+inline const char* mname(eMouseBindMode m) { return m == MBIND_MOVE ? "MOVE" : m == MBIND_RESIZE ? "RESIZE" : "INVALID"; }
+enum eInputType : uint8_t { INPUT_TYPE_AXIS = 0, INPUT_TYPE_BUTTON, INPUT_TYPE_DRAG_START, INPUT_TYPE_DRAG_END, INPUT_TYPE_MOTION };
+
+namespace Layout {
+    enum eRectCorner : uint8_t { CORNER_NONE = 0 };
+    struct ITarget {
+        std::string name;
+    };
+}
+
+namespace Desktop::View {
+    enum eGetWindowProperties : uint16_t { RESERVED_EXTENTS = 1 << 0, INPUT_EXTENTS = 1 << 1, FULL_EXTENTS = 1 << 2, FLOATING_ONLY = 1 << 3, ALLOW_FLOATING = 1 << 4 };
+    struct CWindow;
+    struct CWindowPresentation {
+        CWindow* w = nullptr;
+        bool     checkInputOnDecorations(eInputType type, const Vector2D& c, std::any = {});
+    };
+    struct CWindow {
+        std::string         name;
+        bool                decoRefuses = false, fullscreen = false;
+        SP<Layout::ITarget> target = std::make_shared<Layout::ITarget>();
+        CWindowPresentation pres{this};
+        SP<Layout::ITarget> layoutTarget() { return target; }
+        CWindowPresentation& presentation() { return pres; }
+        bool                 checkInputOnDecos(eInputType type, const Vector2D& c) { // 0.56.2 spelling
+            T(std::format("decoCheck(win={}, type={}, at=({},{}))", name, (int)type, c.x, c.y));
+            return decoRefuses;
+        }
+    };
+    inline bool CWindowPresentation::checkInputOnDecorations(eInputType type, const Vector2D& c, std::any) { return w->checkInputOnDecos(type, c); }
+}
+using PHLWINDOW = SP<Desktop::View::CWindow>;
+
+inline PHLWINDOW g_under;   // window under the pointer
+inline Vector2D  g_mouse{412.5, 37.25};
+
+struct CInputManager {
+    Vector2D getMouseCoordsInternal() { return g_mouse; }
+};
+inline UP<CInputManager> g_pInputManager = std::make_unique<CInputManager>();
+
+namespace Desktop {
+    struct CViewHitTester {
+        PHLWINDOW windowAt(const Vector2D& p, uint16_t props, PHLWINDOW ignore = nullptr) const {
+            T(std::format("windowAt(({},{}), props={}, ignore={})", p.x, p.y, props, ignore ? "set" : "none"));
+            return g_under;
+        }
+    };
+    struct CViewState {
+        CViewHitTester h;
+        CViewHitTester& hitTest() { return h; }
+    };
+    inline UP<CViewState>& viewState() { static UP<CViewState> s = std::make_unique<CViewState>(); return s; }
+}
+
+namespace Fullscreen {
+    enum eFullscreenMode : int8_t { FSMODE_NONE = 0, FSMODE_MAXIMIZED, FSMODE_FULLSCREEN };
+    struct CController {
+        bool isFullscreen(const PHLWINDOW w, std::optional<eFullscreenMode> = std::nullopt, std::optional<bool> = std::nullopt) { return w && w->fullscreen; }
+    };
+    inline UP<CController>& controller() { static UP<CController> c = std::make_unique<CController>(); return c; }
+}
+
+namespace Layout::Supplementary {
+    struct CDragStateController {
+        SP<ITarget>    cur;
+        eMouseBindMode m = MBIND_INVALID;
+        SP<ITarget>    target() const { return cur; }
+        eMouseBindMode mode() const { return m; }
+    };
+}
+namespace Layout {
+    struct CLayoutManager {
+        UP<Supplementary::CDragStateController> dc = std::make_unique<Supplementary::CDragStateController>();
+        const UP<Supplementary::CDragStateController>& dragController() { return dc; }
+        void beginDragTarget(SP<ITarget> t, eMouseBindMode mode, std::optional<eRectCorner> edge = std::nullopt, bool excl = false) {
+            T(std::format("beginDragTarget(target={}, mode={}, edge={}, exclusiveDeviceGrab={})", t ? t->name : "null", mname(mode), edge ? "set" : "nullopt", excl));
+            dc->cur = t;
+            dc->m   = mode;
+        }
+        bool endDragTarget() {
+            T(std::format("endDragTarget(active={})", dc->cur ? dc->cur->name : "none"));
+            const bool had = (bool)dc->cur;
+            dc->cur        = nullptr;
+            dc->m          = MBIND_INVALID;
+            return had;
+        }
+    };
+}
+inline UP<Layout::CLayoutManager> g_layoutManager = std::make_unique<Layout::CLayoutManager>();
+
+struct SDispatchResult { // O:SharedDefs.hpp:52
+    bool        passEvent = false;
+    bool        success   = true;
+    std::string error;
+};
+
+######## equiv.cpp ########
+// P8-B drag-start equivalence + negatives + blocker demonstration (fake host).
+// OLD: verbatim 0.56.2 CKeybindManager::changeMouseBindMode + the old plugin lines; NEW: plugin/hostDrag.hpp + new lines.
+#include "fakedrag.hpp"
+
+#include <cstdio>
+
+#ifdef SIDE_OLD
+struct CKeybindManager {
+    static SDispatchResult changeMouseBindMode(const eMouseBindMode MODE);
+};
+inline UP<CKeybindManager> g_pKeybindManager = std::make_unique<CKeybindManager>();
+#include "oldbody.inc"
+#else
+#include "hostDrag.hpp"
+#endif
+
+static void runStmt(int k, const std::string& mode) {
+    switch (k) {
+#include "calls.inc"
+        default: T("NO-STATEMENT"); break;
+    }
+}
+
+static std::string flush() {
+    std::string s;
+    for (auto& t : g_trace)
+        s += (s.empty() ? "" : " ; ") + t;
+    g_trace.clear();
+    return s.empty() ? "(no host call)" : s;
+}
+
+int main(int argc, char** argv) {
+    const std::string WHAT = argc > 1 ? argv[1] : "equiv";
+    auto mk = [](const char* n) { auto w = std::make_shared<Desktop::View::CWindow>(); w->name = n; w->target->name = std::string("T:") + n; return w; };
+    auto A = mk("barwin"), B = mk("other");
+    auto THIRD = std::make_shared<Layout::ITarget>();
+    THIRD->name = "T:third-party";
+
+    if (WHAT == "equiv") {
+        // statements x grab mode x active drag x window under pointer x fullscreen x decoration refusal
+        const char* MODES[] = {"move", "resize"};
+        for (const Vector2D CUR : {Vector2D{412.5, 37.25}, Vector2D{1500.75, -20.5}}) // two cursor positions (review round 2)
+        for (int k = 0; k < 2; ++k)
+            for (auto m : MODES)
+                for (int act = 0; act < 3; ++act)       // 0 none, 1 third-party drag, 2 a drag on the bar window's own target
+                    for (int under = 0; under < 3; ++under) // 0 none, 1 bar window, 2 other window
+                        for (int fs = 0; fs < 2; ++fs)
+                            for (int deco = 0; deco < 2; ++deco) {
+                                if (k == 0 && std::string(m) == "resize")
+                                    continue; // handleMovement has no mode variable
+                                g_mouse                  = CUR;
+                                g_layoutManager->dc->cur = act == 0 ? nullptr : act == 1 ? THIRD : A->target;
+                                g_under                  = under == 0 ? nullptr : under == 1 ? A : B;
+                                for (auto& w : {A, B}) { w->fullscreen = fs; w->decoRefuses = deco; }
+                                const auto BEFORE = g_layoutManager->dc->cur;
+                                runStmt(k, m);
+                                const auto C = flush();
+                                std::printf("k=%d mode=%s active=%d under=%d fs=%d deco=%d | %s | after=%s\n", k, m, act, under, fs, deco, C.c_str(),
+                                            g_layoutManager->dc->cur ? g_layoutManager->dc->cur->name.c_str() : "none");
+                                // the property required by the owner, checked on both sides: an active drag is never ended or replaced
+                                if (act != 0 && g_layoutManager->dc->cur != BEFORE)
+                                    std::printf("VIOLATION k=%d: an active drag was ended or replaced\n", k);
+                            }
+        return 0;
+    }
+#ifndef SIDE_OLD
+    if (WHAT == "results") { // NEW only: the helper's return value per case, and it never ends anything
+        struct C { const char* n; int act, under, fs, deco; eMouseBindMode m; KwDrag::eBeginResult want; } CASES[] = {
+            {"started", 0, 1, 0, 0, MBIND_MOVE, KwDrag::BEGIN_STARTED},          {"third-party drag kept", 1, 1, 0, 0, MBIND_MOVE, KwDrag::BEGIN_ALREADY_DRAGGING},
+            {"no window", 0, 0, 0, 0, MBIND_MOVE, KwDrag::BEGIN_NO_WINDOW},     {"deco refuses move", 0, 1, 0, 1, MBIND_MOVE, KwDrag::BEGIN_REFUSED_BY_DECO},
+            {"fullscreen skips deco", 0, 1, 1, 1, MBIND_MOVE, KwDrag::BEGIN_STARTED}, {"resize skips deco", 0, 1, 0, 1, MBIND_RESIZE, KwDrag::BEGIN_STARTED},
+            {"INVALID does nothing (not an end)", 1, 1, 0, 0, MBIND_INVALID, KwDrag::BEGIN_BAD_MODE},
+            {"INVALID with no drag", 0, 1, 0, 0, MBIND_INVALID, KwDrag::BEGIN_BAD_MODE},
+        };
+        int bad = 0;
+        // exhaustive: every mode x active drag x window under pointer x fullscreen x decoration, expected value computed
+        // here from the 0.56.2 control flow, independently of the helper
+        int n = 0;
+        for (eMouseBindMode m : {MBIND_MOVE, MBIND_RESIZE, MBIND_INVALID})
+            for (int act = 0; act < 3; ++act)
+                for (int under = 0; under < 3; ++under)
+                    for (int fs = 0; fs < 2; ++fs)
+                        for (int deco = 0; deco < 2; ++deco) {
+                            g_layoutManager->dc->cur = act == 0 ? nullptr : act == 1 ? THIRD : A->target;
+                            g_under                  = under == 0 ? nullptr : under == 1 ? A : B;
+                            for (auto& w : {A, B}) { w->fullscreen = fs; w->decoRefuses = deco; }
+                            const auto BEFORE = g_layoutManager->dc->cur;
+                            KwDrag::eBeginResult want;
+                            if (m == MBIND_INVALID) want = KwDrag::BEGIN_BAD_MODE;
+                            else if (act) want = KwDrag::BEGIN_ALREADY_DRAGGING;
+                            else if (!under) want = KwDrag::BEGIN_NO_WINDOW;
+                            else if (!fs && m == MBIND_MOVE && deco) want = KwDrag::BEGIN_REFUSED_BY_DECO;
+                            else want = KwDrag::BEGIN_STARTED;
+                            const auto R  = KwDrag::begin(m);
+                            const auto TR = flush();
+                            const bool started = TR.find("beginDragTarget") != std::string::npos;
+                            const bool ok = R == want && started == (want == KwDrag::BEGIN_STARTED) && TR.find("endDragTarget") == std::string::npos &&
+                                (!act || g_layoutManager->dc->cur == BEFORE);
+                            ++n;
+                            if (!ok) {
+                                ++bad;
+                                std::printf("FALHOU - exhaustive m=%d act=%d under=%d fs=%d deco=%d: result %d want %d (%s)\n", (int)m, act, under, fs, deco, (int)R, (int)want, TR.c_str());
+                            }
+                        }
+        std::printf("%s - exhaustive result oracle: %d combinations\n", bad ? "FALHOU" : "ok", n);
+        for (auto& c : CASES) {
+            g_layoutManager->dc->cur = c.act ? THIRD : nullptr;
+            g_under                  = c.under ? A : nullptr;
+            A->fullscreen = c.fs; A->decoRefuses = c.deco;
+            const auto R  = KwDrag::begin(c.m);
+            const auto TR = flush();
+            const bool ok = R == c.want && TR.find("endDragTarget") == std::string::npos && (!c.act || g_layoutManager->dc->cur == THIRD);
+            std::printf("%s - %s (result %d, calls: %s)\n", ok ? "ok" : "FALHOU", c.n, (int)R, TR.c_str());
+            bad += !ok;
+        }
+        return bad ? 1 : 0;
+    }
+    if (WHAT == "blocker") {
+        // Why K3/K9 (ending) are not migrated: the only public state is target()/mode(); nothing identifies a session.
+        // Sequence: the bar starts a drag on its window; the host ends it on a key press (the plugin's m_bDraggingThis
+        // stays true); a user bind then starts a drag on the SAME window; the bar's release handler now wants to end "its" drag.
+        int violations = 0;
+        auto run = [&](const char* name, auto endCandidate) {
+            g_layoutManager->dc->cur = nullptr;
+            g_under                  = A;
+            A->fullscreen = false; A->decoRefuses = false;
+            (void)KwDrag::begin(MBIND_MOVE);                               // the bar's drag
+            const SP<Layout::ITarget> OURS = g_layoutManager->dc->cur;     // what the plugin could remember
+            (void)g_layoutManager->endDragTarget();                        // host ends it (key press)
+            g_layoutManager->beginDragTarget(A->target, MBIND_MOVE);       // user's bind drag, same window
+            flush();
+            endCandidate(OURS);                                            // the bar's release
+            const bool userDragEnded = !g_layoutManager->dc->cur;
+            std::printf("%s: %s -> user's drag %s\n", userDragEnded ? "UNSAFE" : "safe", name, userDragEnded ? "ENDED" : "kept");
+            violations += userDragEnded;
+        };
+        run("unconditional end (0.56.2 changeMouseBindMode(INVALID) semantics)", [](const SP<Layout::ITarget>&) {
+            if (g_layoutManager->dragController()->target()) (void)g_layoutManager->endDragTarget();
+        });
+        run("end only if target() == remembered target", [](const SP<Layout::ITarget>& ours) {
+            if (g_layoutManager->dragController()->target() == ours) (void)g_layoutManager->endDragTarget();
+        });
+        run("end only if target() == remembered target && mode() == MOVE", [](const SP<Layout::ITarget>& ours) {
+            if (g_layoutManager->dragController()->target() == ours && g_layoutManager->dragController()->mode() == MBIND_MOVE) (void)g_layoutManager->endDragTarget();
+        });
+        // rearm with START only: the plugin's own drag is active, begin() refuses, so a rearm cannot be done without an end
+        g_layoutManager->dc->cur = nullptr; g_under = A;
+        (void)KwDrag::begin(MBIND_MOVE);
+        flush();
+        const auto R = KwDrag::begin(MBIND_MOVE);
+        std::printf("rearm with begin() only: result %d (%s) -> the drag is not restarted\n", (int)R, R == KwDrag::BEGIN_ALREADY_DRAGGING ? "ALREADY_DRAGGING" : "?");
+        std::printf("blocker demonstrated: %d of 3 end candidates end the user's drag\n", violations);
+        return violations == 3 && R == KwDrag::BEGIN_ALREADY_DRAGGING ? 0 : 1;
+    }
+#endif
+    return 2;
+}
+
+######## extract.py ########
+#!/usr/bin/env python3
+"""P8-B extraction.
+  calls SRC_BARDECO SRC_MAIN OUT old|new
+     old: the drag-START lines replaced in P8-B: `changeMouseBindMode(MBIND_MOVE)` not directly after a
+          `changeMouseBindMode(MBIND_INVALID)` line (i.e. not a rearm), and the main.cpp `mode == "move" ? ...` grab;
+     new: lines with `KwDrag::begin(`. Expect 2 (K1 handleMovement, K2 luaGrab).
+  oldbody OSRC OUT   the verbatim 0.56.2 CKeybindManager::changeMouseBindMode body.
+Also writes OUT.guards: the chain of enclosing control lines of each statement."""
+import re, sys
+
+ORDER = ["K1-handleMovement", "K2-luaGrab"]
+
+
+def find(lines, pred):
+    out = []
+    for i, l in enumerate(lines):
+        s = l.strip()
+        if s.startswith("//") or not pred(i, l):
+            continue
+        out.append((i + 1, [l]))
+    return out
+
+
+def chain(lines, ln):
+    res, ind = [], len(lines[ln - 1]) - len(lines[ln - 1].lstrip())
+    for n in range(ln - 2, -1, -1):
+        s = lines[n].strip()
+        if s and not s.startswith("//") and len(lines[n]) - len(lines[n].lstrip()) < ind:
+            res.append(s)
+            ind = len(lines[n]) - len(lines[n].lstrip())
+            if ind == 0:
+                break
+    return " <- ".join(res)
+
+
+mode = sys.argv[1]
+if mode == "calls":
+    bar, main, out, kind = sys.argv[2:6]
+    got = []
+    for src in (bar, main):
+        L = open(src, encoding="utf-8").read().split("\n")
+        if kind == "old":
+            pred = lambda i, l: ("changeMouseBindMode(MBIND_MOVE)" in l and "MBIND_INVALID" not in L[i - 1]) or 'changeMouseBindMode(mode == "move"' in l
+        else:
+            pred = lambda i, l: "KwDrag::begin(" in l
+        got += [(src, ln, body, chain(L, ln)) for ln, body in find(L, pred)]
+    assert len(got) == 2, f"{kind}: expected 2 statements, found {[(g[0].split('/')[-1], g[1]) for g in got]}"
+    with open(out, "w") as f, open(out + ".guards", "w") as g:
+        for k, (src, ln, body, ch) in enumerate(got):
+            f.write(f"    case {k}: {{ // {ORDER[k]}\n#line {ln} \"{src}\"\n" + "\n".join(body) + "\n    } break;\n")
+            g.write(f"{ORDER[k]}: {ch}\n")
+    print(" ".join(f"{ORDER[k]}:{g[0].split('/')[-1]}:{g[1]}" for k, g in enumerate(got)))
+elif mode == "oldbody":
+    src, out = sys.argv[2:4]
+    t = open(src, encoding="utf-8").read().split("\n")
+    i = next(n for n, l in enumerate(t) if l.startswith("SDispatchResult CKeybindManager::changeMouseBindMode("))
+    j = next(n for n in range(i, len(t)) if t[n].startswith("}"))
+    open(out, "w").write(f'#line {i+1} "{src}"\n' + "\n".join(t[i : j + 1]) + "\n")
+    print(f"changeMouseBindMode {i+1}-{j+1}")
+
+######## diff_audit.py ########
+#!/usr/bin/env python3
+"""P8-B diff audit: every changed line (BASE -> CAND) must be a removed old extracted statement, an added new extracted
+statement (one statement per line: one ';' outside literals/comments, no return/goto/break/continue/throw), the
+`#include "hostDrag.hpp"` line, or a comment; identical lines re-aligned inside one hunk cancel.
+usage: diff_audit.py BASE CAND OLD_CALLS NEW_CALLS   (exit 1 on any unexplained line or unequal statement counts)"""
+import collections, difflib, re, sys
+
+base, cand, oldc, newc = sys.argv[1:5]
+b = open(base, encoding="utf-8").read().split("\n")
+c = open(cand, encoding="utf-8").read().split("\n")
+
+
+def stmt_lines(inc):
+    return {l.rstrip("\n").strip() for l in open(inc, encoding="utf-8") if not l.startswith(("    case ", "#line", "    } break;"))}
+
+
+def single_statement(s):
+    code = re.sub(r'"(?:[^"\\]|\\.)*"' + r"|'(?:[^'\\]|\\.)*'", '""', s).split("//")[0]
+    return code.count(";") == 1 and code.rstrip().endswith(";") and not re.search(r"\b(return|goto|break|continue|throw)\b", code)
+
+
+old_ok, new_ok = stmt_lines(oldc), stmt_lines(newc)
+bad, counts = 0, collections.Counter()
+for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, b, c, autojunk=False).get_opcodes():
+    if tag == "equal":
+        continue
+    gr, ga = collections.Counter(), collections.Counter()
+    for s in (x.strip() for x in b[i1:i2]):
+        if s in old_ok: counts["-stmt"] += 1
+        elif s.startswith("//"): counts["-comment"] += 1
+        else: gr[s] += 1
+    for s in (x.strip() for x in c[j1:j2]):
+        if s in new_ok and single_statement(s): counts["+stmt"] += 1
+        elif s == '#include "hostDrag.hpp"': counts["+include"] += 1
+        elif s.startswith("//"): counts["+comment"] += 1
+        else: ga[s] += 1
+    moved = gr & ga
+    counts["realigned"] += sum(moved.values())
+    for s, k in list((gr - moved).items()) + list((ga - moved).items()):
+        bad += k
+        print(f"UNEXPLAINED change in hunk base {i1+1}-{i2} / cand {j1+1}-{j2}: '{s[:120]}'")
+print("diff audit:", dict(counts), "unexplained:", bad)
+sys.exit(1 if bad or counts["-stmt"] != counts["+stmt"] else 0)
+
+######## run.sh ########
+#!/usr/bin/env bash
+# P8-B drag-start runner. usage: run.sh CAND_BARDECO CAND_MAIN [PLUGIN_DIR] [BASE_BARDECO] [BASE_MAIN]
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+CB=${1:?barDeco}; CM=${2:?main}
+PLUG=${3:-/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin}
+BB=${4:-/home/lhen/.hermes/cache/scratch/p8b/pre/barDeco.cpp}; BM=${5:-/home/lhen/.hermes/cache/scratch/p8b/pre/main.cpp}
+OSRC=/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/managers/KeybindManager.cpp
+O=${OUT:-$P/out}; rm -rf "$O"; mkdir -p "$O/old" "$O/new"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+for h in desktop/state/ViewHitTester.hpp desktop/state/ViewState.hpp desktop/view/window/Window.hpp desktop/view/window/WindowPresentation.hpp layout/LayoutManager.hpp layout/supplementary/DragController.hpp layout/target/Target.hpp managers/fullscreen/FullscreenController.hpp managers/input/InputManager.hpp; do
+    mkdir -p "$P/fake/hyprland/src/$(dirname "$h")"; echo '#include <fakedrag.hpp>' >"$P/fake/hyprland/src/$h"
+done
+python3 "$P/extract.py" oldbody "$OSRC" "$O/old/oldbody.inc" >"$O/old/extract.txt" || { bad "extract old body"; exit 1; }
+python3 "$P/extract.py" calls "$BB" "$BM" "$O/old/calls.inc" old >>"$O/old/extract.txt" || { bad "extract old calls"; exit 1; }
+if ! python3 "$P/extract.py" calls "$CB" "$CM" "$O/new/calls.inc" new >"$O/new/extract.txt" 2>"$O/new/extract.err"; then
+    bad "extract candidate: $(tail -1 "$O/new/extract.err")"; echo "result: FAIL"; exit 1
+fi
+ok "extracted: old $(tail -1 "$O/old/extract.txt"); new $(cat "$O/new/extract.txt")"
+cmp -s "$O/old/calls.inc.guards" "$O/new/calls.inc.guards" && ok "enclosing guards identical" || { bad "enclosing guards differ"; diff "$O/old/calls.inc.guards" "$O/new/calls.inc.guards"; }
+python3 "$P/diff_audit.py" "$BB" "$CB" "$O/old/calls.inc" "$O/new/calls.inc" >"$O/audit-bar.txt" 2>&1 && ok "diff audit barDeco: $(tail -1 "$O/audit-bar.txt")" || bad "diff audit barDeco: $(cat "$O/audit-bar.txt" | head -3)"
+python3 "$P/diff_audit.py" "$BM" "$CM" "$O/old/calls.inc" "$O/new/calls.inc" >"$O/audit-main.txt" 2>&1 && ok "diff audit main: $(tail -1 "$O/audit-main.txt")" || bad "diff audit main: $(cat "$O/audit-main.txt" | head -3)"
+for CXX in g++ clang++; do
+    if $CXX -std=c++2b -Wall -Wextra -DSIDE_OLD -I"$P/fake" -I"$O/old" "$P/equiv.cpp" -o "$O/old/eq-$CXX" >"$O/old/build-$CXX.log" 2>&1 && "$O/old/eq-$CXX" >"$O/old/trace-$CXX.txt"; then
+        ok "$CXX OLD (verbatim 0.56.2 changeMouseBindMode) built and ran ($(wc -l <"$O/old/trace-$CXX.txt") runs)"; else bad "$CXX OLD (see $O/old/build-$CXX.log)"; continue; fi
+    if $CXX -std=c++2b -Wall -Wextra -Werror -I"$P/fake" -I"$PLUG" -I"$O/new" "$P/equiv.cpp" -o "$O/new/eq-$CXX" >"$O/new/build-$CXX.log" 2>&1 && "$O/new/eq-$CXX" >"$O/new/trace-$CXX.txt"; then
+        ok "$CXX NEW (hostDrag.hpp) built and ran"; else bad "$CXX NEW (see $O/new/build-$CXX.log)"; continue; fi
+    grep -q 'NO-STATEMENT' "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" && bad "$CXX empty statement slot"
+    grep -q VIOLATION "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" && bad "$CXX an active drag was ended/replaced" || ok "$CXX no active drag (third-party or own) ended or replaced, both sides"
+    grep -q 'endDragTarget' "$O/new/trace-$CXX.txt" && bad "$CXX NEW calls endDragTarget" || ok "$CXX NEW never calls endDragTarget"
+    cmp -s "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" && ok "$CXX host-call traces identical OLD vs NEW ($(wc -l <"$O/new/trace-$CXX.txt") runs)" || { bad "$CXX traces differ"; diff "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" | head -6; }
+    "$O/new/eq-$CXX" results >"$O/new/results-$CXX.txt" && ok "$CXX begin() results: $(grep -c '^ok' "$O/new/results-$CXX.txt") ok" || { bad "$CXX begin() results"; grep FALHOU "$O/new/results-$CXX.txt"; }
+    "$O/new/eq-$CXX" blocker >"$O/new/blocker-$CXX.txt" && ok "$CXX K3/K9 blocker demonstrated: $(tail -1 "$O/new/blocker-$CXX.txt")" || { bad "$CXX blocker demo"; cat "$O/new/blocker-$CXX.txt"; }
+done
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL
+
+######## mut.sh ########
+#!/usr/bin/env bash
+# P8-B mutations on scratch copies of plugin/{hostDrag.hpp,barDeco.cpp,main.cpp}. Killed only if NEW builds on both
+# compilers AND a semantic check fails (traces, violation, endDragTarget, results, blocker, guards, diff audit).
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+W=/home/lhen/Projects/ryoku-work/kwinish-port-0-57
+M=$P/mut; [ -z "${ONLY:-}" ] && rm -rf "$M"; mkdir -p "$M"
+FAIL=0; N=0; K=0
+while IFS='~' read -r NAME FILE FIND REPL; do
+    [ -z "$NAME" ] && continue
+    [ -n "${ONLY:-}" ] && [ "$ONLY" != "$NAME" ] && continue
+    D=$M/$NAME; rm -rf "$D"; mkdir -p "$D/plugin"
+    cp "$W/plugin/"{barDeco.cpp,main.cpp,hostDrag.hpp} "$D/plugin/"
+    FF="$(printf '%b' "$FIND")" RR="$(printf '%b' "$REPL")" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$D/plugin/$FILE"
+    if cmp -s "$W/plugin/$FILE" "$D/plugin/$FILE"; then echo "FAIL - $NAME: mutation did not apply"; FAIL=1; continue; fi
+    N=$((N+1))
+    OUT=$D/out bash "$P/run.sh" "$D/plugin/barDeco.cpp" "$D/plugin/main.cpp" "$D/plugin" >"$D/run.log" 2>&1; RC=$?
+    BUILT=$(grep -c 'NEW (hostDrag.hpp) built and ran' "$D/run.log")
+    DET=$(grep -cE 'FAIL - .*(traces differ|ended/replaced|calls endDragTarget|begin\(\) results|blocker demo|guards differ|diff audit|empty statement)' "$D/run.log")
+    AUDIT_ONLY=$(grep -cE 'FAIL - (diff audit|enclosing guards)' "$D/run.log")
+    if [ $RC -ne 0 ] && { [ "$BUILT" = 2 ] || [ "$AUDIT_ONLY" -gt 0 ]; } && [ "$DET" -gt 0 ]; then
+        K=$((K+1)); echo "OK   - $NAME killed ($(grep -E 'FAIL - ' "$D/run.log" | head -1 | cut -c1-100))"
+    else
+        echo "FAIL - $NAME survived or not a valid kill (rc=$RC built=$BUILT detections=$DET)"; FAIL=1
+    fi
+done <<'EOF'
+d01~hostDrag.hpp~        if (g_layoutManager->dragController()->target())\n            return BEGIN_ALREADY_DRAGGING;\n~
+d02~hostDrag.hpp~        if (g_layoutManager->dragController()->target())\n            return BEGIN_ALREADY_DRAGGING;~        if (g_layoutManager->dragController()->target())\n            (void)g_layoutManager->endDragTarget();
+d03~hostDrag.hpp~ | Desktop::View::ALLOW_FLOATING)~)
+d04~hostDrag.hpp~&& MODE == MBIND_MOVE)~&& MODE == MBIND_RESIZE)
+d05~hostDrag.hpp~if (!Fullscreen::controller()->isFullscreen(PWINDOW)~if (Fullscreen::controller()->isFullscreen(PWINDOW)
+d06~hostDrag.hpp~beginDragTarget(PWINDOW->layoutTarget(), MODE);~beginDragTarget(PWINDOW->layoutTarget(), MODE, std::nullopt, true);
+d07~hostDrag.hpp~checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS)~checkInputOnDecorations(INPUT_TYPE_DRAG_START, Vector2D{})
+d08~hostDrag.hpp~            return BEGIN_NO_WINDOW;~            return BEGIN_STARTED;
+d09~hostDrag.hpp~            return BEGIN_BAD_MODE;~            { (void)g_layoutManager->endDragTarget(); return BEGIN_BAD_MODE; }
+d10~hostDrag.hpp~                return BEGIN_REFUSED_BY_DECO;~                {}
+d11~main.cpp~KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);~KwDrag::begin(mode == "move" ? MBIND_RESIZE : MBIND_MOVE);
+d12~barDeco.cpp~    KwDrag::begin(MBIND_MOVE);~    KwDrag::begin(MBIND_RESIZE);
+d13~barDeco.cpp~    KwDrag::begin(MBIND_MOVE);~    return;\n    KwDrag::begin(MBIND_MOVE);
+d14~main.cpp~        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);~        if (mode == "move") KwDrag::begin(MBIND_MOVE);
+d15~hostDrag.hpp~INPUT_TYPE_DRAG_START, MOUSECOORDS~INPUT_TYPE_DRAG_END, MOUSECOORDS
+d16~hostDrag.hpp~        if (g_layoutManager->dragController()->target())\n            return BEGIN_ALREADY_DRAGGING;~        if (g_layoutManager->dragController()->target())\n            return MODE == MBIND_RESIZE ? BEGIN_STARTED : BEGIN_ALREADY_DRAGGING;
+d17~hostDrag.hpp~            return BEGIN_NO_WINDOW;~            return MODE == MBIND_RESIZE ? BEGIN_REFUSED_BY_DECO : BEGIN_NO_WINDOW;
+d18~hostDrag.hpp~const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();~const auto      MOUSECOORDS = Vector2D{412.5, 37.25};
+EOF
+echo "mutants: $N killed: $K"
+echo "result: $([ $FAIL = 0 ] && [ $K = $N ] && echo PASS || echo FAIL)"; [ $FAIL = 0 ] && [ $K = $N ]
+

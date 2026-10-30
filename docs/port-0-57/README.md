@@ -18,6 +18,7 @@ Base: branch `port-kwinish-bars-to-hyprland-0-57`, commit `9850593` (documental;
 | [P6-LOG-API.md](P6-LOG-API.md) | 3.1 (parcial) | P6: Log API 0.56.2→0.57 (5 chamadas); sondas de tipo e de execução contra o header 0.56.2; diferença medida de alocação; comparação de erros; revisão (reprovada sob leitura estrita); **aprovada pelo dono** com a diferença de alocação aceita; inventário inicial de `g_pKeybindManager` |
 | [P7-KEYBINDS.md](P7-KEYBINDS.md) | prep. (sem código) | P7: matriz keybinds/mouse-bind/dispatchers 0.56.2→0.57 (K1–K13, classes BC/RD/DI); `changeMouseBindMode`/`dragBegin`/`dragEnd`/`exclusiveDeviceGrab`; proposta Q4 (posse por sessão via `ended`); sonda K; revisão (aprovada) |
 | [P8-DISPATCHERS.md](P8-DISPATCHERS.md) | 3.1 (parcial) | P8-A: dispatchers K4–K8/K10–K13 → `Config::Actions`/`executor()` (janela focada, guardas do tradutor, `ActionResult` com log limitado); equivalência com host falso + tradutor 0.56.2 verbatim; 45 mutações; sonda A; comparação de erros; revisão (aprovada, 4 rodadas); RD de K13 aceito pelo dono |
+| [P8-DRAG.md](P8-DRAG.md) | 3.1 (parcial) | P8-B: início de drag K1/K2 → `KwDrag::begin` (corpo 0.56.2 sobre as primitivas 0.57; não encerra nem substitui drag ativo); **K3, K9 e rearm bloqueados** (sem posse por sessão = Q4), com demonstração; host falso + corpo verbatim, oráculo exaustivo, 18 mutações, sonda B; revisão (aprovada); aprovada pelo dono e commitada (parcial) |
 
 Relatórios longos permanecem em `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/` e não foram duplicados.
 

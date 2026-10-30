@@ -24,6 +24,7 @@
 #include "barDeco.hpp"
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include "globals.hpp"
+#include "hostDrag.hpp"
 
 extern "C" {
 #include <lua.h>
@@ -311,7 +312,7 @@ int luaGrab(lua_State* L) {
         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
         if (Desktop::focusState()->window() != w)
             break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
-        g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
         g_pGlobalState->grabActive = true;
         break;
     }

@@ -1,0 +1,71 @@
+geometry g++ exit 0
+actions g++ exit 0 (24 ok)
+geometry clang++ exit 0
+actions clang++ exit 0 (24 ok)
+tooltip exit 0
+probe K exit 0 (36 OK)
+probe A (P8-A) exit 0 (22 OK)
+P5 probes exit 0
+P6 probes exit 0 (30 OK; log lines 382 613 656 679 806)
+make exit 2
+so in scratch: 0; so in plugin/: 0
+== g++: base=63 cand=61 eliminated=2 persistent=61 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [main.cpp] main.cpp x1: g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- new:
+-- candidate errors on drag/dispatcher lines in barDeco.cpp: 6
+   barDeco.cpp:278: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   barDeco.cpp:381: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   barDeco.cpp:566: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   barDeco.cpp:586: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   barDeco.cpp:630: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   barDeco.cpp:649: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+== clang++: base=73 cand=69 eliminated=4 persistent=69 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);  ::  no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [main.cpp] main.cpp x1: g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);  ::  no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   [main.cpp] main.cpp x1: g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+-- new:
+-- candidate errors on drag/dispatcher lines in barDeco.cpp: 16
+   barDeco.cpp:278: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:278: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:279: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:279: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:381: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:381: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   barDeco.cpp:566: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:566: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:586: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:586: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:587: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:587: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:630: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:630: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   barDeco.cpp:649: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:649: g_pKeybindManager->changeMouseBindMode(MBIND_INVALID); :: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+
+######## compare.json ########
+{
+ "g++": {
+  "base": 63,
+  "cand": 61,
+  "eliminated": 2,
+  "persistent": 61,
+  "new": 0,
+  "dispatcher_line_errors": 6,
+  "new_header_errors": 0
+ },
+ "clang++": {
+  "base": 73,
+  "cand": 69,
+  "eliminated": 4,
+  "persistent": 69,
+  "new": 0,
+  "dispatcher_line_errors": 16,
+  "new_header_errors": 0
+ }
+}

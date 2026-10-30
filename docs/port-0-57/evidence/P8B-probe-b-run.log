@@ -1,0 +1,20 @@
+OK   - g++ B positive exit 0
+OK   - g++ B NEG1 exit 1 (1 expected error lines)
+OK   - g++ B NEG2 exit 1 (1 expected error lines)
+OK   - clang++ B positive exit 0
+OK   - clang++ B NEG1 exit 1 (2 expected error lines)
+OK   - clang++ B NEG2 exit 1 (1 expected error lines)
+OK   - mut b1 g++ killed by static_assert
+OK   - mut b1 clang++ killed by static_assert
+OK   - mut b2 g++ killed by static_assert
+OK   - mut b2 clang++ killed by static_assert
+OK   - mut b3 g++ killed by static_assert
+OK   - mut b3 clang++ killed by static_assert
+OK   - mut b4 g++ killed by static_assert
+OK   - mut b4 clang++ killed by static_assert
+OK   - mut b5 g++ killed by static_assert
+OK   - mut b5 clang++ killed by static_assert
+OK   - mut b6 g++ killed by static_assert
+OK   - mut b6 clang++ killed by static_assert
+mutants run: 12
+result: PASS

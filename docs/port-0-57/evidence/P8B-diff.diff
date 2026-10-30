@@ -1,0 +1,101 @@
+diff --git a/plugin/barDeco.cpp b/plugin/barDeco.cpp
+index c057917..e9775ea 100644
+--- a/plugin/barDeco.cpp
++++ b/plugin/barDeco.cpp
+@@ -34,6 +34,7 @@
+ 
+ #include "globals.hpp"
+ #include "hostActions.hpp"
++#include "hostDrag.hpp"
+ #include "BarPassElement.hpp"
+ #include "icon.hpp"
+ #include "PreviewPassElement.hpp"
+@@ -672,7 +673,7 @@ void CHyprBar::handleMovement() {
+         if (Desktop::focusState()->window() != W)
+             Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+     }
+-    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
++    KwDrag::begin(MBIND_MOVE);
+     m_bDraggingThis = true;
+     warnIfNoCore();
+     Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index f6e35a5..66de4c0 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -24,6 +24,7 @@
+ #include "barDeco.hpp"
+ #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+ #include "globals.hpp"
++#include "hostDrag.hpp"
+ 
+ extern "C" {
+ #include <lua.h>
+@@ -311,7 +312,7 @@ int luaGrab(lua_State* L) {
+         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+         if (Desktop::focusState()->window() != w)
+             break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
+-        g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
++        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+         g_pGlobalState->grabActive = true;
+         break;
+     }
+
+######## plugin/hostDrag.hpp (new) ########
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+// Starting a pointer drag (move/resize) on Hyprland 0.57, where CKeybindManager::changeMouseBindMode is gone. This is
+// the START half of the 0.56.2 body (O:managers/KeybindManager.cpp:949-968) on the 0.57 primitives, nothing more:
+//   - a drag already in progress (anyone's) is left alone: nothing is ended, nothing is started;
+//   - the window is the one under the pointer (as before; for the menu's resize that is the 0.56.2 behaviour too);
+//   - a non-fullscreen MOVE asks the window's decorations first (INPUT_TYPE_DRAG_START), as before;
+//   - beginDragTarget keeps its defaults (no forced edge, exclusiveDeviceGrab = false), as before.
+// Ending a drag is NOT here: without knowing whose drag is active (session ownership, Q4), ending would also end drags
+// started by other components. See docs/port-0-57/P8-DRAG.md.
+#pragma once
+
+#include <hyprland/src/desktop/state/ViewHitTester.hpp>
+#include <hyprland/src/desktop/state/ViewState.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/layout/LayoutManager.hpp>
+#include <hyprland/src/layout/supplementary/DragController.hpp>
+#include <hyprland/src/layout/target/Target.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+
+#include <cstdint>
+
+namespace KwDrag {
+    enum eBeginResult : uint8_t {
+        BEGIN_STARTED = 0,      // beginDragTarget was called (the host may still refuse inside it)
+        BEGIN_ALREADY_DRAGGING, // a drag was in progress: left untouched
+        BEGIN_NO_WINDOW,        // nothing under the pointer (0.56.2: passEvent)
+        BEGIN_REFUSED_BY_DECO,  // a decoration took the drag start (0.56.2: passEvent = false)
+        BEGIN_BAD_MODE,         // not MBIND_MOVE / MBIND_RESIZE: nothing done
+    };
+
+    // MODE must be MBIND_MOVE or MBIND_RESIZE; anything else does nothing (0.56.2 ended the drag for MBIND_INVALID,
+    // which this helper deliberately does not do).
+    inline eBeginResult begin(eMouseBindMode MODE) {
+        if (MODE != MBIND_MOVE && MODE != MBIND_RESIZE)
+            return BEGIN_BAD_MODE;
+        if (g_layoutManager->dragController()->target())
+            return BEGIN_ALREADY_DRAGGING;
+
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+        if (!PWINDOW)
+            return BEGIN_NO_WINDOW;
+
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
+            if (PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+                return BEGIN_REFUSED_BY_DECO;
+        }
+
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+        return BEGIN_STARTED;
+    }
+}

@@ -1,0 +1,325 @@
+## O: CKeybindManager::changeMouseBindMode (managers/KeybindManager.cpp:949-975, verbatim, as fed to OLD)
+#line 949 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/managers/KeybindManager.cpp"
+SDispatchResult CKeybindManager::changeMouseBindMode(const eMouseBindMode MODE) {
+    if (MODE != MBIND_INVALID) {
+        if (g_layoutManager->dragController()->target())
+            return {};
+
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+        if (!PWINDOW)
+            return SDispatchResult{.passEvent = true};
+
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
+            if (PWINDOW->checkInputOnDecos(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+                return SDispatchResult{.passEvent = false};
+        }
+
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+    } else {
+        if (!g_layoutManager->dragController()->target())
+            return {};
+
+        g_layoutManager->endDragTarget();
+    }
+
+    return {};
+}
+
+## H: layout/supplementary/DragController.hpp (installed 0.57, full)
+#pragma once
+
+#include "../target/Target.hpp"
+#include "../../managers/input/InputManager.hpp"
+#include "../../helpers/signal/Signal.hpp"
+
+#include <optional>
+
+namespace Layout {
+    enum eRectCorner : uint8_t;
+}
+
+namespace Layout::Supplementary {
+
+    // DragStateController contains logic to begin and end a drag, which shouldn't be part of the layout's job. It's stuff like
+    // toggling float when dragging tiled, remembering sizes, checking deltas, etc.
+    class CDragStateController {
+      public:
+        CDragStateController()  = default;
+        ~CDragStateController() = default;
+
+        void           dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<Layout::eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+        bool           dragEnd();
+
+        void           mouseMove(const Vector2D& mousePos);
+        eMouseBindMode mode() const;
+        bool           wasDraggingWindow() const;
+        bool           dragThresholdReached() const;
+        void           resetDragThresholdReached();
+        bool           draggingTiled() const;
+        bool           exclusiveDeviceGrab() const;
+
+        /*
+            Called to try to pick up window for dragging.
+            Updates drag related variables and floats window if threshold reached.
+            Return true to reject
+        */
+        bool        updateDragWindow();
+
+        SP<ITarget> target() const;
+
+        struct {
+            CSignalT<> motion;
+            CSignalT<> ended;
+        } m_events;
+
+      private:
+        WP<ITarget>                        m_target;
+
+        eMouseBindMode                     m_dragMode             = MBIND_INVALID;
+        bool                               m_wasDraggingWindow    = false;
+        bool                               m_dragThresholdReached = false;
+        bool                               m_draggingTiled        = false;
+        bool                               m_exclusiveDeviceGrab  = false;
+
+        int                                m_mouseMoveEventCount = 0;
+        Vector2D                           m_dragHotspot;
+        Vector2D                           m_beginDragXY;
+        Vector2D                           m_beginDragUntransformedXY;
+        Vector2D                           m_lastDragXY;
+        Vector2D                           m_beginDragPositionXY;
+        Vector2D                           m_beginDragSizeXY;
+        Vector2D                           m_draggingWindowOriginalFloatSize;
+        Layout::eRectCorner                m_grabbedCorner = sc<Layout::eRectCorner>(0) /* CORNER_NONE */;
+        std::optional<Layout::eRectCorner> m_forcedGrabbedCorner;
+    };
+};
+
+## H: LayoutManager.hpp drag declarations
+
+        void                    changeFloatingMode(SP<ITarget> target);
+
+        void                    beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+        void                    moveMouse(const Vector2D& mousePos);
+        void                    resizeTarget(const Vector2D& Δ, SP<ITarget> target, eRectCorner corner = CORNER_NONE);
+        void                    moveTarget(const Vector2D& Δ, SP<ITarget> target);
+        void                    setTargetGeom(const CBox& box, SP<ITarget> target); // floats only
+        bool                    endDragTarget();
+
+        Config::ErrorResult     layoutMsg(const std::string_view& sv);
+
+        void                    switchTargets(SP<ITarget> a, SP<ITarget> b, bool preserveFocus = true);
+
+        void                    moveInDirection(SP<ITarget> target, const std::string& direction, bool silent = false);
+
+        SP<ITarget>             getNextCandidate(SP<CSpace> space, SP<ITarget> from);
+
+        bool                    isReachable(SP<ITarget> target);
+
+        void                    bringTargetToTop(SP<ITarget> target);
+
+        std::optional<Vector2D> predictSizeForNewTiledTarget();
+
+        void                    performSnap(Vector2D& sourcePos, Vector2D& sourceSize, SP<ITarget> target, eMouseBindMode mode, int corner, const Vector2D& beginSize);
+
+        void                    invalidateMonitorGeometries(PHLMONITOR);
+        void                    recalculateMonitor(PHLMONITOR, eRecalculateMonitorReason reason = RECALCULATE_MONITOR_REASON_UNKNOWN);
+
+        const UP<Supplementary::CDragStateController>& dragController();
+
+      private:
+
+## U: CLayoutManager::beginDragTarget / endDragTarget
+void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+    m_dragStateController->dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab);
+}
+bool CLayoutManager::endDragTarget() {
+    return m_dragStateController->dragEnd();
+}
+
+## U: CDragStateController::dragBegin / dragEnd
+void CDragStateController::dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+    m_target              = target;
+    m_dragMode            = mode;
+    m_draggingTiled       = false;
+    m_forcedGrabbedCorner = forcedEdge;
+    m_exclusiveDeviceGrab = exclusiveDeviceGrab;
+    m_grabbedCorner       = CORNER_NONE;
+
+    const auto  DRAGGINGTARGET = m_target.lock();
+    static auto PDRAGTHRESHOLD = CConfigValue<Config::INTEGER>("binds:drag_threshold");
+
+    m_mouseMoveEventCount = 1;
+    m_beginDragSizeXY     = Vector2D();
+
+    // Window will be floating. Let's check if it's valid. It should be, but I don't like crashing.
+    if (!validMapped(DRAGGINGTARGET->window())) {
+        LOG(Log::ERR, "Dragging attempted on an invalid window (not mapped)");
+        dragEnd();
+        return;
+    }
+
+    if (!DRAGGINGTARGET->workspace()) {
+        LOG(Log::ERR, "Dragging attempted on an invalid window (no workspace)");
+        dragEnd();
+        return;
+    }
+
+    // Try to pick up dragged window now if drag_threshold is disabled
+    // or at least update dragging related variables for the cursors
+    m_dragThresholdReached = *PDRAGTHRESHOLD <= 0;
+    if (updateDragWindow())
+        return;
+
+    // get the grab corner
+    static auto RESIZECORNER = CConfigValue<Config::INTEGER>("general:resize_corner");
+    if (m_forcedGrabbedCorner && *m_forcedGrabbedCorner != CORNER_NONE) {
+        m_grabbedCorner = *m_forcedGrabbedCorner;
+        Pointer::Cursor::overrideController->setOverride(std::string{cursorForResizeEdge(m_grabbedCorner)}, Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+    } else if (*RESIZECORNER != 0 && *RESIZECORNER <= 4 && DRAGGINGTARGET->floating()) {
+        switch (*RESIZECORNER) {
+            case 1:
+                m_grabbedCorner = CORNER_TOPLEFT;
+                Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+                break;
+            case 2:
+                m_grabbedCorner = CORNER_TOPRIGHT;
+                Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+                break;
+            case 3:
+                m_grabbedCorner = CORNER_BOTTOMRIGHT;
+                Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+                break;
+            case 4:
+                m_grabbedCorner = CORNER_BOTTOMLEFT;
+                Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+                break;
+        }
+    } else if (m_beginDragXY.x < m_beginDragPositionXY.x + m_beginDragSizeXY.x / 2.F) {
+        if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+            m_grabbedCorner = CORNER_TOPLEFT;
+            Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+        } else {
+            m_grabbedCorner = CORNER_BOTTOMLEFT;
+            Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+        }
+    } else {
+        if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+            m_grabbedCorner = CORNER_TOPRIGHT;
+            Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+        } else {
+            m_grabbedCorner = CORNER_BOTTOMRIGHT;
+            Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+        }
+    }
+
+    if (!isResizeMode(m_dragMode))
+        Pointer::Cursor::overrideController->setOverride("grabbing", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+
+    if (m_exclusiveDeviceGrab)
+        g_pSeatManager->setPointerFocus(nullptr, {});
+
+    DRAGGINGTARGET->damageEntire();
+
+    Keybinds::mgr()->shadowBinds();
+
+    if (DRAGGINGTARGET->window()) {
+        Desktop::focusState()->rawWindowFocus(DRAGGINGTARGET->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+        Desktop::windowState()->raise(DRAGGINGTARGET->window());
+    }
+
+    if (isResizeMode(m_dragMode))
+        setClientResizingState(DRAGGINGTARGET, true);
+}
+bool CDragStateController::dragEnd() {
+    auto draggingTarget = m_target.lock();
+
+    if (!draggingTarget)
+        return false;
+
+    Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+
+    m_mouseMoveEventCount = 1;
+
+    if (!validMapped(draggingTarget->window())) {
+        if (draggingTarget->window()) {
+            Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+            m_target.reset();
+        }
+        m_dragMode            = MBIND_INVALID;
+        m_exclusiveDeviceGrab = false;
+        m_forcedGrabbedCorner.reset();
+        return true;
+    }
+
+    Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+    m_target.reset();
+    m_wasDraggingWindow = true;
+
+    if (m_dragMode == MBIND_MOVE && draggingTarget->window()) {
+        draggingTarget->damageEntire();
+
+        const auto DRAGGING_WINDOW = draggingTarget->window();
+
+        const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        PHLWINDOW  pWindow =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, DRAGGING_WINDOW);
+
+        if (pWindow) {
+            if (pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+                m_wasDraggingWindow   = false;
+                m_dragMode            = MBIND_INVALID;
+                m_exclusiveDeviceGrab = false;
+                m_forcedGrabbedCorner.reset();
+                return true;
+            }
+
+            const bool  FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled;
+            static auto PDRAGINTOGROUP   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+
+            if (pWindow->grouping().group() && DRAGGING_WINDOW->grouping().canBeGroupedInto(pWindow->grouping().group()) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+                pWindow->grouping().group()->add(DRAGGING_WINDOW);
+                // fix the draggingTarget, now it's DRAGGING_WINDOW
+                draggingTarget = DRAGGING_WINDOW->windowTarget();
+            }
+        }
+    }
+
+    if (const auto W = draggingTarget->window(); W) {
+        W->effects().resetMotionBlur();
+        W->presentation().clearFloatingOffset();
+    }
+
+    if (m_draggingTiled) {
+        // make sure to check if we are floating because drag into group could make us tiled already
+        if (draggingTarget->floating())
+            g_layoutManager->changeFloatingMode(draggingTarget);
+
+        draggingTarget->rememberFloatingSize(m_draggingWindowOriginalFloatSize);
+    }
+
+    draggingTarget->damageEntire();
+
+    g_layoutManager->setTargetGeom(draggingTarget->position(), draggingTarget);
+
+    Desktop::focusState()->fullWindowFocus(draggingTarget->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+
+    m_wasDraggingWindow = false;
+    if (isResizeMode(m_dragMode))
+        setClientResizingState(draggingTarget, false);
+
+    m_dragMode            = MBIND_INVALID;
+    m_exclusiveDeviceGrab = false;
+    m_draggingTiled       = false;
+    m_forcedGrabbedCorner.reset();
+    return true;
+}
+
+## U: host callers of beginDragTarget
+/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/desktop/view/window/Window.cpp:1867:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_MOVE, std::nullopt, true);
+/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/desktop/view/window/Window.cpp:1877:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_RESIZE, backendResizeEdgeToCorner(edge), true);
+/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/managers/input/InputManager.cpp:877:                    g_layoutManager->beginDragTarget(w->layoutTarget(), MBIND_RESIZE);
+/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/config/shared/actions/ConfigActions.cpp:1736:    g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/layout/LayoutManager.cpp:55:void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {

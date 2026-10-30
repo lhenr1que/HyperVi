@@ -1,0 +1,84 @@
+######## probe_p8b_drag.cpp ########
+// P8-B probe B — plugin/hostDrag.hpp against the installed Hyprland 0.57 headers (Makefile flags).
+// Positive: the helper's exact signature and result enum; the 0.57 primitives it relies on.
+// -DPROBE_NEG=1: there is NO end helper (KwDrag::end must not exist); NEG=2: the 0.56.2 call form is gone.
+#include "hostDrag.hpp"
+
+#include <type_traits>
+
+using Layout::CLayoutManager;
+
+static_assert(std::is_same_v<decltype(&KwDrag::begin), KwDrag::eBeginResult (*)(eMouseBindMode)>);
+static_assert(std::is_same_v<std::underlying_type_t<KwDrag::eBeginResult>, uint8_t>);
+static_assert(KwDrag::BEGIN_STARTED == 0 && KwDrag::BEGIN_ALREADY_DRAGGING == 1 && KwDrag::BEGIN_NO_WINDOW == 2 && KwDrag::BEGIN_REFUSED_BY_DECO == 3 &&
+              KwDrag::BEGIN_BAD_MODE == 4);
+// absence of an end helper (ownership is Q4) is proven by -DPROBE_NEG=1, which must fail to compile
+
+// primitives used, with the defaults the helper relies on
+static_assert(std::is_same_v<decltype(&CLayoutManager::beginDragTarget),
+                             void (CLayoutManager::*)(SP<Layout::ITarget>, eMouseBindMode, std::optional<Layout::eRectCorner>, bool)>);
+template <typename = void>
+concept BeginWithDefaults = requires(CLayoutManager& m, SP<Layout::ITarget> t) { m.beginDragTarget(t, MBIND_MOVE); };
+static_assert(BeginWithDefaults<>);
+static_assert(std::is_same_v<decltype(g_layoutManager->dragController()->target()), SP<Layout::ITarget>>);
+static_assert(std::is_same_v<decltype(&Desktop::View::CWindowPresentation::checkInputOnDecorations), bool (Desktop::View::CWindowPresentation::*)(eInputType, const Vector2D&, std::any)>);
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().layoutTarget()), SP<Layout::ITarget>>);
+static_assert(std::is_same_v<decltype(Desktop::viewState()->hitTest().windowAt(Vector2D{}, uint16_t{})), PHLWINDOW>);
+static_assert(std::is_same_v<decltype(g_pInputManager->getMouseCoordsInternal()), Vector2D>);
+static_assert(MBIND_INVALID == -1 && MBIND_MOVE == 0 && MBIND_RESIZE == 1);
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1() { KwDrag::end(); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2() { g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); }
+#endif
+
+int main() {}
+
+######## run_b.sh ########
+#!/usr/bin/env bash
+# P8-B probe B runner: positive GCC+Clang, 2 NEG with expected diagnostics only, mutations killed only by static_assert.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+PLUG=${1:-/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin}
+O=$P/outB; rm -rf "$O"; mkdir -p "$O/mut"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"; unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+F="-std=c++2b -Wno-c++11-narrowing -I$PLUG $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+ERR='^[^ ].*: (fatal )?error:'
+declare -A RX=(
+  [1]=".end. is not a member of .KwDrag.|no member named .end. in namespace .KwDrag.|no matching function for call to .end.$"
+  [2]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .changeMouseBindMode. in .CHyprXWaylandManager."
+)
+for CXX in g++ clang++; do
+    if $CXX $F -fsyntax-only "$P/probe_p8b_drag.cpp" >"$O/B-$CXX.log" 2>&1; then ok "$CXX B positive exit 0"; else bad "$CXX B positive (see $O/B-$CXX.log)"; fi
+    for N in 1 2; do
+        $CXX $F -fsyntax-only -DPROBE_NEG=$N "$P/probe_p8b_drag.cpp" >"$O/B-neg$N-$CXX.log" 2>&1; RC=$?
+        NE=$(grep -cE "$ERR" "$O/B-neg$N-$CXX.log"); NB=$(grep -E "$ERR" "$O/B-neg$N-$CXX.log" | grep -vcE "${RX[$N]}")
+        if [ $RC -ne 0 ] && [ "$NE" -gt 0 ] && [ "$NB" = 0 ]; then ok "$CXX B NEG$N exit $RC ($NE expected error lines)"; else bad "$CXX B NEG$N rc=$RC errors=$NE unexpected=$NB"; fi
+    done
+done
+N=0
+while IFS='~' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_p8b_drag.cpp" "$O/mut/$NAME.cpp"
+    FF="$FIND" RR="$REPL" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$O/mut/$NAME.cpp"
+    cmp -s "$P/probe_p8b_drag.cpp" "$O/mut/$NAME.cpp" && { bad "$NAME unchanged"; continue; }
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $F -fsyntax-only "$O/mut/$NAME.cpp" >"$O/mut/$NAME.$CXX.log" 2>&1; RC=$?
+        T=$(grep -cE "$ERR" "$O/mut/$NAME.$CXX.log"); SA=$(grep -E "$ERR" "$O/mut/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$T" -gt 0 ] && [ "$T" = "$SA" ]; then ok "mut $NAME $CXX killed by static_assert"; else bad "mut $NAME $CXX rc=$RC errors=$T static=$SA"; fi
+    done
+done <<'EOF'
+b1~KwDrag::eBeginResult (*)(eMouseBindMode)>~void (*)(eMouseBindMode)>
+b2~static_assert(KwDrag::BEGIN_STARTED == 0~static_assert(KwDrag::BEGIN_STARTED == 1
+b3~static_assert(BeginWithDefaults<>);~static_assert(!BeginWithDefaults<>);
+b4~KwDrag::BEGIN_BAD_MODE == 4~KwDrag::BEGIN_BAD_MODE == 3
+b5~MBIND_INVALID == -1 && MBIND_MOVE == 0~MBIND_INVALID == 0 && MBIND_MOVE == 0
+b6~std::underlying_type_t<KwDrag::eBeginResult>, uint8_t>~std::underlying_type_t<KwDrag::eBeginResult>, int>
+EOF
+echo "mutants run: $N"
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL
+
