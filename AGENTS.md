@@ -7,6 +7,7 @@ Gerenciamento de janelas estilo KDE para o Hyprland 0.56.2, em três camadas: `p
 2. [Contribuição e armadilhas operacionais](docs/CONTRIBUTING.md); [handoff original preservado](docs/history/handoffs/HANDOFF.md) para contexto histórico. `docs/HANDOFF.md` mantém um apontador de compatibilidade.
 3. `docs/API.md` (contratos e formatos) e `docs/CONFIGURAVEL.md` (opções do usuário): atualize-os quando mudar um contrato ou uma opção.
 4. [Produto](docs/product/README.md) e [decisões D-01 a D-45](docs/product/DECISIONS.md) quando a tarefa tratar da suíte futura. Aprovação de produto, implementação e validação são estados distintos. Preserve o grau literal de aprovação e a fonte; não transforme propostas técnicas, prompts ou mockups em requisitos atuais.
+5. `docs/DEVELOPMENT_STATE.md`, se existir: último marco, decisões, pendências e limites de autorização. Confirme o estado Git real e não presuma que ações planejadas foram executadas.
 
 ## Documentação e proveniência
 - Arquitetura atual deve citar código e evidências datadas; divergências com requisitos vigentes continuam registradas em `docs/STATUS.md`.
@@ -34,3 +35,13 @@ Teste simulado não é teste ao vivo: diga qual foi feito.
 - Teste ao vivo que muda arquivo do dono: `bash tools/live-backup.sh save` antes e `restore` para desfazer; nunca `rm` (ver `docs/TESTING.md`).
 - Todo roteiro de teste ao vivo deve incluir o comando para carregar/recarregar o plugin e depois o núcleo do repositório; nunca presumir que o plugin já está carregado (pedido do dono, 27/10/2026). O dono executa esses comandos.
 - Repositório local: sem push, fork ou PR sem pedido explícito. Commits: `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
+
+## Encerramento e continuidade
+Vale para todos os agentes, inclusive Hermes. Uma tarefa só está encerrada quando entrega o resultado, informa o estado Git, registra pendências e deixa contexto suficiente para a próxima sessão sem depender da conversa.
+- Verifique os critérios de aceitação autorizados; rode só as validações permitidas e informe resultados reais, distinguindo análise estática, teste simulado, build e teste ao vivo.
+- Registre arquivos alterados, branch/commit e testes. Não atribua a si alterações preexistentes nem limpe trabalho histórico.
+- Diferencie concluído, parcial, bloqueado e não iniciado. Planejamento ou investigação concluídos não são implementação nem validação concluídas.
+- Sem autorização, não faça commits, merges, instalações, implementações ou testes fora do escopo.
+- Com autorização de escrita, atualize `docs/DEVELOPMENT_STATE.md` (registro único de continuidade, curto e verificável; não crie outros arquivos de handoff). Em investigação somente leitura, produza relatório externo e indique o que incorporar depois.
+- Termine a resposta com **HANDOFF PARA PRÓXIMA SESSÃO**: objetivo e resultado; estado do repositório; decisões aprovadas e pendentes; evidências e documentos; riscos e bloqueios; próxima ação recomendada; limites de autorização da próxima etapa. Depois, encerre sem iniciar a próxima tarefa.
+- Aprovação de escrita anterior não vale para sessões futuras: reconfirme o escopo e respeite as confirmações de segurança da ferramenta.
