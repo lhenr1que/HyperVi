@@ -1,0 +1,26 @@
+== gcc
+base=57 after=52
+removed=6
+  - ('main.cpp', 'if (!window->m_X11DoesntWantBorders) {', "'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'")
+  - ('main.cpp', 'if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))', "'class Desktop::View::CWindow' has no member named 'm_windowDecorations'")
+  - ('main.cpp', 'HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));', "invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}")
+  - ('main.cpp', 'window->updateWindowDecos();', "'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?")
+  - ('main.cpp', 'if (w->isHidden() || !w->m_isMapped)', "'bool Desktop::View::CWindow::m_isMapped' is private within this context")
+  - ('/usr/include/hyprutils/memory/UniquePtr.hpp', 'return CUniquePointer<U>(new U(std::forward<Args>(args)...));', "invalid new-expression of abstract class type 'CHyprBar'")
+new=1
+  + ('/usr/include/hyprutils/memory/SharedPtr.hpp', 'return CSharedPointer<U>(new U(std::forward<Args>(args)...));', "invalid new-expression of abstract class type 'CHyprBar'")
+== clang
+base=65 after=60
+removed=6
+  - ('main.cpp', 'if (!window->m_X11DoesntWantBorders) {', "no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))', "no member named 'm_windowDecorations' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));', "no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')")
+  - ('main.cpp', 'window->updateWindowDecos();', "no member named 'updateWindowDecos' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'if (w->isHidden() || !w->m_isMapped)', "'m_isMapped' is a private member of 'Desktop::View::CWindow'")
+  - ('/usr/include/hyprutils/cli/../memory/UniquePtr.hpp', 'return CUniquePointer<U>(new U(std::forward<Args>(args)...));', "allocating an object of abstract class type 'CHyprBar'")
+new=1
+  + ('/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp', 'return CSharedPointer<U>(new U(std::forward<Args>(args)...));', "allocating an object of abstract class type 'CHyprBar'")
+== origem do erro R movido
+main.cpp:44:43:   required from here
+main.cpp:44:23: note: in instantiation of function template specialization 'Hyprutils::Memory::makeShared<CHyprBar, Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow> &>' requested here
+== avisos (arquivo+mensagem, multiconjunto): iguais base/after em GCC e Clang; sem fatal/linker

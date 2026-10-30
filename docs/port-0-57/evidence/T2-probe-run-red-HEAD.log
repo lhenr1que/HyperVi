@@ -1,0 +1,75 @@
+OK   probe positive (0.57 forms) [g++]
+OK   NEG1 m_X11DoesntWantBorders [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'
+OK   NEG2 m_windowDecorations [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_windowDecorations'
+OK   NEG3 UP handed to addWindowDecoration [g++] rejected: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+OK   NEG4 updateWindowDecos [g++] rejected: 'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?
+OK   NEG5 m_isMapped (private) [g++] rejected: 'bool Desktop::View::CWindow::m_isMapped' is private within this context
+OK   probe positive (0.57 forms) [clang++]
+OK   NEG1 m_X11DoesntWantBorders [clang++] rejected: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+OK   NEG2 m_windowDecorations [clang++] rejected: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+OK   NEG3 UP handed to addWindowDecoration [clang++] rejected: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+OK   NEG4 updateWindowDecos [clang++] rejected: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+OK   NEG5 m_isMapped (private) [clang++] rejected: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+FAIL host-free main.cpp onNewWindow [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free main.cpp onNewWindow [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT1 did not apply (ignore the false return)
+FAIL host-free MUT2 publish before the host answers (0.56.2 order) [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT2 publish before the host answers (0.56.2 order) [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL host-free MUT3 no Hyprbar dedupe [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT3 no Hyprbar dedupe [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL host-free MUT4 no KwinishBar dedupe [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT4 no KwinishBar dedupe [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT5 did not apply (inverted no-border test)
+FAIL host-free MUT6 m_self not set [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT6 m_self not set [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT7 did not apply (move the bar into the host, publish a moved-from pointer)
+FAIL host-free MUT8 never published [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT8 never published [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL main.cpp: onNewWindow exact body
+OK   main.cpp: the only bars.emplace_back is in onNewWindow
+FAIL main.cpp: onUpdateWindowRules uses presentation().updateDecorations()
+FAIL main.cpp: pluginInit skips hidden or unmapped windows via mapped()
+40:    if (!window->m_X11DoesntWantBorders) {
+41:        if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+44:        auto bar = makeUnique<CHyprBar>(window);
+103:    window->updateWindowDecos();
+511:        if (w->isHidden() || !w->m_isMapped)
+FAIL main.cpp: no 0.56.2 window forms left
+mutation kills (compiler runs): behavioural=0 structural-only=0
+FAILURES

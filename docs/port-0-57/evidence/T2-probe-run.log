@@ -1,0 +1,37 @@
+OK   probe positive (0.57 forms) [g++]
+OK   NEG1 m_X11DoesntWantBorders [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'
+OK   NEG2 m_windowDecorations [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_windowDecorations'
+OK   NEG3 UP handed to addWindowDecoration [g++] rejected: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+OK   NEG4 updateWindowDecos [g++] rejected: 'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?
+OK   NEG5 m_isMapped (private) [g++] rejected: 'bool Desktop::View::CWindow::m_isMapped' is private within this context
+OK   probe positive (0.57 forms) [clang++]
+OK   NEG1 m_X11DoesntWantBorders [clang++] rejected: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+OK   NEG2 m_windowDecorations [clang++] rejected: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+OK   NEG3 UP handed to addWindowDecoration [clang++] rejected: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+OK   NEG4 updateWindowDecos [clang++] rejected: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+OK   NEG5 m_isMapped (private) [clang++] rejected: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+OK   host-free main.cpp onNewWindow [g++]: real-dtor:ALL-OK no-erase:ALL-OK 
+OK   host-free main.cpp onNewWindow [clang++]: real-dtor:ALL-OK no-erase:ALL-OK 
+OK   host-free MUT1 ignore the false return [g++] killed (structural): real-dtor:ALL-OK no-erase:FAIL S6 host refuses: never published, not even while the host decides | 
+OK   host-free MUT1 ignore the false return [clang++] killed (structural): real-dtor:ALL-OK no-erase:FAIL S6 host refuses: never published, not even while the host decides | 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published only after the host took it | no-erase:FAIL S1 normal window: published only after the host took it | 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published only after the host took it | no-erase:FAIL S1 normal window: published only after the host took it | 
+OK   host-free MUT3 no Hyprbar dedupe [g++] killed (behavioural): real-dtor:FAIL S4 already has Hyprbar: no bar | no-erase:FAIL S4 already has Hyprbar: no bar | 
+OK   host-free MUT3 no Hyprbar dedupe [clang++] killed (behavioural): real-dtor:FAIL S4 already has Hyprbar: no bar | no-erase:FAIL S4 already has Hyprbar: no bar | 
+OK   host-free MUT4 no KwinishBar dedupe [g++] killed (behavioural): real-dtor:FAIL S3 already has KwinishBar: no second bar | no-erase:FAIL S3 already has KwinishBar: no second bar | 
+OK   host-free MUT4 no KwinishBar dedupe [clang++] killed (behavioural): real-dtor:FAIL S3 already has KwinishBar: no second bar | no-erase:FAIL S3 already has KwinishBar: no second bar | 
+OK   host-free MUT5 inverted no-border test [g++] killed (behavioural): real-dtor:FAIL S1 normal window: one bar registered | no-erase:FAIL S1 normal window: one bar registered | 
+OK   host-free MUT5 inverted no-border test [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: one bar registered | no-erase:FAIL S1 normal window: one bar registered | 
+OK   host-free MUT6 m_self not set [g++] killed (behavioural): real-dtor:FAIL S1 normal window: m_self set before the host sees the bar | no-erase:FAIL S1 normal window: m_self set before the host sees the bar | 
+OK   host-free MUT6 m_self not set [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: m_self set before the host sees the bar | no-erase:FAIL S1 normal window: m_self set before the host sees the bar | 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT8 never published [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT8 never published [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   main.cpp: onNewWindow exact body
+OK   main.cpp: the only bars.emplace_back is in onNewWindow
+OK   main.cpp: onUpdateWindowRules uses presentation().updateDecorations()
+OK   main.cpp: pluginInit skips hidden or unmapped windows via mapped()
+OK   main.cpp: no 0.56.2 window forms left
+mutation kills (compiler runs): behavioural=14 structural-only=2
+ALL OK

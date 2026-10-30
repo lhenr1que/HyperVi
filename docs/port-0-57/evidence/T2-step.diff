@@ -1,0 +1,44 @@
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index 9962581..404b042 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -37,14 +37,16 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
+ }
+ 
+ static void onNewWindow(PHLWINDOW window) {
+-    if (!window->m_X11DoesntWantBorders) {
+-        if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
++    if (!window->backend().traits().suggestsNoBorder) {
++        if (std::ranges::any_of(window->presentation().decorations(), [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+             return;
+ 
+-        auto bar = makeUnique<CHyprBar>(window);
+-        g_pGlobalState->bars.emplace_back(bar);
++        auto bar    = makeShared<CHyprBar>(window);
+         bar->m_self = bar;
+-        HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));
++        // publish only what the host took; on failure the bar dies here, before anyone saw it
++        if (!HyprlandAPI::addWindowDecoration(PHANDLE, window, SP<IHyprWindowDecoration>(bar)))
++            return;
++        g_pGlobalState->bars.emplace_back(bar);
+     }
+ }
+ 
+@@ -100,7 +102,7 @@ static void onUpdateWindowRules(PHLWINDOW window) {
+         return;
+ 
+     (*BARIT)->updateRules();
+-    window->updateWindowDecos();
++    window->presentation().updateDecorations();
+ }
+ 
+ Hyprlang::CParseResult onNewButton(const char* K, const char* V) {
+@@ -508,7 +510,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+ 
+     // add deco to existing windows
+     for (auto& w : Desktop::windowState()->windows()) {
+-        if (w->isHidden() || !w->m_isMapped)
++        if (w->isHidden() || !w->mapped())
+             continue;
+ 
+         onNewWindow(w);
