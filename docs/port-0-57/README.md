@@ -15,6 +15,7 @@ Base: branch `port-kwinish-bars-to-hyprland-0-57`, commit `9850593` (documental;
 | [NULLOPT-MATRIX.md](NULLOPT-MATRIX.md) | 4.2/4.4 (prep.) | Tratamento de `std::nullopt` por consumidor (desenho, damage, input, preview, tooltip); proposta, não implementada |
 | [RISKS-TESTS.md](RISKS-TESTS.md) | 1.2–1.4 | B1–B3 × testes × aceite; estratégia B2/B3; proposta da primeira alteração C++ |
 | [P5-WINDOW-API.md](P5-WINDOW-API.md) | 3.1 (parcial) | P5: decisões G2/input/snap/damage/`nullopt`; matriz de equivalência da janela 0.56.2→0.57; sondas; diff de include/acessores; comparação de erros; revisão |
+| [P6-LOG-API.md](P6-LOG-API.md) | 3.1 (parcial) | P6: Log API 0.56.2→0.57 (5 chamadas); sondas de tipo e de execução contra o header 0.56.2; diferença medida de alocação; comparação de erros; revisão (reprovada sob leitura estrita); **aprovada pelo dono** com a diferença de alocação aceita; inventário inicial de `g_pKeybindManager` |
 
 Relatórios longos permanecem em `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/` e não foram duplicados.
 

@@ -377,7 +377,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
             if (m_bTouchEv)
                 g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
-            Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+            Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
         }
 
         m_bDraggingThis = false;
@@ -608,7 +608,7 @@ void CHyprBar::snapOnRelease() {
     } else if (const char* zone = edgeZone(C, M))
         where = std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
     const auto ACTIVE = Desktop::focusState()->window();
-    Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
+    Log::logger->log(Log::DEBUG, "kwinish-bars", "snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
                      M->m_name, where.empty() ? "none" : where);
     // a plain click on the bar must not snap
     if (where.empty() || (C - m_pressCursor).size() < 10)
@@ -651,7 +651,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
         else
             snapOnRelease();
 
-        Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+        Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
     }
 
     m_bDragPending = false;
@@ -674,7 +674,7 @@ void CHyprBar::handleMovement() {
     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
     m_bDraggingThis = true;
     warnIfNoCore();
-    Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+    Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
     return;
 }
 
@@ -804,7 +804,7 @@ void CHyprBar::updateIcon(float scale) {
             cairo_surface_destroy(surface);
         }
     } catch (const std::exception& e) {
-        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->metadata().appID(), e.what());
+        Log::logger->log(Log::DEBUG, "kwinish-bars", "icon lookup failed for {}: {}", W->metadata().appID(), e.what());
     }
 }
 

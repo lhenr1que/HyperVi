@@ -1,0 +1,18 @@
+{
+ "g++": {
+  "base": 73,
+  "cand": 67,
+  "eliminated": 6,
+  "persistent": 67,
+  "new": 0,
+  "base_equals_P5_C_logs": true
+ },
+ "clang++": {
+  "base": 92,
+  "cand": 87,
+  "eliminated": 5,
+  "persistent": 87,
+  "new": 0,
+  "base_equals_P5_C_logs": false
+ }
+}

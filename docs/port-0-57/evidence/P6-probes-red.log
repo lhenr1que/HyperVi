@@ -1,0 +1,11 @@
+OK   - g++ E positive exit 0
+OK   - g++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - g++ E NEG2 exit 1, expected diagnostic (2 error lines)
+OK   - g++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+FAIL - g++ R candidate (0.57 header, lines 380 611 654 677 807) does not build/run (see /home/lhen/.hermes/cache/scratch/p6/probes/out/new-cand-g++/build.log)
+OK   - clang++ E positive exit 0
+OK   - clang++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ E NEG2 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+FAIL - clang++ R candidate (0.57 header, lines 380 611 654 677 807) does not build/run (see /home/lhen/.hermes/cache/scratch/p6/probes/out/new-cand-clang++/build.log)
+result: FAIL

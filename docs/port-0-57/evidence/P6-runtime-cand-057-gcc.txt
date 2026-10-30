@@ -1,0 +1,60 @@
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=tile:left
+stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='' allocs=2 seq=P sizes=31,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=none
+stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma

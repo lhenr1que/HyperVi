@@ -1,0 +1,125 @@
+OK   - g++ E positive exit 0
+OK   - g++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - g++ E NEG2 exit 1, expected diagnostic (2 error lines)
+OK   - g++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - g++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+OK   - g++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - g++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+INFO - g++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - g++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ E positive exit 0
+OK   - clang++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ E NEG2 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - clang++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+OK   - clang++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - clang++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+INFO - clang++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - clang++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+result: PASS

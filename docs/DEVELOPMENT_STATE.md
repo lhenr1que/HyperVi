@@ -2,7 +2,18 @@
 
 Atualizado em **2026-10-30 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — P5 (30/10/2026): header e acessores da janela 0.57 (parcial, não commitado)
+## Resultado mais recente — P6 (30/10/2026): Log API 0.57 (parcial; revisão reprovada; decisão do dono pendente)
+
+**Implementado e validado por build isolado e sondas; sem plugin carregado, sem gráficos, sem commit.** Detalhe: `docs/port-0-57/P6-LOG-API.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `3285517`, sem commit/merge/staging. Dirty desta sessão: `plugin/barDeco.cpp` (5 linhas sobre o estado P5), `docs/port-0-57/README.md` e este arquivo (M); `docs/port-0-57/P6-LOG-API.md` e `docs/port-0-57/evidence/P6-*` (novos). Dirty da P5 preservado sem alteração (`plugin/main.cpp`, demais docs P5, `evidence/P5-*`, `P31-review-prompt-*`).
+
+- **Alteração:** as 5 chamadas `Log::logger->log(Log::DEBUG, "[kwinish-bars] …", …)` → `log(Log::DEBUG, "kwinish-bars", "…", …)` (template 0.57 `log(level, loc, fmt, args…)`; produz os mesmos bytes `[kwinish-bars] …`). `LOG()` rejeitado (insere o nome da função); pré-formatar rejeitado (aloca com log desligado).
+- **Validação real:** sonda de tipos GCC+Clang exit 0, NEG1/NEG2 falham com o diagnóstico esperado, mutações 16/16; sonda de execução contra o `Logger.hpp` **0.56.2** com as linhas reais extraídas: vermelho antes, verde depois (30 OK), idêntica em bytes, nível, gates, ordem de avaliação, contagem de alocações, falha em cada alocação e exceção de argumento; 8 negativas rejeitadas. **Diferença medida:** tamanhos das alocações internas do template do host (ex. `40,40`→`31,40`). Geometria GCC/Clang exit 0; tooltip exit 0. `make` isolado exit 2 (esperado), sem `.so`. Erros vs baseline P5 reproduzida: GCC 73→67 (6 eliminados, 0 novos), Clang 96→91 (5 eliminados, 0 novos). `tools/check.sh` não executado.
+- **Revisão independente** (`gpt-6.1-sol`, Hermes/`openai-codex`, 3 rodadas): **reject** nas três; os minors foram corrigidos. O fundamento final é único: a diferença de tamanho de alocação viola a leitura estrita de "sem efeitos colaterais novos". O revisor confirmou que nenhuma rota pública 0.57 a evita.
+- **Decisão pendente do dono:** aceitar essa diferença (então P6 concluída) ou reverter (`patch -R plugin/barDeco.cpp < docs/port-0-57/evidence/P6-step2.diff`).
+- **Inventário de keybinds (só leitura, P6 §7):** 18 linhas com `g_pKeybindManager` (`changeMouseBindMode` ×10, `m_dispatchers` ×8, 2 delas em `dispatchIfKnown`). Na 0.57 não existem `g_pKeybindManager`, `m_dispatchers` nem `config/legacy`. Substitutos: `g_layoutManager->beginDragTarget/endDragTarget/dragController()`, reproduzindo o corpo antigo, e `Config::Actions::*` e `executor()->spawn` no lugar dos dispatchers. Q4/L17: `PLUGIN_EXIT` ainda não encerra drag/grab do plugin.
+- **Próxima ação (nova autorização):** decisão do dono sobre P6; depois, sonda + tabela de equivalência dos keybinds (§7.5), sem implementar, separando o reset Q4 (lifecycle) da troca das chamadas.
+
+## Anterior — P5 (30/10/2026): header e acessores da janela 0.57 (parcial, não commitado)
 
 **Concluído (build isolado + sondas; sem plugin carregado, sem gráficos).** Detalhe: `docs/port-0-57/P5-WINDOW-API.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `3285517` (commit da Mudança 1), sem commit/merge/staging. Dirty desta sessão: `plugin/main.cpp`, `plugin/barDeco.cpp` (M); `docs/port-0-57/{README,GEOMETRY,NULLOPT-MATRIX}.md` e este arquivo (M); `docs/port-0-57/P5-WINDOW-API.md` e `docs/port-0-57/evidence/P5-*` (novos). Preexistentes e intocados: `evidence/P31-review-prompt-{1,2,3}.txt` (não rastreados).
 

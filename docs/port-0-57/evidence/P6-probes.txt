@@ -1,0 +1,493 @@
+# P6 probe sources (scratch: /home/lhen/.hermes/cache/scratch/p6/probes)
+# Provenance
+# 0.56.2 Logger.hpp  sha256 aeb07ba1ba1fd5cfdb75aaf7434910c887096c24952f1a6788f71a4d7dbe78fe  (tarball v0.56.2, sha256 ddeb92a6..., see P5-provenance.json)
+# 0.56.2 Logger.cpp  sha256 d04e3a2fe5c73ad8684377856ce8301e493929ed9f391e405fde4975eaf6b868
+# 0.57.0 Logger.hpp installed sha256 947f9960acf2460b0a48b725153dafc803e9b96fe72387c77cb616aba7f65f35; pinned upstream 0aa6745f sha256 947f9960acf2460b0a48b725153dafc803e9b96fe72387c77cb616aba7f65f35
+# 0.57.0 Logger.cpp  pinned upstream sha256 a37e93e626c60b618448a3b891db42067131c4fe0b674520d5c793ac81a19098
+
+
+######## probe_e_log.cpp ########
+// P6 probe E — Log API, Hyprland 0.57.0 (installed headers, Makefile flags).
+// Positive mode: exact 0.57 shapes; the 0.56.2 call shapes no longer bind.
+// -DPROBE_NEG=1: the 0.56.2 shape of barDeco.cpp:380 must fail to compile.
+// -DPROBE_NEG=2: the 0.56.2 shape of barDeco.cpp:807 must fail to compile.
+#include <hyprland/src/debug/log/Logger.hpp>
+
+#include <concepts>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <type_traits>
+
+using Hyprutils::CLI::eLogLevel;
+
+// --- levels: names and values unchanged from 0.56.2 ---------------------------------
+static_assert(std::is_same_v<decltype(Log::DEBUG), const eLogLevel>);
+static_assert(Log::DEBUG == Hyprutils::CLI::LOG_DEBUG);
+static_assert(Log::INFO == Log::DEBUG, "INFO aliases DEBUG: a DEBUG->INFO swap is not observable");
+static_assert(Log::WARN != Log::DEBUG && Log::TRACE != Log::DEBUG);
+
+// --- logger object: same type/ownership as 0.56.2 ------------------------------------
+static_assert(std::is_same_v<decltype(Log::logger), UP<Log::CLogger>>);
+
+// --- 0.57 template takes an explicit location before the format ----------------------
+template <typename... A>
+concept NewShape = requires(Log::CLogger& l, A&&... a) { l.log(Log::DEBUG, std::string_view{"kwinish-bars"}, std::declval<std::format_string<A...>>(), std::forward<A>(a)...); };
+static_assert(NewShape<uintptr_t>);
+static_assert(NewShape<uintptr_t, uintptr_t, double, double, std::string&, std::string>);
+static_assert(NewShape<const std::string&, const char*>);
+
+// --- 0.56.2 shape (level, fmt, args...) no longer exists ------------------------------
+template <typename... A>
+concept OldShape = requires(Log::CLogger& l, A&&... a) { l.log(Log::DEBUG, std::declval<std::format_string<A...>>(), std::forward<A>(a)...); };
+static_assert(!OldShape<uintptr_t>);
+static_assert(!OldShape<uintptr_t, uintptr_t, double, double, std::string&, std::string>);
+
+// --- trap: (level, string-literal, string) still compiles, via the non-template ------
+// (level, loc, str) overload — "[loc] str", no formatting. Compiling is not equivalence.
+template <typename = void>
+concept TrapBinds = requires(Log::CLogger& l, std::string_view s) { l.log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}", s); };
+static_assert(TrapBinds<>);
+
+// --- LOG macro exists and supplies the caller's function name as loc ----------------
+#ifndef LOG
+#error "0.57 LOG macro missing"
+#endif
+static_assert(std::is_same_v<decltype(Log::logFnName()), std::string_view>);
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1(uintptr_t p) {
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", p);
+}
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2(const std::string& appID, const char* what) {
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", appID, what);
+}
+#endif
+
+int main() {}
+
+
+######## equiv_main.cpp ########
+// P6 runtime equivalence probe for the Log API (round 2).
+// Compiled twice: against the 0.56.2 Logger.hpp (tarball, -I oldinc) with the
+// P5-baseline statements, and against the installed 0.57 Logger.hpp with the
+// candidate statements. calls.inc holds the five statements extracted verbatim
+// from the real barDeco.cpp, one `case` each. Only the non-inline members
+// (constructor, sinks) are defined here; the template overloads are the host's
+// real inline code. Records, per statement: emitted bytes + level, ordered
+// argument-evaluation trace, heap allocations, and the outcome of injecting
+// std::bad_alloc at every allocation point. Gate state comes from the env
+// (P6_LOGS, P6_TRACE) through the probe-defined constructor.
+#include <hyprland/src/debug/log/Logger.hpp>
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <new>
+#include <stdexcept>
+#include <string>
+
+// ---- allocation accounting / fault injection --------------------------------------
+static bool g_counting = false;
+static long   g_allocs = 0, g_failAt = 0;
+static size_t g_sizes[16];
+void* operator new(std::size_t n) {
+    if (g_counting) {
+        if (g_allocs < 16)
+            g_sizes[g_allocs] = n;
+        ++g_allocs;
+        if (g_failAt && g_allocs == g_failAt)
+            throw std::bad_alloc();
+    }
+    if (void* p = std::malloc(n ? n : 1))
+        return p;
+    throw std::bad_alloc();
+}
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+// ---- non-allocating capture buffers -----------------------------------------------
+static char   g_out[1 << 16];
+static size_t g_outLen = 0;
+static void   put(const char* s, size_t n) {
+    if (g_outLen + n < sizeof(g_out)) {
+        std::memcpy(g_out + g_outLen, s, n);
+        g_outLen += n;
+    }
+}
+static void put(const char* s) { put(s, std::strlen(s)); }
+static char g_seq[64];
+static int  g_seqLen  = 0;
+static char g_throwOn = 0; // argument accessor that throws (except 'e': what() is noexcept)
+struct SArgThrow {};
+static void ev(char c) {
+    if (g_seqLen < 63)
+        g_seq[g_seqLen++] = c;
+    if (g_throwOn && c == g_throwOn && c != 'e')
+        throw SArgThrow{};
+}
+
+Log::CLogger::CLogger() {
+    const char* L = std::getenv("P6_LOGS");
+    const char* T = std::getenv("P6_TRACE");
+    m_logsEnabled = !(L && L[0] == '0');
+    m_isTrace     = T && T[0] == '1';
+}
+void Log::CLogger::log(Hyprutils::CLI::eLogLevel level, const std::string_view& str) {
+    // Same gates as Logger.cpp of both versions.
+    if (!m_logsEnabled)
+        return;
+    if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+        return;
+    char lv[16];
+    std::snprintf(lv, sizeof lv, "  %d|", static_cast<int>(level));
+    put(lv);
+    put(str.data(), str.size());
+    put("\n");
+}
+#ifdef LOG // only the 0.57 header defines LOG and the (level, loc, str) overload
+void Log::CLogger::log(Hyprutils::CLI::eLogLevel level, const std::string_view loc, const std::string_view str) {
+    // Body copied from upstream 0.57.0 src/debug/log/Logger.cpp:27-35.
+    if (!m_logsEnabled)
+        return;
+    if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+        return;
+    log(level, std::format("[{}] {}", loc, str));
+}
+#endif
+
+// ---- mocks; every accessor records an ordered evaluation token ----------------------
+struct SFakeMeta {
+    std::string        id;
+    const std::string& appID() const {
+        ev('a');
+        return id;
+    }
+};
+struct SFakeWin {
+    void*      p;
+    char       tag;
+    SFakeMeta  meta;
+    void*      get() const {
+        ev(tag);
+        return p;
+    }
+    const SFakeWin* operator->() const {
+        ev('>');
+        return this;
+    }
+    const SFakeMeta& metadata() const {
+        ev('m');
+        return meta;
+    }
+};
+struct SFakeWeak {
+    SFakeWin w;
+    SFakeWin lock() const {
+        ev('L');
+        return w;
+    }
+};
+struct SFakeMon {
+    std::string m_name;
+};
+struct SVec {
+    double x, y;
+};
+struct SFakeExc : std::runtime_error {
+    using std::runtime_error::runtime_error;
+    const char* what() const noexcept override {
+        ev('e');
+        return std::runtime_error::what();
+    }
+};
+
+static void runStmt(int k, const std::string& where) {
+    const SFakeWin  PWINDOW{reinterpret_cast<void*>(0x55aa10), 'P', {"pwin"}};
+    const SFakeWin  W{reinterpret_cast<void*>(0x7f00beef), 'W', {"org.kde.dolphin.with-a-long-app-id-beyond-sso"}};
+    const SFakeWin  ACTIVE{reinterpret_cast<void*>(0x1234abcd), 'A', {"active"}};
+    const SFakeWeak m_pWindow{{reinterpret_cast<void*>(0xdeadbeef00), 'w', {"weak"}}};
+    const SVec      C{1919.5, -3.49};
+    const SFakeMon  MON{"DP-1"};
+    const SFakeMon* M = &MON;
+    const SFakeExc  e{"icon theme missing {braces}"};
+    g_counting = true; // only the statement itself is measured
+    switch (k) {
+#include "calls.inc"
+        default: break;
+    }
+    g_counting = false;
+}
+
+int main() {
+    char line[256];
+    for (const std::string where : {std::string{"tile:left"}, std::string{""}}) {
+        for (int k = 0; k < 5; ++k) {
+            g_allocs = 0;
+            g_failAt = 0;
+            g_seqLen = 0;
+            runStmt(k, where);
+            const long allocs = g_allocs;
+            std::snprintf(line, sizeof line, "stmt %d where='%s' allocs=%ld seq=%.*s sizes=", k, where.c_str(), allocs, g_seqLen, g_seq);
+            put(line);
+            for (long i = 0; i < allocs && i < 16; ++i) {
+                std::snprintf(line, sizeof line, "%zu,", g_sizes[i]);
+                put(line);
+            }
+            put("\n");
+            // inject bad_alloc at each allocation point of this statement
+            for (long f = 1; f <= allocs; ++f) {
+                g_allocs = 0;
+                g_failAt = f;
+                g_seqLen = 0;
+                const size_t before = g_outLen;
+                const char*  what   = "returned";
+                try {
+                    runStmt(k, where);
+                } catch (const std::bad_alloc&) {
+                    g_counting = false;
+                    what       = "bad_alloc";
+                } catch (...) {
+                    g_counting = false;
+                    what       = "other";
+                }
+                std::snprintf(line, sizeof line, "  fail@%ld -> %s, emitted=%s seq=%.*s\n", f, what, g_outLen > before ? "yes" : "no", g_seqLen, g_seq);
+                put(line);
+            }
+            g_failAt = 0;
+            // a throwing argument accessor, for each distinct evaluated token of this statement
+            char toks[64];
+            int  ntok = 0;
+            {
+                g_seqLen = 0;
+                const size_t keep = g_outLen;
+                runStmt(k, where);
+                g_outLen = keep; // discard the duplicate emission
+                for (int i = 0; i < g_seqLen; ++i)
+                    toks[ntok++] = g_seq[i];
+            }
+            for (int i = 0; i < ntok; ++i) {
+                if (toks[i] == 'e')
+                    continue;
+                g_seqLen = 0;
+                g_allocs  = 0;
+                g_throwOn = toks[i];
+                const size_t before = g_outLen;
+                const char*  what   = "returned";
+                try {
+                    runStmt(k, where);
+                } catch (const SArgThrow&) {
+                    g_counting = false;
+                    what       = "arg-exception";
+                } catch (...) {
+                    g_counting = false;
+                    what       = "other";
+                }
+                g_throwOn = 0;
+                std::snprintf(line, sizeof line, "  argthrow@%c -> %s, emitted=%s allocs=%ld seq=%.*s\n", toks[i], what, g_outLen > before ? "yes" : "no", g_allocs, g_seqLen, g_seq);
+                put(line);
+            }
+        }
+    }
+    std::fwrite(g_out, 1, g_outLen, stdout);
+    return 0;
+}
+
+
+######## extract_calls.py ########
+#!/usr/bin/env python3
+"""Extract every Log API call statement verbatim from a barDeco.cpp.
+
+usage: extract_calls.py SRC OUT [--expect N]
+Each statement (case K of a switch; from the line containing `Log::` + `log`/`LOG(` up to the
+line ending in `;`) is wrapped in its own block, preceded by a #line directive
+pointing back to the real file so diagnostics name the real line.
+"""
+import re
+import sys
+
+src, out = sys.argv[1], sys.argv[2]
+expect = int(sys.argv[sys.argv.index("--expect") + 1]) if "--expect" in sys.argv else 5
+lines = open(src, encoding="utf-8").read().split("\n")
+start = re.compile(r"\bLog::logger->log\(|\bLOG\(")
+stmts, i = [], 0
+while i < len(lines):
+    if start.search(lines[i]) and not lines[i].lstrip().startswith("//"):
+        j = i
+        while not lines[j].rstrip().endswith(";"):
+            j += 1
+            assert j - i < 10, f"unterminated statement at {src}:{i+1}"
+        stmts.append((i + 1, lines[i : j + 1]))
+        i = j + 1
+    else:
+        i += 1
+assert len(stmts) == expect, f"expected {expect} log statements, found {len(stmts)}: {[s[0] for s in stmts]}"
+with open(out, "w", encoding="utf-8") as f:
+    for k, (ln, body) in enumerate(stmts):
+        f.write(f"    case {k}: {{\n")
+        f.write(f'#line {ln} "{src}"\n')
+        f.write("\n".join(body) + "\n")
+        f.write("    } break;\n")
+print(" ".join(str(s[0]) for s in stmts))
+
+
+######## run.sh ########
+#!/usr/bin/env bash
+# P6 Log API probe runner. usage: run.sh CANDIDATE_BARDECO [BASELINE_BARDECO]
+# Exit 0 only if every check behaves as expected.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+CAND=${1:?candidate barDeco.cpp}
+BASE=${2:-/home/lhen/.hermes/cache/scratch/p6/baseline/plugin/barDeco.cpp}
+O=$P/out
+mkdir -p "$O"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"
+unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+PLUGFLAGS="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+HU_CFLAGS=$(pkg-config --cflags hyprutils)
+HU_LIBS=$(pkg-config --libs hyprutils)
+FAIL=0
+ok() { echo "OK   - $*"; }
+bad() { echo "FAIL - $*"; FAIL=1; }
+
+for CXX in g++ clang++; do
+    # E: type probe, positive
+    if $CXX $PLUGFLAGS -fsyntax-only "$P/probe_e_log.cpp" >"$O/E-$CXX.log" 2>&1; then ok "$CXX E positive exit 0"; else bad "$CXX E positive (see $O/E-$CXX.log)"; fi
+    # E: negatives, must fail with the expected diagnostic and no other kind of error
+    for N in 1 2; do
+        $CXX $PLUGFLAGS -fsyntax-only -DPROBE_NEG=$N "$P/probe_e_log.cpp" >"$O/E-neg$N-$CXX.log" 2>&1
+        RC=$?
+        # NEG1 (380 shape): no overload; NEG2 (807 shape): appID() lands in the consteval format_string slot.
+        if [ $N = 1 ]; then RX="no matching (member )?function for call to .{0,3}(Log::CLogger::)?log"; else RX="consteval function '?.?std::basic_format_string.*is not a constant expression"; fi
+        # Every error line in the log (any file) must belong to the allowed set. GCC adds one
+        # consequential error inside <string> for NEG2 (the non-constant appID() operand).
+        if [ $N = 1 ]; then ALLOW="$RX"; else ALLOW="$RX|^/usr/include/c\\+\\+/[0-9]+/bits/basic_string\\.h:[0-9]+:[0-9]+: error: .*is not a constant expression"; fi
+        NERR=$(grep -cE '^[^ ].*: (fatal )?error:' "$O/E-neg$N-$CXX.log")
+        NBAD=$(grep -E '^[^ ].*: (fatal )?error:' "$O/E-neg$N-$CXX.log" | grep -vcE "$ALLOW")
+        if [ $RC -ne 0 ] && grep -qE "$RX" "$O/E-neg$N-$CXX.log" && [ "$NERR" -gt 0 ] && [ "$NBAD" = 0 ]; then
+            ok "$CXX E NEG$N exit $RC, expected diagnostic ($NERR error lines)"
+        else
+            bad "$CXX E NEG$N exit $RC unexpected (see $O/E-neg$N-$CXX.log)"
+        fi
+    done
+
+    # R: runtime equivalence. Reference = 0.56.2 header + baseline calls.
+    python3 "$P/extract_calls.py" "$BASE" "$O/calls-old.inc" >"$O/lines-old.txt" || { bad "extract baseline"; continue; }
+    mkdir -p "$O/old-$CXX" && cp "$O/calls-old.inc" "$O/old-$CXX/calls.inc"
+    if $CXX -std=c++2b -I"$P/oldinc" $HU_CFLAGS -I"$O/old-$CXX" "$P/equiv_main.cpp" -o "$O/old-$CXX/equiv" $HU_LIBS >"$O/R-old-$CXX.log" 2>&1 \
+        && P6_LOGS=1 P6_TRACE=0 "$O/old-$CXX/equiv" >"$O/R-old-$CXX.txt" \
+        && P6_LOGS=0 P6_TRACE=0 "$O/old-$CXX/equiv" >"$O/R-old-off-$CXX.txt" \
+        && P6_LOGS=1 P6_TRACE=1 "$O/old-$CXX/equiv" >"$O/R-old-trace-$CXX.txt"; then
+        ok "$CXX R reference (0.56.2 header, baseline lines $(cat "$O/lines-old.txt")) built and ran"
+    else
+        bad "$CXX R reference (see $O/R-old-$CXX.log)"; continue
+    fi
+    # Sanity: DEBUG lines present when enabled, none when disabled, fault injection fired.
+    [ "$(grep -c '^  1|\[kwinish-bars\] ' "$O/R-old-$CXX.txt")" -ge 10 ] || bad "$CXX R reference lacks the DEBUG lines"
+    [ "$(grep -c '|' "$O/R-old-off-$CXX.txt")" = 0 ] || bad "$CXX R reference emitted with logs disabled"
+    grep -q 'fail@1 -> bad_alloc' "$O/R-old-$CXX.txt" || bad "$CXX R reference: fault injection never fired"
+
+    run_new() { # $1 = tag, $2 = calls.inc ; prints output file or empty on build/run failure
+        local D="$O/new-$1-$CXX"
+        mkdir -p "$D" && cp "$2" "$D/calls.inc"
+        if $CXX -std=c++2b $HU_CFLAGS -I/usr/include/hyprland -I"$D" "$P/equiv_main.cpp" -o "$D/equiv" $HU_LIBS >"$D/build.log" 2>&1 \
+            && P6_LOGS=1 P6_TRACE=0 "$D/equiv" >"$D/out.txt" && P6_LOGS=0 P6_TRACE=0 "$D/equiv" >"$D/out-off.txt" \
+            && P6_LOGS=1 P6_TRACE=1 "$D/equiv" >"$D/out-trace.txt"; then echo "$D/out.txt"; fi
+    }
+    python3 "$P/extract_calls.py" "$CAND" "$O/calls-new.inc" >"$O/lines-new.txt" || { bad "extract candidate"; continue; }
+    OUT=$(run_new cand "$O/calls-new.inc")
+    if [ -z "$OUT" ]; then
+        bad "$CXX R candidate (0.57 header, lines $(cat "$O/lines-new.txt")) does not build/run (see $O/new-cand-$CXX/build.log)"
+        continue
+    fi
+    for ST in "" -off -trace; do
+        NO="${OUT%.txt}$ST.txt"
+        if cmp -s "$O/R-old$ST-$CXX.txt" "$NO"; then
+            ok "$CXX R[${ST:-on}] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)"
+        elif cmp -s <(sed 's/ sizes=.*//' "$O/R-old$ST-$CXX.txt") <(sed 's/ sizes=.*//' "$NO"); then
+            ok "$CXX R[${ST:-on}] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point"
+            echo "NOTE - $CXX R[${ST:-on}] MEASURED DIFFERENCE (host template internals): allocation sizes differ:"
+            diff <(grep -o "^stmt.*" "$O/R-old$ST-$CXX.txt") <(grep -o "^stmt.*" "$NO") | sed 's/^/       /'
+        else
+            bad "$CXX R[${ST:-on}] candidate differs:"; diff "$O/R-old$ST-$CXX.txt" "$NO" | head -20
+        fi
+    done
+    # ALT (informative): the only way to avoid the 0.57 template is to pre-format in the plugin and call the
+    # non-template (level, str) sink. Measure it to show whether it would preserve allocation behaviour.
+    cp "$O/calls-new.inc" "$O/alt-preformat.inc"
+    perl -0pi -e 's/Log::logger->log\(Log::DEBUG, "kwinish-bars", "/Log::logger->log(Log::DEBUG, std::format("[kwinish-bars] /g; s/\);(\n    \} break;)/));$1/g' "$O/alt-preformat.inc"
+    AOUT=$(run_new alt-preformat "$O/alt-preformat.inc")
+    if [ -n "$AOUT" ]; then
+        echo "INFO - $CXX ALT preformat: bytes $(cmp -s <(grep '|' "$O/R-old-$CXX.txt") <(grep '|' "$AOUT") && echo identical || echo differ); logs ON allocs: $(grep -o 'allocs=[0-9]* .*sizes=[0-9,]*' "$AOUT" | head -1); logs OFF allocs: $(grep "^stmt" "${AOUT%.txt}-off.txt" | grep -o "allocs=[0-9]*" | sort | uniq -c | tr '\n' ' ') (reference OFF: $(grep "^stmt" "$O/R-old-off-$CXX.txt" | grep -o "allocs=[0-9]*" | sort | uniq -c | tr '\n' ' '))"
+    else
+        echo "INFO - $CXX ALT preformat did not build"
+    fi
+
+    # RN: negative runtime variants of the candidate; each must build and must DIFFER from the reference.
+    # name | perl substitution applied to calls-new.inc
+    while IFS='|' read -r NAME SUB; do
+        [ -z "$NAME" ] && continue
+        cp "$O/calls-new.inc" "$O/neg-$NAME.inc"
+        perl -0pi -e "$SUB" "$O/neg-$NAME.inc"
+        if cmp -s "$O/calls-new.inc" "$O/neg-$NAME.inc"; then bad "$CXX RN $NAME: substitution did not change the calls"; continue; fi
+        NOUT=$(run_new "neg-$NAME" "$O/neg-$NAME.inc")
+        if [ -z "$NOUT" ]; then bad "$CXX RN $NAME: did not build/run (not a valid detection; see $O/new-neg-$NAME-$CXX/build.log)"; continue; fi
+        # Compare WITHOUT the sizes field (otherwise the known size difference would make every negative
+        # "differ"), across all three gate states; detected if any state differs.
+        SAME=1
+        for ST in "" -off -trace; do
+            cmp -s <(sed 's/ sizes=.*//' "$O/R-old$ST-$CXX.txt") <(sed 's/ sizes=.*//' "${NOUT%.txt}$ST.txt") || SAME=0
+        done
+        if [ $SAME = 1 ]; then bad "$CXX RN $NAME: wrong correspondence NOT detected"; else ok "$CXX RN $NAME: compiles, output differs (sizes ignored) -> rejected"; fi
+    done <<'EOF'
+LOGmacro|s/Log::logger->log\(Log::DEBUG, "kwinish-bars", /LOG(Log::DEBUG, /g
+bracketLoc|s/"kwinish-bars", /"[kwinish-bars]", /g
+doublePrefix|s/"kwinish-bars", "/"kwinish-bars", "[kwinish-bars] /g
+emptyLoc|s/"kwinish-bars", /"", /g
+levelWarn|s/Log::DEBUG/Log::WARN/
+levelTrace|s/Log::DEBUG/Log::TRACE/
+dropArg|s/, e\.what\(\)\);/, "?");/
+preformat|s/Log::logger->log\(Log::DEBUG, "kwinish-bars", "/Log::logger->log(Log::DEBUG, std::format("[kwinish-bars] /g; s/\);(\n    \} break;)/));$1/g
+EOF
+done
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"
+exit $FAIL
+
+
+######## mutate.sh ########
+#!/usr/bin/env bash
+# Mutate probe_e_log.cpp assertions; a kill counts only if the mutant fails and
+# EVERY file-located error is a static assertion failure.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+M=$P/out/mut; mkdir -p "$M"
+export HOME=$P/home XDG_CACHE_HOME=$P/home/.cache
+FLAGS="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; N=0
+while IFS='|' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_e_log.cpp" "$M/$NAME.cpp"
+    F="$FIND" R="$REPL" perl -0pi -e 's/\Q$ENV{F}\E/$ENV{R}/' "$M/$NAME.cpp"
+    if cmp -s "$P/probe_e_log.cpp" "$M/$NAME.cpp"; then echo "FAIL - $NAME: unchanged"; FAIL=1; continue; fi
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $FLAGS -fsyntax-only "$M/$NAME.cpp" >"$M/$NAME.$CXX.log" 2>&1; RC=$?
+        TOT=$(grep -cE '^[^ ].*: error:' "$M/$NAME.$CXX.log")
+        SA=$(grep -E '^[^ ].*: error:' "$M/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$TOT" -gt 0 ] && [ "$TOT" = "$SA" ]; then echo "OK   - $NAME $CXX killed by static_assert ($SA)"; else echo "FAIL - $NAME $CXX rc=$RC errors=$TOT static=$SA"; FAIL=1; fi
+    done
+done <<'EOF'
+m1|static_assert(NewShape<uintptr_t>);|static_assert(!NewShape<uintptr_t>);
+m2|static_assert(!OldShape<uintptr_t>);|static_assert(OldShape<uintptr_t>);
+m3|static_assert(TrapBinds<>);|static_assert(!TrapBinds<>);
+m4|static_assert(Log::INFO == Log::DEBUG|static_assert(Log::INFO != Log::DEBUG
+m5|static_assert(Log::DEBUG == Hyprutils::CLI::LOG_DEBUG);|static_assert(Log::DEBUG != Hyprutils::CLI::LOG_DEBUG);
+m6|static_assert(NewShape<const std::string&, const char*>);|static_assert(!NewShape<const std::string&, const char*>);
+m7|static_assert(!OldShape<uintptr_t, uintptr_t|static_assert(OldShape<uintptr_t, uintptr_t
+m8|static_assert(NewShape<uintptr_t, uintptr_t|static_assert(!NewShape<uintptr_t, uintptr_t
+EOF
+echo "mutants run: $N; result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"
+exit $FAIL
