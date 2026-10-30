@@ -1,0 +1,254 @@
+===== probe_common.hpp
+// P5 compatibility probes (temporary, scratch-only). Not part of the plugin.
+// Each probe compiles standalone against the installed Hyprland 0.57.0 headers.
+// Positive mode: static_asserts on the 0.57 candidate API must hold.
+// -DPROBE_NEG: uses the 0.56.2 API and MUST fail to compile (non-vacuity control).
+#pragma once
+#include <string>
+#include <type_traits>
+#include <utility>
+
+#define PROBE_SAME(expr, type) static_assert(std::is_same_v<decltype(expr), type>, #expr " is not " #type)
+
+===== probe_a_include.cpp
+// Probe A: window header family.
+// Old (0.56.2): <hyprland/src/desktop/view/Window.hpp>
+// Candidate (0.57.0): <hyprland/src/desktop/view/window/Window.hpp>
+#include "probe_common.hpp"
+
+#if __has_include(<hyprland/src/desktop/view/Window.hpp>)
+#error "old header path still present"
+#endif
+#if !__has_include(<hyprland/src/desktop/view/window/Window.hpp>)
+#error "candidate header missing"
+#endif
+
+#ifdef PROBE_NEG
+#include <hyprland/src/desktop/view/Window.hpp>
+#else
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#endif
+
+// The class the plugin names (PHLWINDOW, Desktop::View::CWindow, IGeometric) must be the same entity.
+PROBE_SAME(std::declval<PHLWINDOW>().get(), Desktop::View::CWindow*);
+static_assert(std::is_base_of_v<Desktop::View::IGeometric, Desktop::View::CWindow>);
+// Accessors the plugin already uses and that compiled unchanged in the scan (position/size).
+PROBE_SAME(std::declval<Desktop::View::CWindow&>().position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D);
+PROBE_SAME(std::declval<Desktop::View::CWindow&>().size(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D);
+
+int main() {}
+
+===== probe_b_metadata.cpp
+// Probe B: window metadata accessors.
+// Old: CWindow::m_title, CWindow::m_class (std::string fields)
+// Candidate: CWindow::metadata().title(), .appID() (const std::string&)
+#include "probe_common.hpp"
+#include <hyprland/src/desktop/view/window/Window.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept OldTitle = requires(W& w) { w.m_title; };
+template <class W> concept OldClass = requires(W& w) { w.m_class; };
+static_assert(!OldTitle<CWindow>, "m_title still public");
+static_assert(!OldClass<CWindow>, "m_class still public");
+
+PROBE_SAME(std::declval<const CWindow&>().metadata(), const Desktop::View::CWindowMetadata&);
+PROBE_SAME(std::declval<const CWindow&>().metadata().title(), const std::string&);
+PROBE_SAME(std::declval<const CWindow&>().metadata().appID(), const std::string&);
+
+// Plugin call-site shapes (barDeco.cpp:721,724,791,794,800,806,1061,1062).
+[[maybe_unused]] static void shapes(PHLWINDOW W, std::string& last) {
+#ifdef PROBE_NEG
+    last = W->m_title;
+    (void)W->m_class.empty();
+#else
+    if (last != W->metadata().title())
+        last = W->metadata().title(); // copy, as the baseline did
+    (void)W->metadata().appID().empty();
+    (void)(W->metadata().appID() == last);
+#endif
+}
+
+int main() {}
+
+===== probe_c_presentation.cpp
+// Probe C: presentation / geometry / state accessors.
+// Old -> candidate:
+//   m_isMapped (public bool)          -> mapped() const
+//   m_isFloating (bool)               -> isFloating() const
+//   m_pinned (bool)                   -> static_cast<bool>(m_state & WINDOW_STATE_PINNED)
+//   rounding(), roundingPower()       -> presentation().rounding(), .roundingPower()
+//   getRealBorderSize() const         -> presentation().borderSize() const
+//   m_floatingOffset (Vector2D)       -> presentation().floatingOffset() (const Vector2D&)
+#include "probe_common.hpp"
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept PubMapped   = requires(W& w) { w.m_isMapped; };
+template <class W> concept OldFloating = requires(W& w) { w.m_isFloating; };
+template <class W> concept OldPinned   = requires(W& w) { w.m_pinned; };
+template <class W> concept OldFloatOff = requires(W& w) { w.m_floatingOffset; };
+template <class W> concept OldRounding = requires(W& w) { w.rounding(); };
+template <class W> concept OldRoundPow = requires(W& w) { w.roundingPower(); };
+static_assert(!OldRoundPow<CWindow>);
+template <class W> concept OldBorder   = requires(W& w) { w.getRealBorderSize(); };
+static_assert(!PubMapped<CWindow>, "m_isMapped became public again");
+static_assert(!OldFloating<CWindow>);
+static_assert(!OldPinned<CWindow>);
+static_assert(!OldFloatOff<CWindow>);
+static_assert(!OldRounding<CWindow>);
+static_assert(!OldBorder<CWindow>);
+
+PROBE_SAME(std::declval<const CWindow&>().mapped(), bool);
+PROBE_SAME(std::declval<const CWindow&>().isHidden(), bool);
+PROBE_SAME(std::declval<const CWindow&>().isFloating(), bool);
+PROBE_SAME(std::declval<CWindow&>().presentation().rounding(), float);
+PROBE_SAME(std::declval<CWindow&>().presentation().roundingPower(), float);
+PROBE_SAME(std::declval<const CWindow&>().presentation().borderSize(), int);
+PROBE_SAME(std::declval<const CWindow&>().presentation().floatingOffset(), const Vector2D&);
+static_assert(std::is_constructible_v<bool, decltype(std::declval<const CWindow&>().m_state & Desktop::View::WINDOW_STATE_PINNED)>);
+static_assert(!std::is_convertible_v<decltype(std::declval<const CWindow&>().m_state & Desktop::View::WINDOW_STATE_PINNED), bool>,
+              "mask is only explicitly convertible: call sites need static_cast<bool> or a boolean context");
+
+// Plugin call-site shapes (barDeco.cpp:391,418,515,593,769,866,1004,1006,1019,1028-1029,1092,1159,1246; main.cpp:309).
+[[maybe_unused]] static float shapes(PHLWINDOW W, bool action) {
+#ifdef PROBE_NEG
+    return W->m_isFloating + W->m_pinned + W->rounding() + W->getRealBorderSize() + W->m_floatingOffset.x + W->m_isMapped;
+#else
+    const bool pinned  = static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED);
+    const bool checked = W && (action ? static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED) : false);
+    const bool both    = W && (W->m_state & Desktop::View::WINDOW_STATE_PINNED); // boolean context, as barDeco.cpp:866
+    // separate live component reads, as barDeco.cpp:1028-1029
+    const double offx  = W->presentation().floatingOffset().x;
+    const double offy  = W->presentation().floatingOffset().y;
+    return (W->isFloating() + pinned + checked + both + !W->mapped()) + W->presentation().rounding() + W->presentation().borderSize() + offx + offy;
+#endif
+}
+
+int main() {}
+
+===== probe_d_decorations.cpp
+// Probe D: decoration container types and ownership.
+// Old: CWindow::m_windowDecorations : std::vector<UP<IHyprWindowDecoration>>
+//      CWindow::updateWindowDecos()
+//      HyprlandAPI::addWindowDecoration(HANDLE, PHLWINDOW, UP<IHyprWindowDecoration>)
+//      IHyprWindowDecoration::draw(PHLMONITOR, float const&)
+//      CWindow::m_X11DoesntWantBorders
+// Candidate:
+//      CWindow::presentation().decorations() : std::span<const SP<IHyprWindowDecoration>>
+//      CWindow::presentation().updateDecorations()
+//      HyprlandAPI::addWindowDecoration(HANDLE, PHLWINDOW, SP<IHyprWindowDecoration>&&)
+//      IHyprWindowDecoration::draw(Render::CRenderContext&, PHLMONITOR, float const&, const SWindowRenderPresentation&)
+//      CWindow::backend().traits().suggestsNoBorder
+#include "probe_common.hpp"
+#include <span>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
+#include <hyprland/src/plugins/PluginAPI.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept OldDecos     = requires(W& w) { w.m_windowDecorations; };
+template <class W> concept OldUpdate    = requires(W& w) { w.updateWindowDecos(); };
+template <class W> concept OldX11Border = requires(W& w) { w.m_X11DoesntWantBorders; };
+static_assert(!OldDecos<CWindow>);
+static_assert(!OldUpdate<CWindow>);
+static_assert(!OldX11Border<CWindow>);
+
+PROBE_SAME(std::declval<const CWindow&>().presentation().decorations(), std::span<const SP<IHyprWindowDecoration>>);
+PROBE_SAME(std::declval<CWindow&>().presentation().updateDecorations(), void);
+// Ownership: the API now takes a shared pointer by rvalue; a UP<Derived> no longer binds.
+static_assert(std::is_same_v<decltype(&HyprlandAPI::addWindowDecoration), bool (*)(HANDLE, PHLWINDOW, SP<IHyprWindowDecoration>&&)>);
+static_assert(!std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<IHyprWindowDecoration>&&>);
+struct ProbeDeco : IHyprWindowDecoration {}; // stands in for CHyprBar (derived, abstract is fine for type traits)
+static_assert(!std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>&&>, "UP<Derived> must not bind");
+static_assert(std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, SP<ProbeDeco>&&>, "SP<Derived> must bind");
+// Decoration interface: draw() now takes a render context and a presentation snapshot (render-pass family, NOT migrated in P5).
+static_assert(std::is_same_v<decltype(&IHyprWindowDecoration::draw),
+                             void (IHyprWindowDecoration::*)(Render::CRenderContext&, PHLMONITOR, float const&, const Render::SWindowRenderPresentation&)>);
+// X11 "no border" hint moved to backend traits (bitfield bool).
+static_assert(std::is_constructible_v<bool, decltype(std::declval<const CWindow&>().backend().traits().suggestsNoBorder)>);
+
+[[maybe_unused]] static bool shapes(PHLWINDOW w) {
+#ifdef PROBE_NEG
+    w->updateWindowDecos();
+    return !w->m_X11DoesntWantBorders && w->m_windowDecorations.empty();
+#else
+    bool found = false;
+    for (const auto& d : w->presentation().decorations())
+        found = found || d->getDisplayName() == "KwinishBar";
+    return !w->backend().traits().suggestsNoBorder && found;
+#endif
+}
+
+int main() {}
+
+===== run.sh
+#!/usr/bin/env bash
+# P5 probe runner: positive builds must succeed; -DPROBE_NEG builds must FAIL with the expected diagnostic.
+set -u
+D=$(cd "$(dirname "$0")" && pwd)
+OUT=${1:-$D/out}
+mkdir -p "$OUT"
+export HOME=$D/../home XDG_CONFIG_HOME=$D/../xdg XDG_CACHE_HOME=$D/../xdg/cache XDG_DATA_HOME=$D/../xdg/data
+unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+INC=$(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)
+FLAGS="-std=c++2b -fsyntax-only -fPIC"
+# name | expected substring in the NEG diagnostic
+PROBES=(
+  "probe_a_include|desktop/view/Window.hpp.*(No such file|file not found)"
+  "probe_b_metadata|m_title"
+  "probe_c_presentation|m_isFloating"
+  "probe_d_decorations|updateWindowDecos"
+)
+fail=0
+for cxx in g++ clang++; do
+  for entry in "${PROBES[@]}"; do
+    name=${entry%%|*}; expect=${entry#*|}
+    log="$OUT/$name.$cxx.pos.log"
+    $cxx $FLAGS -I"$D" $INC "$D/$name.cpp" >"$log" 2>&1; rc=$?
+    if [ $rc -eq 0 ]; then echo "OK   pos $cxx $name (exit 0)"; else echo "FAIL pos $cxx $name (exit $rc)"; fail=1; fi
+    log="$OUT/$name.$cxx.neg.log"
+    $cxx $FLAGS -DPROBE_NEG -I"$D" $INC "$D/$name.cpp" >"$log" 2>&1; rc=$?
+    if [ $rc -ne 0 ] && grep -qE -- "$expect" "$log"; then
+      echo "OK   neg $cxx $name (exit $rc, diagnostic mentions '$expect')"
+    else
+      echo "FAIL neg $cxx $name (exit $rc; expected failure mentioning '$expect')"; fail=1
+    fi
+  done
+done
+exit $fail
+
+===== mutate.sh
+#!/usr/bin/env bash
+# Mutate each probe's positive static_assert to a wrong type; each mutant must fail to compile (static assertion).
+set -u
+D=$(cd "$(dirname "$0")" && pwd); W=$D/mut; rm -rf "$W"; mkdir -p "$W"; cp "$D"/probe_common.hpp "$W"/
+export HOME=$D/../home XDG_CONFIG_HOME=$D/../xdg
+INC=$(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)
+MUTS=(
+  "probe_a_include|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D)|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D&)"
+  "probe_b_metadata|metadata().title(), const std::string&)|metadata().title(), std::string)"
+  "probe_c_presentation|isFloating(), bool)|isFloating(), int)"
+  "probe_c_presentation|floatingOffset(), const Vector2D&)|floatingOffset(), Vector2D)"
+  "probe_c_presentation|static_assert(!std::is_convertible_v|static_assert(std::is_convertible_v"
+  "probe_d_decorations|std::span<const SP<IHyprWindowDecoration>>)|std::span<const UP<IHyprWindowDecoration>>)"
+  "probe_d_decorations|static_assert(!std::is_invocable_v|static_assert(std::is_invocable_v"
+  "probe_c_presentation|static_assert(!OldRoundPow|static_assert(OldRoundPow"
+  "probe_d_decorations|static_assert(!std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>|static_assert(std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>"
+)
+fail=0; i=0
+for m in "${MUTS[@]}"; do
+  IFS='|' read -r name find repl <<<"$m"; i=$((i+1))
+  src="$W/${name}_m$i.cpp"; cp "$D/$name.cpp" "$src"
+  FIND="$find" REPL="$repl" perl -0pi -e 's/\Q$ENV{FIND}\E/$ENV{REPL}/' "$src"
+  if cmp -s "$D/$name.cpp" "$src"; then echo "FAIL m$i $name: mutation did not apply"; fail=1; continue; fi
+  g++ -std=c++2b -fsyntax-only -fPIC -I"$W" $INC "$src" >"$W/m$i.log" 2>&1; rc=$?
+  errs=$(grep -cE '^[^ ].*: (fatal )?error:' "$W/m$i.log"); sa=$(grep -c 'error: static assertion failed' "$W/m$i.log")
+  if [ $rc -ne 0 ] && [ "$sa" -ge 1 ] && [ "$errs" -eq "$sa" ]; then echo "OK   m$i $name killed (exit $rc, only static assertion errors: $sa)"; else echo "FAIL m$i $name survived/other (exit $rc, errors=$errs static_asserts=$sa)"; fail=1; fi
+done
+exit $fail
+

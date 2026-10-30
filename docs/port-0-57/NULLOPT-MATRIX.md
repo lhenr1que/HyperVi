@@ -30,3 +30,5 @@ Preparatório, 30/10/2026. `geometry.hpp` devolve `std::nullopt` para entrada ou
 ## Pendências de decisão (dono)
 
 G2 (snapshot por quadro), comportamento do snap sem preview, política de damage total como fallback e se o ramo `nullopt` deve avisar o usuário ou só registrar log.
+
+**Decididas pelo dono em 30/10/2026 (P5; detalhe em [P5-WINDOW-API.md](P5-WINDOW-API.md) §1), sem autorização de implementação:** G2 = snapshot coerente por quadro, por valor; input = último snapshot publicado válido, com geração e invalidação; snap = **cancelar** o candidato cujo preview obrigatório não possa ser representado (substitui a proposta "continua, só não desenha" da linha Preview); damage = se a união segura falhar, redraw completo do monitor afetado, se a API suportar; `nullopt` = log com limitação de frequência, sem notificação gráfica por padrão. G4 e G5 seguem pendentes até a migração das APIs correspondentes.

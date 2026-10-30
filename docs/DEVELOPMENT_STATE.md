@@ -2,9 +2,20 @@
 
 Atualizado em **2026-10-30 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — P3 (30/10/2026): Mudança 1 aprovada e fechada
+## Resultado mais recente — P5 (30/10/2026): header e acessores da janela 0.57 (parcial, não commitado)
 
-Dono aprovou a Mudança 1 (contrato geométrico independente do Hyprland), H-DOM provisória e `std::optional` nas quatro funções; limites são **contrato interno**, não propriedade do Hyprland. `tools/check.sh`: tudo verde exceto `make -C plugin`, idêntico à falha conhecida de P2 (Hyprland 0.57.0). Matriz de `nullopt`: `docs/port-0-57/NULLOPT-MATRIX.md` (proposta). Commit da Mudança 1: ver `git log` (hash no relatório da sessão). Integração às decorações e portabilidade 0.57 **não iniciadas**; exigem nova autorização.
+**Concluído (build isolado + sondas; sem plugin carregado, sem gráficos).** Detalhe: `docs/port-0-57/P5-WINDOW-API.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `3285517` (commit da Mudança 1), sem commit/merge/staging. Dirty desta sessão: `plugin/main.cpp`, `plugin/barDeco.cpp` (M); `docs/port-0-57/{README,GEOMETRY,NULLOPT-MATRIX}.md` e este arquivo (M); `docs/port-0-57/P5-WINDOW-API.md` e `docs/port-0-57/evidence/P5-*` (novos). Preexistentes e intocados: `evidence/P31-review-prompt-{1,2,3}.txt` (não rastreados).
+
+- **Decisões do dono registradas** (sem autorização de implementação): G2 snapshot por quadro por valor; input = último snapshot válido com geração/invalidação; snap cancelado se o preview obrigatório não for representável; damage = redraw do monitor se a união falhar; `nullopt` = log com limitação de frequência. G4/G5 pendentes até a migração das APIs.
+- **Alteração:** include `desktop/view/window/Window.hpp` (+ `WindowPresentation.hpp` em `barDeco.cpp`) e 9 acessores: `metadata().title()/appID()`, `mapped()` (só `luaGrab`), `isFloating()`, `m_state & WINDOW_STATE_PINNED`, `presentation().rounding()/borderSize()/floatingOffset()`. 26 substituições, 2 arquivos. **Adiados:** `roundingPower` (dentro de `renderRect`), `m_isMapped` de `pluginInit`, `onNewWindow` (UP→SP, `m_windowDecorations`, `m_X11DoesntWantBorders`), `updateWindowDecos` (não equivalente), Log API, render/GL/hooks.
+- **Limitações:** `borderSize()` pode ficar velho após mudança de fullscreen em janela oculta/não mapeada (o host 0.57 não invalida nesse caso; a 0.56.2 invalidava); `floatingOffset()` é o valor vivo bruto, não o snapshot do quadro (troca pertence a G2/render).
+- **Validação real:** sondas 4 famílias GCC+Clang 16/16 (positivo exit 0, NEG falha com diagnóstico esperado), 9/9 mutações mortas só por `static_assert`; geometria GCC e Clang exit 0 (320 762 verificações, 13 negativos, 46 mutações); tooltip exit 0. Build baseline HEAD exit 2, idêntico a P2; build candidato exit 2 (esperado). Contra o HEAD só com include corrigido: GCC 98→73 (27 eliminados, 2 novos), Clang 119→96 (24 eliminados, 1 novo); os novos são o erro desmascarado da Log API em `barDeco.cpp:806`. Nenhum `.so` gerado. `tools/check.sh` não executado.
+- **Revisão independente:** `gpt-6.1-sol` via Hermes/`openai-codex`; rodada 1 reprovou (2 major de prova faltante: vida de `m_target`, invalidação do cache de borda) → evidência adicionada, limitação de borda documentada; rodada 2 **aprovou** (1 minor de mutação, corrigido e reexecutado).
+- **Próxima ação (nova autorização):** sonda + migração da Log API (5 chamadas em `barDeco.cpp`); depois só inventário de `g_pKeybindManager` (toca Q4). Ownership de decorações e render/GL em mudanças separadas posteriores.
+
+## Anterior — P3 (30/10/2026): Mudança 1 aprovada e fechada
+
+Dono aprovou a Mudança 1 (contrato geométrico independente do Hyprland), H-DOM provisória e `std::optional` nas quatro funções; limites são **contrato interno**, não propriedade do Hyprland. `tools/check.sh`: tudo verde exceto `make -C plugin`, idêntico à falha conhecida de P2 (Hyprland 0.57.0). Matriz de `nullopt`: `docs/port-0-57/NULLOPT-MATRIX.md` (proposta). Commit da Mudança 1: `3285517` (`test(plugin): establish isolated geometry contracts`). Integração às decorações e portabilidade 0.57 **não iniciadas**; exigem nova autorização.
 
 ## Anterior — P2.1 (30/10/2026): bloqueio P3 resolvido
 

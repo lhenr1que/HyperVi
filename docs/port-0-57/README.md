@@ -14,6 +14,7 @@ Base: branch `port-kwinish-bars-to-hyprland-0-57`, commit `9850593` (documental;
 | [GEOMETRY.md](GEOMETRY.md) | 1.4 | Mapa baseline→port por consumidor; decisões G1–G5; contratos aritméticos P1–P5 |
 | [NULLOPT-MATRIX.md](NULLOPT-MATRIX.md) | 4.2/4.4 (prep.) | Tratamento de `std::nullopt` por consumidor (desenho, damage, input, preview, tooltip); proposta, não implementada |
 | [RISKS-TESTS.md](RISKS-TESTS.md) | 1.2–1.4 | B1–B3 × testes × aceite; estratégia B2/B3; proposta da primeira alteração C++ |
+| [P5-WINDOW-API.md](P5-WINDOW-API.md) | 3.1 (parcial) | P5: decisões G2/input/snap/damage/`nullopt`; matriz de equivalência da janela 0.56.2→0.57; sondas; diff de include/acessores; comparação de erros; revisão |
 
 Relatórios longos permanecem em `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/` e não foram duplicados.
 

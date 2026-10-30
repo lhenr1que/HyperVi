@@ -1,0 +1,16 @@
+{
+ "g++": {
+  "B1": 98,
+  "C": 73,
+  "eliminated": 27,
+  "persistent": 71,
+  "new": 2
+ },
+ "clang++": {
+  "B1": 119,
+  "C": 96,
+  "eliminated": 24,
+  "persistent": 95,
+  "new": 1
+ }
+}

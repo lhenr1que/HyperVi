@@ -1,0 +1,196 @@
+### R1-major-1 (m_target lifetime): CWindow ctor is private; create() is the only factory (Window.hpp: 'static PHLWINDOW create(UP<IWindowBackend> backend); private: CWindow(UP<IWindowBackend> backend);')
+--- 0.57.0:src/desktop/view/window/Window.cpp:100-127
+#define COMMA ,
+//
+
+PHLWINDOW CWindow::create(UP<IWindowBackend> backend) {
+    if (!backend)
+        return nullptr;
+
+    PHLWINDOW pWindow = SP<CWindow>(new CWindow(std::move(backend)));
+
+    pWindow->m_self = pWindow;
+    pWindow->m_backend->attach(pWindow);
+    pWindow->initialize();
+    pWindow->attachBackendListeners();
+
+    return pWindow;
+}
+
+void CWindow::initialize() {
+    const auto SELF = m_self.lock();
+
+    m_ruleApplicator = makeUnique<Desktop::Rule::CWindowRuleApplicator>(SELF);
+
+    Animation::mgr()->createAnimation(Vector2D(0, 0), positionAnimation(), Config::animationTree()->getAnimationPropertyConfig("windowsIn"), SELF, AVARDAMAGE_ENTIRE);
+    Animation::mgr()->createAnimation(Vector2D(0, 0), sizeAnimation(), Config::animationTree()->getAnimationPropertyConfig("windowsIn"), SELF, AVARDAMAGE_ENTIRE);
+    m_presentation->initialize();
+
+    m_target = Layout::CWindowTarget::create(SELF);
+
+--- all writers of m_target in desktop/view/window/ (grep 'm_target\s*=[^=]|m_target.reset|m_target = nullptr'):
+desktop/view/window/Window.cpp:126:    m_target = Layout::CWindowTarget::create(SELF);
+
+### R1-major-2 (border cache): m_borderDecoration creation and writers
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:61-66
+void CWindowPresentation::initialize() {
+    const auto WINDOW  = m_window.m_self.lock();
+    m_shadowDecoration = makeShared<CHyprDropShadowDecoration>(WINDOW);
+    m_borderDecoration = makeShared<CHyprBorderDecoration>(WINDOW);
+    m_glowDecoration   = makeShared<CHyprInnerGlowDecoration>(WINDOW);
+
+--- writers of m_borderDecoration (whole tree):
+desktop/view/window/WindowPresentation.cpp:64:    m_borderDecoration = makeShared<CHyprBorderDecoration>(WINDOW);
+--- invalidation: 0.56.2 sets m_borderSizeCacheDirty=true in updateWindowData(rule) and updateDecorationValues(); 0.57 calls invalidateBorderSize() in updateWindowData(rule) (Window.cpp:705) and in CHyprBorderDecoration::updateState() (:175), which refreshValues() calls for every decoration:
+    const CDecorationSnapshot SNAPSHOT{m_windowDecorations};
+    for (const auto& decoration : SNAPSHOT.decorations()) {
+        if (!containsDecoration(decoration.get()))
+            continue;
+        decoration->updateState();
+    }
+
+    updateDecorations();
+--- callers 0.56.2 updateDecorationValues():
+config/shared/actions/ConfigActions.cpp:640:        window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:653:        window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1300:    PWINDOW->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1444:    window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1460:    PWINDOW->updateDecorationValues();
+desktop/rule/windowRule/WindowRuleApplicator.cpp:583:    m_window->updateDecorationValues();
+desktop/state/FocusState.cpp:132:            PLASTWINDOW->updateDecorationValues();
+desktop/state/FocusState.cpp:190:        PLASTWINDOW->updateDecorationValues();
+desktop/state/FocusState.cpp:203:    pWindow->updateDecorationValues();
+desktop/state/GlobalWindowController.cpp:22:        w->updateDecorationValues();
+desktop/view/Group.cpp:316:    x->updateDecorationValues();
+desktop/view/Group.cpp:324:    x->updateDecorationValues();
+desktop/view/Group.cpp:335:            x->updateDecorationValues();
+desktop/view/Window.cpp:2532:    updateDecorationValues();
+layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.cpp:293:    WINDOW->updateDecorationValues();
+managers/fullscreen/FullscreenController.cpp:467:        window->updateDecorationValues();
+managers/fullscreen/FullscreenController.cpp:490:    window->updateDecorationValues();
+managers/fullscreen/handler/FullscreenHandler.cpp:170:    WINDOW->updateDecorationValues();
+managers/input/trackpad/gestures/CloseGesture.cpp:146:            window->updateDecorationValues();
+--- callers 0.57.0 refreshValues():
+desktop/view/window/Window.cpp:1584:    m_presentation->refreshValues();
+desktop/view/Group.cpp:401:    x->presentation().refreshValues();
+desktop/view/Group.cpp:411:    x->presentation().refreshValues();
+desktop/view/Group.cpp:422:            x->presentation().refreshValues();
+desktop/rule/windowRule/WindowRuleApplicator.cpp:640:    m_window->presentation().refreshValues();
+desktop/state/FocusState.cpp:139:            PLASTWINDOW->presentation().refreshValues();
+desktop/state/FocusState.cpp:198:        PLASTWINDOW->presentation().refreshValues();
+desktop/state/FocusState.cpp:211:    pWindow->presentation().refreshValues();
+desktop/state/GlobalWindowController.cpp:25:        w->presentation().refreshValues();
+managers/fullscreen/FullscreenController.cpp:468:        window->presentation().refreshValues();
+managers/fullscreen/FullscreenController.cpp:491:    window->presentation().refreshValues();
+managers/input/trackpad/gestures/CloseGesture.cpp:147:            window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:723:        window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:736:        window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1338:    PWINDOW->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1495:    window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1511:    PWINDOW->presentation().refreshValues();
+--- the two 0.56.2 callers with no refreshValues() counterpart (fullscreen handlers): 0.56.2 ScrollingFullscreenHandler.cpp:286-294
+        return;
+
+    const auto MONITOR = target->workspace()->m_monitor.lock();
+    const auto WINDOW  = target->window();
+
+    WINDOW->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+    WINDOW->updateDecorationValues();
+
+--- 0.57.0 ScrollingFullscreenHandler.cpp:286-305
+
+void CScrollingFullscreenHandler::updateTargetRulesAndDecos(const SP<Layout::ITarget> target) {
+    if (!target || !target->window() || !target->workspace() || !target->workspace()->m_monitor)
+        return;
+
+    const auto MONITOR = target->workspace()->m_monitor.lock();
+    const auto WINDOW  = target->window();
+
+    // If window is in a group, we need to update these values for ALL members of the group.
+    if (WINDOW->grouping().group()) {
+        for (const auto& gm : WINDOW->grouping().group()->windows()) {
+            gm->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                    Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+            gm->presentation().updateDecorations();
+        }
+    } else {
+        WINDOW->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                    Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+        WINDOW->presentation().updateDecorations();
+    }
+--- propertiesChanged in both versions ends with a border invalidation, but returns early when unmapped/hidden:
+--- 0.56.2 WindowRuleApplicator.cpp:547-549 and :581-583
+void CWindowRuleApplicator::propertiesChanged(std::underlying_type_t<eRuleProperty> props) {
+    if (!m_window || !m_window->m_isMapped || m_window->isHidden())
+        return;
+    m_window->updateWindowData();
+    m_window->updateWindowDecos();
+    m_window->updateDecorationValues();
+--- 0.57.0 WindowRuleApplicator.cpp:604-606 and :638-640
+void CWindowRuleApplicator::propertiesChanged(std::underlying_type_t<eRuleProperty> props) {
+    if (!m_window || !m_window->mapped() || m_window->isHidden())
+        return;
+    m_window->updateWindowData();
+    m_window->presentation().updateDecorations();
+    m_window->presentation().refreshValues();
+IMPLEMENTER'S STATED LIMITATION: in 0.57 a fullscreen-state change on an UNMAPPED or HIDDEN window no longer invalidates the border-size cache directly (0.56.2 did, via updateDecorationValues in the handler). borderSize() can therefore be stale for such a window until the next refreshValues()/updateWindowData(). The host's own border decoration reads the same cache, so the bar stays consistent with the 0.57 host border; it is not identical to 0.56.2 behaviour in that edge.
+
+### R1-minor fixes (probes changed after round 1; reruns below)
+--- probe_c: OldRounding split into OldRounding{rounding()} and OldRoundPow{roundingPower()}; floatingOffset read as separate .x/.y live reads.
+--- probe_d: added 'struct ProbeDeco : IHyprWindowDecoration {};' with !is_invocable for UP<ProbeDeco>&& and is_invocable for SP<ProbeDeco>&&.
+--- mutate.sh (mutation definitions):
+#!/usr/bin/env bash
+# Mutate each probe's positive static_assert to a wrong type; each mutant must fail to compile (static assertion).
+set -u
+D=$(cd "$(dirname "$0")" && pwd); W=$D/mut; rm -rf "$W"; mkdir -p "$W"; cp "$D"/probe_common.hpp "$W"/
+export HOME=$D/../home XDG_CONFIG_HOME=$D/../xdg
+INC=$(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)
+MUTS=(
+  "probe_a_include|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D)|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D\&)"
+  "probe_b_metadata|metadata().title(), const std::string&)|metadata().title(), std::string)"
+  "probe_c_presentation|isFloating(), bool)|isFloating(), int)"
+  "probe_c_presentation|floatingOffset(), const Vector2D&)|floatingOffset(), Vector2D)"
+  "probe_c_presentation|static_assert(!std::is_convertible_v|static_assert(std::is_convertible_v"
+  "probe_d_decorations|std::span<const SP<IHyprWindowDecoration>>)|std::span<const UP<IHyprWindowDecoration>>)"
+  "probe_d_decorations|static_assert(!std::is_invocable_v|static_assert(std::is_invocable_v"
+  "probe_c_presentation|static_assert(!OldRoundPow|static_assert(OldRoundPow"
+  "probe_d_decorations|UP<ProbeDeco>&&>, \"UP<Derived> must not bind\");|UP<ProbeDeco>\&\&>, \"UP<Derived> must not bind\"); static_assert(std::is_invocable_v<decltype(\&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>\&\&>);"
+)
+fail=0; i=0
+for m in "${MUTS[@]}"; do
+  IFS='|' read -r name find repl <<<"$m"; i=$((i+1))
+  src="$W/${name}_m$i.cpp"; cp "$D/$name.cpp" "$src"
+  FIND="$find" REPL="$repl" perl -0pi -e 's/\Q$ENV{FIND}\E/$ENV{REPL}/' "$src"
+  if cmp -s "$D/$name.cpp" "$src"; then echo "FAIL m$i $name: mutation did not apply"; fail=1; continue; fi
+  g++ -std=c++2b -fsyntax-only -fPIC -I"$W" $INC "$src" >"$W/m$i.log" 2>&1; rc=$?
+  if [ $rc -ne 0 ] && grep -q 'static assertion failed' "$W/m$i.log"; then echo "OK   m$i $name killed (exit $rc, static assertion)"; else echo "FAIL m$i $name survived/other (exit $rc)"; fail=1; fi
+done
+exit $fail
+--- run.log:
+OK   pos g++ probe_a_include (exit 0)
+OK   neg g++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos g++ probe_b_metadata (exit 0)
+OK   neg g++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos g++ probe_c_presentation (exit 0)
+OK   neg g++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos g++ probe_d_decorations (exit 0)
+OK   neg g++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+OK   pos clang++ probe_a_include (exit 0)
+OK   neg clang++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos clang++ probe_b_metadata (exit 0)
+OK   neg clang++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos clang++ probe_c_presentation (exit 0)
+OK   neg clang++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos clang++ probe_d_decorations (exit 0)
+OK   neg clang++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+--- mutate.log:
+OK   m1 probe_a_include killed (exit 1, static assertion)
+OK   m2 probe_b_metadata killed (exit 1, static assertion)
+OK   m3 probe_c_presentation killed (exit 1, static assertion)
+OK   m4 probe_c_presentation killed (exit 1, static assertion)
+OK   m5 probe_c_presentation killed (exit 1, static assertion)
+OK   m6 probe_d_decorations killed (exit 1, static assertion)
+OK   m7 probe_d_decorations killed (exit 1, static assertion)
+OK   m8 probe_c_presentation killed (exit 1, static assertion)
+OK   m9 probe_d_decorations killed (exit 1, static assertion)

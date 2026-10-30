@@ -1,0 +1,21 @@
+{
+ "old_source": {
+  "url": "https://codeload.github.com/hyprwm/Hyprland/tar.gz/refs/tags/v0.56.2",
+  "sha256": "ddeb92a654fa65d41ed2add3176de4fe54eab3752441c33ca99f5e598e0571e5",
+  "check": "src/desktop/view/Window.hpp sha256 equals the preserved evidence/upstream/0.56.2 copy (1f60b8ff...)",
+  "location": "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562",
+  "kept_in_repo": false
+ },
+ "new_source": {
+  "path": "/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src",
+  "commit": "0aa6745f705f2c4b0a5004eb019ef76e5bbdb426",
+  "check": "Window.hpp, WindowPresentation.hpp, WindowMetadata.hpp identical to /usr/include/hyprland (diff -q)"
+ },
+ "installed": {
+  "hyprland": "0.57.0-1",
+  "version.h GIT_COMMIT_HASH": "0aa6745f705f2c4b0a5004eb019ef76e5bbdb426",
+  "hyprutils": "0.14.3-1",
+  "gcc": "16.2.1",
+  "clang": "23.1.4"
+ }
+}

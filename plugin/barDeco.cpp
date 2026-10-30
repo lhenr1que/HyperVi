@@ -7,7 +7,8 @@
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/desktop/state/LayerState.hpp>
 #include <hyprland/src/desktop/state/ViewHitTester.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
 #include <hyprland/src/managers/SeatManager.hpp>
@@ -388,7 +389,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
     if (Desktop::focusState()->window() != PWINDOW)
         Desktop::focusState()->fullWindowFocus(PWINDOW, Desktop::FOCUS_REASON_CLICK);
 
-    if (PWINDOW->m_isFloating)
+    if (PWINDOW->isFloating())
         Desktop::windowState()->raise(PWINDOW);
 
     info.cancelled   = true;
@@ -415,7 +416,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
         // The compositor grabs the window under the pointer when the move starts. Waiting for the first motion (as
         // upstream does) lets a fast move leave the bar and grab whatever is below, so a floating window's drag
         // starts right at the press, while the pointer is still on its bar. Tiled windows keep the lazy start.
-        if (PWINDOW->m_isFloating && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
+        if (PWINDOW->isFloating() && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
             m_bDragPending = false;
             handleMovement();
         } else
@@ -512,7 +513,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
 
         CPreviewPassElement::SPreviewData data;
         data.box    = CBox{zone->pos.x - pMonitor->m_position.x, zone->pos.y - pMonitor->m_position.y, zone->size.x, zone->size.y}.scale(SCALE).round();
-        data.round  = W ? std::round(W->rounding() * SCALE) : 0;
+        data.round  = W ? std::round(W->presentation().rounding() * SCALE) : 0;
         data.border = std::max(1, (int)std::round(2 * SCALE));
         data.fill   = fill;
         data.line   = line;
@@ -590,7 +591,7 @@ void CHyprBar::stepUnsnap() {
 // (kwinish.lua, loaded by the user's config) does the placement. Without the core this is a no-op.
 void CHyprBar::snapOnRelease() {
     const auto W = m_pWindow.lock();
-    if (!W || !W->m_isFloating)
+    if (!W || !W->isFloating())
         return;
 
     const auto C = g_pInputManager->getMouseCoordsInternal();
@@ -718,10 +719,10 @@ float CHyprBar::iconSlot() {
     if (!g_pGlobalState->config.showIcon->value())
         return 0;
     const auto W = m_pWindow.lock();
-    if (!W || W->m_class.empty())
+    if (!W || W->metadata().appID().empty())
         return 0;
     // an icon lookup that already failed for this class must not leave a gap before the title
-    if (m_szIconClass == W->m_class && !m_pIconTex)
+    if (m_szIconClass == W->metadata().appID() && !m_pIconTex)
         return 0;
     return std::max(12, (int)g_pGlobalState->config.barHeight->value() - 12);
 }
@@ -766,7 +767,7 @@ bool CHyprBar::barActive() {
     const auto W = m_pWindow.lock();
     if (W && g_pGlobalState->hiddenBars.contains((uintptr_t)W.get()))
         return false;
-    return W && (!g_pGlobalState->config.floatingOnly->value() || W->m_isFloating);
+    return W && (!g_pGlobalState->config.floatingOnly->value() || W->isFloating());
 }
 
 void CHyprBar::onFocusChanged() {
@@ -788,22 +789,22 @@ void CHyprBar::updateIcon(float scale) {
         m_pIconTex = nullptr;
         return;
     }
-    if (W->m_class == m_szIconClass && PX == m_iIconPx)
+    if (W->metadata().appID() == m_szIconClass && PX == m_iIconPx)
         return;
 
-    m_szIconClass = W->m_class;
+    m_szIconClass = W->metadata().appID();
     m_iIconPx     = PX;
     m_pIconTex    = nullptr;
 
     // this runs in the render pass: a filesystem error while searching the icon themes must not escape into the compositor
     try {
-        const auto path = KwIcon::findIconPath(W->m_class, PX);
+        const auto path = KwIcon::findIconPath(W->metadata().appID(), PX);
         if (auto* surface = KwIcon::load(path, PX)) {
             m_pIconTex = g_pHyprRenderer->createTexture(surface);
             cairo_surface_destroy(surface);
         }
     } catch (const std::exception& e) {
-        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->m_class, e.what());
+        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->metadata().appID(), e.what());
     }
 }
 
@@ -863,7 +864,7 @@ size_t CHyprBar::getVisibleButtonCount(Config::INTEGER barButtonPadding, Config:
 void CHyprBar::renderBarButtons(CBox* barBox, const float scale, const float a) {
     const auto INACTIVECOLOR = g_pGlobalState->config.inactiveButtonColor->value();
     const auto HEIGHT        = g_pGlobalState->config.barHeight->value();
-    const auto PINNED        = m_pWindow.lock() && m_pWindow.lock()->m_pinned;
+    const auto PINNED        = m_pWindow.lock() && static_cast<bool>(m_pWindow.lock()->m_state & Desktop::View::WINDOW_STATE_PINNED);
     const auto COORDS        = cursorRelativeToBar();
     const bool INVALIDATEICONS = m_bButtonsDirty || m_bWindowSizeChanged;
 
@@ -1001,9 +1002,9 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     }
 
     const auto PWORKSPACE      = PWINDOW->m_workspace;
-    const auto WORKSPACEOFFSET = PWORKSPACE && !PWINDOW->m_pinned ? PWORKSPACE->m_renderOffset->value() : Vector2D();
+    const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(PWINDOW->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
 
-    const auto ROUNDING = PWINDOW->rounding() + (PRECEDENCE ? 0 : PWINDOW->getRealBorderSize());
+    const auto ROUNDING = PWINDOW->presentation().rounding() + (PRECEDENCE ? 0 : PWINDOW->presentation().borderSize());
 
     const auto scaledRounding = ROUNDING > 0 ? ROUNDING * pMonitor->m_scale - 2 /* idk why but otherwise it looks bad due to the gaps */ : 0;
 
@@ -1016,7 +1017,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     CBox       titleBarBox = {DECOBOX.x - pMonitor->m_position.x, DECOBOX.y - pMonitor->m_position.y, DECOBOX.w,
                               DECOBOX.h + ROUNDING * 3 /* to fill the bottom cuz we can't disable rounding there */};
 
-    titleBarBox.translate(PWINDOW->m_floatingOffset).scale(pMonitor->m_scale).round();
+    titleBarBox.translate(PWINDOW->presentation().floatingOffset()).scale(pMonitor->m_scale).round();
 
     if (titleBarBox.w < 1 || titleBarBox.h < 1)
         return;
@@ -1025,8 +1026,8 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
 
     if (ROUNDING) {
         // the +1 is a shit garbage temp fix until renderRect supports an alpha matte
-        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->m_floatingOffset.x - pMonitor->m_position.x + 1,
-                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->m_floatingOffset.y - pMonitor->m_position.y + 1,
+        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->presentation().floatingOffset().x - pMonitor->m_position.x + 1,
+                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->presentation().floatingOffset().y - pMonitor->m_position.y + 1,
                           PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
 
         if (windowBox.w < 1 || windowBox.h < 1) {
@@ -1058,8 +1059,8 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
 
     // render title
-    if (ENABLETITLE && (m_szLastTitle != PWINDOW->m_title || m_bWindowSizeChanged || !m_pTextTex || m_pTextTex->m_texID == 0 || m_bTitleColorChanged)) {
-        m_szLastTitle = PWINDOW->m_title;
+    if (ENABLETITLE && (m_szLastTitle != PWINDOW->metadata().title() || m_bWindowSizeChanged || !m_pTextTex || m_pTextTex->m_texID == 0 || m_bTitleColorChanged)) {
+        m_szLastTitle = PWINDOW->metadata().title();
         renderBarTitle(BARBUF, pMonitor->m_scale);
     }
 
@@ -1089,7 +1090,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
         float leftEnd = 0, rightStart = 0;
         layoutButtons(BARBUF.x / pMonitor->m_scale, leftEnd, rightStart);
 
-        const auto scaledBorderSize = PWINDOW->getRealBorderSize() * pMonitor->m_scale;
+        const auto scaledBorderSize = PWINDOW->presentation().borderSize() * pMonitor->m_scale;
         const auto xOffset          = ALIGN == "left" ? std::round(leftEnd * pMonitor->m_scale) : std::round(((BARBUF.x - scaledBorderSize) / 2.0 - m_pTextTex->m_size.x / 2.0));
         const auto yOffset           = std::round((BARBUF.y - m_pTextTex->m_size.y) / 2.0);
         CBox       titleBox          = {textBox.x + xOffset, textBox.y + yOffset, m_pTextTex->m_size.x, m_pTextTex->m_size.y};
@@ -1156,7 +1157,7 @@ CBox CHyprBar::assignedBoxGlobal() {
     box.translate(g_pDecorationPositioner->getEdgeDefinedPoint(DECORATION_EDGE_TOP, m_pWindow.lock()));
 
     const auto PWORKSPACE      = m_pWindow->m_workspace;
-    const auto WORKSPACEOFFSET = PWORKSPACE && !m_pWindow->m_pinned ? PWORKSPACE->m_renderOffset->value() : Vector2D();
+    const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(m_pWindow->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
 
     return box.translate(WORKSPACEOFFSET);
 }
@@ -1243,7 +1244,7 @@ void CHyprBar::updateTip(size_t hovered) {
         static const bool PT = KwTip::portuguese(getenv("LC_ALL"), getenv("LC_MESSAGES"), getenv("LANG"));
         const auto        W      = m_pWindow.lock();
         const std::string ACTION = hovered == TIP_ICON ? "menu" : g_pGlobalState->buttons[hovered].cmd;
-        const bool        CHECKED = W && (ACTION == "pin" ? W->m_pinned : Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED));
+        const bool        CHECKED = W && (ACTION == "pin" ? static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED) : Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED));
         text = KwTip::text(ACTION, CHECKED, PT);
     }
 

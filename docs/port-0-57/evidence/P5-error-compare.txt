@@ -1,0 +1,88 @@
+== g++: B1=98 C=73 eliminated=27 persistent=71 new=2
+-- new (C only):
+   barDeco.cpp:806 x1: call to consteval function ‘std::basic_format_string<char, const char*>((* &(& W.Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow>::operator->()->Desktop::View::CWindow::metadata())->Desktop::
+   barDeco.cpp:806 x1: call to non-‘constexpr’ function ‘const std::string& Desktop::View::CWindowMetadata::appID() const’
+-- eliminated by message:
+   x6: class Desktop::View::CWindow has no member named m_class
+   x4: class Desktop::View::CWindow has no member named m_isFloating; did you mean isFloating?
+   x4: class Desktop::View::CWindow has no member named m_pinned
+   x3: class Desktop::View::CWindow has no member named m_floatingOffset
+   x2: class Desktop::View::CWindow has no member named rounding
+   x2: class Desktop::View::CWindow has no member named getRealBorderSize
+   x2: class Desktop::View::CWindow has no member named m_title
+   x1: bool Desktop::View::CWindow::m_isMapped is private within this context
+   x1: could not convert {(((double)DECOBOX.Hyprutils::Math::CBox::x) - pMonitor.Hyprutils::Memory::CSharedPointer<Monitor::CMonitor>::operator->()->Monitor::CMonitor:
+   x1: could not convert {<expression error>, <expression error>, (((Desktop::View::CGeometricMovableAnimated*)(PWINDOW.Hyprutils::Memory::CSharedPointer<Desktop::View
+   x1: could not convert {<expression error>, (textBox.Hyprutils::Math::CBox::y + ((double)yOffset)), ((CHyprBar*)this)->CHyprBar::m_pTextTex.Hyprutils::Memory::CShare
+-- persistent by message:
+   x13: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   x7: ‘class Render::IHyprRenderer’ has no member named ‘m_renderPass’; did you mean ‘startRenderPass’?
+   x4: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   x3: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   x3: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderTexture(SP<Render::ITexture>&, Hyprutils::Math::CBox&, <brace-enclosed initializer list>)’
+   x3: ‘class Desktop::View::CWindow’ has no member named ‘roundingPower’
+   x2: ‘CONFIG_LEGACY’ is not a member of ‘Config’; did you mean ‘CONFIG_LUA’?
+   x2: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CBarPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CBarPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’ marked ‘override’, but does not override
+   x2: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CPreviewPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CPreviewPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual std::optional<Hyprutils::Math::CBox> CPreviewPassElement::boundingBox()’ marked ‘override’, but does not override
+   x2: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   x2: ‘HL_MODIFIER_SHIFT’ was not declared in this scope
+   x2: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::scissor(std::nullptr_t)’
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘m_X11DoesntWantBorders’
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘m_windowDecorations’
+   x1: invalid initialization of reference of type ‘SP<IHyprWindowDecoration>&&’ {aka ‘Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&’} from expression of 
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘updateWindowDecos’; did you mean ‘updateWindowData’?
+   x1: no matching function for call to ‘Hyprutils::Signal::CSignalT<Event::SRenderStageEvent>::listen(pluginInit(void*)::<lambda(eRenderStage)>)’
+   x1: ‘bool Desktop::View::CWindow::m_isMapped’ is private within this context
+   x1: invalid new-expression of abstract class type ‘CHyprBar’
+   x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [92], uintptr_t, uintptr_t, const double&, const double&, std::
+   x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [42], uintptr_t)’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::scissor(Hyprutils::Math::CBox&)’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor, <brace-enclosed initializer list>)’
+   x1: invalid new-expression of abstract class type ‘CPreviewPassElement’
+   x1: invalid new-expression of abstract class type ‘CBarPassElement’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(const Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+== clang++: B1=119 C=96 eliminated=24 persistent=95 new=1
+-- new (C only):
+   barDeco.cpp:806 x1: call to consteval function 'std::basic_format_string<char, const char *>::basic_format_string<std::basic_string<char>>' is not a constant expression
+-- eliminated by message:
+   x6: no member named m_class in Desktop::View::CWindow
+   x4: no member named m_isFloating in Desktop::View::CWindow
+   x4: no member named m_pinned in Desktop::View::CWindow
+   x3: no member named m_floatingOffset in Desktop::View::CWindow
+   x2: no member named rounding in Desktop::View::CWindow
+   x2: no member named getRealBorderSize in Desktop::View::CWindow
+   x2: no member named m_title in Desktop::View::CWindow
+   x1: m_isMapped is a private member of Desktop::View::CWindow
+-- persistent by message:
+   x18: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   x10: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   x8: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   x7: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+   x6: too few arguments to function call, expected 4, have 3
+   x4: 'draw' marked 'override' but does not override any member functions
+   x4: 'needsLiveBlur' marked 'override' but does not override any member functions
+   x4: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   x4: 'boundingBox' marked 'override' but does not override any member functions
+   x4: no matching member function for call to 'log'
+   x3: no member named 'm_renderData' in 'Render::IHyprRenderer'
+   x3: no matching member function for call to 'scissor'
+   x3: no member named 'roundingPower' in 'Desktop::View::CWindow'
+   x2: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+   x2: non-constant-expression cannot be narrowed from type 'Config::INTEGER' (aka 'long') to 'int' in initializer list [-Wc++11-narrowing]
+   x2: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+   x2: non-constant-expression cannot be narrowed from type 'int' to 'double' in initializer list [-Wc++11-narrowing]
+   x1: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+   x1: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+   x1: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar
+   x1: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+   x1: no matching member function for call to 'listen'
+   x1: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+   x1: allocating an object of abstract class type 'CHyprBar'
+   x1: allocating an object of abstract class type 'CPreviewPassElement'
+   x1: allocating an object of abstract class type 'CBarPassElement'

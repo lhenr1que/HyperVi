@@ -6,7 +6,7 @@
 
 #include <any>
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/shared/parserUtils/ParserUtils.hpp>
@@ -306,7 +306,7 @@ int luaGrab(lua_State* L) {
     if (mode != "move" && mode != "resize")
         return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
     for (auto& w : Desktop::windowState()->windows()) {
-        if ((uintptr_t)w.get() != key || !w->m_isMapped || w->isHidden())
+        if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
             continue;
         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
         if (Desktop::focusState()->window() != w)
