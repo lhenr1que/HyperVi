@@ -433,18 +433,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonHoverColor);
     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.pinnedColor);
 
-    if (Config::mgr()->type() == Config::CONFIG_LEGACY)
-        HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
-    else
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
-    if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
-    }
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
+    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
     for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
         if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
             g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);

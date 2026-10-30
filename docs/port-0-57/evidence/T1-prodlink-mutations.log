@@ -1,0 +1,95 @@
+# Rodada pós-revisão 1 (checagem por contagem; versão com glob corrigida no meio)
+### HEAD f76c785 (deve falhar)
+FAIL barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/main.cpp:436:    if (Config::mgr()->type() == Config::CONFIG_LEGACY)
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/main.cpp:437:        HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/main.cpp:440:    if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/barDeco.cpp:486:            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/barDeco.cpp:605:    if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+FAIL plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAIL main.cpp: the 7 Lua functions, unconditional
+FAILURES
+exit=1
+### mutação: Ctrl em barDeco:605 (deve falhar)
+FAIL barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+OK   plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+OK   main.cpp: the 7 Lua functions, unconditional
+FAILURES
+exit=1
+### mutação: forma antiga em barDeco:486 (deve falhar)
+FAIL barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+/tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/m/plugin/barDeco.cpp:486:            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+FAIL plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+OK   main.cpp: the 7 Lua functions, unconditional
+FAILURES
+exit=1
+### mutação: sem registro forget (deve falhar)
+OK   barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+OK   plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAIL main.cpp: the 7 Lua functions, unconditional
+FAILURES
+exit=1
+### mutação: grab condicional (deve falhar)
+OK   barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+OK   plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAIL main.cpp: the 7 Lua functions, unconditional
+FAILURES
+exit=1
+### worktree (deve passar)
+OK   barDeco.cpp: 2x the probed Shift test
+OK   barDeco.cpp: no other getModsFromAllKBs use
+OK   plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+OK   main.cpp: the 7 Lua functions, unconditional
+ALL OK
+exit=0
+
+# Rodada pós-revisão 2 (linhas exatas, grep rc=1) — versão final
+### HEAD f76c785 (falha)
+FAIL barDeco.cpp:486 exact Shift test
+FAIL barDeco.cpp:605 exact Shift test
+FAIL plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAIL main.cpp: the 7 Lua functions, exact consecutive block after a blank line, no others
+FAILURES
+exit=1
+### Ctrl em :605 (falha)
+FAIL barDeco.cpp:605 exact Shift test
+FAILURES
+exit=1
+### forma antiga em :486 (falha)
+FAIL barDeco.cpp:486 exact Shift test
+FAIL plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAILURES
+exit=1
+    if (!(g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT)) {
+### Codex r2: invertida em :605 (falha)
+FAIL barDeco.cpp:605 exact Shift test
+FAILURES
+exit=1
+### sem forget (falha)
+FAIL main.cpp: the 7 Lua functions, exact consecutive block after a blank line, no others
+FAILURES
+exit=1
+### Codex r2: if (false) antes de grab, mesma indentação (falha)
+FAIL main.cpp: the 7 Lua functions, exact consecutive block after a blank line, no others
+FAILURES
+exit=1
+### Codex r2: remember trocado por forget duplicado (falha)
+FAIL main.cpp: the 7 Lua functions, exact consecutive block after a blank line, no others
+FAILURES
+exit=1
+### if antes de add_button (falha)
+FAIL main.cpp: the 7 Lua functions, exact consecutive block after a blank line, no others
+FAILURES
+exit=1
+### Codex r2: erro de leitura no grep (falha)
+FAIL plugin/: no CONFIG_LEGACY / bare HL_MODIFIER_ / hyprlang button keyword
+FAILURES
+exit=1
+### worktree (passa)
+ALL OK
+exit=0

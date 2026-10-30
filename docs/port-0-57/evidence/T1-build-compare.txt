@@ -1,0 +1,14 @@
+== gcc
+base=61 after=57
+removed=4
+  - ('main.cpp', 'if (Config::mgr()->type() == Config::CONFIG_LEGACY)', "'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('main.cpp', 'if (Config::mgr()->type() != Config::CONFIG_LEGACY) {', "'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('barDeco.cpp', 'if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {', "'HL_MODIFIER_SHIFT' was not declared in this scope")
+new=0
+== clang
+base=69 after=65
+removed=4
+  - ('main.cpp', 'if (Config::mgr()->type() == Config::CONFIG_LEGACY)', "no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('main.cpp', 'if (Config::mgr()->type() != Config::CONFIG_LEGACY) {', "no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('barDeco.cpp', 'if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {', "use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?")
+new=0

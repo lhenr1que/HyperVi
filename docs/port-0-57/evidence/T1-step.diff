@@ -1,0 +1,52 @@
+diff --git a/plugin/barDeco.cpp b/plugin/barDeco.cpp
+index e9775ea..fa60409 100644
+--- a/plugin/barDeco.cpp
++++ b/plugin/barDeco.cpp
+@@ -483,7 +483,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
+         const auto C = g_pInputManager->getMouseCoordsInternal();
+         const auto M = monitorAtPointer(C);
+         if (M && M == pMonitor) {
+-            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
++            if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
+                 const auto HOVER = layoutZoneAt(C, MIT->second);
+                 for (const auto& [name, z] : MIT->second)
+                     if (name.starts_with("z:"))
+@@ -602,7 +602,7 @@ void CHyprBar::snapOnRelease() {
+         return;
+ 
+     std::string where;
+-    if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
++    if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
+         // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
+         if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
+             if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index 66de4c0..9962581 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -433,18 +433,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonHoverColor);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.pinnedColor);
+ 
+-    if (Config::mgr()->type() == Config::CONFIG_LEGACY)
+-        HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
+-    else
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+-    if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+-    }
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+     for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+         if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+             g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);

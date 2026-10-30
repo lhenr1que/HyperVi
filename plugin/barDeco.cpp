@@ -483,7 +483,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
         const auto C = g_pInputManager->getMouseCoordsInternal();
         const auto M = monitorAtPointer(C);
         if (M && M == pMonitor) {
-            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+            if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
                 const auto HOVER = layoutZoneAt(C, MIT->second);
                 for (const auto& [name, z] : MIT->second)
                     if (name.starts_with("z:"))
@@ -602,7 +602,7 @@ void CHyprBar::snapOnRelease() {
         return;
 
     std::string where;
-    if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+    if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
         // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
         if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
             if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())

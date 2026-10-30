@@ -2,7 +2,18 @@
 
 Atualizado em **2026-10-30 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — P8-B (30/10/2026): drag K1–K3/K9 (parcial; aprovada e commitada)
+## Resultado mais recente — T1, grupo M (30/10/2026; commitado)
+
+- **Escopo (autorizado pelo dono em 30/10/2026):** só grupo M. `plugin/barDeco.cpp:486,605`: `HL_MODIFIER_SHIFT` → `Input::eKeyboardModifiers::HL_MODIFIER_SHIFT` (forma do header: `operator&` de `ModifierMask` + `explicit operator bool`, `macros/Enums.hpp`). `plugin/main.cpp:436–442`: removidos os ramos `CONFIG_LEGACY`; as 7 funções Lua são registradas sempre (no 0.56.2 com config Lua já eram); removido só o registro do keyword hyprlang `plugin:kwinish:button`. `onNewButton` mantido (ligação externa, sem aviso novo; agora sem chamador). Nada de D/R/W, `hostDrag.hpp`, Lua/UI ou OpenSpec.
+- **Git:** commit autorizado pelo dono em 30/10/2026 sobre `f76c785` (`port(plugin): qualify Shift modifier and drop legacy config branches for 0.57 (T1)`, ver `git log`): código, sonda, comparação, revisões e esta seção. Prompts de revisão, logs brutos de build e host-free ficam não rastreados (hashes em `T1-sha256.txt`). Entradas preexistentes intocadas e fora do commit.
+- **Sonda (GCC 16.2.1 / Clang 23.1.4, headers 0.57.0-1):** `bash docs/port-0-57/evidence/T1-probe-run.sh` exit 0, 23 OK: positivo com oráculo exaustivo das 256 máscaras contra o 0.56.2 (`IKeyboard.hpp:14`, bit `1<<0`); NEG1–3 (forma antiga do Shift, `CONFIG_LEGACY`, máscara como `uint32_t`) rejeitados; 5 mutações (Ctrl, Caps, invertida, igualdade, NONE) mortas pela assertiva do oráculo; checagens de linha exata em `plugin/` vermelhas no HEAD e matando 9 mutações (`T1-prodlink-mutations.log`).
+- **Build isolado** (`make -k`, HOME/XDG em scratch, sem variáveis de sessão; Clang com `-ferror-limit=0`): exit 2, sem `.so` (esperado). GCC **61→57**, Clang **69→65**, **0 erros novos** (chave arquivo + texto da linha + mensagem, `T1-build-compare.txt`); nenhum aviso novo, sem `fatal error`/linker.
+- **Host-free:** `tools/test-plugin-geometry.sh` (g++ e clang++), `test-plugin-tooltip.sh`, `test-plugin-actions.sh`: exit 0. **Nada ao vivo.**
+- **Revisão Codex** (codex-cli 0.166, `exec -s read-only`): r1 **approve** (4 minors); r2 **conditional** só sobre falsos verdes da checagem textual nova (código aprovado). Os três foram corrigidos e demonstrados por mutação; essa correção **não foi re-revisada** (limite de 2 rodadas).
+- **Pendências:** `docs/port-0-57/LEDGER.md:33` (L05) ainda descreve o registro legado — atualizar com autorização de escrita para o ledger. A sonda prova a expressão e a forma textual, não múltiplos teclados reais (só GL/ao vivo). Remover `onNewButton` (código morto) fica para decisão do dono.
+- **Próxima ação:** T2 (grupo W), que exige aprovação própria.
+
+## Anterior — P8-B (30/10/2026): drag K1–K3/K9 (parcial; aprovada e commitada)
 
 **K1/K2 (início) implementados e testados; K3, K9 e os dois rearm BLOQUEADOS por dependência de Q4.** Detalhe: `docs/port-0-57/P8-DRAG.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`; commits: `943aea4` P5, `d34c88d` P6, `1e4aca1` P8-A e o commit isolado de P8-B (`refactor(plugin): port drag initiation to Hyprland 0.57`, ver `git log`); sem merge/rebase/push. Prompts de revisão e o traço completo de P8-B ficam não rastreados. O plugin **continua incompatível com Hyprland 0.57** (não compila).
 
