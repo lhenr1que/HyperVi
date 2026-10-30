@@ -1,0 +1,197 @@
+# P7 probe K sources (scratch: /home/lhen/.hermes/cache/scratch/p7/probes)
+
+
+######## probe_k_keybinds.cpp ########
+// P7 probe K — keybind / mouse-bind / dispatcher APIs, Hyprland 0.57.0 (installed headers, Makefile flags).
+// Positive mode: exact 0.57 shapes of every candidate replacement; the 0.56.2 members are gone.
+// -DPROBE_NEG=1: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE)      (barDeco.cpp:674 shape)
+// -DPROBE_NEG=2: g_pKeybindManager->m_dispatchers["pin"]("activewindow") (barDeco.cpp:338 shape)
+// -DPROBE_NEG=3: Keybinds::mgr()->changeMouseBindMode(MBIND_INVALID)     (no such member on the 0.57 manager)
+// -DPROBE_NEG=4: CKeybindManager::changeMouseBindMode(MBIND_INVALID)     (0.56.2 static, global class gone)
+// Nothing here is linked into the plugin; candidateChangeMouseBindMode() only proves the
+// composition compiles. It is NOT integrated.
+#include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+#include <hyprland/src/config/supplementary/executor/Executor.hpp>
+#include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/state/ViewHitTester.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/keybinds/Manager.hpp>
+#include <hyprland/src/layout/LayoutManager.hpp>
+#include <hyprland/src/layout/supplementary/DragController.hpp>
+#include <hyprland/src/layout/target/Target.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+
+#include <optional>
+#include <string>
+#include <type_traits>
+
+namespace A = Config::Actions;
+using Layout::CLayoutManager;
+using Layout::Supplementary::CDragStateController;
+
+// ---- eMouseBindMode: same enumerators/values as 0.56.2 ---------------------------------
+static_assert(std::is_same_v<std::underlying_type_t<eMouseBindMode>, int8_t>);
+static_assert(MBIND_INVALID == -1 && MBIND_MOVE == 0 && MBIND_RESIZE == 1);
+
+// ---- layout drag API ---------------------------------------------------------------------
+static_assert(std::is_same_v<decltype(g_layoutManager), UP<CLayoutManager>>);
+static_assert(std::is_same_v<decltype(&CLayoutManager::beginDragTarget),
+                             void (CLayoutManager::*)(SP<Layout::ITarget>, eMouseBindMode, std::optional<Layout::eRectCorner>, bool)>);
+static_assert(std::is_same_v<decltype(&CLayoutManager::endDragTarget), bool (CLayoutManager::*)()>, "0.57: endDragTarget returns bool");
+static_assert(std::is_same_v<decltype(&CLayoutManager::dragController), const UP<CDragStateController>& (CLayoutManager::*)()>);
+static_assert(std::is_same_v<decltype(&CDragStateController::target), SP<Layout::ITarget> (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::mode), eMouseBindMode (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::exclusiveDeviceGrab), bool (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::dragEnd), bool (CDragStateController::*)()>);
+// beginDragTarget(target, mode) is well-formed with two arguments. The default VALUES
+// (forcedEdge = nullopt, exclusiveDeviceGrab = false) are read from the header text
+// (LayoutManager.hpp:78), not proven here.
+template <typename = void>
+concept BeginWithDefaults = requires(CLayoutManager& m, SP<Layout::ITarget> t) { m.beginDragTarget(t, MBIND_MOVE); };
+static_assert(BeginWithDefaults<>);
+
+// drag-session end signal (0.57): public, CSignalT<>; listen() returns an owning listener
+static_assert(std::is_same_v<decltype(std::declval<CDragStateController&>().m_events.ended), Hyprutils::Signal::CSignalT<>>);
+static_assert(std::is_same_v<decltype(std::declval<CDragStateController&>().m_events.ended.listen(std::function<void()>{})), Hyprutils::Signal::CHyprSignalListener>);
+
+// ---- window side --------------------------------------------------------------------------
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().layoutTarget()), SP<Layout::ITarget>>);
+static_assert(std::is_same_v<decltype(&Desktop::View::CWindowPresentation::checkInputOnDecorations), bool (Desktop::View::CWindowPresentation::*)(eInputType, const Vector2D&, std::any)>);
+template <typename W = Desktop::View::CWindow>
+concept OldCheckInputOnDecos = requires(W& w) { w.checkInputOnDecos(INPUT_TYPE_DRAG_START, Vector2D{}); };
+static_assert(!OldCheckInputOnDecos<>, "0.56.2 CWindow::checkInputOnDecos is gone");
+static_assert(std::is_same_v<decltype(std::declval<const Desktop::CViewHitTester&>().windowAt(Vector2D{}, uint16_t{}, PHLWINDOW{})), PHLWINDOW>);
+
+// ---- keybind manager: no mouse-bind mode, no dispatcher map ------------------------------
+static_assert(std::is_same_v<decltype(Keybinds::mgr()), UP<Keybinds::CKeybindManager>&>);
+template <typename M = Keybinds::CKeybindManager>
+concept MgrHasChangeMouseBindMode = requires(M& m) { m.changeMouseBindMode(MBIND_MOVE); };
+template <typename M = Keybinds::CKeybindManager>
+concept MgrHasDispatchers = requires(M& m) { m.m_dispatchers; };
+static_assert(!MgrHasChangeMouseBindMode<>);
+static_assert(!MgrHasDispatchers<>);
+
+// ---- Config::Actions replacements for the legacy dispatchers ------------------------------
+static_assert(std::is_same_v<A::ActionResult, std::expected<A::SActionResult, A::SActionError>>);
+static_assert(std::is_same_v<decltype(A::floatWindow(A::TOGGLE_ACTION_ENABLE, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::pinWindow(A::TOGGLE_ACTION_TOGGLE, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::move(Vector2D{}, false, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::resize(Vector2D{}, false, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::moveToWorkspace(std::string{}, true, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::mouse(std::string{})), A::ActionResult>);
+// type only; that Actions::mouse reads it is shown by the source (U:ConfigActions.cpp:1696), not by this assertion
+static_assert(std::is_same_v<decltype(A::state()->m_passPressed), int>);
+static_assert(std::is_same_v<decltype(Config::Supplementary::executor()->spawn(std::string{})), std::optional<uint64_t>>);
+static_assert(std::is_same_v<decltype(g_pCompositor->parseWindowVectorArgsRelative(std::string{}, Vector2D{})), Vector2D>);
+static_assert(std::is_same_v<decltype(Fullscreen::controller()->isFullscreen(PHLWINDOW{})), bool>);
+// exact formal parameter types (non-overloaded: function-pointer type; overloaded: static_cast selects one)
+static_assert(std::is_same_v<decltype(&A::floatWindow), A::ActionResult (*)(A::eTogglableAction, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::pinWindow), A::ActionResult (*)(A::eTogglableAction, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::move), A::ActionResult (*)(const Vector2D&, bool, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::resize), A::ActionResult (*)(const Vector2D&, bool, std::optional<PHLWINDOW>)>);
+[[maybe_unused]] static constexpr auto FS_SIG = static_cast<A::ActionResult (*)(Fullscreen::eFullscreenMode, bool, std::optional<PHLWINDOW>)>(&A::fullscreenWindow);
+[[maybe_unused]] static constexpr auto MTW_SIG = static_cast<A::ActionResult (*)(const std::string&, bool, std::optional<PHLWINDOW>)>(&A::moveToWorkspace);
+// the abbreviated calls written in the matrix (defaulted window = focused) are well-formed
+static_assert(requires {
+    A::floatWindow(A::TOGGLE_ACTION_ENABLE);
+    A::floatWindow(A::TOGGLE_ACTION_DISABLE);
+    A::pinWindow(A::TOGGLE_ACTION_TOGGLE);
+    A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true);
+    A::fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true);
+    A::moveToWorkspace(std::string{"special:minimized"}, true);
+});
+
+// ---- composition proof (not integrated): 0.56.2 changeMouseBindMode body on 0.57 primitives --
+[[maybe_unused]] static bool candidateChangeMouseBindMode(eMouseBindMode MODE) {
+    if (MODE != MBIND_INVALID) {
+        if (g_layoutManager->dragController()->target())
+            return true;
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+        if (!PWINDOW)
+            return true; // passEvent
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+            return false;
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+    } else {
+        if (!g_layoutManager->dragController()->target())
+            return true;
+        (void)g_layoutManager->endDragTarget();
+    }
+    return true;
+}
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1() { g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2() { g_pKeybindManager->m_dispatchers["pin"]("activewindow"); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 3
+void neg3() { Keybinds::mgr()->changeMouseBindMode(MBIND_INVALID); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 4
+void neg4() { CKeybindManager::changeMouseBindMode(MBIND_INVALID); }
+#endif
+
+int main() {}
+
+
+######## run_k.sh ########
+#!/usr/bin/env bash
+# P7 keybind probe runner: positive (GCC+Clang), 4 NEG with expected diagnostics (every error
+# line must match the allowed set), and assertion mutations (killed only by static_assert).
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+O=$P/out; mkdir -p "$O/mut"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"; unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+F="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+ERR='^[^ ].*: (fatal )?error:'
+# expected (allowed) diagnostics per NEG, GCC|Clang wording
+declare -A RX=(
+  [1]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .changeMouseBindMode. in .CHyprXWaylandManager."
+  [2]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .m_dispatchers. in .CHyprXWaylandManager."
+  [3]="has no member named .changeMouseBindMode.|no member named .changeMouseBindMode. in .Keybinds::CKeybindManager."
+  [4]=".CKeybindManager. has not been declared|undeclared identifier .CKeybindManager.|no type named .changeMouseBindMode. in .Keybinds::CKeybindManager."
+)
+for CXX in g++ clang++; do
+    if $CXX $F -fsyntax-only "$P/probe_k_keybinds.cpp" >"$O/K-$CXX.log" 2>&1; then ok "$CXX K positive exit 0"; else bad "$CXX K positive"; fi
+    for N in 1 2 3 4; do
+        $CXX $F -fsyntax-only -DPROBE_NEG=$N "$P/probe_k_keybinds.cpp" >"$O/K-neg$N-$CXX.log" 2>&1; RC=$?
+        NE=$(grep -cE "$ERR" "$O/K-neg$N-$CXX.log"); NB=$(grep -E "$ERR" "$O/K-neg$N-$CXX.log" | grep -vcE "${RX[$N]}")
+        if [ $RC -ne 0 ] && [ "$NE" -gt 0 ] && [ "$NB" = 0 ]; then ok "$CXX K NEG$N exit $RC ($NE expected error lines)"; else bad "$CXX K NEG$N rc=$RC errors=$NE unexpected=$NB"; fi
+    done
+done
+N=0
+while IFS='|' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_k_keybinds.cpp" "$O/mut/$NAME.cpp"
+    FF="$FIND" RR="$REPL" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$O/mut/$NAME.cpp"
+    cmp -s "$P/probe_k_keybinds.cpp" "$O/mut/$NAME.cpp" && { bad "$NAME unchanged"; continue; }
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $F -fsyntax-only "$O/mut/$NAME.cpp" >"$O/mut/$NAME.$CXX.log" 2>&1; RC=$?
+        T=$(grep -cE "$ERR" "$O/mut/$NAME.$CXX.log"); SA=$(grep -E "$ERR" "$O/mut/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$T" -gt 0 ] && [ "$T" = "$SA" ]; then ok "mut $NAME $CXX killed by static_assert"; else bad "mut $NAME $CXX rc=$RC errors=$T static=$SA"; fi
+    done
+done <<'EOF'
+m1|MBIND_INVALID == -1 && MBIND_MOVE == 0|MBIND_INVALID == 0 && MBIND_MOVE == 0
+m2|bool (CLayoutManager::*)()>, "0.57|void (CLayoutManager::*)()>, "0.57
+m3|static_assert(!MgrHasChangeMouseBindMode<>);|static_assert(MgrHasChangeMouseBindMode<>);
+m4|static_assert(!MgrHasDispatchers<>);|static_assert(MgrHasDispatchers<>);
+m5|static_assert(!OldCheckInputOnDecos<>|static_assert(OldCheckInputOnDecos<>
+m6|static_assert(BeginWithDefaults<>);|static_assert(!BeginWithDefaults<>);
+m7|spawn(std::string{})), std::optional<uint64_t>>|spawn(std::string{})), std::optional<int>>
+m8|exclusiveDeviceGrab), bool (CDragStateController|exclusiveDeviceGrab), int (CDragStateController
+m9|m_passPressed), int>|m_passPressed), bool>
+m10|decltype(&CDragStateController::dragEnd), bool|decltype(&CDragStateController::dragEnd), void
+m11|decltype(&A::floatWindow), A::ActionResult (*)(A::eTogglableAction|decltype(&A::floatWindow), A::ActionResult (*)(bool
+m12|m_events.ended), Hyprutils::Signal::CSignalT<>>|m_events.ended), Hyprutils::Signal::CSignalT<int>>
+m13|decltype(&A::move), A::ActionResult (*)(const Vector2D&, bool|decltype(&A::move), A::ActionResult (*)(const Vector2D&, int
+EOF
+echo "mutants run: $N"
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL

@@ -1,0 +1,38 @@
+--- /home/lhen/.hermes/cache/scratch/p8/pre/barDeco.cpp	2026-10-30 15:41:30.146655420 +0000
++++ plugin/barDeco.cpp	2026-10-30 15:54:44.730550713 +0000
+@@ -33,6 +33,7 @@
+ #include <hyprland/src/render/pass/TexPassElement.hpp>
+ 
+ #include "globals.hpp"
++#include "hostActions.hpp"
+ #include "BarPassElement.hpp"
+ #include "icon.hpp"
+ #include "PreviewPassElement.hpp"
+@@ -331,13 +332,13 @@
+     const auto COORDS = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y);
+ 
+     if (!m_bDraggingThis) {
+-        // Initial setup for dragging a window.
+-        g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");
+-        g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");
++        // Initial setup for dragging a window (the focused one, as the "activewindow" dispatchers did).
++        KwAct::check(KwAct::SITE_TOUCH_FLOAT, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE));
++        KwAct::resizeFocused(KwAct::SITE_TOUCH_RESIZE, "exact 50% 50%");
+         // pin it so you can change workspaces while dragging a window
+-        g_pKeybindManager->m_dispatchers["pin"]("activewindow");
++        KwAct::check(KwAct::SITE_TOUCH_PIN, Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE));
+     }
+-    g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
++    KwAct::moveFocused(KwAct::SITE_TOUCH_MOVE, KwAct::exactPixelArg((int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+     m_bDraggingThis = true;
+     warnIfNoCore();
+ }
+@@ -375,7 +376,7 @@
+ 
+         if (m_bDraggingThis) {
+             if (m_bTouchEv)
+-                g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
++                KwAct::check(KwAct::SITE_TOUCH_TILE, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));
+             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+             Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+         }

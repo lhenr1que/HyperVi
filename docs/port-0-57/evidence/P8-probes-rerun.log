@@ -1,0 +1,215 @@
+######## k-final.log ########
+OK   - g++ K positive exit 0
+OK   - g++ K NEG1 exit 1 (1 expected error lines)
+OK   - g++ K NEG2 exit 1 (1 expected error lines)
+OK   - g++ K NEG3 exit 1 (1 expected error lines)
+OK   - g++ K NEG4 exit 1 (1 expected error lines)
+OK   - clang++ K positive exit 0
+OK   - clang++ K NEG1 exit 1 (2 expected error lines)
+OK   - clang++ K NEG2 exit 1 (2 expected error lines)
+OK   - clang++ K NEG3 exit 1 (1 expected error lines)
+OK   - clang++ K NEG4 exit 1 (2 expected error lines)
+OK   - mut m1 g++ killed by static_assert
+OK   - mut m1 clang++ killed by static_assert
+OK   - mut m2 g++ killed by static_assert
+OK   - mut m2 clang++ killed by static_assert
+OK   - mut m3 g++ killed by static_assert
+OK   - mut m3 clang++ killed by static_assert
+OK   - mut m4 g++ killed by static_assert
+OK   - mut m4 clang++ killed by static_assert
+OK   - mut m5 g++ killed by static_assert
+OK   - mut m5 clang++ killed by static_assert
+OK   - mut m6 g++ killed by static_assert
+OK   - mut m6 clang++ killed by static_assert
+OK   - mut m7 g++ killed by static_assert
+OK   - mut m7 clang++ killed by static_assert
+OK   - mut m8 g++ killed by static_assert
+OK   - mut m8 clang++ killed by static_assert
+OK   - mut m9 g++ killed by static_assert
+OK   - mut m9 clang++ killed by static_assert
+OK   - mut m10 g++ killed by static_assert
+OK   - mut m10 clang++ killed by static_assert
+OK   - mut m11 g++ killed by static_assert
+OK   - mut m11 clang++ killed by static_assert
+OK   - mut m12 g++ killed by static_assert
+OK   - mut m12 clang++ killed by static_assert
+OK   - mut m13 g++ killed by static_assert
+OK   - mut m13 clang++ killed by static_assert
+mutants run: 26
+result: PASS
+
+######## p5-final.log ########
+OK   pos g++ probe_a_include (exit 0)
+OK   neg g++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos g++ probe_b_metadata (exit 0)
+OK   neg g++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos g++ probe_c_presentation (exit 0)
+OK   neg g++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos g++ probe_d_decorations (exit 0)
+OK   neg g++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+OK   pos clang++ probe_a_include (exit 0)
+OK   neg clang++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos clang++ probe_b_metadata (exit 0)
+OK   neg clang++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos clang++ probe_c_presentation (exit 0)
+OK   neg clang++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos clang++ probe_d_decorations (exit 0)
+OK   neg clang++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+
+######## p5-mutate-final.log ########
+OK   m1 probe_a_include killed (exit 1, only static assertion errors: 1)
+OK   m2 probe_b_metadata killed (exit 1, only static assertion errors: 1)
+OK   m3 probe_c_presentation killed (exit 1, only static assertion errors: 1)
+OK   m4 probe_c_presentation killed (exit 1, only static assertion errors: 1)
+OK   m5 probe_c_presentation killed (exit 1, only static assertion errors: 1)
+OK   m6 probe_d_decorations killed (exit 1, only static assertion errors: 1)
+OK   m7 probe_d_decorations killed (exit 1, only static assertion errors: 1)
+OK   m8 probe_c_presentation killed (exit 1, only static assertion errors: 1)
+OK   m9 probe_d_decorations killed (exit 1, only static assertion errors: 1)
+
+######## p6-final.log ########
+OK   - g++ E positive exit 0
+OK   - g++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - g++ E NEG2 exit 1, expected diagnostic (2 error lines)
+OK   - g++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - g++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+OK   - g++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - g++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+INFO - g++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - g++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ E positive exit 0
+OK   - clang++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ E NEG2 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - clang++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+OK   - clang++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - clang++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+INFO - clang++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - clang++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+result: PASS
+
+######## p6-mutate-final.log ########
+OK   - m1 g++ killed by static_assert (1)
+OK   - m1 clang++ killed by static_assert (1)
+OK   - m2 g++ killed by static_assert (1)
+OK   - m2 clang++ killed by static_assert (1)
+OK   - m3 g++ killed by static_assert (1)
+OK   - m3 clang++ killed by static_assert (1)
+OK   - m4 g++ killed by static_assert (1)
+OK   - m4 clang++ killed by static_assert (1)
+OK   - m5 g++ killed by static_assert (1)
+OK   - m5 clang++ killed by static_assert (1)
+OK   - m6 g++ killed by static_assert (1)
+OK   - m6 clang++ killed by static_assert (1)
+OK   - m7 g++ killed by static_assert (1)
+OK   - m7 clang++ killed by static_assert (1)
+OK   - m8 g++ killed by static_assert (1)
+OK   - m8 clang++ killed by static_assert (1)
+mutants run: 16; result: PASS
+

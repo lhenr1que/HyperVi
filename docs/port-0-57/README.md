@@ -16,6 +16,8 @@ Base: branch `port-kwinish-bars-to-hyprland-0-57`, commit `9850593` (documental;
 | [RISKS-TESTS.md](RISKS-TESTS.md) | 1.2–1.4 | B1–B3 × testes × aceite; estratégia B2/B3; proposta da primeira alteração C++ |
 | [P5-WINDOW-API.md](P5-WINDOW-API.md) | 3.1 (parcial) | P5: decisões G2/input/snap/damage/`nullopt`; matriz de equivalência da janela 0.56.2→0.57; sondas; diff de include/acessores; comparação de erros; revisão |
 | [P6-LOG-API.md](P6-LOG-API.md) | 3.1 (parcial) | P6: Log API 0.56.2→0.57 (5 chamadas); sondas de tipo e de execução contra o header 0.56.2; diferença medida de alocação; comparação de erros; revisão (reprovada sob leitura estrita); **aprovada pelo dono** com a diferença de alocação aceita; inventário inicial de `g_pKeybindManager` |
+| [P7-KEYBINDS.md](P7-KEYBINDS.md) | prep. (sem código) | P7: matriz keybinds/mouse-bind/dispatchers 0.56.2→0.57 (K1–K13, classes BC/RD/DI); `changeMouseBindMode`/`dragBegin`/`dragEnd`/`exclusiveDeviceGrab`; proposta Q4 (posse por sessão via `ended`); sonda K; revisão (aprovada) |
+| [P8-DISPATCHERS.md](P8-DISPATCHERS.md) | 3.1 (parcial) | P8-A: dispatchers K4–K8/K10–K13 → `Config::Actions`/`executor()` (janela focada, guardas do tradutor, `ActionResult` com log limitado); equivalência com host falso + tradutor 0.56.2 verbatim; 45 mutações; sonda A; comparação de erros; revisão (aprovada, 4 rodadas); RD de K13 aceito pelo dono |
 
 Relatórios longos permanecem em `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/` e não foram duplicados.
 

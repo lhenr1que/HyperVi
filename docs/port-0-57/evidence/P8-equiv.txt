@@ -1,0 +1,16 @@
+OK   - enclosing guards identical: K4: if (!m_bDraggingThis) { <- void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {;K5: if (!m_bDraggingThis) { <- void CHyprBar::onTouchMove(Event::SCallbackInfo& info, IT
+OK   - diff audit: {'+include': 1, 'realigned': 0, '-comment': 2, '-stmt': 10, '+comment': 4, '+stmt': 10, '-def': 5} unexplained: 0
+OK   - extracted: old K4:335 K5:336 K6:338 K7:340 K8:378 K10a:705 K10b:707 K11:709 K12a:713 K12b:817; new K4:336 K5:337 K6:339 K7:341 K8:379 K10a:703 K10b:705 K11:707 K12a:711 K12b:815
+OK   - g++ OLD built and ran (1350 runs)
+OK   - g++ NEW built and ran
+OK   - g++ host-call traces identical OLD vs NEW (1350 runs)
+OK   - g++ repeats: same host calls
+log oracle: 1350 scenarios, 876 with first+summary lines, 0 mismatches
+OK   - g++ log policy
+OK   - clang++ OLD built and ran (1350 runs)
+OK   - clang++ NEW built and ran
+OK   - clang++ host-call traces identical OLD vs NEW (1350 runs)
+OK   - clang++ repeats: same host calls
+log oracle: 1350 scenarios, 876 with first+summary lines, 0 mismatches
+OK   - clang++ log policy
+result: PASS

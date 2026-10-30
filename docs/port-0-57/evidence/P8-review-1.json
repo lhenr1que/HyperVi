@@ -1,0 +1,34 @@
+{
+ "verdict": "approve",
+ "findings": [
+  {
+   "severity": "minor",
+   "class": "test",
+   "where": "equiv/extract.py::stmts; equiv/equiv.cpp::runStmt; P8-DISPATCHERS.md §5",
+   "claim": "The equivalence harness tests real extracted statements, but not their enclosing guards, action routing, or execution as a sequence. Its claim to prove call order needs qualification. Concrete surviving mutants include changing the surrounding touch-start guard to `if (m_bDraggingThis)` or changing `action == \"maximize\"` to an unknown action string: extraction still selects the same ten statements and runs each independently. The supplied diff preserves these conditions, so this is not an observed implementation defect.",
+   "evidence": "Extraction selects lines using `pred = lambda l: \"KwAct::\" in l`; each becomes a separate `case`. The harness invokes `runStmt(k, ctx)` independently. The document says it proves 'guardas, ordem das chamadas'."
+  },
+  {
+   "severity": "minor",
+   "class": "test",
+   "where": "equiv/check_logs.py; plugin/hostActions.hpp::check",
+   "claim": "The log oracle does not verify preservation of ordinary ActionResult error messages or end-to-end suppressed-count reporting. Replacing `E.message` with a constant survives the shown tests: ordinary action errors are checked only for their code, and wrapper-generated errors use different checks. Likewise, printing a constant instead of `*SKIPPED` in the summary branch survives because the integration harness only exercises immediate repeats, while the host-free suite tests the gate rather than the logger. The shipped implementation visibly uses the correct fields.",
+   "evidence": "For ordinary errors the oracle expects only `f\"({CODE[b['res']]})\"`. It rejects summary lines containing `earlier failure` in every tested block. `REPS` is three immediate calls, with `KwAct::g_failureGates = {}` before each scenario."
+  },
+  {
+   "severity": "minor",
+   "class": "RD",
+   "where": "P8-DISPATCHERS.md §1 and §4, K13 classification",
+   "claim": "Bypassing third-party dispatcher removal or replacement is observable and therefore RD under the supplied definitions, not DI. The behavior change is disclosed accurately, and no written requirement to preserve those overrides is supplied. It should not, however, be described as internal or automatically covered by acceptance of the previously enumerated P7 risks.",
+   "evidence": "The document states 'remoção/sobrescrita por terceiros não afeta mais o Kwinish (DI; fora do contrato escrito)'. The supplied old PluginAPI implementation assigns handlers into `m_dispatchers[name]` and permits removal."
+  },
+  {
+   "severity": "minor",
+   "class": "doc",
+   "where": "probe_p8_actions.cpp introductory comment and PROBE_NEG == 1",
+   "claim": "NEG1 does not test the documented const-char-pointer overload case. It tests that a workspace pointer cannot be constructed from a string. Correct the comment; the explicit std::string call shipped by the plugin is independently covered by the positive probe.",
+   "evidence": "The comment describes 'a const char* workspace name (no std::string)', but the actual expression is `A::moveToWorkspace(PHLWORKSPACE{std::string{\"special:minimized\"}}, true)`."
+  }
+ ],
+ "notes": "Approval is limited to P8-A, not runtime equivalence or resolution of the accepted pending RDs. In the supplied diff, K4–K8 and K10–K12 preserve arguments, casts, focused-window selection, guards, and source-level order. K5/K7 reproduce the translator's goal-geometry parsing and rejection behavior, including NaN passing the size comparison. The callers ignore wrapper booleans, so failures do not short-circuit subsequent actions. SILENT failures intentionally produce no log; other failures use the documented severity mapping and per-site gate. No new flood path is evident: ten sites can each emit once per ten seconds.\n\nK11 preserves the plugin's special:minimized target and silent policy. Host fallback focus, workspace resolution/readiness, and pointer-constraint differences are documented, not repaired by plugin code, and still require the deferred live tests. Unknown button actions remain ignored by the shown if/else chain. Third-party dispatcher interception is the separately observable exception noted above.\n\nThe gate admits exactly at the ten-second boundary and resets suppression only when admitting. Unsigned suppression overflow wraps rather than causing undefined behavior, but would require 2^64 suppressed calls between admitted lines; saturation would be defensive rather than necessary for this step. Adding the duration to a near-maximum synthetic time_point can overflow its signed representation; this is not a demonstrated reachable runtime defect. A backward timestamp remains suppressed until the prior deadline; steady_clock does not move backward, and the supplied synthetic test verifies eventual reopening, not immediate recovery. No multithreaded caller appears in the material; the unsynchronized gates rely on the stipulated event-loop execution.\n\nThe helpers introduce mutable inline gate state and a static constexpr name table, but no callbacks, timers, retained windows, or asynchronous references. Trivial destruction establishes no destructor callback requirement, not a general proof of dlclose behavior: GNU-unique symbol handling could affect physical module unloading depending on build/link settings not supplied. That is speculative here and belongs to the separate unload review.\n\nThe host-free suite uses the shipped actionGate.hpp; NEW uses the shipped hostActions.hpp and extracted barDeco.cpp statements; OLD uses extracted translator bodies with the disclosed run-function renaming and fake host infrastructure. Workspace resolution, parser behavior, host action effects, and focus transitions are modeled rather than executed. The real-header probe complements that limitation. The unmasked compiler-error comparison supports absence of newly reported compile errors, not a successful plugin build or link. These limitations do not block this explicitly incremental step."
+}

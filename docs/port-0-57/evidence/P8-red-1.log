@@ -1,0 +1,5 @@
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_actions.cpp:4:10: fatal error: actionGate.hpp: No such file or directory
+    4 | #include "actionGate.hpp"
+      |          ^~~~~~~~~~~~~~~~
+compilation terminated.
+FALHOU - compilar plugin/test_actions.cpp

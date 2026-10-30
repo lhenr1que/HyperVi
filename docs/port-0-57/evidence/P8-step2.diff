@@ -1,0 +1,83 @@
+--- /home/lhen/.hermes/cache/scratch/p8/pre/barDeco.cpp	2026-10-30 15:41:30.146655420 +0000
++++ /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/barDeco.cpp	2026-10-30 15:55:07.694341499 +0000
+@@ -33,6 +33,7 @@
+ #include <hyprland/src/render/pass/TexPassElement.hpp>
+ 
+ #include "globals.hpp"
++#include "hostActions.hpp"
+ #include "BarPassElement.hpp"
+ #include "icon.hpp"
+ #include "PreviewPassElement.hpp"
+@@ -331,13 +332,13 @@
+     const auto COORDS = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y);
+ 
+     if (!m_bDraggingThis) {
+-        // Initial setup for dragging a window.
+-        g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");
+-        g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");
++        // Initial setup for dragging a window (the focused one, as the "activewindow" dispatchers did).
++        KwAct::check(KwAct::SITE_TOUCH_FLOAT, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE));
++        KwAct::resizeFocused(KwAct::SITE_TOUCH_RESIZE, "exact 50% 50%");
+         // pin it so you can change workspaces while dragging a window
+-        g_pKeybindManager->m_dispatchers["pin"]("activewindow");
++        KwAct::check(KwAct::SITE_TOUCH_PIN, Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE));
+     }
+-    g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
++    KwAct::moveFocused(KwAct::SITE_TOUCH_MOVE, KwAct::exactPixelArg((int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+     m_bDraggingThis = true;
+     warnIfNoCore();
+ }
+@@ -375,7 +376,7 @@
+ 
+         if (m_bDraggingThis) {
+             if (m_bTouchEv)
+-                g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
++                KwAct::check(KwAct::SITE_TOUCH_TILE, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));
+             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+             Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+         }
+@@ -680,12 +681,9 @@
+ 
+ // Built-in actions run inside the compositor, so they cannot go stale when Hyprland's dispatcher syntax changes
+ // (upstream hyprbars shells out, which broke the Ryoku buttons on the Lua-era Hyprland).
+-// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>.
+-static void dispatchIfKnown(const std::string& name, const std::string& arg) {
+-    if (g_pKeybindManager->m_dispatchers.contains(name))
+-        g_pKeybindManager->m_dispatchers[name](arg);
+-}
+-
++// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>; anything else is ignored.
++// maximize, fullscreen and minimize act on the focused window (the click just focused the bar's), as the 0.56.2
++// dispatchers did; a failure is logged (hostActions.hpp) and changes nothing else.
+ void CHyprBar::runAction(const std::string& action) {
+     const auto W = m_pWindow.lock();
+     if (!W)
+@@ -702,15 +700,15 @@
+     else if (action == "lower")
+         (void)Config::Actions::alterZOrder("bottom", W);
+     else if (action == "maximize")
+-        dispatchIfKnown("fullscreen", "1"); // the window was just focused by the click
++        KwAct::check(KwAct::SITE_MAXIMIZE, Config::Actions::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)); // the window was just focused by the click
+     else if (action == "fullscreen")
+-        dispatchIfKnown("fullscreen", "0");
++        KwAct::check(KwAct::SITE_FULLSCREEN, Config::Actions::fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true));
+     else if (action == "minimize")
+-        dispatchIfKnown("movetoworkspacesilent", "special:minimized");
++        KwAct::check(KwAct::SITE_MINIMIZE, Config::Actions::moveToWorkspace(std::string{"special:minimized"}, true));
+     else if (action == "menu")
+         openMenu(g_pInputManager->getMouseCoordsInternal().x, assignedBoxGlobal().y + assignedBoxGlobal().h);
+     else if (action.starts_with("exec:"))
+-        dispatchIfKnown("exec", action.substr(5));
++        KwAct::spawn(KwAct::SITE_EXEC_BUTTON, action.substr(5));
+ }
+ 
+ // One layout for hit tests, hover, drawing and the title: left items (app icon, then left buttons) from the left edge,
+@@ -814,7 +812,7 @@
+     const auto W = m_pWindow.lock();
+     if (!W)
+         return;
+-    dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
++    KwAct::spawn(KwAct::SITE_MENU, std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
+ }
+ 
+ bool CHyprBar::doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, const bool BUTTONSRIGHT) {

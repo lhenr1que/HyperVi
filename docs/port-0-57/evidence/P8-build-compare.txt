@@ -1,0 +1,61 @@
+geometry g++ exit 0
+actions g++ exit 0 (24 ok)
+geometry clang++ exit 0
+actions clang++ exit 0 (24 ok)
+tooltip exit 0
+make exit 2
+so in scratch: 0; so in plugin/: 0
+main.cpp unchanged vs pre
+== g++: base=67 cand=63 eliminated=4 persistent=63 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- new:
+-- candidate errors on dispatcher/KwAct lines in barDeco.cpp: 1
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+== clang++: base=87 cand=73 eliminated=14 persistent=73 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["pin"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["pin"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers[name](arg);  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers[name](arg);  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+-- new:
+-- candidate errors on dispatcher/KwAct lines in barDeco.cpp: 2
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+
+######## compare.json ########
+{
+ "g++": {
+  "base": 67,
+  "cand": 63,
+  "eliminated": 4,
+  "persistent": 63,
+  "new": 0,
+  "dispatcher_line_errors": 1,
+  "new_header_errors": 0
+ },
+ "clang++": {
+  "base": 87,
+  "cand": 73,
+  "eliminated": 14,
+  "persistent": 73,
+  "new": 0,
+  "dispatcher_line_errors": 2,
+  "new_header_errors": 0
+ }
+}

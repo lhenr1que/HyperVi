@@ -1,0 +1,38 @@
+OK   - g++ K positive exit 0
+OK   - g++ K NEG1 exit 1 (1 expected error lines)
+OK   - g++ K NEG2 exit 1 (1 expected error lines)
+OK   - g++ K NEG3 exit 1 (1 expected error lines)
+OK   - g++ K NEG4 exit 1 (1 expected error lines)
+OK   - clang++ K positive exit 0
+OK   - clang++ K NEG1 exit 1 (2 expected error lines)
+OK   - clang++ K NEG2 exit 1 (2 expected error lines)
+OK   - clang++ K NEG3 exit 1 (1 expected error lines)
+OK   - clang++ K NEG4 exit 1 (2 expected error lines)
+OK   - mut m1 g++ killed by static_assert
+OK   - mut m1 clang++ killed by static_assert
+OK   - mut m2 g++ killed by static_assert
+OK   - mut m2 clang++ killed by static_assert
+OK   - mut m3 g++ killed by static_assert
+OK   - mut m3 clang++ killed by static_assert
+OK   - mut m4 g++ killed by static_assert
+OK   - mut m4 clang++ killed by static_assert
+OK   - mut m5 g++ killed by static_assert
+OK   - mut m5 clang++ killed by static_assert
+OK   - mut m6 g++ killed by static_assert
+OK   - mut m6 clang++ killed by static_assert
+OK   - mut m7 g++ killed by static_assert
+OK   - mut m7 clang++ killed by static_assert
+OK   - mut m8 g++ killed by static_assert
+OK   - mut m8 clang++ killed by static_assert
+OK   - mut m9 g++ killed by static_assert
+OK   - mut m9 clang++ killed by static_assert
+OK   - mut m10 g++ killed by static_assert
+OK   - mut m10 clang++ killed by static_assert
+OK   - mut m11 g++ killed by static_assert
+OK   - mut m11 clang++ killed by static_assert
+OK   - mut m12 g++ killed by static_assert
+OK   - mut m12 clang++ killed by static_assert
+OK   - mut m13 g++ killed by static_assert
+OK   - mut m13 clang++ killed by static_assert
+mutants run: 26
+result: PASS

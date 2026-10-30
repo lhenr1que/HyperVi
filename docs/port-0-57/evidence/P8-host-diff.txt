@@ -1,0 +1,511 @@
+# P8 host evidence: Config::Actions bodies O (0.56.2) vs U (0.57.0 0aa6745f), extracted and diffed
+
+## closeWindow-0: IDENTICAL
+## floatWindow-0: diff O U
+8c8
+<         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->m_isFloating; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->isFloating(); break;
+13c13
+<     if (wantFloat == window->m_isFloating)
+---
+>     if (wantFloat == window->isFloating())
+17c17
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         g_layoutManager->endDragTarget();
+21c21
+<     if (window->m_isFloating)
+---
+>     if (window->isFloating())
+
+## pinWindow-0: diff O U
+6c6
+<     if (!window->m_isFloating || Fullscreen::controller()->isFullscreen(window))
+---
+>     if (!window->isFloating() || Fullscreen::controller()->isFullscreen(window))
+9c9,10
+<     bool wantPin = false;
+---
+>     const bool PINNED  = sc<bool>(window->m_state & Desktop::View::WINDOW_STATE_PINNED);
+>     bool       wantPin = false;
+11c12
+<         case TOGGLE_ACTION_TOGGLE: wantPin = !window->m_pinned; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantPin = !PINNED; break;
+16c17
+<     if (wantPin == window->m_pinned)
+---
+>     if (wantPin == PINNED)
+23c24
+<     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->m_space)
+---
+>     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->space())
+30c31,35
+<     window->m_pinned = wantPin;
+---
+>     if (wantPin)
+>         window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+>     else
+>         window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+>     window->stateTracker().scheduleUpdate();
+32c37
+<     *window->alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+---
+>     *window->presentation().alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+34c39
+<     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->m_space);
+---
+>     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->space());
+38,39c43,44
+<     PWORKSPACE->m_lastFocusedWindow =
+<         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS);
+---
+>     PWORKSPACE->rememberFocusedWindow(
+>         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS));
+41c46
+<     g_pEventManager->postEvent(SHyprIPCEvent{.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(window->m_pinned))});
+---
+>     IPC::Socket2::sock()->postEvent({.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(wantPin))});
+
+## fullscreenWindow-0: IDENTICAL
+## fullscreenWindow-1: IDENTICAL
+## move-0: IDENTICAL
+## resize-0: IDENTICAL
+## moveToWorkspace-0: diff O U
+9c9
+<     if (ws->m_id == window->workspaceID())
+---
+>     if (ws == window->m_workspace)
+11a12,13
+>     auto       constraintGuard = g_pInputManager->pointerConstraints().suspend();
+> 
+21c23
+<         if (window == Desktop::focusState()->window()) {
+---
+>         if (window->m_workspace != POLDWS && window == Desktop::focusState()->window()) {
+26,27c28,32
+<             else
+<                 g_pInputManager->refocus();
+---
+>             else {
+>                 // try to focus anything. If there isn't anything, this will unfocus (nullptr)
+>                 const auto PATWS = POLDWS->getFirstWindow();
+>                 Desktop::focusState()->fullWindowFocus(PATWS, Desktop::FOCUS_REASON_KEYBIND);
+>             }
+38c43
+<         POLDWS->m_lastFocusedWindow = POLDWS->getFirstWindow();
+---
+>         POLDWS->rememberFocusedWindow(POLDWS->getFirstWindow());
+40c45
+<         if (ws->m_isSpecialWorkspace)
+---
+>         if (ws->type() == Workspace::eWorkspaceType::SPECIAL)
+42c47
+<         else if (POLDWS->m_isSpecialWorkspace)
+---
+>         else if (POLDWS->type() == Workspace::eWorkspaceType::SPECIAL)
+
+## U moveToWorkspace(PHLWORKSPACE) full body
+ActionResult Actions::moveToWorkspace(PHLWORKSPACE ws, bool silent, std::optional<PHLWINDOW> w) {
+    auto window = xtract(w);
+    if (!window)
+        return {};
+
+    if (!ws)
+        return actionError("No workspace to move to", eActionErrorLevel::WARNING, eActionErrorCode::INVALID_ARGUMENT);
+
+    if (ws == window->m_workspace)
+        return {};
+
+    auto       constraintGuard = g_pInputManager->pointerConstraints().suspend();
+
+    const auto POLDWS = window->m_workspace;
+
+    updateRelativeCursorCoords();
+    g_pHyprRenderer->damageWindow(window);
+
+    if (silent) {
+        const auto OLDMIDDLE = window->middle();
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+
+        if (window->m_workspace != POLDWS && window == Desktop::focusState()->window()) {
+            if (const auto PATCOORDS =
+                    Desktop::viewState()->hitTest().windowAt(OLDMIDDLE, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, window);
+                PATCOORDS)
+                Desktop::focusState()->fullWindowFocus(PATCOORDS, Desktop::FOCUS_REASON_KEYBIND);
+            else {
+                // try to focus anything. If there isn't anything, this will unfocus (nullptr)
+                const auto PATWS = POLDWS->getFirstWindow();
+                Desktop::focusState()->fullWindowFocus(PATWS, Desktop::FOCUS_REASON_KEYBIND);
+            }
+        }
+    } else {
+        PHLMONITOR pMonitor = nullptr;
+
+        const auto FULLSCREENMODE = Fullscreen::controller()->getFullscreenModes(window).internal;
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+        pMonitor = ws->m_monitor.lock();
+        Desktop::focusState()->rawMonitorFocus(pMonitor);
+        Fullscreen::controller()->setFullscreenMode(window, FULLSCREENMODE);
+
+        POLDWS->rememberFocusedWindow(POLDWS->getFirstWindow());
+
+        if (ws->type() == Workspace::eWorkspaceType::SPECIAL)
+            pMonitor->setSpecialWorkspace(ws);
+        else if (POLDWS->type() == Workspace::eWorkspaceType::SPECIAL)
+            POLDWS->m_monitor.lock()->setSpecialWorkspace(nullptr);
+
+        pMonitor->changeWorkspace(ws);
+
+        Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_KEYBIND);
+        window->warpCursor();
+    }
+
+    return {};
+}
+
+## O moveToWorkspace(PHLWORKSPACE) full body
+ActionResult Actions::moveToWorkspace(PHLWORKSPACE ws, bool silent, std::optional<PHLWINDOW> w) {
+    auto window = xtract(w);
+    if (!window)
+        return {};
+
+    if (!ws)
+        return actionError("No workspace to move to", eActionErrorLevel::WARNING, eActionErrorCode::INVALID_ARGUMENT);
+
+    if (ws->m_id == window->workspaceID())
+        return {};
+
+    const auto POLDWS = window->m_workspace;
+
+    updateRelativeCursorCoords();
+    g_pHyprRenderer->damageWindow(window);
+
+    if (silent) {
+        const auto OLDMIDDLE = window->middle();
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+
+        if (window == Desktop::focusState()->window()) {
+            if (const auto PATCOORDS =
+                    Desktop::viewState()->hitTest().windowAt(OLDMIDDLE, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, window);
+                PATCOORDS)
+                Desktop::focusState()->fullWindowFocus(PATCOORDS, Desktop::FOCUS_REASON_KEYBIND);
+            else
+                g_pInputManager->refocus();
+        }
+    } else {
+        PHLMONITOR pMonitor = nullptr;
+
+        const auto FULLSCREENMODE = Fullscreen::controller()->getFullscreenModes(window).internal;
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+        pMonitor = ws->m_monitor.lock();
+        Desktop::focusState()->rawMonitorFocus(pMonitor);
+        Fullscreen::controller()->setFullscreenMode(window, FULLSCREENMODE);
+
+        POLDWS->m_lastFocusedWindow = POLDWS->getFirstWindow();
+
+        if (ws->m_isSpecialWorkspace)
+            pMonitor->setSpecialWorkspace(ws);
+        else if (POLDWS->m_isSpecialWorkspace)
+            POLDWS->m_monitor.lock()->setSpecialWorkspace(nullptr);
+
+        pMonitor->changeWorkspace(ws);
+
+        Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_KEYBIND);
+        window->warpCursor();
+    }
+
+    return {};
+}
+
+## U moveToWorkspace(string) (new overload)
+ActionResult Actions::moveToWorkspace(const std::string& ws, bool silent, std::optional<PHLWINDOW> w) {
+    const auto WORKSPACE = findOrCreateWorkspace(ws, false);
+    const auto res       = Actions::moveToWorkspace(WORKSPACE, silent, w);
+    if (WORKSPACE)
+        WORKSPACE->ready();
+    return res;
+}
+
+## U findOrCreateWorkspace (ConfigActions.cpp:151-168)
+static PHLWORKSPACE findOrCreateWorkspace(const State::Workspace::STarget target, bool isEmpty) {
+    if (!target.valid())
+        return nullptr;
+
+    auto ws = State::Workspace::state()->find(target);
+    if (!ws) {
+        const auto PMONITOR = Desktop::focusState()->monitor();
+        if (PMONITOR)
+            ws = State::Workspace::state()->create(target, PMONITOR, isEmpty);
+    }
+
+    return ws;
+}
+
+static PHLWORKSPACE findOrCreateWorkspace(const std::string& args, bool isEmpty) {
+    const auto TARGET = State::Workspace::resolver()->getWorkspaceTargetFromString(args);
+    return findOrCreateWorkspace(TARGET, isEmpty);
+}
+
+## U Resolver special: (state/workspace/Resolver.cpp:126-138)
+State::Workspace::STarget CWorkspaceResolver::getWorkspaceTargetFromString(const std::string& in, std::optional<PHLMONITOR> baseMon) {
+    const auto BASEMONITOR = baseMon.value_or(Desktop::focusState()->monitor());
+    if (in.empty())
+        return {};
+
+    if (in == "special")
+        return {.id = ::Workspace::SWorkspaceSpecialID{}, .address = "special:special", .displayName = "special:special", .type = ::Workspace::eWorkspaceType::SPECIAL};
+
+    if (in.starts_with("special:")) {
+        if (in.size() == 8)
+            return {};
+        return {.id = ::Workspace::SWorkspaceSpecialID{}, .address = in, .displayName = in, .type = ::Workspace::eWorkspaceType::SPECIAL};
+    }
+
+## U xtract (ConfigActions.cpp:57-59) / O xtract (47-49)
+static PHLWINDOW xtract(std::optional<PHLWINDOW> window) {
+    return window.value_or(Desktop::focusState()->window());
+}
+static PHLWINDOW xtract(std::optional<PHLWINDOW> window) {
+    return window.value_or(Desktop::focusState()->window());
+}
+
+## executor spawn(string) O vs U: IDENTICAL
+std::optional<uint64_t> CExecutor::spawn(const std::string& args) {
+    return spawnWithRules(args);
+}
+
+## spawnRawProc / spawnWithRules(rule) O vs U
+2c2
+<     Log::logger->log(Log::DEBUG, "[executor] Executing {}", args);
+---
+>     LOG(Log::DEBUG, "[executor] Executing {}", args);
+8c8
+<         Log::logger->log(Log::DEBUG, "Fail to fork");
+---
+>         LOG(Log::DEBUG, "Fail to fork");
+40c40
+<     Log::logger->log(Log::DEBUG, "[executor] Process created with pid {}", child);
+---
+>     LOG(Log::DEBUG, "[executor] Process created with pid {}", child);
+21c21
+<             Log::logger->log(Log::ERR, "Failed to parse exec rule: {}", builtRule.error());
+---
+>             LOG(Log::ERR, "Failed to parse exec rule: {}", builtRule.error());
+
+## parseWindowVectorArgsRelative O vs U
+32c32
+<         Log::logger->log(Log::ERR, "parseWindowVectorArgsRelative: args not numbers");
+---
+>         LOG(Log::ERR, "parseWindowVectorArgsRelative: args not numbers");
+
+## O translator: wrap/windowFromArg/resolveWorkspace + 8 dispatchers (verbatim, as fed to the OLD harness)
+#line 38 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult wrap(ActionResult res) {
+    if (!res)
+        return {.success = false, .error = res.error().message};
+    return {.passEvent = res->passEvent};
+}
+
+#line 45 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static std::optional<PHLWINDOW> windowFromArg(const std::string& arg) {
+    if (arg.empty() || arg == "active")
+        return std::nullopt; // will use xtract(nullopt) -> focused window
+    return Desktop::viewState()->query().selector(arg).runWindow();
+}
+
+#line 52 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static PHLWORKSPACE resolveWorkspace(const std::string& args) {
+    const auto& [id, name, isAutoID] = getWorkspaceIDNameFromString(args);
+    if (id == WORKSPACE_INVALID)
+        return nullptr;
+    auto ws = State::workspaceState()->query().id(id).run();
+    if (!ws) {
+        const auto PMONITOR = Desktop::focusState()->monitor();
+        if (PMONITOR)
+            ws = State::workspaceState()->create(id, PMONITOR->m_id, name, false);
+    }
+    return ws;
+}
+
+#line 65 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult exec(const std::string& args) {
+    const auto PROC = Config::Supplementary::executor()->spawn(args);
+    if (!PROC.has_value())
+        return {.success = false, .error = std::format("Failed to start process. No closing bracket in exec rule. {}", args)};
+    return {.success = PROC.value() > 0, .error = std::format("Failed to start process {}", args)};
+}
+
+#line 122 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult setfloating(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_ENABLE, w));
+}
+
+#line 127 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult settiled(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_DISABLE, w));
+}
+
+#line 160 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult fullscreen(const std::string& args) {
+
+    CVarList2                         ARGS(args, 2, ' ');
+
+    const Fullscreen::eFullscreenMode MODE = ARGS.size() > 0 && ARGS[0] == "1" ? Fullscreen::FSMODE_MAXIMIZED : Fullscreen::FSMODE_FULLSCREEN;
+
+    if (ARGS.size() <= 1 || ARGS[1] == "toggle")
+        return wrap(Actions::fullscreenWindow(MODE, true));
+
+    // "set" means enable, "unset" means disable - but the Action toggles.
+    // We need to check current state ourselves.
+    const auto PWINDOW = Desktop::focusState()->window();
+    if (!PWINDOW)
+        return {.success = false, .error = "Window not found"};
+
+    if (ARGS[1] == "set") {
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    } else if (ARGS[1] == "unset") {
+        if (Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    }
+
+    return {};
+}
+
+#line 225 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult movetoworkspacesilent(const std::string& args) {
+    PHLWINDOW   PWINDOW = Desktop::focusState()->window();
+    std::string wsArgs  = args;
+
+    if (args.contains(',')) {
+        PWINDOW = Desktop::viewState()->query().selector(args.substr(args.find_last_of(',') + 1)).runWindow();
+        wsArgs  = args.substr(0, args.find_last_of(','));
+    }
+
+    auto ws = resolveWorkspace(wsArgs);
+    if (!ws)
+        return {.success = false, .error = "Invalid workspace"};
+
+    return wrap(Actions::moveToWorkspace(ws, true, PWINDOW));
+}
+
+#line 448 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult movewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "moveWindow: no window"};
+
+    const auto POS = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    return wrap(Actions::move(POS, false, PWINDOW));
+}
+
+#line 460 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult resizewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "resizeWindow: no window"};
+
+    const auto SIZ = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    if (SIZ.x < 1 || SIZ.y < 1)
+        return {.success = false, .error = "Invalid size"};
+
+    return wrap(Actions::resize(SIZ, false, PWINDOW));
+}
+
+#line 670 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult pin(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::pinWindow(TOGGLE_ACTION_TOGGLE, w));
+}
+
+inline std::unordered_map<std::string, std::function<SDispatchResult(const std::string&)>> m_dispMap;
+#line 30 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+SDispatchResult translatorRun(const std::string& d, const std::string& w) {
+    if (!m_dispMap.contains(d))
+        return {.success = false, .error = "Bad dispatcher"};
+
+    return m_dispMap.at(d)(w);
+}
+static void registerDispatchers() {
+#line 797 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["exec"]                           = ::exec;
+#line 806 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["setfloating"]                    = ::setfloating;
+#line 807 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["settiled"]                       = ::settiled;
+#line 810 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["fullscreen"]                     = ::fullscreen;
+#line 813 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["movetoworkspacesilent"]          = ::movetoworkspacesilent;
+#line 845 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["movewindowpixel"]                = ::movewindowpixel;
+#line 846 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["resizewindowpixel"]              = ::resizewindowpixel;
+#line 849 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["pin"]                            = ::pin;
+}
+
+## O ViewQuery::bySelector (desktop/state/ViewQuery.cpp:97-101)
+PHLWINDOW CViewQuery::bySelector() const {
+    auto regexp = trim(*m_selector);
+
+    if (regexp.starts_with("active"))
+        return focusState()->window();
+
+## O KeybindManager.cpp:113 (legacy name -> translator)
+        m_dispatchers[name] = [n = std::string(name)](std::string args) -> SDispatchResult { return Config::Legacy::translator()->run(n, args); };
+    }
+
+## O PluginAPI.cpp:240-272 (third-party add/remove dispatcher)
+        return false;
+
+    PLUGIN->m_registeredDispatchers.push_back(name);
+
+    g_pKeybindManager->m_dispatchers[name] = [handler](std::string arg1) -> SDispatchResult {
+        handler(arg1);
+        return {};
+    };
+
+    return true;
+}
+
+APICALL bool HyprlandAPI::addDispatcherV2(HANDLE handle, const std::string& name, std::function<SDispatchResult(std::string)> handler) {
+    auto* const PLUGIN = g_pPluginSystem->getPluginByHandle(handle);
+
+    if (!PLUGIN)
+        return false;
+
+    PLUGIN->m_registeredDispatchers.push_back(name);
+
+    g_pKeybindManager->m_dispatchers[name] = handler;
+
+    return true;
+}
+
+APICALL bool HyprlandAPI::removeDispatcher(HANDLE handle, const std::string& name) {
+    auto* const PLUGIN = g_pPluginSystem->getPluginByHandle(handle);
+
+    if (!PLUGIN)
+        return false;
+
+    std::erase_if(g_pKeybindManager->m_dispatchers, [&](const auto& other) { return other.first == name; });
+    std::erase_if(PLUGIN->m_registeredDispatchers, [&](const auto& other) { return other == name; });
+
+## U LuaBindingsDispatchers.cpp:467-471 (core's minimize path on 0.57)
+static int dsp_moveToWorkspace(lua_State* L) {
+    std::string ws     = lua_tostring(L, lua_upvalueindex(1));
+    bool        silent = lua_toboolean(L, lua_upvalueindex(2));
+    return Internal::checkResult(L, CA::moveToWorkspace(ws, silent, Internal::windowFromUpval(L, 3)));
+}

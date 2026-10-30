@@ -1,0 +1,52 @@
+######## actions-g++.log ########
+ok - exact pixel argument
+ok - negative coordinate kept
+ok - casts truncate toward zero, as before
+ok - 1x1 is usable
+ok - 800x600 is usable
+ok - width below 1 refused
+ok - height 0 refused
+ok - negative refused
+ok - NaN passes, exactly like the translator's comparison
+ok - spawn nullopt is a failure
+ok - spawn pid 0 is a failure
+ok - spawn pid > 0 is a success
+ok - first failure is logged, nothing suppressed
+ok - second failure inside the window is suppressed
+ok - third failure inside the window is suppressed
+ok - after the window: logged, reports 2 suppressed
+ok - window restarts at the logged line
+ok - suppressed count resets after each logged line
+ok - earlier timestamp inside the window is suppressed
+ok - and the gate still opens after the window
+ok - a second site is not suppressed by the first
+ok - window is 10 s
+ok - every site has a distinct name
+ok - out-of-range site is '?'
+
+######## actions-clang++.log ########
+ok - exact pixel argument
+ok - negative coordinate kept
+ok - casts truncate toward zero, as before
+ok - 1x1 is usable
+ok - 800x600 is usable
+ok - width below 1 refused
+ok - height 0 refused
+ok - negative refused
+ok - NaN passes, exactly like the translator's comparison
+ok - spawn nullopt is a failure
+ok - spawn pid 0 is a failure
+ok - spawn pid > 0 is a success
+ok - first failure is logged, nothing suppressed
+ok - second failure inside the window is suppressed
+ok - third failure inside the window is suppressed
+ok - after the window: logged, reports 2 suppressed
+ok - window restarts at the logged line
+ok - suppressed count resets after each logged line
+ok - earlier timestamp inside the window is suppressed
+ok - and the gate still opens after the window
+ok - a second site is not suppressed by the first
+ok - window is 10 s
+ok - every site has a distinct name
+ok - out-of-range site is '?'
+

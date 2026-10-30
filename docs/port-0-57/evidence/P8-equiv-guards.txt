@@ -1,0 +1,10 @@
+K4: if (!m_bDraggingThis) { <- void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+K5: if (!m_bDraggingThis) { <- void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+K6: if (!m_bDraggingThis) { <- void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+K7: void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+K8: if (m_bTouchEv) <- if (m_bDraggingThis) { <- if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) { <- void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+K10a: else if (action == "maximize") <- void CHyprBar::runAction(const std::string& action) {
+K10b: else if (action == "fullscreen") <- void CHyprBar::runAction(const std::string& action) {
+K11: else if (action == "minimize") <- void CHyprBar::runAction(const std::string& action) {
+K12a: else if (action.starts_with("exec:")) <- void CHyprBar::runAction(const std::string& action) {
+K12b: void CHyprBar::openMenu(double x, double y) {

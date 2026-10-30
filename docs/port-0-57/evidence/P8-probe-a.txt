@@ -1,0 +1,97 @@
+######## probe_p8_actions.cpp ########
+// P8 probe A — hostActions.hpp against the installed Hyprland 0.57 headers (Makefile flags).
+// Positive: exact wrapper signatures; the call forms used in barDeco.cpp select the intended overloads; the host types
+// the wrappers rely on. -DPROBE_NEG=1: a PHLWORKSPACE cannot be built from a std::string (so the explicit std::string
+// workspace name can only reach the name overload); NEG=2: the 0.56.2 dispatcher map (gone).
+#include "hostActions.hpp"
+
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+
+#include <type_traits>
+
+namespace A = Config::Actions;
+
+static_assert(std::is_same_v<decltype(&KwAct::check), bool (*)(KwAct::eSite, const A::ActionResult&)>);
+static_assert(std::is_same_v<decltype(&KwAct::resizeFocused), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(&KwAct::moveFocused), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(&KwAct::spawn), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(KwAct::g_failureGates), std::array<KwAct::SFailureGate, KwAct::SITE_COUNT>>);
+static_assert(std::is_trivially_destructible_v<KwAct::SFailureGate>, "gates need no destructor and hold no host objects (unload safety itself: Q4)");
+
+// host types the wrappers use
+static_assert(std::is_same_v<A::SActionError, Config::SConfigError>);
+static_assert(std::is_same_v<decltype(std::declval<A::SActionError&>().level), Config::eConfigErrorLevel>);
+static_assert(std::is_same_v<decltype(std::declval<A::SActionError&>().message), std::string>);
+static_assert(std::is_same_v<decltype(Config::toString(Config::eConfigErrorCode{})), const char*>);
+static_assert(std::is_same_v<decltype(A::actionError(std::string{}, Config::eConfigErrorLevel::WARNING, Config::eConfigErrorCode::NO_TARGET)), std::unexpected<A::SActionError>>);
+static_assert(std::is_same_v<decltype(Desktop::focusState()->window()), PHLWINDOW>);
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().size(Desktop::View::IGeometric::GEOMETRIC_GOAL)), Vector2D>);
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().position(Desktop::View::IGeometric::GEOMETRIC_GOAL)), Vector2D>);
+static_assert(std::is_same_v<decltype(Config::Supplementary::executor()->spawn(std::string{})), std::optional<uint64_t>>);
+
+// overload selection of the barDeco.cpp call forms
+static_assert(!std::is_convertible_v<std::string, PHLWORKSPACE>, "moveToWorkspace(std::string, bool) can only be the name overload");
+static_assert(!std::is_convertible_v<bool, Fullscreen::eFullscreenMode>, "fullscreenWindow(mode, true) can only be the (mode, layoutAware) overload");
+static_assert(!std::is_convertible_v<std::string, Config::Supplementary::SExecRequest>, "spawn(std::string) is the string overload");
+static_assert(std::is_same_v<decltype(A::moveToWorkspace(std::string{"special:minimized"}, true)), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)), A::ActionResult>);
+static_assert(Fullscreen::FSMODE_MAXIMIZED == 1 && Fullscreen::FSMODE_FULLSCREEN == 2, "0.56.2 \"fullscreen 1\" = MAXIMIZED, else FULLSCREEN");
+static_assert(A::TOGGLE_ACTION_TOGGLE == 0 && A::TOGGLE_ACTION_ENABLE == 1 && A::TOGGLE_ACTION_DISABLE == 2);
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1() { (void)A::moveToWorkspace(PHLWORKSPACE{std::string{"special:minimized"}}, true); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2() { g_pKeybindManager->m_dispatchers["exec"]("kitty"); }
+#endif
+
+int main() {}
+
+######## run_a.sh ########
+#!/usr/bin/env bash
+# P8 probe A runner: positive (GCC+Clang), 2 NEG with expected diagnostics only, assertion mutations killed only by static_assert.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+PLUG=${1:-/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin}
+O=$P/outA; rm -rf "$O"; mkdir -p "$O/mut"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"; unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+F="-std=c++2b -Wno-c++11-narrowing -I$PLUG $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+ERR='^[^ ].*: (fatal )?error:'
+declare -A RX=(
+  [1]="no matching (function|constructor)|no matching function for call|cannot convert|no viable conversion|no known conversion|could not convert"
+  [2]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .m_dispatchers. in .CHyprXWaylandManager."
+)
+for CXX in g++ clang++; do
+    if $CXX $F -fsyntax-only "$P/probe_p8_actions.cpp" >"$O/A-$CXX.log" 2>&1; then ok "$CXX A positive exit 0"; else bad "$CXX A positive (see $O/A-$CXX.log)"; fi
+    for N in 1 2; do
+        $CXX $F -fsyntax-only -DPROBE_NEG=$N "$P/probe_p8_actions.cpp" >"$O/A-neg$N-$CXX.log" 2>&1; RC=$?
+        NE=$(grep -cE "$ERR" "$O/A-neg$N-$CXX.log"); NB=$(grep -E "$ERR" "$O/A-neg$N-$CXX.log" | grep -vcE "${RX[$N]}")
+        if [ $RC -ne 0 ] && [ "$NE" -gt 0 ] && [ "$NB" = 0 ]; then ok "$CXX A NEG$N exit $RC ($NE expected error lines)"; else bad "$CXX A NEG$N rc=$RC errors=$NE unexpected=$NB"; fi
+    done
+done
+N=0
+while IFS='~' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_p8_actions.cpp" "$O/mut/$NAME.cpp"
+    FF="$FIND" RR="$REPL" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$O/mut/$NAME.cpp"
+    cmp -s "$P/probe_p8_actions.cpp" "$O/mut/$NAME.cpp" && { bad "$NAME unchanged"; continue; }
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $F -fsyntax-only "$O/mut/$NAME.cpp" >"$O/mut/$NAME.$CXX.log" 2>&1; RC=$?
+        T=$(grep -cE "$ERR" "$O/mut/$NAME.$CXX.log"); SA=$(grep -E "$ERR" "$O/mut/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$T" -gt 0 ] && [ "$T" = "$SA" ]; then ok "mut $NAME $CXX killed by static_assert"; else bad "mut $NAME $CXX rc=$RC errors=$T static=$SA"; fi
+    done
+done <<'EOF'
+a1~bool (*)(KwAct::eSite, const A::ActionResult&)>~void (*)(KwAct::eSite, const A::ActionResult&)>
+a2~static_assert(!std::is_convertible_v<std::string, PHLWORKSPACE>~static_assert(std::is_convertible_v<std::string, PHLWORKSPACE>
+a3~static_assert(!std::is_convertible_v<bool, Fullscreen::eFullscreenMode>~static_assert(std::is_convertible_v<bool, Fullscreen::eFullscreenMode>
+a4~FSMODE_MAXIMIZED == 1 && Fullscreen::FSMODE_FULLSCREEN == 2~FSMODE_MAXIMIZED == 2 && Fullscreen::FSMODE_FULLSCREEN == 2
+a5~std::is_trivially_destructible_v<KwAct::SFailureGate>~!std::is_trivially_destructible_v<KwAct::SFailureGate>
+a6~().level), Config::eConfigErrorLevel>~().level), Config::eConfigErrorCode>
+a7~A::TOGGLE_ACTION_ENABLE == 1~A::TOGGLE_ACTION_ENABLE == 2
+a8~spawn(std::string{})), std::optional<uint64_t>>~spawn(std::string{})), std::optional<int64_t>>
+EOF
+echo "mutants run: $N"
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL
+
