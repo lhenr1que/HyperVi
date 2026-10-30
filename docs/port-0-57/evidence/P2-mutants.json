@@ -1,0 +1,80 @@
+[
+  {
+    "name": "W twice",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "F twice",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "omit M",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "scale twice",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "wrong sign M",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "bbox without F",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P2 logical F / bottom extension / AA (variante 0)"
+  },
+  {
+    "name": "bbox physical",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P2 logical F / bottom extension / AA (variante 0)"
+  },
+  {
+    "name": "omit bottom extension",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P2 logical F / bottom extension / AA (variante 0)"
+  },
+  {
+    "name": "damage next only",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P4 fractional union preserves logical edges (review regression) (variante 0)"
+  },
+  {
+    "name": "preview physical as logical",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P5 all components divide by scale exactly once (variante 0)"
+  },
+  {
+    "name": "independent width rounding",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P1 literal numeric oracle / residual rounding (variante 0)"
+  },
+  {
+    "name": "inconsistent width",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P2 logical F / bottom extension / AA (variante 0)"
+  },
+  {
+    "name": "preview unscaled dimensions",
+    "compile_exit": 0,
+    "test_exit": 1,
+    "output": "FALHOU - P5 all components divide by scale exactly once (variante 0)"
+  }
+]

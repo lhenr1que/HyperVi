@@ -1,0 +1,25 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "location": "plugin/geometry.hpp: unionDamage",
+      "contract": "P4",
+      "description": "A subtração usada para construir a largura pode arredondar para baixo e produzir uma união que não contém next. O mesmo problema existe na altura.",
+      "example": "Com prev={-1,0,1,1} e next={0.5,0,0.5000000000000002,1}, a borda direita de next é 1.0000000000000002. Em double IEEE com arredondamento usual, maxEnd - x calcula 1.0000000000000002 - (-1), cujo resultado arredonda para 2. unionDamage retorna {-1,0,2,1}, com borda direita 1, menor que a de next. Todos os argumentos são finitos, as dimensões são positivas e não há overflow ou underflow; não é uma violação das pré-condições declaradas.",
+      "impact": "A união perde cobertura lógica. Aplicando o outward da suíte com escala 1, sua borda direita fica em 1, enquanto a cobertura de next alcança 2.",
+      "recommendation": "Após calcular cada extensão, verificar se origin + extent alcança a borda máxima correspondente. Se não alcançar, ampliar conservadoramente com std::nextafter em direção a +infinito. Adicionar regressões para ambos os eixos."
+    }
+  ],
+  "suggestions": [
+    {
+      "location": "plugin/test_geometry.cpp: p4",
+      "description": "Adicionar o contraexemplo acima e verificar diretamente que damage(prev,next) contém ambos os argumentos, além de testar suas coberturas após outward. Os casos atuais de P4 usam valores que não exercitam essa perda por arredondamento."
+    },
+    {
+      "location": "plugin/test_geometry.cpp: p2p3",
+      "description": "Ampliar P3 com escalas como 1.1, 1.3 e 2.3, já presentes em P5, e com dimensões e translações próximas de limites representáveis. As escalas atuais de P3 são todas frações binárias exatas; a cobertura observada não demonstra o contrato para toda a faixa de entradas declarada."
+    }
+  ],
+  "summary": "Reprovado por um defeito confirmado em P4. P1 reproduz a ordem e a semântica de arredondamento CBox informadas; P2 mantém offsets e margens em unidades lógicas; P5 trata explicitamente a perda de cobertura no roundtrip. O módulo é independente de Hyprland, tem custo constante e não altera produção existente. As pré-condições não exigem validação externa adicional. As 3031 verificações e as mutações relatadas não cobrem o contraexemplo de unionDamage. Revisão exclusivamente estática, sem ferramentas ou execução."
+}

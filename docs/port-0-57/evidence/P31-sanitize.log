@@ -1,0 +1,4 @@
+OK - P1-P5: 320762 verificacoes (variante 0)
+g++ sanitize exit=0
+OK - P1-P5: 320762 verificacoes (variante 0)
+clang++ sanitize exit=0

@@ -2,12 +2,45 @@
 
 Atualizado em **2026-10-30 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
+## Resultado mais recente — P3 (30/10/2026): Mudança 1 aprovada e fechada
+
+Dono aprovou a Mudança 1 (contrato geométrico independente do Hyprland), H-DOM provisória e `std::optional` nas quatro funções; limites são **contrato interno**, não propriedade do Hyprland. `tools/check.sh`: tudo verde exceto `make -C plugin`, idêntico à falha conhecida de P2 (Hyprland 0.57.0). Matriz de `nullopt`: `docs/port-0-57/NULLOPT-MATRIX.md` (proposta). Commit da Mudança 1: ver `git log` (hash no relatório da sessão). Integração às decorações e portabilidade 0.57 **não iniciadas**; exigem nova autorização.
+
+## Anterior — P2.1 (30/10/2026): bloqueio P3 resolvido
+
+**Concluído (simulado, host-free; sem integração).** Somente `plugin/geometry.hpp`, `plugin/test_geometry.cpp`, `tools/test-plugin-geometry.sh` (não rastreados) e docs em `docs/port-0-57/` + este arquivo. Git: branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `9850593`, sem commit/merge/staging; dirty = este arquivo (M) e os 4 itens não rastreados; nenhum fonte preexistente alterado; nenhuma worktree histórica tocada.
+
+- **Contrato escolhido** (detalhe e fundamento em `GEOMETRY.md` §4): domínio explícito (`kMaxLogical=2^31`, escala `[2^-4, 2^4]`, `kMaxPhysical=2^35`, `kMaxBox=2^40`), guarda `resolved` (`x+w > x`) e invariante de saída; fora do domínio, `std::optional` vazio. O contraexemplo `0x1p53` permanece como teste e é **rejeitado** por todas as quatro funções. Perda de cobertura medida só a partir de 2^50 px; a maior borda aceita é 2^45.
+- **Vermelhos:** `P31-red-1.log` (não compila), `P31-red-2.log` (contraexemplo aceito, exit 1). **Verde:** GCC e Clang exit 0, 320 762 verificações, 13 negativos + 46 mutações reais do header, cada uma rejeitada pela assertiva **esperada** (`P31-green-*.log`); UBSan e `-O0/-O3` limpos; fuzz independente `long double` 3 M amostras sem violação.
+- **Revisão independente:** `gpt-6.1-sol` via Hermes/`openai-codex` (família diferente; sem Claude/Codex/Gemini CLI no PATH; nada instalado). Rodadas 1 e 2 reprovaram (extensão absorvida → largura −1; união/preview geravam caixa inválida como entrada); corrigidas e reproduzidas; rodada 3 **aprovou** (sem blocker/major; 1 minor de comentário, corrigido, tudo reexecutado). Revisão estática: não executou código. Registro: `RISKS-TESTS.md` §7.
+- **Lacuna real achada:** dois alargamentos `nextafter` de `previewBBox` sobreviviam à suíte de P2; agora testados.
+- **Recomendação:** Mudança 1 recomendável para aprovação **se o dono aceitar o domínio (H-DOM)** e a API `std::optional`. Não executados: `tools/check.sh`, build do plugin, qualquer teste ao vivo/gráfico. B1/B2/B3, G2/G4/G5, E0/E1, Q1–Q3 seguem abertos.
+- **Próxima ação (nova autorização):** o dono decide H-DOM e a aprovação da Mudança 1; só depois, integração do módulo (tarefas 4.2/4.4) ou headers 0.57 (3.1). A autorização desta sessão não se estende à próxima.
+
+## Resultado anterior — P2 (30/10/2026; histórico, superado em P3 por P2.1)
+
+**Parcial e não aprovado.** Build baseline isolado reproduzido; candidato geométrico criado exclusivamente em `plugin/geometry.hpp`, `plugin/test_geometry.cpp`, `tools/test-plugin-geometry.sh`, sem integração. Revisões independentes obtidas em sessões novas de `gpt-6.1-sol`, provedor `openai-codex`, via Hermes, sem ferramentas de escrita. Claude/Codex/Gemini CLI não encontrados; nenhum instalado. A revisão externa de contratos foi obtida **depois da primeira implementação**, usando somente os snapshots P1 anteriores e trechos de fontes, sem mostrar o código candidato. Portanto a sequência original da Etapa 1 não foi cumprida integralmente; não houve edição de código enquanto cada revisão estava em execução.
+
+- Git desta worktree: `/home/lhen/Projects/ryoku-work/kwinish-port-0-57`, branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `9850593b8ea87b231f64b0abe9ec634a33cc4ab7`, sem commit/merge/staging. Dirty inicial: este arquivo modificado e `docs/port-0-57/` não rastreado; preservados e atualizados somente para resultados/retificações autorizados. Nenhum fonte preexistente alterado.
+- Build: `make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/home/lhen/.hermes/cache/scratch/kwinish-p2/build/kwinish-bars-baseline.so` → **2**. HOME/XDG isolados, sem DISPLAY/WAYLAND_DISPLAY/assinatura. Falhas: `desktop/view/Window.hpp` ausente; overrides antigos dos passes; `m_renderData` removido; `renderRect` exige contexto. Nenhum `.so` gerado/sobrescrito.
+- Vermelho inicial, `bash tools/test-plugin-geometry.sh` → **1**: `fatal error: geometry.hpp: No such file or directory`, `FALHOU - compilar plugin/test_geometry.cpp`. P1 implementado → **0**, `OK - P1 numeric oracle`; P2 e P4/P5 tiveram vermelhos de API ausente e verdes próprios.
+- Verde intermediário após duas correções da revisão, GCC e Clang → **0**, saída literal: `OK - P1-P5: 3035 verificacoes (variante 0)`. 13 variantes negativas saíram **1 por assertiva**, runner **0**. 13 mutações reais do header em scratch compilaram (**0**) e foram rejeitadas pela suíte positiva (**1**); não contar erro de compilação/crash como detecção.
+- Correções reproduzidas vermelho→verde: P5 perdia borda fracionária no roundtrip físico/lógico; P4 perdia borda na união por cancelamento. Ajustes conservadores condicionais com `nextafter`; nenhuma tolerância foi adicionada à assertiva de cobertura.
+- **Último parecer independente: reprovado.** P3 falha com `D={0x1p53,0,1,1}`, demais termos zero, escala `1.5`, extensão/AA zero: a borda lógica perde a dimensão antes de escalar; bbox físico largura **0**, desenho largura **2**. Regressão incorporada ao teste. **Estado final GCC e Clang: exit 1**, saída literal: `FALHOU - P3 large finite origin loses logical extent (OPEN review blocker) (variante 0)`. O verde anterior é histórico, não o estado atual.
+- Parada após dois ciclos de correção/revisão; não houve terceira tentativa nem restrição silenciosa do domínio numérico. Mudança 1 **não concluída/aceita**. B1/B2/B3 continuam abertos. Sem carga de plugin, gráficos, instalação, configuração global, edição do OpenSpec ou escrita em outras worktrees. `tools/check.sh` não executado.
+- Evidências permanentes: `docs/port-0-57/RISKS-TESTS.md` §6 e `docs/port-0-57/evidence/P2-*`; diff entregue separadamente. Documentos P1 receberam retificações de Q1, H-REG, stencil/D10 e definição aritmética.
+
+**Próxima ação recomendada (nova autorização):** resolver primeiro o bloqueio P3, escolhendo explicitamente entre representação/cálculo conservador dos limites e domínio numérico limitado com justificativa. Manter o teste que falha, obter verde e nova revisão independente antes de integrar ou iniciar headers 0.57. G2/G4/G5, E0/E1, Q1/Q2/Q3 e ensaios gráficos continuam pendentes. A autorização desta sessão não se estende à próxima.
+
+## Histórico anterior ao P2 (preservado; próximos passos abaixo foram substituídos pelo resultado acima)
+
 ## Último marco e estado do trabalho
 
 - **Concluído e formalmente encerrado:** investigação preparatória estática B1–B3 para Hyprland 0.57, com relatórios, evidências, revisão independente e entrega verificada.
 - **Não iniciado:** portabilidade C++, implementação do protocolo de unload, build do candidato 0.57 e ensaios gráficos dessa migração. Encerrar a investigação não declara compatibilidade funcional.
 - **Concluído (documental):** protocolo de encerramento e continuidade incorporado ao `AGENTS.md` com autorização do dono; este registro criado. Ambos entram no commit documental `docs: establish development handoff protocol`.
 - **Concluído (planejamento externo):** Decisão 9 da minuta (unload administrativo quiescente, Q1–Q5, sequência, testes B1–B3, critérios de avanço e de bloqueio) aprovada como base técnica de planejamento. Não é implementação nem validação.
+- **Concluído (preparatório, estático; não commitado):** tarefas 1.2–1.4 da minuta em `docs/port-0-57/` (ledger de recursos, Q1–Q5 verificáveis, estratégia de estado GL, fluxo de geometria, matriz B1–B3 × testes, proposta da primeira alteração C++). Análise estática de fontes e headers: nenhum build, teste, carga de plugin ou execução gráfica. B1, B2 e B3 continuam **condicionados**; as hipóteses não demonstradas estão em `docs/port-0-57/README.md` §3. A minuta externa teve a referência de base corrigida de `b6d02db` para `9850593` (`/home/lhen/Projects/kwinish-plan-hyprland-0.57/CORRECAO-COMMIT-BASE.diff`).
 
 ## Referência Git e OpenSpec
 
@@ -48,7 +81,7 @@ Diretório da investigação: `/home/lhen/Projects/kwinish-plan-hyprland-0.57/in
 
 ## Próxima ação e limites de autorização
 
-**Recomendada (precisa de autorização):** tarefas 1.2 a 1.4 da minuta na worktree do port: ledger de recursos, condições Q1–Q5 e estratégia de estado GL/geometria, sem editar código de produção. Depois, revisão antes de qualquer sonda experimental.
+**Recomendada (precisa de autorização):** (a) revisão independente de `docs/port-0-57/`; (b) tarefa 2.2 da minuta: reproduzir o vermelho do plugin em build isolado (`TARGET` temporário, sem alterar código); (c) **Mudança 1**, o contrato geométrico host-free descrito em `docs/port-0-57/RISKS-TESTS.md` §4 (3 arquivos novos, nenhum existente alterado, teste vermelho→verde). Decisões do dono pendentes: G2, G4, G5 (`GEOMETRY.md`), exposição dos contadores Q1/Q2. Nenhuma sonda experimental ou ensaio aninhado antes da revisão.
 
 **Fora de autorização até nova decisão do dono:** código C++/Lua/Rust, build do candidato, carga de plugin, testes gráficos, edição do OpenSpec vigente, mexer nas worktrees históricas, push.
 

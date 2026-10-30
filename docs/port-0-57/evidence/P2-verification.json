@@ -1,0 +1,66 @@
+{
+  "head": "9850593b8ea87b231f64b0abe9ec634a33cc4ab7",
+  "status_initial": " M docs/DEVELOPMENT_STATE.md\n?? docs/port-0-57/\n",
+  "status_final": " M docs/DEVELOPMENT_STATE.md\n?? docs/port-0-57/\n?? plugin/geometry.hpp\n?? plugin/test_geometry.cpp\n?? tools/test-plugin-geometry.sh\n",
+  "modified_baseline_files": [
+    "docs/DEVELOPMENT_STATE.md",
+    "docs/port-0-57/LEDGER.md",
+    "docs/port-0-57/QUIESCENCE.md",
+    "docs/port-0-57/GL-STATE.md",
+    "docs/port-0-57/GEOMETRY.md",
+    "docs/port-0-57/RISKS-TESTS.md",
+    "docs/port-0-57/README.md"
+  ],
+  "missing_baseline_files": [],
+  "unexpected_baseline_modifications": [],
+  "index_unchanged": true,
+  "baseline_so_exists": false,
+  "whitespace_checks": {
+    "plugin/geometry.hpp": {
+      "exit": 1,
+      "output": ""
+    },
+    "plugin/test_geometry.cpp": {
+      "exit": 1,
+      "output": ""
+    },
+    "tools/test-plugin-geometry.sh": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/port-0-57/RISKS-TESTS.md": {
+      "exit": 3,
+      "output": "docs/port-0-57/RISKS-TESTS.md:123: new blank line at EOF.\n"
+    },
+    "docs/port-0-57/QUIESCENCE.md": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/port-0-57/README.md": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/port-0-57/LEDGER.md": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/port-0-57/GEOMETRY.md": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/port-0-57/GL-STATE.md": {
+      "exit": 1,
+      "output": ""
+    },
+    "docs/DEVELOPMENT_STATE.md": {
+      "exit": 1,
+      "output": ""
+    }
+  },
+  "final_test_gcc_exit": 1,
+  "final_test_clang_exit": 1,
+  "build_make_exit": 2,
+  "historical_green_checks": 3035,
+  "historical_negative_modes": 13,
+  "historical_header_mutants": 13
+}

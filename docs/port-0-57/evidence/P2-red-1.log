@@ -1,0 +1,5 @@
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:3:10: fatal error: geometry.hpp: No such file or directory
+    3 | #include "geometry.hpp"
+      |          ^~~~~~~~~~~~~~
+compilation terminated.
+FALHOU - compilar plugin/test_geometry.cpp

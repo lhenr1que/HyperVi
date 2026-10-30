@@ -1,0 +1,70 @@
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+g++ -O2 -shared -fPIC -std=c++2b -Wno-c++11-narrowing  --no-gnu-unique `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o /home/lhen/.hermes/cache/scratch/kwinish-p2/build/kwinish-bars-baseline.so `pkg-config --libs cairo librsvg-2.0`
+main.cpp:9:10: fatal error: hyprland/src/desktop/view/Window.hpp: No such file or directory
+    9 | #include <hyprland/src/desktop/view/Window.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+barDeco.cpp:10:10: fatal error: hyprland/src/desktop/view/Window.hpp: No such file or directory
+   10 | #include <hyprland/src/desktop/view/Window.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+In file included from BarPassElement.cpp:3:
+BarPassElement.hpp:18:43: error: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’ marked ‘override’, but does not override
+   18 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^~~~
+BarPassElement.hpp:19:43: error: ‘virtual bool CBarPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   19 |     virtual bool                          needsLiveBlur() override;
+      |                                           ^~~~~~~~~~~~~
+BarPassElement.hpp:20:43: error: ‘virtual bool CBarPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   20 |     virtual bool                          needsPrecomputeBlur() override;
+      |                                           ^~~~~~~~~~~~~~~~~~~
+BarPassElement.hpp:21:43: error: ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’ marked ‘override’, but does not override
+   21 |     virtual std::optional<CBox>           boundingBox() override;
+      |                                           ^~~~~~~~~~~
+BarPassElement.cpp: In member function ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’:
+BarPassElement.cpp:15:44: error: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   15 |     data.deco->renderPass(g_pHyprRenderer->m_renderData.pMonitor.lock(), data.a);
+      |                                            ^~~~~~~~~~~~
+BarPassElement.cpp: In member function ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’:
+BarPassElement.cpp:31:71: error: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   31 |     return data.deco->assignedBoxGlobal().translate(-g_pHyprRenderer->m_renderData.pMonitor->m_position).expand(10);
+      |                                                                       ^~~~~~~~~~~~
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+In file included from PreviewPassElement.cpp:3:
+PreviewPassElement.hpp:20:43: error: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’ marked ‘override’, but does not override
+   20 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^~~~
+PreviewPassElement.hpp:21:43: error: ‘virtual bool CPreviewPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   21 |     virtual bool                          needsLiveBlur() override {
+      |                                           ^~~~~~~~~~~~~
+PreviewPassElement.hpp:24:18: error: ‘virtual bool CPreviewPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   24 |     virtual bool needsPrecomputeBlur() override {
+      |                  ^~~~~~~~~~~~~~~~~~~
+PreviewPassElement.hpp:27:33: error: ‘virtual std::optional<Hyprutils::Math::CBox> CPreviewPassElement::boundingBox()’ marked ‘override’, but does not override
+   27 |     virtual std::optional<CBox> boundingBox() override {
+      |                                 ^~~~~~~~~~~
+PreviewPassElement.cpp: In member function ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’:
+PreviewPassElement.cpp:10:30: error: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   10 |     g_pHyprOpenGL->renderRect(data.box, data.fill, {.round = data.round});
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  • there is 1 candidate
+In file included from PreviewPassElement.cpp:4:
+    • candidate 1: ‘void Render::GL::CHyprOpenGLImpl::renderRect(Render::CRenderContext&, const Hyprutils::Math::CBox&, const CHyprColor&, SRectRenderData)’
+      /usr/include/hyprland/src/render/OpenGL.hpp:195:14:
+        195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+            |              ^~~~~~~~~~
+      • candidate expects 4 arguments, 3 provided
+PreviewPassElement.cpp:17:34: error: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(const Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   17 |         g_pHyprOpenGL->renderRect(s, data.line, {});
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  • there is 1 candidate
+    • candidate 1: ‘void Render::GL::CHyprOpenGLImpl::renderRect(Render::CRenderContext&, const Hyprutils::Math::CBox&, const CHyprColor&, SRectRenderData)’
+      /usr/include/hyprland/src/render/OpenGL.hpp:195:14:
+        195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+            |              ^~~~~~~~~~
+      • candidate expects 4 arguments, 3 provided
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+make: *** [Makefile:19: /home/lhen/.hermes/cache/scratch/kwinish-p2/build/kwinish-bars-baseline.so] Error 1
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'

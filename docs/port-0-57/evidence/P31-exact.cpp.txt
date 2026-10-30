@@ -1,0 +1,24 @@
+#include "geometry.hpp"
+#include <cstdio>
+#include <cstdint>
+#include <random>
+using namespace KwGeometry;
+int main(){
+  std::mt19937_64 g(777); std::uniform_real_distribution<double> u(0,1);
+  auto pick=[&](double lim){double sg=(g()&1)?1:-1; return sg*((g()&1)? lim*(.5+.5*u(g)) : 200*u(g));};
+  long n=0,a=0,b=0,rej=0;
+  for(long i=0;i<3000000;i++){
+    LogicalBox d{pick(kMaxLogical),pick(kMaxLogical),.01+u(g)*((g()&1)?kMaxLogical-1:100),.01+u(g)*((g()&1)?kMaxLogical-1:100)};
+    LogicalPoint e{pick(kMaxLogical),pick(kMaxLogical)},w{pick(kMaxLogical),pick(kMaxLogical)},f{pick(kMaxLogical),pick(kMaxLogical)},m{pick(kMaxLogical),pick(kMaxLogical)};
+    double s=kMinScale*std::pow(kMaxScale/kMinScale,u(g)); double ext=(g()&1)?0:u(g)*100;
+    auto dd=d; dd.h+=ext; if(dd.h>kMaxLogical) continue;
+    auto p=physicalLocal(dd,e,w,f,m,s); auto bb=logicalBBox(d,e,w,f,m,ext,0);
+    if(!p||!bb){rej++;continue;} n++;
+    long double X=((long double)d.x+e.x+w.x+f.x-m.x), Y=((long double)d.y+e.y+w.y+f.y-m.y);
+    long double L=floorl(X*s),T=floorl(Y*s),Rr=ceill((X+dd.w)*(long double)s),B=ceill((Y+dd.h)*(long double)s);
+    if(!(p->x>=L&&p->y>=T&&p->x+p->w<=Rr&&p->y+p->h<=B)) a++;
+    double fl=std::floor(bb->x*s),ft=std::floor(bb->y*s),cr=std::ceil((bb->x+bb->w)*s),cb=std::ceil((bb->y+bb->h)*s);
+    if(!(fl<=p->x&&ft<=p->y&&cr>=p->x+p->w&&cb>=p->y+p->h)) b++;
+  }
+  std::printf("samples=%ld rejected=%ld  P-not-in-exact-ceilOut=%ld  P-not-in-double-bbox-ceilOut=%ld\n",n,rej,a,b);
+}

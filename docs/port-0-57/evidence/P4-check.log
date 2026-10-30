@@ -1,0 +1,305 @@
+== Lua
+Lua 5.5.1  Copyright (C) 1994-2026 Lua.org, PUC-Rio
+assist ok
+binds ok
+geometry ok
+kwinish ok
+kwjson ok
+layouts ok
+modes ok
+rules ok
+settings ok
+switcher ok
+ok - rules: Lua loop in the file is not run, gives nothing (empty)
+ok - rules: os.exit() in the file is not run, gives nothing (empty)
+ok - rules: truncated
+ok - rules: array root
+ok - rules: entry that is not an object
+ok - layouts: Lua loop in the file is not run, gives nothing (empty)
+ok - layouts: os.exit() in the file is not run, gives nothing (empty)
+ok - layouts: truncated
+ok - layouts: object root
+ok - layouts: unknown member with a dash ignored
+ok - layouts: brackets inside a label kept
+ok - layouts: zones that are not a list
+ok - settings: os.exit() in the file is not run, gives nothing (empty)
+ok - settings: truncated
+ok - settings: array root
+ok - settings: nested name ignored, top-level value kept
+ok - settings: escaped string decoded
+ok - settings: a string is not a boolean
+ok - modes: truncated
+ok - modes: array root
+ok - modes: nested object ignored
+ok - modes: valid entries next to an odd one
+ok - columns: truncated
+ok - columns: array root
+ok - columns: nested object ignored
+ok - columns: a string is not a number
+ok - shortcuts: truncated
+ok - shortcuts: array root
+ok - shortcuts: nested object ignored
+ok - shortcuts: escaped combo decoded
+ok - formats: rules.json
+ok - formats: layouts.json (kwinish-ui's pretty JSON)
+ok - formats: settings.json
+ok - formats: shortcuts.json
+ok - formats: workspace-modes.json and workspace-columns.json
+userdata ok
+== Lua: 11 arquivo(s)
+== tools
+ok - tudo passa (código 0)
+ok - roda as duas suítes, tools, cargo test --locked e make
+ok - plugin compilado no diretório temporário, nada em plugin/
+ok - temporário apagado ao sair
+ok - uma suíte Lua falha (código 1)
+ok - as suítes seguintes ainda rodam
+ok - a falha aparece no resumo
+ok - um teste de tools/ falha (código 1)
+ok - cargo test falha (código 1)
+ok - compilação do plugin falha (código 1)
+ok - lua -v falha (código 1)
+ok - sem o comando lua (código 1)
+ok - sem lua: não diz que passou
+ok - sem o comando cargo (código 1)
+ok - sem cargo: não diz que passou
+ok - sem o comando make (código 1)
+ok - sem make: não diz que passou
+ok - nenhuma suíte core/test_*.lua (código 1)
+ok - nenhum teste tools/test-*.sh (código 1)
+ok - --lua-only passa (código 0)
+ok - --lua-only não roda tools, cargo nem make
+ok - --lua-only com suíte falhando (código 1)
+ok - opção desconhecida (código 2)
+ok - argumento a mais (código 2)
+ok - suíte que inspeciona o ambiente (código 0)
+ok - HOME e XDG apontam para o temporário do check
+ok - sem sockets da sessão (Hyprland, Wayland)
+ok - CARGO_HOME fica no HOME de fora
+ok - roda na raiz do repositório
+ok - nada gravado no HOME de fora e temporário apagado
+test-check: tudo passou
+ok - save guarda arquivo, link, link quebrado e ausentes
+ok - restore termina sem erro
+ok - arquivo volta com o mesmo conteúdo e modo
+ok - link volta para o mesmo alvo
+ok - link quebrado volta como link quebrado
+ok - caminhos ausentes voltam a não existir
+ok - diretório de estado apagado depois
+ok - nenhum temporário de restore sobrou
+ok - restore sem nada para fazer: ausente continua ausente
+ok - não remove diretório criado no lugar de um ausente
+ok - save recusa diretório de estado já existente e não o altera
+ok - restore recusa diretório alheio e não o apaga
+ok - restore recusa backup sem a marca e não altera nada
+ok - save recusa caminho relativo sem criar estado
+ok - save recusa diretório sem criar estado
+ok - uso errado falha
+ok - falha ao copiar: save sai com erro e o backup incompleto não restaura
+test-live-backup: tudo passou
+isolamento ok: 11 suítes não gravaram no HOME/XDG herdado
+OK - P1-P5: 320762 verificacoes (variante 0)
+OK - negativo 1 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 1)
+OK - negativo 2 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 2)
+OK - negativo 3 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 3)
+OK - negativo 4 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 4)
+OK - negativo 5 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 5)
+OK - negativo 6 detectado: FALHOU - P2 logical F / bottom extension / AA (variante 6)
+OK - negativo 7 detectado: FALHOU - P2 logical F / bottom extension / AA (variante 7)
+OK - negativo 8 detectado: FALHOU - P3 fixed expand(10) cannot cover large bottom extension (variante 8)
+OK - negativo 9 detectado: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 9)
+OK - negativo 10 detectado: FALHOU - P5 all components divide by scale exactly once (variante 10)
+OK - negativo 11 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 11)
+OK - negativo 12 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 12)
+OK - negativo 13 detectado: FALHOU - P5 all components divide by scale exactly once (variante 13)
+OK - mutacao "W duas vezes" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "F duas vezes" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "M omitido" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "M com sinal errado" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "escala dupla" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "arredonda w/h isolados" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "largura = altura" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "bbox sem F" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "bbox sem extensao" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "bbox em unidade fisica" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "damage so do novo" detectada: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 0)
+OK - mutacao "damage sem nextafter" detectada: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 0)
+OK - mutacao "preview fisico como logico" detectada: FALHOU - P5 all components divide by scale exactly once (variante 0)
+OK - mutacao "preview dimensoes sem escala" detectada: FALHOU - P5 all components divide by scale exactly once (variante 0)
+OK - mutacao "preview sem alargar origem" detectada: FALHOU - P5 ulp-adjacent origins and edges preserve strict coverage (variante 0)
+OK - mutacao "preview sem alargar extensao" detectada: FALHOU - P5 fractional right edge above integer (review regression) (variante 0)
+OK - mutacao "preview borda sem nextafter" detectada: FALHOU - P5 ulp-adjacent origins and edges preserve strict coverage (variante 0)
+OK - mutacao "resolvido: physicalLocal sem teste" detectada: FALHOU - P1 physicalLocal rejects an extent absorbed by the origin (was width -1) (variante 0)
+OK - mutacao "resolvido: bbox sem teste" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "saida: union sem pos-teste" detectada: FALHOU - P4 unionDamage refuses a union wider than the box domain (variante 0)
+OK - mutacao "saida: preview sem pos-teste" detectada: FALHOU - P5 previewBBox refuses a result whose extent collapsed by division (variante 0)
+OK - mutacao "resolvido: union sem teste" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "resolvido: preview sem teste" detectada: FALHOU - P5 previewBBox rejects an extent absorbed by a negative origin (variante 0)
+OK - mutacao "resolvido: so eixo x" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "resolvido: aceita igualdade" detectada: FALHOU - P1 physicalLocal rejects an extent absorbed by the origin (was width -1) (variante 0)
+OK - mutacao "dominio: within sem limite" detectada: FALHOU - P3 original counterexample 2^53 rejected by physicalLocal (variante 0)
+OK - mutacao "dominio: limite aberto" detectada: FALHOU - P3 largest in-domain analogue of the counterexample covered (variante 0)
+OK - mutacao "dominio: sem fabs (so positivo)" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: comprimento aceita zero" detectada: FALHOU - P3 logicalBBox rejects zero/negative length even when AA/extension would widen it (variante 0)
+OK - mutacao "dominio: comprimento aceita negativo" detectada: FALHOU - P3 logicalBBox rejects zero/negative length even when AA/extension would widen it (variante 0)
+OK - mutacao "dominio: comprimento sem teto" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: escala sem minimo" detectada: FALHOU - P3 physicalLocal rejects zero/negative length or scale below minimum (variante 0)
+OK - mutacao "dominio: escala sem maximo" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: escala minimo aberto" detectada: FALHOU - P3 physicalLocal accepts the closed domain limit (variante 0)
+OK - mutacao "dominio: y do ponto sem teste" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: D.h sem teste" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: extBottom aceita negativo" detectada: FALHOU - P3 logicalBBox rejects bad extBottom (variante 0)
+OK - mutacao "dominio: extBottom sem teto" detectada: FALHOU - P3 logicalBBox rejects bad extBottom (variante 0)
+OK - mutacao "dominio: aaMargin sem teste" detectada: FALHOU - P3 logicalBBox rejects bad aaMargin (variante 0)
+OK - mutacao "dominio: unionDamage sem teste" detectada: FALHOU - P4 unionDamage rejects an absorbed extent in the second operand (variante 0)
+OK - mutacao "dominio: unionDamage so prev" detectada: FALHOU - P4 unionDamage rejects an absorbed extent in the second operand (variante 0)
+OK - mutacao "dominio: previewBBox sem teto fisico" detectada: FALHOU - P5 previewBBox rejects bad physical component (variante 0)
+OK - mutacao "dominio: previewBBox sem escala" detectada: FALHOU - P5 previewBBox rejects bad scale (variante 0)
+OK - mutacao "dominio: kMaxLogical = 2^53" rejeitada por static_assert
+OK - mutacao "dominio: kMaxBox = 2^53" rejeitada por static_assert
+OK - mutacao "dominio: kMaxScale = 2^20" rejeitada por static_assert
+OK - g++: suite, 13 negativos e todas as mutacoes rejeitados pela assertiva esperada
+ok - LANG=pt_BR is Portuguese
+ok - an empty LC_ALL is skipped
+ok - LC_ALL wins over LANG
+ok - LC_MESSAGES wins over LANG
+ok - LANG=C is English
+ok - no locale is English
+ok - minimize pt
+ok - minimize en
+ok - maximize pt
+ok - maximize en
+ok - maximize on a maximized window pt
+ok - maximize on a maximized window en
+ok - close pt
+ok - close en
+ok - pin pt
+ok - pin en
+ok - pin on a pinned window pt
+ok - pin on a pinned window en
+ok - menu (the app icon) pt
+ok - menu (the app icon) en
+ok - float has no tip
+ok - fullscreen has no tip
+ok - exec: has no tip
+ok - under the button, centred
+ok - pushed left at the right edge
+ok - pushed right at the left edge of a second monitor
+ok - above the bar when there is no room below
+ok - wider than the monitor: starts at its left edge, top kept
+== tools: 5 arquivo(s)
+== Rust
+    Updating crates.io index
+ Downloading crates ...
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 33.42s
+     Running unittests src/main.rs (ui/target/debug/deps/kwinish_ui-a95d52a7a692384f)
+
+running 31 tests
+test bars::tests::curve_runs_from_left_edge_to_top_edge ... ok
+test bars::tests::rect_hits ... ok
+test bars::tests::colour_parse ... ok
+test bars::tests::gaps ... ok
+test menu::tests::marks_follow_the_core ... ok
+test mode::tests::modes ... ok
+test settings::tests::colour_roundtrip ... ok
+test mon::tests::picks_monitor_by_point ... ok
+test settings::tests::live_code_is_plain_lua ... ok
+test assist::choice_tests::rejects_replaced_generation_and_missing_window ... ok
+test shortcut::tests::combos ... ok
+test shortcut::tests::conflict_check ... ok
+test zones::tests::edges_and_moving ... ok
+test zones::tests::floating_block_delete_just_removes ... ok
+test zones::tests::file_roundtrip_and_slug ... ok
+test zones::tests::an_unreadable_file_stops_the_save ... ok
+test zones::tests::parse_drops_what_the_core_would_reject ... ok
+test zones::tests::split_and_delete_roundtrip ... ok
+test zones::tests::layout_cases_agree_with_the_core ... ok
+test zones::tests::text_the_reader_refuses_is_never_written ... ok
+test zones::tests::valid_files_as_written_are_read_back ... ok
+test zones::tests::a_failed_rename_leaves_the_old_file ... ok
+test zones::tests::a_failed_backup_stops_the_save ... ok
+test zones::tests::a_file_that_is_not_text_is_kept_too ... ok
+test zones::tests::atomic_write_keeps_a_backup_of_an_unreadable_file ... ok
+test assist::tests::parses_core_state ... ok
+test zones::tests::whitespace_is_kept_an_empty_file_is_not ... ok
+test zones::tests::parse_refuses_what_the_core_refuses ... ok
+test zones::tests::read_stops_after_the_limit ... ok
+test zones::tests::a_file_the_reader_refuses_is_backed_up_before_saving ... ok
+test zones::tests::json_agrees_with_the_core ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+== plugin
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+g++ -O2 -shared -fPIC -std=c++2b -Wno-c++11-narrowing  --no-gnu-unique `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o /home/lhen/.hermes/cache/scratch/kwinish-check.dLzYa6mo/kwinish-bars.so `pkg-config --libs cairo librsvg-2.0`
+main.cpp:9:10: fatal error: hyprland/src/desktop/view/Window.hpp: No such file or directory
+    9 | #include <hyprland/src/desktop/view/Window.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+barDeco.cpp:10:10: fatal error: hyprland/src/desktop/view/Window.hpp: No such file or directory
+   10 | #include <hyprland/src/desktop/view/Window.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+In file included from BarPassElement.cpp:3:
+BarPassElement.hpp:18:43: error: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’ marked ‘override’, but does not override
+   18 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^~~~
+BarPassElement.hpp:19:43: error: ‘virtual bool CBarPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   19 |     virtual bool                          needsLiveBlur() override;
+      |                                           ^~~~~~~~~~~~~
+BarPassElement.hpp:20:43: error: ‘virtual bool CBarPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   20 |     virtual bool                          needsPrecomputeBlur() override;
+      |                                           ^~~~~~~~~~~~~~~~~~~
+BarPassElement.hpp:21:43: error: ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’ marked ‘override’, but does not override
+   21 |     virtual std::optional<CBox>           boundingBox() override;
+      |                                           ^~~~~~~~~~~
+BarPassElement.cpp: In member function ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’:
+BarPassElement.cpp:15:44: error: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   15 |     data.deco->renderPass(g_pHyprRenderer->m_renderData.pMonitor.lock(), data.a);
+      |                                            ^~~~~~~~~~~~
+BarPassElement.cpp: In member function ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’:
+BarPassElement.cpp:31:71: error: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   31 |     return data.deco->assignedBoxGlobal().translate(-g_pHyprRenderer->m_renderData.pMonitor->m_position).expand(10);
+      |                                                                       ^~~~~~~~~~~~
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+In file included from PreviewPassElement.cpp:3:
+PreviewPassElement.hpp:20:43: error: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’ marked ‘override’, but does not override
+   20 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^~~~
+PreviewPassElement.hpp:21:43: error: ‘virtual bool CPreviewPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   21 |     virtual bool                          needsLiveBlur() override {
+      |                                           ^~~~~~~~~~~~~
+PreviewPassElement.hpp:24:18: error: ‘virtual bool CPreviewPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   24 |     virtual bool needsPrecomputeBlur() override {
+      |                  ^~~~~~~~~~~~~~~~~~~
+PreviewPassElement.hpp:27:33: error: ‘virtual std::optional<Hyprutils::Math::CBox> CPreviewPassElement::boundingBox()’ marked ‘override’, but does not override
+   27 |     virtual std::optional<CBox> boundingBox() override {
+      |                                 ^~~~~~~~~~~
+PreviewPassElement.cpp: In member function ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’:
+PreviewPassElement.cpp:10:30: error: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   10 |     g_pHyprOpenGL->renderRect(data.box, data.fill, {.round = data.round});
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  • there is 1 candidate
+In file included from PreviewPassElement.cpp:4:
+    • candidate 1: ‘void Render::GL::CHyprOpenGLImpl::renderRect(Render::CRenderContext&, const Hyprutils::Math::CBox&, const CHyprColor&, SRectRenderData)’
+      /usr/include/hyprland/src/render/OpenGL.hpp:195:14:
+        195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+            |              ^~~~~~~~~~
+      • candidate expects 4 arguments, 3 provided
+PreviewPassElement.cpp:17:34: error: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(const Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   17 |         g_pHyprOpenGL->renderRect(s, data.line, {});
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  • there is 1 candidate
+    • candidate 1: ‘void Render::GL::CHyprOpenGLImpl::renderRect(Render::CRenderContext&, const Hyprutils::Math::CBox&, const CHyprColor&, SRectRenderData)’
+      /usr/include/hyprland/src/render/OpenGL.hpp:195:14:
+        195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+            |              ^~~~~~~~~~
+      • candidate expects 4 arguments, 3 provided
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+make: *** [Makefile:19: /home/lhen/.hermes/cache/scratch/kwinish-check.dLzYa6mo/kwinish-bars.so] Error 1
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+FALHOU: make -C plugin
+check: 1 falha(s):
+  make -C plugin

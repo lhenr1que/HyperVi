@@ -1,0 +1,25 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "file": "plugin/geometry.hpp: previewBBox",
+      "contract": "P5",
+      "description": "Dividir origem e dimensão separadamente não garante um roundtrip conservador em double. O arredondamento intermediário pode fazer o limite direito recuar até um inteiro, e ceil não recupera a cobertura perdida.",
+      "counterexample": "Considere PhysicalBox p{1.0, 0.0, 0x1.0000000000002p0, 1.0} e scale = 1.5. O limite direito original p.x + p.w é 2.0000000000000004, cujo ceil é 3. Após previewBBox, b.x = 0.6666666666666666 e b.w = 0.666666666666667. Em double, b.x + b.w resulta em 1.3333333333333335 e a multiplicação por 1.5 arredonda para 2.0. Assim, outward(b, 1.5) termina em 2 e covers(outward(b, 1.5), p) é falso.",
+      "preconditions": "Todos os valores são finitos, as dimensões e a escala são positivas, e não ocorre overflow ou underflow. PhysicalBox não exige componentes inteiros. Trata-se de arredondamento normal de double, não de entrada inválida.",
+      "recommendation": "Acrescentar esse caso à suíte e garantir conservadorismo numérico na conversão dos limites, mediante arredondamento dirigido ou limites de erro demonstrados. Apenas adicionar tolerância à assertiva esconderia a lacuna."
+    }
+  ],
+  "suggestions": [
+    {
+      "file": "plugin/test_geometry.cpp: p2p3",
+      "description": "O sweep anunciado como cobrindo origens fracionárias de ambos os sinais altera d.x/d.y, mas mantém os offsets de fixtures[0]; as posições finais continuam positivas. Acrescentar um sweep com e/w/f/m zerados para exercitar efetivamente origens físicas negativas e empates negativos de std::round."
+    },
+    {
+      "file": "plugin/test_geometry.cpp: p5",
+      "description": "Os previews usados têm componentes físicos inteiros. Acrescentar dimensões físicas fracionárias, limites imediatamente acima e abaixo de inteiros e escalas além das quatro atuais. As verificações aproximadas de componentes não substituem a assertiva estrita de cobertura."
+    }
+  ],
+  "summary": "Não aprovado por um contraexemplo confirmado de P5 na aritmética double. P1 corresponde à composição, escala única e arredondamento residual especificados; P2 mantém as unidades lógicas e aplica F uma vez; P4 calcula corretamente o retângulo envolvente sob a pré-condição explícita de espaço comum. Não identifiquei outro defeito confirmado em P3. O módulo é independente de Hyprland, suas operações têm complexidade constante e não há integração de produção no diff. Os resultados de compilação e mutação informados não cobrem a perda numérica demonstrada."
+}

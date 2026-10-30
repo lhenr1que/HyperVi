@@ -1,0 +1,168 @@
+Parecer: avanço condicionado do contrato isolado. A documentação permite preparar a especificação host-free, mas P1–P5 ainda não estão suficientemente definidos para servir de oráculo de testes. Não há base para liberar render ou lifecycle.
+
+A revisão abaixo é somente documental. “CONFIRMADO” indica algo demonstrável nas fontes fornecidas, não comportamento runtime observado. As citações aos documentos usam os nomes dos arquivos de docs/port-0-57/.
+
+1. CONFIRMADO — “round(CBox)” precisa de definição explícita; arredondar posição e tamanho independentemente seria incorreto
+
+A expressão round((D+E+W+F−M)·s) não especifica como arredondar uma caixa. A implementação fornecida de CBox::round() arredonda a origem e calcula o tamanho a partir da borda original:
+
+    Xr = std::round(X)
+    Wr = std::round(X + W − Xr)
+
+Analogamente para Y/H, depois da escala. Não equivale a Wr = std::round(W).
+
+Exemplo em coordenadas já físicas: x=0,4 e w=1,4 resultam em x=0 e w=2; o arredondamento independente produziria w=1. Isso altera desenho, coverage e os resultados esperados de P1.
+
+O contrato deve reproduzir essa semântica, inclusive empates negativos de std::round, ou declarar que está propondo deliberadamente outra regra. A fórmula atual não faz essa distinção.
+
+Fontes: GEOMETRY.md:7,45; BASELINE plugin/barDeco.cpp:1016–1019; fonte Hyprutils v0.14.3 src/math/Box.cpp:51–62.
+
+2. CONFIRMADO — P1/P2 têm ambiguidade de composição e faltam pré-condições
+
+D é uma geometria, enquanto E/W/F/M são deslocamentos. É necessário declarar que esses termos transladam a posição, não os tamanhos.
+
+P2 diz “a mesma caixa sem ×s, mais F”. Se “a mesma caixa” for a expressão de P1, F já está presente e seria duplicado. Provavelmente a intenção é corrigir o bbox baseline, que omite F, mas essa intenção não constitui uma definição matemática inequívoca.
+
+Também faltam:
+
+    escala finita e estritamente positiva, especialmente para P5;
+    domínio de posições e tamanhos, incluindo caixas vazias/degeneradas;
+    unidade e sinal admissível de extBottom e aaMargin;
+    ordem de extensão, expansão, escala e arredondamento;
+    representação de caixas/regiões e convenção das bordas.
+
+Convém separar explicitamente a caixa lógica de desenho da caixa conservadora de coverage. Só esta última deve incluir a margem adicional declarada para AA.
+
+Fontes: GEOMETRY.md:7,20,45–49; RISKS-TESTS.md:60.
+
+3. CONDICIONADO — P3–P5 são propriedades úteis, mas não demonstram ainda “nenhum pixel fora do bbox”
+
+P3 depende de uma definição de ceilOut e de physicalLocal como região ocupada pela caixa, não apenas como estrutura numérica. Depende também de uma margem de AA justificada para os efeitos efetivamente desenhados. Nenhum valor ou limite dessa margem foi fornecido.
+
+P4 só cobre os dois quadros se “caixa anterior/nova” significar coverage completo de cada apresentação, com seus respectivos offsets, escala, extensão e margem. Unir caixas de coordenadas incompatíveis não resolve mudança de monitor ou escala.
+
+P5 precisa distinguir igualdade numérica de conservação de cobertura. Dividir uma caixa física por s e multiplicá-la novamente em ponto flutuante não garante igualdade exata. O aceite relevante deve especificar a conversão conservadora de volta para pixels e tratar caixas vazias e bordas fracionárias.
+
+O documento já exclui transformações e projeção da prova host-free. Portanto, “nenhum pixel desenhado” deve ficar expressamente limitado ao modelo aritmético, não ao resultado final do compositor.
+
+Fontes: GEOMETRY.md:45–51; RISKS-TESTS.md:40–43,60.
+
+4. CONDICIONADO — D+E+W+F−M está sustentado no baseline; a equivalência com presentation não está fechada
+
+Os trechos fornecidos sustentam a composição baseline: assignedBoxGlobal() parte de D, soma a âncora E e W; o desenho subtrai M, soma F e aplica escala/arredondamento. Não há motivo, nessas fontes, para acrescentar novamente a posição da janela.
+
+Entretanto, isso não prova que os offsets de presentation sejam equivalentes aos valores vivos em todas as cenas. G1 mantém essa questão aberta. Além disso, congelar apenas W/F não congela automaticamente D/E, escala, monitor e extensão: o contrato precisa definir quais valores pertencem à mesma apresentação.
+
+G2 também não está resolvido por “guardar o último draw”. Uma barra pode aparecer em mais de uma cena/monitor/captura; falta prioridade entre snapshots e comportamento quando o snapshot estiver ausente ou vencido. Isso afeta input, tooltip e damage.
+
+Fontes: BASELINE plugin/barDeco.cpp:1151–1162,1012–1019; GEOMETRY.md:9,27,33–35,55.
+
+5. CONDICIONADO — A simplificação de Q1 é defensável, mas depende de invariantes além de active()==false
+
+O código fornecido confirma que reset() limpa m_pass antes de colocar m_active=false, e que finishRender() chama reset(). Confirma também a recusa de beginRender() quando o contexto está ativo.
+
+Isso sustenta a implicação desejada sob estas pré-condições:
+
+    todos os passes do módulo são criados e retidos dentro da sessão;
+    não há enqueue fora de sessão;
+    não há retenção externa dos elementos;
+    não há concorrência ou reentrância que invalide essa fronteira.
+
+Há uma imprecisão textual: transformedPass não está sempre “dentro de m_pass”. Ele existe temporariamente como proprietário local antes de ser movido para CTransformedWindowPassElement. Isso não derruba Q1 se a sessão permanece ativa durante todo esse intervalo, mas a justificativa deve mencionar o intervalo, não negar sua existência.
+
+O contador complementar continua útil para verificar o código candidato. Já “uma única instância em todo src” é uma auditoria relatada pelo documento, não integralmente reproduzida pelos trechos recebidos.
+
+Fontes: UPSTREAM render/Context.cpp:14–22,66–89; UPSTREAM render/Renderer.cpp:704–715,802–804,1862–1869,1971–1978; QUIESCENCE.md:9–19,25.
+
+6. CONFIRMADO — Preservar g_pGlobalState é necessário; BLOQUEADO afirmar que isso basta para a destruição das barras
+
+O destrutor baseline de CHyprBar acessa g_pGlobalState. O host chama PLUGIN_EXIT antes de solicitar a remoção das decorações e antes de dlclose. Portanto, resetar o global em PLUGIN_EXIT seria incompatível com essa ordem.
+
+Contudo, remover uma decoração do vetor não prova destruição imediata: o próprio código mantém CDecorationSnapshot, e o ledger reconhece retentores SP. É necessário que todas as barras e seus retentores desapareçam antes do descarregamento do módulo, não apenas antes da destruição do global.
+
+Q1 mede passes; Q2 mede execução corrente; nenhum dos dois, isoladamente, mede retenção de SP de decoração. A premissa estrutural de ausência de pilhas/snapshots retentores precisa cobrir também esse caso.
+
+Além disso, a destruição do global no dlclose continua explicitamente dependente de H-DTOR; não deve aparecer como garantia incondicional.
+
+Fontes: BASELINE plugin/barDeco.cpp:71–75; UPSTREAM plugins/PluginSystem.cpp:143–162,182–184; UPSTREAM desktop/view/window/WindowPresentation.cpp:131–152; LEDGER.md:30,37,59–60.
+
+7. CONFIRMADO — H-REG está formulada incorretamente para o caminho false mostrado
+
+addWindowDecoration recebe SP&&, mas referência rvalue não transfere propriedade por si só. Nos retornos false fornecidos, não há std::move nem reset do argumento.
+
+Assim, se o chamador passar std::move(spNomeado), o SP continua no chamador quando a função retorna false. Se passar um temporário, a destruição decorre do fim da expressão do chamador. Não se pode estabelecer genericamente “false ⇒ SP movido destruído no ato”.
+
+Isso afeta a definição do rollback e enfraquece a afirmação de que nada além dos recursos enumerados exige tratamento explícito no init parcial. O contrato deve distinguir propriedade do chamador, registro no host e aquisição concluída.
+
+Fontes: UPSTREAM plugins/PluginAPI.cpp:143–156; LEDGER.md:37,53,61.
+
+8. CONDICIONADO — Q3 limita corretamente o suporte, mas “administrativo/externo” não significa quiescente
+
+A documentação acerta ao declarar Q3 não observável e ao excluir unload iniciado dentro de emissão por outro plugin. Também acerta ao separar o caminho IPC do caminho config-managed.
+
+Porém, thread única e ausência de laço aninhado não bastam, sozinhas, para excluir reentrância síncrona nem snapshots retidos por um despachante externo. Em particular, dizer que reload vem de doLater não demonstra que a lista de idles em execução não retém outros callbacks do módulo. Essa implementação não foi fornecida.
+
+A premissa deve abranger ausência de qualquer proprietário transitório relevante: emissões, cópias de timers, listas de idle, ticks e snapshots de decoração. Q5 controla origem; não prova Q3.
+
+Também não se deve interpretar “violação registrada, não falha” como política segura de produção: unloadPlugin não oferece veto e prossegue para dlclose. O documento pode excluir esse cenário do contrato, mas o registro não o torna seguro.
+
+Fontes: QUIESCENCE.md:15–17,25–31,52–53; UPSTREAM plugins/PluginSystem.cpp:143–184; RISKS-TESTS.md:16–19.
+
+9. CONFIRMADO — A máscara herdada de stencil é uma dependência estática real; o efeito visual permanece condicionado
+
+O upstream fornecido fixa glStencilMask(0xFF), usa stencil e deixa a máscara em 0x00, desligando apenas o teste. O baseline não fixa a máscara antes do clear e do REPLACE.
+
+Sob a pré-condição de máscara 0x00 herdada, esses writes não alteram o stencil. A relação causal não depende de ensaio; o que depende de runtime é a ocorrência dessa sequência antes da barra e o resultado visual, que também depende do conteúdo existente.
+
+Analogamente, “cleanup limpa o attachment inteiro” precisa incluir as condições: scissor efetivamente desligado e máscara de escrita permissiva. Com máscara 0x00, não limpa o conteúdo. Os documentos tratam essas hipóteses separadamente, mas o contrato deve conciliá-las.
+
+A busca por uma ocorrência de clear não basta, isoladamente, para provar ausência de consumidores de conteúdo. Os trechos fornecidos comprovam o ramo mostrado, não a auditoria completa de todos os consumidores.
+
+Fontes: UPSTREAM render/OpenGL.cpp:1888–1925,1972–1975; BASELINE plugin/barDeco.cpp:1037–1052,1066–1072; GL-STATE.md:7–11,39.
+
+10. CONFIRMADO — E1 não descreve ainda contenção completa das escritas; D10 conflita com a convenção de scissor
+
+E1 restringe o clear à caixa da barra, mas também escreve stencil por REPLACE ao desenhar windowBox. Conforme a própria descrição dos helpers, renderRect substitui o scissor pelos retângulos de damage. Reativar o scissor depois não restringe retroativamente essa escrita.
+
+Portanto, para prometer alteração de conteúdo apenas dentro da caixa da barra, o contrato precisa limitar todos os writes, não apenas os clears. RAII restaura parâmetros, não conteúdo.
+
+Há ainda uma incompatibilidade no aceite de D10: exigir scissor e demais estados idênticos aos herdados após cada saída não equivale à estratégia declarada de deixar scissor desligado entre elementos. Uma sonda com scissor inicialmente ligado produziria expectativas conflitantes.
+
+O oráculo deve separar:
+
+    estado restaurado exatamente;
+    estado normalizado à convenção do host;
+    cache coerente com o estado real;
+    conteúdo declarado scratch.
+
+“E0 sem GL cru” também não implica automaticamente preservação de conteúdo pelos helpers nativos que E0 invoca.
+
+Fontes: GL-STATE.md:11,19–27,33–35; RISKS-TESTS.md:25–28,32.
+
+11. CONFIRMADO — A proposta de testes precisa de oráculos mais fortes e contém um aceite documental incompatível
+
+A sensibilidade S7 exige apenas que cada variante errônea difira do resultado correto em uma entrada. Isso é mais fraco que demonstrar que ela é rejeitada pelas propriedades contratuais. É necessário evitar um oráculo que reutilize a mesma aritmética errada da função testada, sobretudo em CBox::round().
+
+O vermelho por header ausente demonstra integração do runner, não sensibilidade à geometria. Pode ser um primeiro marco, mas não substitui a rejeição das mutações semânticas.
+
+Há também uma contradição objetiva: o aceite exige saída colada em DEVELOPMENT_STATE.md e simultaneamente nenhum arquivo existente modificado. Ambos não podem valer para o mesmo estado final.
+
+Fontes: RISKS-TESTS.md:58–62; GEOMETRY.md:43–49.
+
+12. CONDICIONADO — A matriz runtime é pertinente, mas os ensaios descritos não fecham toda a cobertura anunciada
+
+Comparar damage parcial e redraw completo numa cena estática pode verificar certas divergências de clip/damage, mas não basta para P4: o caso essencial envolve transição entre geometria anterior e nova. Troca de workspace, F animado e mudança de escala exigem sequências comparáveis, não apenas uma cena final.
+
+A sonda GL proposta limita seu bracketing determinístico a janela sem transformers; essa restrição deve acompanhar qualquer conclusão obtida. Backend, leitura de stencil e isolamento ainda não foram demonstrados.
+
+Finalmente, a ausência do protocolo completo, dos relatórios B1–B3 e dos arquivos de testes existentes impede confirmar os passos 2/8, a integração do runner e a suficiência dos gates referenciados. Não é evidência de defeito nesses arquivos: é limite das fontes disponíveis.
+
+Fontes: RISKS-TESTS.md:32–34,40–49,57–65; QUIESCENCE.md:28; README.md:3,17.
+
+Decisão de avanço
+
+CONFIRMADO: os artefatos organizam riscos, distinguem várias hipóteses de fatos e não declaram validação realizada.
+
+CONDICIONADO: o contrato isolado pode avançar após explicitar round(CBox), domínios/unidades, coverage e oráculos P1–P5, corrigir H-REG e compatibilizar os aceites da proposta.
+
+BLOQUEADO: considerar Q1–Q3, destruição de decorações, E0/E1 ou render/lifecycle resolvidos. Permanecem dependentes das pré-condições identificadas, de fontes não fornecidas e de validação runtime ainda não realizada.

@@ -1,0 +1,10 @@
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::LogicalBox {anonymous}::damage(KwGeometry::LogicalBox, KwGeometry::LogicalBox)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:70:16: error: ‘unionDamage’ was not declared in this scope
+   70 |         return unionDamage(prev, next);
+      |                ^~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::LogicalBox {anonymous}::preview(KwGeometry::PhysicalBox, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:75:16: error: ‘previewBBox’ was not declared in this scope; did you mean ‘preview’?
+   75 |         return previewBBox(p, s);
+      |                ^~~~~~~~~~~
+      |                preview
+FALHOU - compilar plugin/test_geometry.cpp

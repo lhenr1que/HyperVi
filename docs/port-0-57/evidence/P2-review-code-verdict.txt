@@ -1,0 +1,24 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    {
+      "location": "plugin/test_geometry.cpp: outward() e garantia P3",
+      "description": "A cobertura P3 falha para entradas finitas com intermediários finitos: outward() soma posição e dimensão antes de escalar, enquanto physicalLocal() escala os componentes antes de calcular a extensão residual. A diferença de arredondamento pode eliminar uma extensão que permanece visível no desenho.",
+      "example": "Use d={0x1p53,0,1,1}, e=w=f=m={0,0}, scale=1.5, extBottom=aaMargin=0. logicalBBox() retorna {9007199254740992,0,1,1}. Em outward(), b.x+b.w arredonda para 9007199254740992; portanto, a largura física calculada é zero. Já physicalLocal() calcula x=13510798882111488 e round((x+1.5)-x)=2, retornando largura 2. Assim, covers(outward(bbox,1.5),physicalLocal(...)) é falso.",
+      "contract": "P3",
+      "precondition_analysis": "As entradas são exatamente representáveis, as dimensões e a escala são positivas, e nenhum intermediário transborda. O problema é perda de precisão por arredondamento IEEE, não entrada externa inválida. Uma restrição adicional que proíba essa perda de precisão não está explicitada; seria também diferente do tratamento de cancelamento já adotado em unionDamage() e previewBBox()."
+    }
+  ],
+  "suggestions": [
+    {
+      "location": "plugin/test_geometry.cpp: p2p3()",
+      "description": "Adicionar o contraexemplo como regressão positiva e ampliar os casos por ordens de grandeza e razões entre posição e dimensão. Os testes atuais exercitam diversas frações, mas mantêm uma faixa numérica estreita."
+    },
+    {
+      "location": "Contrato P3 e cálculo conservador de limites físicos",
+      "description": "Definir e testar uma conversão conservadora que considere a ordem das operações do desenho. Se a intenção for suportar apenas coordenadas e escalas limitadas, explicitar limites suficientes e justificar a cobertura nesse domínio; finitude, isoladamente, não basta."
+    }
+  ],
+  "summary": "Reprovado por um contraexemplo aritmético confirmado de P3 que não é coberto pela suíte apresentada. P1 corresponde à semântica de CBox::round informada; P2 usa F uma vez e mantém as margens em unidades lógicas. Não identifiquei outro defeito confirmado em P4 ou P5. O módulo é independente do Hyprland, tem custo constante e não há integração nem alteração de produção no diff. Os resultados de compilação e mutação informados não demonstram cobertura fora da faixa numérica testada. Revisão realizada somente sobre o diff, sem ferramentas ou execução."
+}

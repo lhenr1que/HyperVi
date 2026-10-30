@@ -1,0 +1,4 @@
+g++ -O0: OK - P1-P5: 320762 verificacoes (variante 0)
+g++ -O3: OK - P1-P5: 320762 verificacoes (variante 0)
+clang++ -O0: OK - P1-P5: 320762 verificacoes (variante 0)
+clang++ -O3: OK - P1-P5: 320762 verificacoes (variante 0)

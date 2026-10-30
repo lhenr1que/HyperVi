@@ -1,0 +1,22 @@
+#include "geometry.hpp"
+#include <cstdio>
+#include <cstdint>
+#include <random>
+using namespace KwGeometry;
+PhysicalBox outward(LogicalBox b,double s){double x=std::floor(b.x*s),y=std::floor(b.y*s);return{x,y,std::ceil((b.x+b.w)*s)-x,std::ceil((b.y+b.h)*s)-y};}
+bool covers(PhysicalBox a,PhysicalBox b){return a.x<=b.x&&a.y<=b.y&&a.x+a.w>=b.x+b.w&&a.y+a.h>=b.y+b.h;}
+int main(){
+  std::mt19937_64 g(12345); std::uniform_real_distribution<double> u(0.5,1), small(-100,100), len(0.1,100);
+  const double sc[]{0x1p-4,.5,1,1.25,1.5,2,3,16};
+  for(int k=44;k<=52;k+=1){ long fail=0,n=0;
+    for(int i=0;i<200000;i++){
+      double sgn=(g()&1)?1:-1; double s=sc[g()%8];
+      LogicalBox d{sgn*u(g)*std::ldexp(1.,k)/ (g()%2?1:1), small(g), len(g), len(g)};
+      LogicalPoint e{small(g),small(g)},w{small(g),small(g)},f{small(g),small(g)},m{small(g),small(g)};
+      double ext=(g()%2)?96:0, aa=(g()%2)?1.25:0;
+      auto b=logicalBBox(d,e,w,f,m,ext,aa); auto dd=d; dd.h+=ext; auto p=physicalLocal(dd,e,w,f,m,s);
+      // damage covers drawing inflated by aa? only check core property as in suite (aa=0)
+      b=logicalBBox(d,e,w,f,m,ext,0); p=physicalLocal(dd,e,w,f,m,s);
+      n++; if(!covers(outward(b,s),p)) fail++; }
+    std::printf("k=%2d  |coord|~2^%d  P3 failures %ld / %ld\n",k,k,fail,n);}
+}

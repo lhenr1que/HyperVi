@@ -1,0 +1,312 @@
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:17:15: error: ‘kMaxPhysical’ was not declared in this scope
+   17 | static_assert(kMaxPhysical == kMaxLogical * kMaxScale);
+      |               ^~~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:17:31: error: ‘kMaxLogical’ was not declared in this scope
+   17 | static_assert(kMaxPhysical == kMaxLogical * kMaxScale);
+      |                               ^~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:17:45: error: ‘kMaxScale’ was not declared in this scope
+   17 | static_assert(kMaxPhysical == kMaxLogical * kMaxScale);
+      |                                             ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:18:19: error: ‘kMaxLogical’ was not declared in this scope
+   18 | static_assert(8 * kMaxLogical <= kMaxBox);          // bbox of the widest valid input
+      |                   ^~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:18:34: error: ‘kMaxBox’ was not declared in this scope
+   18 | static_assert(8 * kMaxLogical <= kMaxBox);          // bbox of the widest valid input
+      |                                  ^~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:19:15: error: ‘kMaxPhysical’ was not declared in this scope
+   19 | static_assert(kMaxPhysical / kMinScale <= kMaxBox); // widest valid preview result
+      |               ^~~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:19:30: error: ‘kMinScale’ was not declared in this scope
+   19 | static_assert(kMaxPhysical / kMinScale <= kMaxBox); // widest valid preview result
+      |                              ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:19:43: error: ‘kMaxBox’ was not declared in this scope
+   19 | static_assert(kMaxPhysical / kMinScale <= kMaxBox); // widest valid preview result
+      |                                           ^~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:21:15: error: ‘kMaxBox’ was not declared in this scope
+   21 | static_assert(kMaxBox * kMaxScale <= 0x1p46);
+      |               ^~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:21:25: error: ‘kMaxScale’ was not declared in this scope
+   21 | static_assert(kMaxBox * kMaxScale <= 0x1p46);
+      |                         ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::PhysicalBox {anonymous}::physical(Fixture, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:69:17: error: ‘const struct KwGeometry::PhysicalBox’ has no member named ‘has_value’
+   69 |         check(r.has_value(), "P1 in-domain physicalLocal must be accepted");
+      |                 ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:70:18: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::PhysicalBox’)
+   70 |         auto p = *r;
+      |                  ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::LogicalBox {anonymous}::bbox(Fixture, double, double, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:79:17: error: ‘const struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+   79 |         check(r.has_value(), "P2 in-domain logicalBBox must be accepted");
+      |                 ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:80:18: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+   80 |         auto b = *r;
+      |                  ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::LogicalBox {anonymous}::damage(KwGeometry::LogicalBox, KwGeometry::LogicalBox)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:87:17: error: ‘const struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+   87 |         check(r.has_value(), "P4 in-domain unionDamage must be accepted");
+      |                 ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:88:16: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+   88 |         return *r;
+      |                ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘KwGeometry::LogicalBox {anonymous}::preview(KwGeometry::PhysicalBox, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:94:17: error: ‘const struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+   94 |         check(r.has_value(), "P5 in-domain previewBBox must be accepted");
+      |                 ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:95:16: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+   95 |         return *r;
+      |                ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘bool {anonymous}::physicalOk(const Args&)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:116:89: error: ‘struct KwGeometry::PhysicalBox’ has no member named ‘has_value’
+  116 |     bool physicalOk(const Args& a) { return physicalLocal(a.d, a.e, a.w, a.f, a.m, a.s).has_value(); }
+      |                                                                                         ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘bool {anonymous}::bboxOk(const Args&, double, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:118:62: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  118 |         return logicalBBox(a.d, a.e, a.w, a.f, a.m, ext, aa).has_value();
+      |                                                              ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘bool {anonymous}::covered(const Args&, double, double)’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:18: error: no match for ‘operator&&’ (operand types are ‘const KwGeometry::PhysicalBox’ and ‘const KwGeometry::LogicalBox’)
+  126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+      |                ~ ^~ ~
+      |                |    |
+      |                |    const KwGeometry::LogicalBox
+      |                const KwGeometry::PhysicalBox
+  • there is 1 candidate
+    /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:18:
+      126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+          |                ~~^~~~
+    • candidate 1: ‘operator&&(bool, bool)’ (built-in)
+      • no known conversion for argument 2 from ‘const KwGeometry::LogicalBox’ to ‘bool’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:33: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::PhysicalBox’)
+  126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+      |                                 ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:47: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+      |                                               ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:69: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+      |                                                                     ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:126:79: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::PhysicalBox’)
+  126 |         return p && b && finite(*p) && finite(*b) && covers(outward(*b, a.s), *p);
+      |                                                                               ^~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘double {anonymous}::pickScale()’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:137:33: error: ‘kMinScale’ was not declared in this scope
+  137 |     double pickScale() { return kMinScale * std::pow(kMaxScale / kMinScale, uni()); }
+      |                                 ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:137:54: error: ‘kMaxScale’ was not declared in this scope
+  137 |     double pickScale() { return kMinScale * std::pow(kMaxScale / kMinScale, uni()); }
+      |                                                      ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘void {anonymous}::domain()’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:144:56: error: ‘struct KwGeometry::PhysicalBox’ has no member named ‘has_value’
+  144 |         check(!physicalLocal(big, {}, {}, {}, {}, 1.5).has_value(), "P3 original counterexample 2^53 rejected by physicalLocal");
+      |                                                        ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:145:55: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  145 |         check(!logicalBBox(big, {}, {}, {}, {}, 0, 0).has_value(), "P3 original counterexample 2^53 rejected by logicalBBox");
+      |                                                       ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:146:38: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  146 |         check(!unionDamage(big, big).has_value(), "P3 original counterexample 2^53 rejected by unionDamage");
+      |                                      ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:147:52: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  147 |         check(!previewBBox({0x1p53, 0, 1, 1}, 1.5).has_value(), "P3 original counterexample 2^53 rejected by previewBBox");
+      |                                                    ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:150:19: error: ‘kMaxLogical’ was not declared in this scope
+  150 |         edge.d = {kMaxLogical, 0, 1, 1}; edge.e = edge.w = edge.f = edge.m = {};
+      |                   ^~~~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:150:39: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalBox’ and ‘<brace-enclosed initializer list>’)
+  150 |         edge.d = {kMaxLogical, 0, 1, 1}; edge.e = edge.w = edge.f = edge.m = {};
+      |                                       ^
+  • there are 2 candidates
+In file included from /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:3:
+    • candidate 1: ‘constexpr KwGeometry::LogicalBox& KwGeometry::LogicalBox::operator=(const KwGeometry::LogicalBox&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:12:12:
+         12 |     struct LogicalBox {
+            |            ^~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalBox&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalBox& KwGeometry::LogicalBox::operator=(KwGeometry::LogicalBox&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalBox&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:155:42: error: ‘kMaxScale’ was not declared in this scope
+  155 |             const double lim = i == 12 ? kMaxScale : kMaxLogical;
+      |                                          ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:167:80: error: ‘kMinScale’ was not declared in this scope
+  167 |                     ? std::initializer_list<double>{0, -1, -0., std::nextafter(kMinScale, 0), 0x1p-1074}
+      |                                                                                ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:167:104: error: no matching function for call to ‘std::initializer_list<double>::initializer_list(<brace-enclosed initializer list>)’
+  167 |                     ? std::initializer_list<double>{0, -1, -0., std::nextafter(kMinScale, 0), 0x1p-1074}
+      |                                                                                                        ^
+  • there are 4 candidates
+In file included from /usr/include/c++/16/bits/algorithmfwd.h:41,
+                 from /usr/include/c++/16/bits/stl_algo.h:59,
+                 from /usr/include/c++/16/algorithm:63,
+                 from /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:5:
+    • candidate 1: ‘constexpr std::initializer_list<_E>::initializer_list() [with _E = double]’
+      /usr/include/c++/16/initializer_list:66:17:
+         66 |       constexpr initializer_list() noexcept
+            |                 ^~~~~~~~~~~~~~~~
+      • candidate expects 0 arguments, 5 provided
+    • candidate 2: ‘constexpr std::initializer_list<_E>::initializer_list(const_iterator, size_type) [with _E = double; const_iterator = const double*; size_type = long unsigned int]’
+      /usr/include/c++/16/initializer_list:62:17:
+         62 |       constexpr initializer_list(const_iterator __a, size_type __l)
+            |                 ^~~~~~~~~~~~~~~~
+      • candidate expects 2 arguments, 5 provided
+    • candidate 3: ‘constexpr std::initializer_list<double>::initializer_list(const std::initializer_list<double>&)’
+      /usr/include/c++/16/initializer_list:47:11:
+         47 |     class initializer_list
+            |           ^~~~~~~~~~~~~~~~
+      • candidate expects 1 argument, 5 provided
+    • candidate 4: ‘constexpr std::initializer_list<double>::initializer_list(std::initializer_list<double>&&)’
+      • candidate expects 1 argument, 5 provided
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:177:63: error: ‘kMinScale’ was not declared in this scope
+  177 |             for (double good : {lim, i == 12 || isLength(i) ? kMinScale : -lim}) {
+      |                                                               ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:194:103: error: ‘kMinScale’ was not declared in this scope
+  194 |         for (double bad : {double(NAN), double(INFINITY), DBL_MAX, 0., -1., 0x1p-1074, std::nextafter(kMinScale, 0), std::nextafter(kMaxScale, INFINITY)})
+      |                                                                                                       ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:194:133: error: ‘kMaxScale’ was not declared in this scope
+  194 |         for (double bad : {double(NAN), double(INFINITY), DBL_MAX, 0., -1., 0x1p-1074, std::nextafter(kMinScale, 0), std::nextafter(kMaxScale, INFINITY)})
+      |                                                                                                                                     ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:195:41: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  195 |             check(!previewBBox(ph, bad).has_value(), "P5 previewBBox rejects bad scale");
+      |                                         ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:196:29: error: ‘kMinScale’ was not declared in this scope
+  196 |         for (double good : {kMinScale, kMaxScale, 1.5})
+      |                             ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:196:40: error: ‘kMaxScale’ was not declared in this scope
+  196 |         for (double good : {kMinScale, kMaxScale, 1.5})
+      |                                        ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:197:41: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  197 |             check(previewBBox(ph, good).has_value(), "P5 previewBBox accepts closed scale limits");
+      |                                         ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:199:28: error: ‘kMaxPhysical’ was not declared in this scope; did you mean ‘physical’?
+  199 |         const double lim[]{kMaxPhysical, kMaxPhysical, kMaxPhysical, kMaxPhysical};
+      |                            ^~~~~~~~~~~~
+      |                            physical
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:206:67: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  206 |                 check(!previewBBox({v[0], v[1], v[2], v[3]}, 1.5).has_value(), "P5 previewBBox rejects bad physical component");
+      |                                                                   ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:210:114: error: ‘kMaxBox’ was not declared in this scope
+  210 |             for (double bad : {double(NAN), double(INFINITY), -double(INFINITY), DBL_MAX, 0x1p53, std::nextafter(kMaxBox, INFINITY),
+      |                                                                                                                  ^~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:216:45: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  216 |                 check(!unionDamage(odd, ok).has_value() && !unionDamage(ok, odd).has_value(), "P4 unionDamage rejects bad component in either operand");
+      |                                             ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:216:82: error: ‘struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  216 |                 check(!unionDamage(odd, ok).has_value() && !unionDamage(ok, odd).has_value(), "P4 unionDamage rejects bad component in either operand");
+      |                                                                                  ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:218:29: error: ‘kMaxBox’ was not declared in this scope
+  218 |         check(unionDamage({-kMaxBox, -kMaxBox, kMaxBox, kMaxBox}, {kMaxBox, kMaxBox, kMaxBox, kMaxBox}).has_value(), "P4 unionDamage accepts the closed limit");
+      |                             ^~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:218:26: error: could not convert ‘{<expression error>, <expression error>, kMaxBox, kMaxBox}’ from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalBox’
+  218 |         check(unionDamage({-kMaxBox, -kMaxBox, kMaxBox, kMaxBox}, {kMaxBox, kMaxBox, kMaxBox, kMaxBox}).has_value(), "P4 unionDamage accepts the closed limit");
+      |               ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                          |
+      |                          <brace-enclosed initializer list>
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:222:27: error: ‘kMinScale’ was not declared in this scope
+  222 |         const double ss[]{kMinScale, 0.1, 1, 1.25, 1.5, 2, 3.7, 10, kMaxScale, std::nextafter(kMaxScale, 0), std::nextafter(kMinScale, 1)};
+      |                           ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:222:69: error: ‘kMaxScale’ was not declared in this scope
+  222 |         const double ss[]{kMinScale, 0.1, 1, 1.25, 1.5, 2, 3.7, 10, kMaxScale, std::nextafter(kMaxScale, 0), std::nextafter(kMinScale, 1)};
+      |                                                                     ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:227:61: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalPoint’ and ‘<brace-enclosed initializer list>’)
+  227 |             a.e = {sg[1] * kMaxLogical, -sg[1] * kMaxLogical};
+      |                                                             ^
+  • there are 2 candidates
+    • candidate 1: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(const KwGeometry::LogicalPoint&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:9:12:
+          9 |     struct LogicalPoint {
+            |            ^~~~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalPoint&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(KwGeometry::LogicalPoint&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalPoint&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:228:60: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalPoint’ and ‘<brace-enclosed initializer list>’)
+  228 |             a.w = {sg[2] * kMaxLogical, sg[2] * kMaxLogical};
+      |                                                            ^
+  • there are 2 candidates
+    • candidate 1: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(const KwGeometry::LogicalPoint&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:9:12:
+          9 |     struct LogicalPoint {
+            |            ^~~~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalPoint&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(KwGeometry::LogicalPoint&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalPoint&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:229:61: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalPoint’ and ‘<brace-enclosed initializer list>’)
+  229 |             a.f = {sg[3] * kMaxLogical, -sg[3] * kMaxLogical};
+      |                                                             ^
+  • there are 2 candidates
+    • candidate 1: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(const KwGeometry::LogicalPoint&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:9:12:
+          9 |     struct LogicalPoint {
+            |            ^~~~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalPoint&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(KwGeometry::LogicalPoint&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalPoint&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:230:60: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalPoint’ and ‘<brace-enclosed initializer list>’)
+  230 |             a.m = {sg[4] * kMaxLogical, sg[4] * kMaxLogical};
+      |                                                            ^
+  • there are 2 candidates
+    • candidate 1: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(const KwGeometry::LogicalPoint&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:9:12:
+          9 |     struct LogicalPoint {
+            |            ^~~~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalPoint&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(KwGeometry::LogicalPoint&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalPoint&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:231:58: error: unable to deduce ‘std::initializer_list<auto>&&’ from ‘{1.0e+0, 2.9999999999999999e-1, 1.2345e+3, kMaxLogical}’
+  231 |             for (double dw : {1., .3, 1234.5, kMaxLogical}) {
+      |                                                          ^
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:234:60: error: unable to deduce ‘std::initializer_list<auto>&&’ from ‘{0.0, 9.6e+1, kMaxLogical}’
+  234 |                     for (double ext : {0., 96., kMaxLogical})
+      |                                                            ^
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:235:64: error: unable to deduce ‘std::initializer_list<auto>&&’ from ‘{0.0, 1.25e+0, kMaxLogical}’
+  235 |                         for (double aa : {0., 1.25, kMaxLogical}) {
+      |                                                                ^
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:251:110: error: no match for ‘operator=’ (operand types are ‘KwGeometry::LogicalPoint’ and ‘<brace-enclosed initializer list>’)
+  251 |             b.d.x = pick(kMaxLogical); b.d.y = pick(kMaxLogical); b.f = {pick(kMaxLogical), pick(kMaxLogical)};
+      |                                                                                                              ^
+  • there are 2 candidates
+    • candidate 1: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(const KwGeometry::LogicalPoint&)’
+      /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/geometry.hpp:9:12:
+          9 |     struct LogicalPoint {
+            |            ^~~~~~~~~~~~
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘const KwGeometry::LogicalPoint&’
+    • candidate 2: ‘constexpr KwGeometry::LogicalPoint& KwGeometry::LogicalPoint::operator=(KwGeometry::LogicalPoint&&)’
+      • no known conversion for argument 1 from ‘<brace-enclosed initializer list>’ to ‘KwGeometry::LogicalPoint&&’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:253:31: error: no match for ‘operator&&’ (operand types are ‘const KwGeometry::LogicalBox’ and ‘const KwGeometry::LogicalBox’)
+  253 |             const auto u = ba && bb ? unionDamage(*ba, *bb) : std::nullopt;
+      |                            ~~ ^~ ~~
+      |                            |     |
+      |                            |     const KwGeometry::LogicalBox
+      |                            const KwGeometry::LogicalBox
+  • there is 1 candidate
+    /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:253:31:
+      253 |             const auto u = ba && bb ? unionDamage(*ba, *bb) : std::nullopt;
+          |                            ~~~^~~~~
+    • candidate 1: ‘operator&&(bool, bool)’ (built-in)
+      • no known conversion for argument 2 from ‘const KwGeometry::LogicalBox’ to ‘bool’
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:253:51: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  253 |             const auto u = ba && bb ? unionDamage(*ba, *bb) : std::nullopt;
+      |                                                   ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:253:56: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  253 |             const auto u = ba && bb ? unionDamage(*ba, *bb) : std::nullopt;
+      |                                                        ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:255:52: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  255 |             check(covers(outward(*u, a.s), outward(*ba, a.s)) && covers(outward(*u, a.s), outward(*bb, a.s)), "P4 fuzz: union covers both frames");
+      |                                                    ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:255:99: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  255 |             check(covers(outward(*u, a.s), outward(*ba, a.s)) && covers(outward(*u, a.s), outward(*bb, a.s)), "P4 fuzz: union covers both frames");
+      |                                                                                                   ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:260:22: error: ‘const struct KwGeometry::LogicalBox’ has no member named ‘has_value’
+  260 |             check(pv.has_value() && finite(*pv) && covers(outward(*pv, a.s), pc), "P5 fuzz: preview coverage over the closed domain");
+      |                      ^~~~~~~~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:260:44: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  260 |             check(pv.has_value() && finite(*pv) && covers(outward(*pv, a.s), pc), "P5 fuzz: preview coverage over the closed domain");
+      |                                            ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:260:67: error: no match for ‘operator*’ (operand type is ‘const KwGeometry::LogicalBox’)
+  260 |             check(pv.has_value() && finite(*pv) && covers(outward(*pv, a.s), pc), "P5 fuzz: preview coverage over the closed domain");
+      |                                                                   ^~~
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: At global scope:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:133:12: error: ‘double {anonymous}::pick(double)’ defined but not used [-Werror=unused-function]
+  133 |     double pick(double lim) { // near the limit half the time, small otherwise
+      |            ^~~~
+cc1plus: all warnings being treated as errors
+FALHOU - compilar plugin/test_geometry.cpp
+exit=1

@@ -1,0 +1,6 @@
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp: In function ‘int main()’:
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_geometry.cpp:15:32: error: ‘logicalBBox’ is not a member of ‘KwGeometry’; did you mean ‘LogicalBox’?
+   15 |     const auto b = KwGeometry::logicalBBox(d, {100, 200}, {13, -17}, {-4, 6}, {-1920, -1080}, 96, 1.25);
+      |                                ^~~~~~~~~~~
+      |                                LogicalBox
+FALHOU - compilar plugin/test_geometry.cpp

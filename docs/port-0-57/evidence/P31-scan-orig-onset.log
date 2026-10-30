@@ -1,0 +1,9 @@
+k=44  |coord|~2^44  P3 failures 0 / 200000
+k=45  |coord|~2^45  P3 failures 0 / 200000
+k=46  |coord|~2^46  P3 failures 0 / 200000
+k=47  |coord|~2^47  P3 failures 0 / 200000
+k=48  |coord|~2^48  P3 failures 0 / 200000
+k=49  |coord|~2^49  P3 failures 0 / 200000
+k=50  |coord|~2^50  P3 failures 1883 / 200000
+k=51  |coord|~2^51  P3 failures 7062 / 200000
+k=52  |coord|~2^52  P3 failures 12195 / 200000

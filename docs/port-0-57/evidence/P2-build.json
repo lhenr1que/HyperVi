@@ -1,0 +1,11 @@
+{
+  "command": [
+    "make",
+    "-C",
+    "/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin",
+    "TARGET=/home/lhen/.hermes/cache/scratch/kwinish-p2/build/kwinish-bars-baseline.so"
+  ],
+  "exit_code": 2,
+  "target_exists": false,
+  "environment": "HOME/XDG isolados; DISPLAY/WAYLAND_DISPLAY/HYPRLAND_INSTANCE_SIGNATURE ausentes"
+}

@@ -1,0 +1,30 @@
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "plugin/geometry.hpp: previewBBox, cálculo de end em coverAxis",
+      "claim": "O teste de cobertura perde a informação que deveria proteger: start + size pode arredondar para um inteiro abaixo da borda física exata. Nesse caso, a comparação não solicita alargamento, e ceilOut não contém a caixa física. Isso ocorre com coordenadas pequenas e largura próxima de 1, inteiramente dentro do domínio; limitar a magnitude máxima não resolve.",
+      "counterexample": "physical={1,0,0x1.0000000000001p0,1}, scale=1. A largura é exatamente 1+2^-52 e a borda física exata é 2+2^-52. Em double, start+size arredonda para 2, assim como origin+extent. A condição ceil((origin+extent)*scale)<end compara 2<2 e não alarga. O bbox devolvido produz ceilOut com borda direita 2, que não contém a borda física 2+2^-52."
+    },
+    {
+      "severity": "major",
+      "where": "plugin/geometry.hpp: unionDamage, cálculo de right/bottom antes da correção com nextafter",
+      "claim": "A correção protege apenas a subtração posterior; não protege a soma que calcula as bordas de entrada. Portanto, unionDamage pode perder extensão e não devolver um retângulo conservador. Também pode transformar uma entrada válida em uma saída de largura zero, posteriormente rejeitada pela própria API.",
+      "counterexample": "prev=next={1,0,0x1.0000000000001p0,1}: prev.x+prev.w arredonda para 2; o resultado é {1,0,1,1}, cuja borda direita exata é menor que a das entradas. A condição x+w<right é falsa. Variante mais extrema, também válida: prev=next={1,0,0x1p-54,1}; right arredonda para 1 e a função devolve largura 0. unionDamage(resultado,resultado) então retorna nullopt."
+    },
+    {
+      "severity": "major",
+      "where": "plugin/geometry.hpp: physicalLocal, arredondamento residual das extensões",
+      "claim": "Comprimento lógico estritamente positivo não garante extensão física não negativa com a fórmula implementada. O domínio admite uma caixa cuja largura física retornada é -1. Isso reproduz a fórmula informada de CBox::round, mas contradiz a promessa de devolver uma caixa física válida ou rejeitar a entrada; a restrição proposta não estabelece essa pré-condição.",
+      "counterexample": "D={0.5,0,0x1p-54,1}, E=W=F=M={0,0}, scale=1. x=0.5 e rx=1. Em arredondamento IEEE usual, x+D.w arredonda para 0.5, pois está exatamente no meio entre dois doubles e o desempate escolhe 0.5. Logo round(x+D.w-rx)=round(-0.5)=-1. A função aceita a entrada e retorna {1,0,-1,1}."
+    },
+    {
+      "severity": "minor",
+      "where": "plugin/test_geometry.cpp: covers, testes P4/P5 e distribuição das amostras",
+      "claim": "O oráculo de cobertura repete a soma arredondada que causa a perda de borda, podendo declarar coberto um retângulo que não está contido matematicamente. Os testes de borda fornecidos não incluem a soma exatamente no meio entre doubles usada acima. Os negativos e mutantes demonstram sensibilidade às alterações enumeradas, não a suficiência do domínio nem a correção desse oráculo.",
+      "counterexample": "Para a entrada de preview {1,0,0x1.0000000000001p0,1}, scale=1, covers(outward(resultado,1),physical) retorna true: ambos os lados calculam a borda direita como double igual a 2. Um oráculo com soma exata, ou long double x87 neste exemplo específico, distingue 2 de 2+2^-52. Para unionDamage({1,0,0x1p-54,1}, mesma caixa), covers também aceita a saída de largura zero."
+    }
+  ],
+  "notes": "Revisão exclusivamente estática, sem executar ferramentas. Os contraexemplos pressupõem o arredondamento IEEE usual para o mais próximo, com desempate para o par. Não identifiquei aqui um contraexemplo direto à P3 estritamente definida pela cobertura de physicalLocal usando ceilOut em double; os problemas encontrados atingem outras garantias declaradas. Os guardas apresentados rejeitam corretamente os valores não finitos e as violações explícitas dos limites de entrada. Entretanto, um teto de magnitude não impede perdas em somas próximas de inteiros nem limita a razão entre origem e extensão. A justificativa empírica não prova essas propriedades. Para aprovar, é necessário preservar as bordas relevantes ou restringir adicionalmente o domínio com condições justificadas, além de esclarecer e testar o tratamento de extensões físicas negativas. Os testes devem incluir os casos concretos acima e um oráculo que não repita a perda da implementação."
+}

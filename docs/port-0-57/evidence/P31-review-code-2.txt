@@ -1,0 +1,18 @@
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "plugin/geometry.hpp: unionDamage, validação do resultado; plugin/test_geometry.cpp: teste 'P4 unionDamage accepts the closed limit'",
+      "claim": "A união de entradas válidas pode produzir uma largura maior que kMaxBox e, portanto, um resultado que a própria função rejeita como entrada. O teste de limites já contém esse contraexemplo, mas verifica somente has_value(), não a reaceitação. O fuzz testa reaceitação apenas para caixas derivadas de logicalBBox, cujas magnitudes são muito menores que o domínio completo de unionDamage.",
+      "counterexample": "Seja K = kMaxBox = 2^40. prev={-K,-K,K,K} e next={K,K,K,K} passam por boxOk. unionDamage retorna {-K,-K,3*K,3*K}. unionDamage(resultado,resultado) retorna nullopt porque 3*K > K. É exatamente o par já usado no teste de aceitação do limite fechado. É necessário compatibilizar o domínio de entrada, o domínio de saída e a promessa de reaceitação; apenas verificar as entradas não basta."
+    },
+    {
+      "severity": "major",
+      "where": "plugin/geometry.hpp: previewBBox, divisão dos componentes e pós-condições de coverAxis; plugin/test_geometry.cpp: verificações P5",
+      "claim": "previewBBox valida a resolubilidade somente antes da divisão. A transformação pode produzir uma extensão não resolúvel, ou até uma extensão zero por underflow. Como coverAxis verifica cobertura após floor/ceil, a folga de arredondamento inteiro pode esconder essa degeneração e impedir qualquer reparo. O resultado cobre a entrada segundo P5, mas não pode ser passado a unionDamage. Os testes P5 verificam cobertura e finitude, não a validade do resultado como LogicalBox de entrada.",
+      "counterexample": "Exemplo sem subnormais: physical={1.5,0,3*2^-54,1}, scale=1.5. A entrada é válida: fl(1.5+3*2^-54)=1.5000000000000002 > 1.5. A divisão retorna b.x=1 e b.w=2^-53; fl(b.x+b.w)=1, por empate para par. coverAxis não alarga: floor(1*1.5)=1 <= 1.5 e ceil(1*1.5)=2 >= 1.5000000000000002. previewBBox devolve a caixa, mas unionDamage(b,b) a rejeita. Exemplo adicional com underflow: physical={-2^-1074,0,2^-1074,1}, scale=16. A entrada também é válida e resolúvel. O resultado tem b.x=-2^-1074, b.w=0 e b.h=1/16: a origem é corrigida por nextafter, mas ceil((-2^-1074)*16)=0 já cobre a borda física zero, então a extensão permanece zero."
+    }
+  ],
+  "notes": "Revisão estática, sem executar ferramentas. Não encontrei um novo contraexemplo concreto de P3 nem de extensão física negativa após resolved; os dois achados acima quebram a reaceitação solicitada dentro do domínio declarado. A definição de borda como fl(x+w) é um contrato operacional possível, mas não justifica afirmar que a diferença é inobservável por qualquer consumidor em double: escalar componentes antes de somá-los, por exemplo, pode observá-la. A garantia deve ficar vinculada à ordem de operações especificada. Os negativos e mutantes apresentados demonstram sensibilidade às alterações selecionadas, não completude das propriedades. Em particular, não exercitam a reaceitação da união nos extremos do domínio completo nem a reaceitação das saídas de previewBBox; ambos os contraexemplos passam pelas verificações de cobertura pertinentes. As medições por magnitude e o fuzz independente são evidência útil, mas não constituem prova universal de P3."
+}

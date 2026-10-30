@@ -1,0 +1,12 @@
+{
+  "verdict": "approve",
+  "findings": [
+    {
+      "severity": "minor",
+      "where": "plugin/geometry.hpp: comentário do domínio numérico sobre magnitude máxima de pixels e distância até 2^50",
+      "claim": "O limite de 2^44 vale para componentes individuais de caixas aceitas por unionDamage após escala, não para suas bordas. Uma borda pode atingir 2^45. Isso não demonstra falha de cobertura, mas a justificativa deve distinguir componentes de bordas: para estas, a distância até 2^50 é de cinco bits, não seis.",
+      "counterexample": "b={0x1p40,0,0x1p40,1}; unionDamage(b,b) aceita e devolve b. Com s=16, a borda direita calculada como (b.x+b.w)*s é exatamente 0x1p45."
+    }
+  ],
+  "notes": "Não identifiquei achado blocker ou major, nem contraexemplo de cobertura dentro do contrato declarado. Os pós-testes com boxOk fecham os problemas anteriores de resultados não reutilizáveis e extensões colapsadas. A correção dirigida de unionDamage preserva a borda double escolhida; em previewBBox, o alargamento da origem e a reconstrução dirigida da extensão são coerentes com essa mesma definição de borda. A restrição de magnitude fornece folga substancial em relação ao meio pixel relevante para comparar ceilOut com o arredondamento residual de physicalLocal; não depende apenas de preservar uma largura positiva. Os negativos e mutantes demonstram sensibilidade às alterações efetivamente exercitadas, não uma prova universal. A correção documentada de expectativas de primeira falha não invalida essa evidência quando a assertiva continua legítima. Permanecem limitações de amostragem: larguras sub-ulp, subnormais e cancelamentos são tratados sobretudo por casos dirigidos, não pelo fuzz apresentado. A exclusão de draw.h > kMaxLogical em covered é compatível com o contrato explicitado, mas não testa cobertura dessas extensões. Revisão somente do material fornecido; os resultados de execução não foram verificados independentemente."
+}
