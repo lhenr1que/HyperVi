@@ -7,6 +7,7 @@
 #include <any>
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/shared/parserUtils/ParserUtils.hpp>
@@ -24,7 +25,7 @@
 #include "barDeco.hpp"
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include "globals.hpp"
-#include "hostDrag.hpp"
+#include "barInput.hpp"
 
 extern "C" {
 #include <lua.h>
@@ -299,26 +300,10 @@ int luaSetZone(lua_State* L) {
     return 0;
 }
 
-// hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
-// next button press ends it (Escape also cancels, handled by the compositor).
+// hl.plugin.kwinish.grab(mode, address): Move/Resize from the window menu. Off in alpha-0 (openspec
+// disable-titlebar-drag-alpha0): the call stays registered and always answers with a Lua error (barInput.hpp).
 int luaGrab(lua_State* L) {
-    if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
-        return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
-    const std::string mode = lua_tostring(L, 1);
-    const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
-    if (mode != "move" && mode != "resize")
-        return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
-    for (auto& w : Desktop::windowState()->windows()) {
-        if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
-            continue;
-        Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
-        if (Desktop::focusState()->window() != w)
-            break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
-        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
-        g_pGlobalState->grabActive = true;
-        break;
-    }
-    return 0;
+    return Config::Lua::Bindings::Internal::configError(L, KwIn::grabError(lua_isstring(L, 1), lua_isstring(L, 2), lua_isstring(L, 1) ? lua_tostring(L, 1) : ""));
 }
 
 // hl.plugin.kwinish.set_bar_hidden(address, hidden): the window menu's "no title bar and frame".
@@ -341,16 +326,6 @@ int luaClearZones(lua_State*) {
     return 0;
 }
 
-
-// Pointer motion arrives here before the pointer moves: a dragged window's bar may hold back the part that would cross a seam.
-static CFunctionHook* g_pMotionHook = nullptr;
-using MotionFn                      = void (*)(CInputManager*, IPointer::SMotionEvent);
-static void hkOnMouseMoved(CInputManager* self, IPointer::SMotionEvent e) {
-    for (auto& b : g_pGlobalState->bars)
-        if (b && b->holdAtSeam(e))
-            break;
-    ((MotionFn)g_pMotionHook->m_original)(self, e);
-}
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     PHANDLE = handle;
@@ -442,48 +417,20 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
-    for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
-        if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
-            g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
-            if (g_pMotionHook && !g_pMotionHook->hook())
-                g_pMotionHook = nullptr;
-            break;
-        }
-    if (!g_pMotionHook)
-        HyprlandAPI::addNotification(PHANDLE, "[kwinish] Could not hook pointer motion: seam resistance is off.", CHyprColor{1.0, 0.4, 0.2, 1.0}, 8000);
-    // Escape cancels the compositor's move/resize on its own; without this the flag stayed set and swallowed the next click
-    static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
-        if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
-            g_pGlobalState->grabActive = false;
-        // Shift mid-drag stalls the compositor's move: the dragging bar restarts it on the next pointer motion (no deferred
-        // callback, which could outlive the plugin)
-        if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
-            for (auto& b : g_pGlobalState->bars)
-                if (b)
-                    b->m_rearmPending = true;
-    });
     // window keys are pointers and get reused: forget what was kept for a window when it closes
     static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
         const auto key = (uintptr_t)w.get();
         g_pGlobalState->hiddenBars.erase(key);
         g_pGlobalState->restores.erase(key);
     });
-    // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
+    // any click puts the button tooltip away until the pointer leaves the button (KDE); the release of a press a bar took
+    // is the bar's too, wherever the pointer went and even if the bar is gone (barInput.hpp)
     static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
-        auto& g = *g_pGlobalState;
         if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
-            tipHide(false); // any click puts the button tooltip away until the pointer leaves the button (KDE)
-            g.tip.pressed = true;
-        }
-        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
-            g.grabActive       = false;
-            g.grabSwallowPress = true;
-            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+            tipHide(false);
+            g_pGlobalState->tip.pressed = true;
+        } else if (g_pGlobalState->pairs.onRelease(e.button).cancel)
             info.cancelled = true;
-        } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
-            g.grabSwallowPress = false;
-            info.cancelled     = true;
-        }
     });
     static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
         // active/inactive colours: every bar repaints and re-renders its title when focus moves

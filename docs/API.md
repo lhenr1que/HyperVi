@@ -24,11 +24,11 @@ Loaded from the Hyprland Lua config (see `recipes/hyprland-snippet.lua`). Public
 `addr` is a Hyprland window address. `action` is `kind` or `kind:arg`:
 `layout:<name>`, `tile:<where>`, `axis:<h|v>`, `pack:<dir>`, `zone:<n>`, `above`, `below`, `float`, `fullscreen`, `maximize`,
 `minimize`, `pin`, `close`, `workspace:<n|new>`, `grab:<move|resize>`, `rule:<name>`, `mode:<name>`, `columns:<n>`,
-`noframe`, `nocapture`. `tile:*` and `zone:*` accept a monitor suffix, `zone:2@HDMI-A-1`: the rectangle is computed on that monitor (the plugin sends the monitor of the drop); an unknown name falls back to the window's own monitor. Unknown kinds are ignored. `grab:*` needs the plugin.
+`noframe`, `nocapture`. `tile:*` and `zone:*` accept a monitor suffix, `zone:2@HDMI-A-1`: the rectangle is computed on that monitor (the plugin sends the monitor of the drop); an unknown name falls back to the window's own monitor. Unknown kinds are ignored. `grab:*` needs the plugin. Alpha-0 of the 0.57 port (OpenSpec `disable-titlebar-drag-alpha0`): the window menu no longer offers `grab:*` and the plugin refuses it (below); the bar sends no `tile:*@monitor`/`zone:*@monitor` on release, but the suffixes keep their meaning for explicit calls.
 
 ## 3. Compositor plugin `kwinish-bars` (Lua namespace `hl.plugin.kwinish`)
 `add_button`, `set_zone(monitor, name, x, y, w, h)`, `clear_zones`, `set_bar_hidden(address, bool)`, `grab("move"|"resize", address)`,
-`remember`, `forget`. Config namespace `plugin:kwinish:*` (`enabled`, `bar_height`, `floating_only`, ...; user-facing catalogue in [CONFIGURAVEL](CONFIGURAVEL.md), operations in [PLUGIN](PLUGIN.md); the complete native namespace is still not enumerated here).
+`remember`, `forget`. Alpha-0 of the 0.57 port: `grab` keeps its name, registration and argument errors, and answers a valid call with the Lua error `grab: unavailable in this build (...)`; it focuses nothing and starts no move/resize (`plugin/barInput.hpp`, `grabError`). Config namespace `plugin:kwinish:*` (`enabled`, `bar_height`, `floating_only`, ...; user-facing catalogue in [CONFIGURAVEL](CONFIGURAVEL.md), operations in [PLUGIN](PLUGIN.md); the complete native namespace is still not enumerated here).
 The plugin is locked to one Hyprland build; `<plugin>.abi` records which.
 
 ## 4. Files

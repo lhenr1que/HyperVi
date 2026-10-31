@@ -1,0 +1,11 @@
+base=60 after=42
+removed=18
+  - ('main.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?")
+  - ('main.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'")
+  - ('barDeco.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?")
+  - ('barDeco.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'")
+  - ('barDeco.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);', "use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?")
+  - ('barDeco.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);', "no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'")
+  - ('barDeco.cpp', 'g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");', "use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?")
+  - ('barDeco.cpp', 'g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");', "no member named 'm_dispatchers' in 'CHyprXWaylandManager'")
+new=0

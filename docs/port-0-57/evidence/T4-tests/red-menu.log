@@ -1,0 +1,15 @@
+failures:
+
+---- menu::tests::no_move_or_resize_in_alpha0 stdout ----
+
+thread 'menu::tests::no_move_or_resize_in_alpha0' (10874) panicked at src/menu.rs:510:13:
+no grab:* anywhere ("firefox")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    menu::tests::no_move_or_resize_in_alpha0
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--bin kwinish-ui`

@@ -1,0 +1,77 @@
+ok - floating: title press focuses and is taken
+ok - floating: its release is taken too
+ok - floating: no drag started, ended or snapped
+ok - tiled: title press focuses and is taken
+ok - tiled: its release is taken too
+ok - tiled: no drag started, ended or snapped
+ok - maximized: title press focuses and is taken
+ok - maximized: its release is taken too
+ok - maximized: no drag started, ended or snapped
+ok - button press runs the button once
+ok - release after minimize (focus gone, pointer off) is taken
+ok - a second release is not ours
+ok - right press on the bar opens the menu
+ok - right release goes with it
+ok - right press on a button opens the menu too
+ok - right release off the bar still goes with it
+ok - icon press opens the menu under the icon
+ok - icon release (pointer now on the menu) is taken
+ok - icon: no drag
+ok - press off the bar passes
+ok - and its release passes
+ok - press where the bar takes no input passes
+ok - and its release passes
+ok - middle press passes
+ok - middle release passes
+ok - side button passes, even on a button
+ok - side release passes
+ok - a release with no press passes
+ok - a right release with no press passes
+ok - right press off the bar while left is held passes
+ok - its release passes
+ok - the left release is still taken
+ok - overlapping bars: one action
+ok - overlapping bars: the release is taken once
+ok - close button press
+ok - release after the bar is destroyed is taken
+ok - and only that one
+ok - right release after the bar is destroyed is taken
+ok - button on floating: cancel, focus, raise, run once (cancel focus raise run1 )
+ok - button on tiled: no raise (cancel focus run1 )
+ok - release: only cancelled
+ok - right click: focus without raise, then the menu (cancel focus run3 )
+ok - icon: menu under the icon
+ok - title: focus and raise only (no drag)
+ok - double click: runs on_double_click
+ok - press off the bar: nothing at all
+ok - its release: nothing at all
+ok - second press within 400 ms is a double click
+ok - a third quick press is another double (as before)
+ok - after 400 ms it is a plain press again
+ok - on_double_click empty: never a double click
+ok - double click: no drag
+ok - a button press does not count toward a double click
+ok - grab without a mode
+ok - grab without an address
+ok - grab with an unknown mode
+ok - grab move is refused as unavailable
+ok - grab resize is refused as unavailable
+ok - no drag begin/end helper
+ok - no mouse-bind start/end/rearm
+ok - no menu grab state
+ok - no seam-resistance hook or Shift rearm
+ok - no drag begin/end helper
+ok - no mouse-bind start/end/rearm
+ok - no menu grab state
+ok - no seam-resistance hook or Shift rearm
+ok - no drag/touch/unsnap state
+ok - no drag, unsnap or snap-on-release routes
+ok - no touch on the bar
+ok - the bar sends no snap to the core
+ok - header: no drag/touch members
+ok - globals: no grab flags
+ok - onMouseButton decides and acts through barInput.hpp
+ok - releases are taken by the listener that outlives the bars
+ok - luaGrab answers through barInput.hpp
+ok - drawSnapPreview defined, never called
+input: tudo passou

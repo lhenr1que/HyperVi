@@ -1,0 +1,6 @@
+base=52 after=45
+removed=7
+  - ('main.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "'g_pKeybindManager' was not declared in this scope; did you mean 'g_pXWaylandManager'?")
+  - ('barDeco.cpp', 'g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);', "'g_pKeybindManager' was not declared in this scope; did you mean 'g_pXWaylandManager'?")
+  - ('barDeco.cpp', 'g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");', "'g_pKeybindManager' was not declared in this scope; did you mean 'g_pXWaylandManager'?")
+new=0

@@ -258,14 +258,13 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
         Item::Sub { label: t("Workspaces").into(), items: ws },
         tog(t("Maximize"), st.maximized, "maximize"),
         act(t("Minimize"), "minimize"),
-        act(t("Move"), "grab:move"),
-        act(t("Resize"), "grab:resize"),
+        // no Move/Resize in alpha-0 (openspec disable-titlebar-drag-alpha0): the plugin's grab is off; the native bind still moves
         tog(t("Keep above others"), st.above, "above"),
         Item::Sub { label: t("More actions").into(), items: more },
         Item::Sep,
         act(t("Close"), "close"),
     ];
-    if !st.class.is_empty() && st.class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c)) { root.insert(5, shortcut_item(st, addr)); }
+    if !st.class.is_empty() && st.class.chars().all(|c| c.is_ascii_alphanumeric() || "-._".contains(c)) { root.insert(3, shortcut_item(st, addr)); }
     root
 }
 
@@ -476,5 +475,48 @@ mod tests {
         let saved = json!({"2": "floating", "3": "bogus", "4": ["tiling"]});
         assert_eq!(saved_mode(&saved, 2).as_deref(), Some("floating"));
         assert_eq!((saved_mode(&saved, 3), saved_mode(&saved, 4), saved_mode(&saved, 5)), (None, None, None), "unknown modes are not shown");
+    }
+
+    // what each row does, in order: the action, "sub:<label>", "spawn:<first arg>" or "sep"
+    fn rows(items: &[Item]) -> Vec<String> {
+        items.iter().map(|i| match i {
+            Item::Act { action, .. } => action.clone(),
+            Item::Sub { label, .. } => format!("sub:{label}"),
+            Item::Spawn { args, .. } => format!("spawn:{}", args[0]),
+            Item::Sep => "sep".into(),
+        }).collect()
+    }
+    fn all_actions(items: &[Item], out: &mut Vec<String>) {
+        for i in items {
+            match i {
+                Item::Act { action, .. } => out.push(action.clone()),
+                Item::Sub { items, .. } => all_actions(items, out),
+                _ => {}
+            }
+        }
+    }
+
+    // alpha-0 (openspec disable-titlebar-drag-alpha0): no Move/Resize; everything else stays, in the same order
+    #[test]
+    fn no_move_or_resize_in_alpha0() {
+        let with = |class: &str, floating: bool, ws: i64, mode: &str| State { class: class.into(), floating, ws, mode: mode.into(), workspaces: vec![1, 2], ..Default::default() };
+        let more = format!("sub:{}", t("More actions"));
+        let wss = format!("sub:{}", t("Workspaces"));
+        for st in [with("firefox", true, 1, "tiling"), with("org.kde.dolphin", false, 2, "floating"), with("", true, -98, ""), with("bad class", true, 1, "tiling")] {
+            let menu = build(&st, "0x1");
+            let mut acts = vec![];
+            all_actions(&menu, &mut acts);
+            assert!(!acts.iter().any(|a| a.starts_with("grab:")), "no grab:* anywhere ({:?})", st.class);
+            let shortcut = !st.class.is_empty() && !st.class.contains(' ');
+            let mut want = vec![wss.clone(), "maximize".into(), "minimize".into()];
+            if shortcut { want.push("spawn:shortcut".into()); }
+            want.extend([String::from("above"), more.clone(), "sep".into(), "close".into()]);
+            assert_eq!(rows(&menu), want, "root rows for class {:?}", st.class);
+            for a in ["pin", "workspace:1", "workspace:2", "workspace:new", "float", "fullscreen", "below", "noframe", "nocapture"] {
+                assert!(acts.iter().any(|x| x == a), "{a} kept ({:?})", st.class);
+            }
+            assert_eq!(acts.iter().any(|a| a.starts_with("tile:")), st.floating, "Snap only for floating windows");
+            assert_eq!(acts.iter().any(|a| a.starts_with("mode:")), st.ws >= 1, "Workspace mode only on a normal workspace");
+        }
     }
 }

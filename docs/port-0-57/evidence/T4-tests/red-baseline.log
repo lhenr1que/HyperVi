@@ -1,0 +1,472 @@
+== bf2049a g++
+ok - floating: title press focuses and is taken
+ok - floating: its release is taken too
+FALHOU - floating: no drag started, ended or snapped
+ok - tiled: title press focuses and is taken
+ok - tiled: its release is taken too
+FALHOU - tiled: no drag started, ended or snapped
+ok - maximized: title press focuses and is taken
+ok - maximized: its release is taken too
+FALHOU - maximized: no drag started, ended or snapped
+ok - button press runs the button once
+FALHOU - release after minimize (focus gone, pointer off) is taken
+ok - a second release is not ours
+ok - right press on the bar opens the menu
+FALHOU - right release goes with it
+ok - right press on a button opens the menu too
+FALHOU - right release off the bar still goes with it
+ok - icon press opens the menu under the icon
+ok - icon release (pointer now on the menu) is taken
+ok - icon: no drag
+ok - press off the bar passes
+ok - and its release passes
+ok - press where the bar takes no input passes
+ok - and its release passes
+ok - middle press passes
+ok - middle release passes
+ok - side button passes, even on a button
+ok - side release passes
+ok - a release with no press passes
+ok - a right release with no press passes
+ok - right press off the bar while left is held passes
+ok - its release passes
+ok - the left release is still taken
+ok - overlapping bars: one action
+ok - overlapping bars: the release is taken once
+ok - close button press
+FALHOU - release after the bar is destroyed is taken
+ok - and only that one
+FALHOU - right release after the bar is destroyed is taken
+ok - button on floating: cancel, focus, raise, run once (cancel focus raise run1 )
+ok - button on tiled: no raise (cancel focus run1 )
+ok - release: only cancelled
+ok - right click: focus without raise, then the menu (cancel focus run3 )
+ok - icon: menu under the icon
+ok - title: focus and raise only (no drag)
+ok - double click: runs on_double_click
+ok - press off the bar: nothing at all
+ok - its release: nothing at all
+ok - second press within 400 ms is a double click
+ok - a third quick press is another double (as before)
+ok - after 400 ms it is a plain press again
+ok - on_double_click empty: never a double click
+FALHOU - double click: no drag
+ok - a button press does not count toward a double click
+ok - grab without a mode
+ok - grab without an address
+ok - grab with an unknown mode
+FALHOU - grab move is refused as unavailable
+FALHOU - grab resize is refused as unavailable
+11 falha(s)
+FALHOU - no drag begin/end helper (barDeco.cpp):
+    37:#include "hostDrag.hpp"
+    676:    KwDrag::begin(MBIND_MOVE);
+FALHOU - no mouse-bind start/end/rearm (barDeco.cpp):
+    278:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    279:    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    381:            g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+    566:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    586:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    587:        g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    630:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    649:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    676:    KwDrag::begin(MBIND_MOVE);
+FALHOU - no menu grab state (barDeco.cpp):
+    156:    if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+FALHOU - no seam-resistance hook or Shift rearm (barDeco.cpp):
+    236:bool CHyprBar::holdAtSeam(IPointer::SMotionEvent& e) {
+    292:    if (m_rearmPending) {
+    293:        m_rearmPending = false;
+FALHOU - no drag begin/end helper (main.cpp):
+    27:#include "hostDrag.hpp"
+    317:        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+FALHOU - no mouse-bind start/end/rearm (main.cpp):
+    317:        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+    481:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+FALHOU - no menu grab state (main.cpp):
+    318:        g_pGlobalState->grabActive = true;
+    456:        if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
+    457:            g_pGlobalState->grabActive = false;
+    478:        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+    479:            g.grabActive       = false;
+    480:            g.grabSwallowPress = true;
+    483:        } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+    484:            g.grabSwallowPress = false;
+FALHOU - no seam-resistance hook or Shift rearm (main.cpp):
+    350:        if (b && b->holdAtSeam(e))
+    445:    for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+    446:        if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+    447:            g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+    460:        if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
+    463:                    b->m_rearmPending = true;
+FALHOU - no drag/touch/unsnap state (barDeco.cpp):
+    170:    if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
+    208:    if (!m_bDragPending || !m_bTouchEv || e.touchID != m_touchId)
+    232:// Dragging a window across the seam between two monitors takes an extra push (plugin:kwinish:seam_resistance pixels). Called
+    238:    if (RES <= 0 || !m_bDraggingThis || m_bTouchEv)
+    247:        if (std::abs(C.x - m_resistSeam) > 32)
+    248:            m_resistPush = 0; // moved away from the seam: the next approach starts fresh
+    256:    if (SEAM != m_resistSeam) {
+    257:        m_resistSeam = SEAM;
+    258:        m_resistPush = 0;
+    260:    m_resistPush += std::min(20.0, std::max(std::abs(e.delta.x), std::abs(e.unaccel.x))); // a single fast flick must not spend it all
+    261:    if (m_resistPush >= RES) {
+    262:        m_resistPush = 0;
+    275:    if (!W || !m_bDraggingThis || m_bTouchEv)
+    277:    m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    284:    if (m_bDraggingThis && std::filesystem::exists(std::string(getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp") + "/kwinish/trace")) {
+    296:    if (m_bDraggingThis && !m_bTouchEv) {
+    298:        if (m_unsnapAnim)
+    305:    if (!m_bDragPending || m_bTouchEv || !validMapped(m_pWindow) || m_touchId != 0)
+    312:        if ((C - m_pressCursor).size() < 6)
+    318:        const double   RATIO  = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+    319:        const Vector2D NEWPOS = {C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)};
+    323:    m_bDragPending = false;
+    328:    if (!m_bDragPending || !m_bTouchEv || !validMapped(m_pWindow) || e.touchID != m_touchId)
+    335:    if (!m_bDraggingThis) {
+    343:    m_bDraggingThis = true;
+    348:    m_bTouchEv = touchEvent.has_value();
+    349:    if (m_bTouchEv)
+    350:        m_touchId = touchEvent.value().touchID;
+    355:    if (m_bTouchEv) {
+    378:        if (m_bDraggingThis) {
+    379:            if (m_bTouchEv)
+    385:        m_bDraggingThis = false;
+    386:        m_bDragPending  = false;
+    387:        m_bTouchEv      = false;
+    398:    m_bCancelledDown = true;
+    407:        m_bDragPending = false;
+    414:        m_bDragPending = false;
+    417:        m_pressCursor   = g_pInputManager->getMouseCoordsInternal();
+    421:        if (PWINDOW->isFloating() && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
+    422:            m_bDragPending = false;
+    425:            m_bDragPending = true; // tiled and maximized windows start the drag on the first real motion (onMouseMove)
+    481:    if (MIT != g_pGlobalState->zones.end() && m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() &&
+    482:        (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
+    538:    if ((C - m_pressCursor).size() < 6)
+    549:    const auto POS  = m_dragStart;
+    557:    m_unsnapRatio = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    558:    m_unsnapGrabY = m_pressCursor.y - R.snapPos.y;
+    559:    m_unsnapFrom  = SIZE;
+    560:    m_unsnapTo    = R.size;
+    561:    m_unsnapT0    = Time::steadyNow();
+    562:    m_unsnapAnim  = true;
+    572:    if (!m_unsnapAnim || !W || !m_bDraggingThis) {
+    573:        m_unsnapAnim = false;
+    576:    const double   P   = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - m_unsnapT0).count() / 140.0);
+    578:    const Vector2D SZ  = m_unsnapFrom + (m_unsnapTo - m_unsnapFrom) * E;
+    580:    const Vector2D POS = {C.x - m_unsnapRatio * SZ.x, C.y - m_unsnapGrabY};
+    584:        m_unsnapAnim = false;
+    585:        m_dragStart  = POS;
+    616:    if (where.empty() || (C - m_pressCursor).size() < 10)
+    619:    (void)Config::Actions::move(m_dragStart, false, W);
+    629:        if (m_bDraggingThis)
+    631:        m_bDraggingThis  = false;
+    632:        m_bCancelledDown = false;
+    633:        m_bDragPending   = false;
+    634:        m_bTouchEv       = false;
+    635:        m_touchId        = 0;
+    639:    if (m_bCancelledDown)
+    642:    m_bCancelledDown = false;
+    644:    if (m_bDraggingThis) {
+    645:        if (m_unsnapAnim) {
+    646:            m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+    650:        m_bDraggingThis = false;
+    651:        if (m_bTouchEv)
+    659:    m_bDragPending = false;
+    660:    m_bTouchEv     = false;
+    661:    m_touchId      = 0;
+    666:    m_unsnapAnim     = false;
+    667:    m_resistPush     = 0;
+    669:        m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    677:    m_bDraggingThis = true;
+FALHOU - no drag, unsnap or snap-on-release routes (barDeco.cpp):
+    171:        handleUpEvent(info);
+    180:            handleUpEvent(info);
+    196:    handleDownEvent(info, std::nullopt);
+    204:    handleDownEvent(info, e);
+    211:    handleUpEvent(info);
+    297:        maybeUnsnap();
+    299:            stepUnsnap();
+    324:    handleMovement();
+    347:void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+    423:            handleMovement();
+    529:void CHyprBar::maybeUnsnap() {
+    567:    stepUnsnap();
+    570:void CHyprBar::stepUnsnap() {
+    594:void CHyprBar::snapOnRelease() {
+    625:void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+    647:            stepUnsnap();
+    654:            snapOnRelease();
+    664:void CHyprBar::handleMovement() {
+FALHOU - no touch on the bar (barDeco.cpp):
+    61:    m_pTouchDownCallback   = Event::bus()->m_events.input.touch.down.listen([&](ITouch::SDownEvent e, Event::SCallbackInfo& info) { onTouchDown(info, e); });
+    62:    m_pTouchUpCallback     = Event::bus()->m_events.input.touch.up.listen([&](ITouch::SUpEvent e, Event::SCallbackInfo& info) { onTouchUp(info, e); });
+    65:    m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
+    199:void CHyprBar::onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e) {
+    207:void CHyprBar::onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e) {
+    327:void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+    347:void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+    356:        ITouch::SDownEvent e        = touchEvent.value();
+FALHOU - the bar sends no snap to the core (barDeco.cpp):
+    622:        std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
+FALHOU - header: no drag/touch members (barDeco.hpp):
+    11:#include <hyprland/src/devices/ITouch.hpp>
+    51:    bool                               m_rearmPending  = false; // Shift changed mid-drag: restart the compositor's move on the next motion
+    61:    void                               rearmDrag();
+    62:    bool                               holdAtSeam(IPointer::SMotionEvent& e);
+    101:    void onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e);
+    102:    void onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e);
+    104:    void onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e);
+    106:    void handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent);
+    122:    void                  snapOnRelease();
+    123:    void                  maybeUnsnap();
+    124:    void                  stepUnsnap();
+    155:    bool                m_bDraggingThis  = false;
+    157:    bool                m_bDragPending   = false;
+    158:    bool                m_bCancelledDown = false;
+FALHOU - globals: no grab flags (globals.hpp):
+    51:    bool                      grabActive       = false;
+    52:    bool                      grabSwallowPress = false; // the press that ended a grab is hidden from the bars and the app, and so is its release
+FALHOU - onMouseButton decides and acts through barInput.hpp (barDeco.cpp)
+FALHOU - releases are taken by the listener that outlives the bars (main.cpp)
+FALHOU - luaGrab answers through barInput.hpp (main.cpp)
+FALHOU - drawSnapPreview( appears 2 times in barDeco.cpp (want 1: the definition)
+input: 19 grupo(s) falharam
+exit=1
+== bf2049a clang++
+ok - floating: title press focuses and is taken
+ok - floating: its release is taken too
+FALHOU - floating: no drag started, ended or snapped
+ok - tiled: title press focuses and is taken
+ok - tiled: its release is taken too
+FALHOU - tiled: no drag started, ended or snapped
+ok - maximized: title press focuses and is taken
+ok - maximized: its release is taken too
+FALHOU - maximized: no drag started, ended or snapped
+ok - button press runs the button once
+FALHOU - release after minimize (focus gone, pointer off) is taken
+ok - a second release is not ours
+ok - right press on the bar opens the menu
+FALHOU - right release goes with it
+ok - right press on a button opens the menu too
+FALHOU - right release off the bar still goes with it
+ok - icon press opens the menu under the icon
+ok - icon release (pointer now on the menu) is taken
+ok - icon: no drag
+ok - press off the bar passes
+ok - and its release passes
+ok - press where the bar takes no input passes
+ok - and its release passes
+ok - middle press passes
+ok - middle release passes
+ok - side button passes, even on a button
+ok - side release passes
+ok - a release with no press passes
+ok - a right release with no press passes
+ok - right press off the bar while left is held passes
+ok - its release passes
+ok - the left release is still taken
+ok - overlapping bars: one action
+ok - overlapping bars: the release is taken once
+ok - close button press
+FALHOU - release after the bar is destroyed is taken
+ok - and only that one
+FALHOU - right release after the bar is destroyed is taken
+ok - button on floating: cancel, focus, raise, run once (cancel focus raise run1 )
+ok - button on tiled: no raise (cancel focus run1 )
+ok - release: only cancelled
+ok - right click: focus without raise, then the menu (cancel focus run3 )
+ok - icon: menu under the icon
+ok - title: focus and raise only (no drag)
+ok - double click: runs on_double_click
+ok - press off the bar: nothing at all
+ok - its release: nothing at all
+ok - second press within 400 ms is a double click
+ok - a third quick press is another double (as before)
+ok - after 400 ms it is a plain press again
+ok - on_double_click empty: never a double click
+FALHOU - double click: no drag
+ok - a button press does not count toward a double click
+ok - grab without a mode
+ok - grab without an address
+ok - grab with an unknown mode
+FALHOU - grab move is refused as unavailable
+FALHOU - grab resize is refused as unavailable
+11 falha(s)
+FALHOU - no drag begin/end helper (barDeco.cpp):
+    37:#include "hostDrag.hpp"
+    676:    KwDrag::begin(MBIND_MOVE);
+FALHOU - no mouse-bind start/end/rearm (barDeco.cpp):
+    278:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    279:    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    381:            g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+    566:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    586:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    587:        g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    630:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    649:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    676:    KwDrag::begin(MBIND_MOVE);
+FALHOU - no menu grab state (barDeco.cpp):
+    156:    if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+FALHOU - no seam-resistance hook or Shift rearm (barDeco.cpp):
+    236:bool CHyprBar::holdAtSeam(IPointer::SMotionEvent& e) {
+    292:    if (m_rearmPending) {
+    293:        m_rearmPending = false;
+FALHOU - no drag begin/end helper (main.cpp):
+    27:#include "hostDrag.hpp"
+    317:        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+FALHOU - no mouse-bind start/end/rearm (main.cpp):
+    317:        KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+    481:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+FALHOU - no menu grab state (main.cpp):
+    318:        g_pGlobalState->grabActive = true;
+    456:        if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
+    457:            g_pGlobalState->grabActive = false;
+    478:        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+    479:            g.grabActive       = false;
+    480:            g.grabSwallowPress = true;
+    483:        } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+    484:            g.grabSwallowPress = false;
+FALHOU - no seam-resistance hook or Shift rearm (main.cpp):
+    350:        if (b && b->holdAtSeam(e))
+    445:    for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+    446:        if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+    447:            g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+    460:        if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
+    463:                    b->m_rearmPending = true;
+FALHOU - no drag/touch/unsnap state (barDeco.cpp):
+    170:    if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
+    208:    if (!m_bDragPending || !m_bTouchEv || e.touchID != m_touchId)
+    232:// Dragging a window across the seam between two monitors takes an extra push (plugin:kwinish:seam_resistance pixels). Called
+    238:    if (RES <= 0 || !m_bDraggingThis || m_bTouchEv)
+    247:        if (std::abs(C.x - m_resistSeam) > 32)
+    248:            m_resistPush = 0; // moved away from the seam: the next approach starts fresh
+    256:    if (SEAM != m_resistSeam) {
+    257:        m_resistSeam = SEAM;
+    258:        m_resistPush = 0;
+    260:    m_resistPush += std::min(20.0, std::max(std::abs(e.delta.x), std::abs(e.unaccel.x))); // a single fast flick must not spend it all
+    261:    if (m_resistPush >= RES) {
+    262:        m_resistPush = 0;
+    275:    if (!W || !m_bDraggingThis || m_bTouchEv)
+    277:    m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    284:    if (m_bDraggingThis && std::filesystem::exists(std::string(getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp") + "/kwinish/trace")) {
+    296:    if (m_bDraggingThis && !m_bTouchEv) {
+    298:        if (m_unsnapAnim)
+    305:    if (!m_bDragPending || m_bTouchEv || !validMapped(m_pWindow) || m_touchId != 0)
+    312:        if ((C - m_pressCursor).size() < 6)
+    318:        const double   RATIO  = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+    319:        const Vector2D NEWPOS = {C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)};
+    323:    m_bDragPending = false;
+    328:    if (!m_bDragPending || !m_bTouchEv || !validMapped(m_pWindow) || e.touchID != m_touchId)
+    335:    if (!m_bDraggingThis) {
+    343:    m_bDraggingThis = true;
+    348:    m_bTouchEv = touchEvent.has_value();
+    349:    if (m_bTouchEv)
+    350:        m_touchId = touchEvent.value().touchID;
+    355:    if (m_bTouchEv) {
+    378:        if (m_bDraggingThis) {
+    379:            if (m_bTouchEv)
+    385:        m_bDraggingThis = false;
+    386:        m_bDragPending  = false;
+    387:        m_bTouchEv      = false;
+    398:    m_bCancelledDown = true;
+    407:        m_bDragPending = false;
+    414:        m_bDragPending = false;
+    417:        m_pressCursor   = g_pInputManager->getMouseCoordsInternal();
+    421:        if (PWINDOW->isFloating() && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
+    422:            m_bDragPending = false;
+    425:            m_bDragPending = true; // tiled and maximized windows start the drag on the first real motion (onMouseMove)
+    481:    if (MIT != g_pGlobalState->zones.end() && m_bDraggingThis && !m_bTouchEv && g_pGlobalState->config.snapPreview->value() &&
+    482:        (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
+    538:    if ((C - m_pressCursor).size() < 6)
+    549:    const auto POS  = m_dragStart;
+    557:    m_unsnapRatio = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    558:    m_unsnapGrabY = m_pressCursor.y - R.snapPos.y;
+    559:    m_unsnapFrom  = SIZE;
+    560:    m_unsnapTo    = R.size;
+    561:    m_unsnapT0    = Time::steadyNow();
+    562:    m_unsnapAnim  = true;
+    572:    if (!m_unsnapAnim || !W || !m_bDraggingThis) {
+    573:        m_unsnapAnim = false;
+    576:    const double   P   = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - m_unsnapT0).count() / 140.0);
+    578:    const Vector2D SZ  = m_unsnapFrom + (m_unsnapTo - m_unsnapFrom) * E;
+    580:    const Vector2D POS = {C.x - m_unsnapRatio * SZ.x, C.y - m_unsnapGrabY};
+    584:        m_unsnapAnim = false;
+    585:        m_dragStart  = POS;
+    616:    if (where.empty() || (C - m_pressCursor).size() < 10)
+    619:    (void)Config::Actions::move(m_dragStart, false, W);
+    629:        if (m_bDraggingThis)
+    631:        m_bDraggingThis  = false;
+    632:        m_bCancelledDown = false;
+    633:        m_bDragPending   = false;
+    634:        m_bTouchEv       = false;
+    635:        m_touchId        = 0;
+    639:    if (m_bCancelledDown)
+    642:    m_bCancelledDown = false;
+    644:    if (m_bDraggingThis) {
+    645:        if (m_unsnapAnim) {
+    646:            m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+    650:        m_bDraggingThis = false;
+    651:        if (m_bTouchEv)
+    659:    m_bDragPending = false;
+    660:    m_bTouchEv     = false;
+    661:    m_touchId      = 0;
+    666:    m_unsnapAnim     = false;
+    667:    m_resistPush     = 0;
+    669:        m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    677:    m_bDraggingThis = true;
+FALHOU - no drag, unsnap or snap-on-release routes (barDeco.cpp):
+    171:        handleUpEvent(info);
+    180:            handleUpEvent(info);
+    196:    handleDownEvent(info, std::nullopt);
+    204:    handleDownEvent(info, e);
+    211:    handleUpEvent(info);
+    297:        maybeUnsnap();
+    299:            stepUnsnap();
+    324:    handleMovement();
+    347:void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+    423:            handleMovement();
+    529:void CHyprBar::maybeUnsnap() {
+    567:    stepUnsnap();
+    570:void CHyprBar::stepUnsnap() {
+    594:void CHyprBar::snapOnRelease() {
+    625:void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+    647:            stepUnsnap();
+    654:            snapOnRelease();
+    664:void CHyprBar::handleMovement() {
+FALHOU - no touch on the bar (barDeco.cpp):
+    61:    m_pTouchDownCallback   = Event::bus()->m_events.input.touch.down.listen([&](ITouch::SDownEvent e, Event::SCallbackInfo& info) { onTouchDown(info, e); });
+    62:    m_pTouchUpCallback     = Event::bus()->m_events.input.touch.up.listen([&](ITouch::SUpEvent e, Event::SCallbackInfo& info) { onTouchUp(info, e); });
+    65:    m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
+    199:void CHyprBar::onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e) {
+    207:void CHyprBar::onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e) {
+    327:void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+    347:void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+    356:        ITouch::SDownEvent e        = touchEvent.value();
+FALHOU - the bar sends no snap to the core (barDeco.cpp):
+    622:        std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
+FALHOU - header: no drag/touch members (barDeco.hpp):
+    11:#include <hyprland/src/devices/ITouch.hpp>
+    51:    bool                               m_rearmPending  = false; // Shift changed mid-drag: restart the compositor's move on the next motion
+    61:    void                               rearmDrag();
+    62:    bool                               holdAtSeam(IPointer::SMotionEvent& e);
+    101:    void onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e);
+    102:    void onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e);
+    104:    void onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e);
+    106:    void handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent);
+    122:    void                  snapOnRelease();
+    123:    void                  maybeUnsnap();
+    124:    void                  stepUnsnap();
+    155:    bool                m_bDraggingThis  = false;
+    157:    bool                m_bDragPending   = false;
+    158:    bool                m_bCancelledDown = false;
+FALHOU - globals: no grab flags (globals.hpp):
+    51:    bool                      grabActive       = false;
+    52:    bool                      grabSwallowPress = false; // the press that ended a grab is hidden from the bars and the app, and so is its release
+FALHOU - onMouseButton decides and acts through barInput.hpp (barDeco.cpp)
+FALHOU - releases are taken by the listener that outlives the bars (main.cpp)
+FALHOU - luaGrab answers through barInput.hpp (main.cpp)
+FALHOU - drawSnapPreview( appears 2 times in barDeco.cpp (want 1: the definition)
+input: 19 grupo(s) falharam
+exit=1

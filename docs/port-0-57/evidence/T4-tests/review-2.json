@@ -1,0 +1,22 @@
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "file": "plugin/barInput.hpp",
+      "line": 39,
+      "issue": "Global pairing tracks only button codes, so it can consume another pointer's release and lose the release it actually owns.",
+      "evidence": "Pointer A presses left on a bar: held[0] becomes true. Pointer B presses left outside the bar: that press passes. B releases first: PG calls onRelease(BTN_LEFT), cancels B's release and clears A's ownership. A's eventual release passes. Two consumed left presses likewise collapse into one boolean. The local Hyprland 0.57 InputManager.cpp:720 emits the plugin event before processing buttons and tracks subsequent held buttons by both button and pointer; it does not merge these events first. SButtonEvent omits pointer identity, and the new tests cover different buttons rather than this same-button/two-pointer case. This violates design.md's explicit origin/button pairing requirement.",
+      "fix": "Carry reliable pointer identity into the surviving pairing coordinator and track ownership by pointer and button. If the current event interface cannot provide identity, resolve that interface limitation explicitly before claiming this requirement complete. Add regressions for two pointers using the same button, including one passed press, both consumed presses, both release orders and originating-bar destruction."
+    },
+    {
+      "severity": "minor",
+      "file": "openspec/changes/disable-titlebar-drag-alpha0/tasks.md",
+      "line": 12,
+      "issue": "Completed checkboxes still overstate the behavioral evidence.",
+      "evidence": "Item 1.6 claims the real Lua entry was tested, although only grabError executes. Items 1.3 and 3.4 require executed production-route assertions, while S* detections inspect source text without compiling those modified production bodies. The revised mutation log and DEVELOPMENT_STATE honestly distinguish these limitations, but the task completion states do not.",
+      "fix": "Mark the affected items partial/open and identify their textual-only portions, or supply the required execution coverage. Keep the corrected distinction between H*/A* assertions, Rust assertions and S* textual detections."
+    }
+  ],
+  "notes": "Round-1 pairing lifetime is fixed for a single pointer across bar destruction. Production coverage materially improves: apply is shared production code, and the recorded A1–A5/H13 results exercise assertions. The remaining SHost methods, hit testing, PG wiring and luaGrab body are not executed by that harness. Static inspection found no local-class private-access problem. Signal dispatch continues through listeners despite cancellation; bars now intentionally ignore releases, so PG/bar ordering does not lose them in the single-pointer case. PLUGIN_INIT constructs fresh pair state, preventing held flags from carrying into reinitialization; pending-pair preservation across unload remains unproved and lifecycle is outside T4. absent() now rejects missing files. Author logs report green GCC/Clang input tests and integrated-check failure only at the known plugin build; these results were not reproduced in this read-only review. HANDOFF PARA PRÓXIMA SESSÃO: review completed without file changes; branch port-kwinish-bars-to-hyprland-0-57, HEAD b0b23f2, requested base bf2049a, T4 uncommitted and historical dirty/untracked work preserved. Resolve pointer identity and reconcile task completion claims before approval. This JSON is the external continuity report; incorporating it into DEVELOPMENT_STATE requires subsequent write authorization. No implementation, commit, load/unload or live validation is authorized by this review."
+}

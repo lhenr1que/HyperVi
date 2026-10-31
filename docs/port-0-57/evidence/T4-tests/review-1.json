@@ -1,0 +1,22 @@
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "file": "plugin/barInput.hpp",
+      "line": 38,
+      "issue": "Release ownership disappears when the bar is destroyed before release, violating the promised pairing.",
+      "evidence": "The only record of a consumed press is SClicks::held inside CHyprBar. A close-button press consumes the event and requests window closure; if the client closes while the button remains held, destruction removes the bar's listener and its ownership record. No surviving listener consumes the eventual release. The tests retain every SClicks instance until release and miss this case.",
+      "fix": "Keep pending release ownership in a surviving input coordinator, associated with the originating bar and button, and test window/bar destruction between press and release."
+    },
+    {
+      "severity": "major",
+      "file": "plugin/test_input.cpp",
+      "line": 23,
+      "issue": "The behavioral validation does not meet the approved production-handler and non-vacuity requirements.",
+      "evidence": "For the candidate, drags() always returns zero, motion() does nothing, and facts() discards focus/floating/maximized inputs. Neither onMouseButton nor luaGrab is executed. Removing focus/raise, cancelling releases incorrectly in the adapter, or replacing luaGrab with a silent return can escape these behavioral tests while retaining the strings required by the structural checks. S1–S9 mutations are detected by textual checks without compiling or executing the mutated production bodies; describing all 25 as assertion kills overstates their evidence.",
+      "fix": "Add host-free execution of the real handler adapters and luaGrab with spies, including focus/raise ordering, cancellation propagation, lifecycle pairing and valid/invalid Lua calls. Exercise production mutations through those harnesses; report textual detections separately."
+    }
+  ],
+  "notes": "Static review found the closed D1 routes removed, no unsafe dereference of the optional button index, and preserved left-focus/floating-raise versus right-focus/no-raise ordering. Keeping drawSnapPreview compiled but uncalled is consistent with group R remaining out of scope. luaGrab retains registration and invalid-argument messages and visibly returns an availability error before focus or drag. The baseline extraction is explicitly identified as a model, and the angle-bracket include correctly selects it; it is not execution of bf2049a handlers. Structural greps remain spelling-sensitive and can accept missing files in absent(), so they are supplementary evidence. Recorded build comparisons report GCC 52→45 and Clang 60→42 errors, zero new errors, with D keybind errors removed and R failures retained; these builds were not reproduced. Documentation reflects the intended reduction. Test execution was attempted but stopped at mktemp because /tmp is read-only; no tests ran successfully in this review. Model-family independence cannot be verified from the available author provenance. HANDOFF PARA PRÓXIMA SESSÃO: review completed without file changes; actual branch is port-kwinish-bars-to-hyprland-0-57, HEAD b0b23f2, with T4 uncommitted and historical dirty/untracked evidence preserved. bf2049a is the requested comparison base, not current HEAD. Resolve pairing lifetime and production-harness coverage before approval; implementation, live validation, commits and publication remain outside this review's authorization."
+}

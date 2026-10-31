@@ -1,0 +1,33 @@
+killed H1-release-not-taken: FALHOU - floating: its release is taken too
+killed H2-right-release-leaks: FALHOU - right release goes with it
+killed H3-steals-other-bar: FALHOU - overlapping bars: one action
+killed H4-takes-invalid: FALHOU - press where the bar takes no input passes
+killed H5-takes-outside: FALHOU - press off the bar passes
+killed H6-middle-is-left: FALHOU - middle press passes
+killed H7-button-action-lost: FALHOU - button press runs the button once
+killed H8-icon-menu-lost: FALHOU - icon press opens the menu under the icon
+killed H9-always-double: FALHOU - after 400 ms it is a plain press again
+killed H10-double-ignores-option: FALHOU - on_double_click empty: never a double click
+killed H11-grab-silent: FALHOU - grab move is refused as unavailable
+killed H12-grab-mode-check-lost: FALHOU - grab with an unknown mode
+killed H13-release-twice: FALHOU - a second release is not ours
+killed A1-no-cancel: FALHOU - button on floating: cancel, focus, raise, run once (focus raise run1 )
+killed A2-no-focus: FALHOU - button on floating: cancel, focus, raise, run once (cancel raise run1 )
+killed A3-raise-on-menu: FALHOU - right click: focus without raise, then the menu (cancel focus raise run3 )
+killed A4-action-twice: FALHOU - button on floating: cancel, focus, raise, run once (cancel focus raise run1 run1 )
+killed A5-acts-on-release: FALHOU - release: only cancelled
+killed S1-drag-begin: FALHOU - no drag begin/end helper (barDeco.cpp):
+killed S2-bind-end: FALHOU - no mouse-bind start/end/rearm (barDeco.cpp):
+killed S3-touch-listener: FALHOU - no touch on the bar (barDeco.cpp):
+killed S4-preview-drawn: FALHOU - drawSnapPreview( appears 2 times in barDeco.cpp (want 1: the definition)
+killed S5-grab-flag: FALHOU - globals: no grab flags (globals.hpp):
+killed S6-grab-bypass: FALHOU - luaGrab answers through barInput.hpp (main.cpp)
+killed S7-click-bypass: FALHOU - onMouseButton decides and acts through barInput.hpp (barDeco.cpp)
+killed S8-seam-hook: FALHOU - no seam-resistance hook or Shift rearm (main.cpp):
+killed S10-release-unhandled: FALHOU - releases are taken by the listener that outlives the bars (main.cpp)
+killed S9-snap-to-core: FALHOU - the bar sends no snap to the core (barDeco.cpp):
+killed R1-move-back: no grab:* anywhere ("firefox")
+killed R2-resize-in-submenu: no grab:* anywhere ("firefox")
+killed R3-shortcut-index: assertion `left == right` failed: root rows for class "firefox"
+killed R4-action-dropped: below kept ("firefox")
+mutations: 32/32 killed, 0 not (build or survived); H*/A* by executed assertion, S* by the textual inventory, R* by cargo test
