@@ -2,7 +2,20 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Decisão do dono — T10 / Q4: arrasto da barra na alpha-1 (01/11/2026; só decisão, nada implementado; registro commitado)
+## Resultado mais recente — proposta OpenSpec da alpha-1 (01/11/2026; aprovada pelo dono e commitada)
+
+- **Escopo (autorizado pelo dono em 01/11/2026: "propor"):** só planejamento. Nova mudança `openspec/changes/enable-titlebar-drag-alpha1/` com `.openspec.yaml`, `proposal.md`, `design.md`, `tasks.md`, `specs/title-bar/spec.md` e `specs/snap-assist/spec.md`. Nenhum código mudou.
+- **Conteúdo:**
+  - o arrasto e o Mover/Redimensionar do menu voltam com `alt5-rc`: sem pedido de fim (sem K3/K9/`endDragTarget`); a soltura vai ao compositor; a barra cede a drag ativo; posse e grab só com `BEGIN_STARTED`; rearm só como início; guarda no `floatWindow` C++;
+  - o toque continua desligado;
+  - custo C1/C2 aceito;
+  - paridade 0.56 anotada (design §4), com o pedido de fim ausente concentrado num ponto, para a troca ser local.
+- **Deltas:** `title-bar` tem ADDED 3, MODIFIED 2, REMOVED 3 e RENAMED 2, sobre os requisitos da D1; `snap-assist` tem MODIFIED 1 (Shift+drag volta). **Depende de arquivar a D1 antes.**
+- **`floatWindow` do núcleo Lua: débito, decidido pelo dono em 01/11/2026.** As ações `place`, `window_action` float, `float_for_mode` e `set_workspace_mode` podem encerrar qualquer drag ativo. A alpha-1 não muda o núcleo nem cria API, e a garantia O1 cobre só as rotas do plugin C++. A opção (b), `hl.plugin.kwinish.dragging()` com guarda no núcleo, fica de reserva se o débito aparecer no uso. Registrado em design.md (Open Questions 1), tasks 1.2/3.5 e proposal.
+- **Validação:** a CLI `openspec` não está instalada (sumiu na reinstalação), então **não houve `openspec validate`**. Conferência estrutural por script: SHALL/MUST, cenários com WHEN/THEN, nomes de REMOVED/RENAMED/MODIFIED existentes no spec principal ou na D1. Resultado: ok, e o controle negativo pegou 2 erros plantados. Os símbolos a religar foram conferidos em `bf2049a`. Sem revisão independente.
+- **Próxima ação:** com autorização própria, arquivar a D1 e implementar seguindo o `tasks.md`.
+
+## Anterior — Decisão do dono — T10 / Q4: arrasto da barra na alpha-1 (01/11/2026; só decisão, nada implementado; registro commitado)
 
 - **Escolhida: `alt5-rc`** (`docs/port-0-57/evidence/Q4A1-alt5-contract.md`, §§3–7). O Kwinish **nunca pede o fim** de um arrasto: quem encerra é o host, pelo fim nativo na soltura. A barra cede a um arrasto já ativo. O ajudante confere de novo o alvo depois das decorações (feito na T9, `510d204`).
   - Ganho: no modelo, o plugin C++ não encerra nem substitui arrasto de terceiro (O1, O3 e O4 limpos).
