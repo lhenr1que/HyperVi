@@ -6,7 +6,7 @@ context: |
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
   Code, identifiers and code comments stay in English.
 
-  Project: Kwinish, KDE/KWin-style window management for Hyprland 0.56.2 (Lua config), three layers:
+  Project: HyperVi (technical identifier kwinish), KDE/KWin-style window management for Hyprland 0.57 (Lua config), three layers:
   plugin/ (C++23 fork of hyprbars: title bars, drag, snap preview, seam resistance),
   core/ (Lua loaded by the Hyprland config: snap, zones, workspace modes, rules, Alt+Tab, Snap Assist, settings),
   ui/ (Rust GTK4 + layer-shell: window menu, Alt+Tab overlay, layout picker and editor, Snap Assist, settings window).

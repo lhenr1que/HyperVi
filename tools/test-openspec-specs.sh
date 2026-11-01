@@ -10,8 +10,8 @@ import glob, os, re, shutil, sys, tempfile
 root = sys.argv[1]
 ID = "enable-titlebar-drag-alpha1"
 LATER = ["guard-titlebar-drag-start", "accept-floating-press-drag", # archived after ID, in order; the newest text wins
-         "add-pin-and-icon-tooltips", "harden-user-data-io"]
-CAPS = ("title-bar", "snap-assist", "user-data-io") # user-data-io: new capability of harden-user-data-io
+         "add-pin-and-icon-tooltips", "harden-user-data-io", "fix-core-lifecycle", "fix-input-ipc"]
+CAPS = ("title-bar", "snap-assist", "user-data-io", "window-snapping", "workspace-modes", "core-lifecycle", "bars-ipc")
 REMOVED = ["Drag da decoração indisponível na alpha-0", "Menu sem comandos de grab mudos na alpha-0",
            "Reativação do drag após alpha-0"]
 RENAMED = ["Toque na decoração indisponível", "Cliques de mouse pareados"]
@@ -59,8 +59,8 @@ def check(specs, deltas, laters):
                 elif purpose and purpose.group(1).strip() not in open(main, encoding="utf-8").read():
                     errs.append(f"{c}: Purpose diferente do delta de {cid}")
     for cap, rs in got.items():
-        if not os.path.exists(f"{deltas}/{cap}/spec.md"): continue
-        for n, body in blocks_of(f"{deltas}/{cap}/spec.md").items():
+        alpha1 = blocks_of(f"{deltas}/{cap}/spec.md") if os.path.exists(f"{deltas}/{cap}/spec.md") else {}
+        for n, body in alpha1.items(): # only the alpha-1 comparison is skipped for a capability alpha-1 did not touch
             if n in REMOVED or n in newer[cap]: continue
             if rs.get(n, "").strip() != body.strip(): errs.append(f"{cap}/{n}: diferente do delta")
         for n, (cid, body) in newer[cap].items():
@@ -91,14 +91,25 @@ try:
         t = t.replace("o próximo clique termina o movimento pelo compositor", "o próximo clique termina o movimento", 1)
         t = t.replace("sem esperar o limiar", "depois do limiar", 1)
         t = t.replace("Menu da janela/Window menu", "Menu/Window menu", 1)
+        c = f"{tmp}/s/core-lifecycle/spec.md"
+        if os.path.exists(c):
+            x = open(c, encoding="utf-8").read() # read before opening for writing (which empties the file)
+            open(c, "w", encoding="utf-8").write(x.replace("SHALL", "SHALL também", 1))
         u = f"{tmp}/s/user-data-io/spec.md"
         if os.path.exists(u):
-            open(u, "w", encoding="utf-8").write(open(u, encoding="utf-8").read().replace("32 níveis", "64 níveis", 1))
+            x = open(u, encoding="utf-8").read()
+            open(u, "w", encoding="utf-8").write(x.replace("32 níveis", "64 níveis", 1))
         t = t.replace("SHALL", "deve", 1).replace("### Requirement: Cliques de mouse pareados",
               "### Requirement: Drag da decoração indisponível na alpha-0\nO sistema SHALL x.\n\n#### Scenario: a\n- **WHEN** a\n- **THEN** b\n\n### Requirement: Cliques de mouse preservados e pareados na alpha-0")
         open(p, "w", encoding="utf-8").write(t)
         bad = check(f"{tmp}/s", f"{archived[0]}/specs", laters)
-        for needle in ("sem SHALL/MUST", "deveria ter sumido", "falta: Cliques de mouse pareados") + tuple(f"diferente do delta de {c}" for c in LATER):
+        # only a change that still owns the newest text of some requirement can be caught by a break
+        owners = {}
+        for c, later in laters:
+            for cap in CAPS:
+                if os.path.exists(f"{later}/{cap}/spec.md"):
+                    for n in blocks_of(f"{later}/{cap}/spec.md"): owners[(cap, n)] = c
+        for needle in ("sem SHALL/MUST", "deveria ter sumido", "falta: Cliques de mouse pareados") + tuple(f"diferente do delta de {c}" for c in LATER if c in owners.values()):
             if not any(needle in e for e in bad): errs.append(f"controle negativo não pegou: {needle}")
     else:
         errs.append("controle negativo não rodou (sem pasta arquivada)")

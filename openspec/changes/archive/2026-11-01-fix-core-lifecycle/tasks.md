@@ -7,7 +7,7 @@
 - [x] Impedir que os ganchos de `setup()` sejam registrados de novo depois de recarregar o módulo: trava global `KWINISH_SETUP_HOOKS`, como os outros ganchos `KWINISH_*`, e opções em `KWINISH_SETUP_OPTS`, lidas na hora (orquestrador, 01/11/2026). Vermelho em `red-reload.log`, verde em `green-reload.log`. Os binds vêm da carga da config e os outros ganchos do núcleo já tinham trava global; o `switcher.setup` não tem trava, mas os ganchos antigos só atuam sobre o estado antigo, já fechado (limite registrado).
 - [x] Aplicar a mesma elegibilidade de `tile` a `zone`.
 - [x] Executar `bash tools/check.sh`: saída 0, registrada em `docs/port-0-57/evidence/fix-core-lifecycle-tests/check.log` (Lua e ferramentas simulados/isolados, 32 testes Rust, build do plugin).
-- [ ] Dono: executar o roteiro ao vivo abaixo e registrar o resultado. Nenhum teste ao vivo foi executado nesta sessão.
+- [x] Dono: executar o roteiro ao vivo abaixo e registrar o resultado. Nenhum teste ao vivo foi executado nesta sessão.
 
 ## Roteiro ao vivo para o dono (bash)
 
@@ -56,3 +56,7 @@ hyprctl reload
 ```
 
 Se a sessão travar, entre em outro TTY e use `hyprctl -i 0 plugin unload /tmp/kwinish-lifecycle/kwinish-bars.so`; restaure o backup quando possível. Não apague manualmente arquivos do dono.
+
+## Arquivamento (01/11/2026)
+
+Arquivada à mão (CLI `openspec` não instalada) depois de o dono relatar, em 01/11/2026, que os testes ao vivo CL e II do `docs/STATUS.md` passaram. Os deltas foram aplicados aos specs principais com o texto copiado como está (MODIFIED substituídos, ADDED no fim, capabilities novas com Purpose escrito no arquivamento). Conferência estrutural: `tools/test-openspec-specs.sh`, que passou a conferir também esta mudança.

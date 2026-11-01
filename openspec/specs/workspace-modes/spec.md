@@ -15,7 +15,7 @@ O sistema SHALL exibir uma janela que abre num workspace no modo floating já fl
 
 #### Scenario: Duas janelas abertas em sequência
 - **WHEN** duas janelas abrem uma depois da outra no mesmo workspace floating
-- **THEN** a segunda aparece deslocada em cascata em relação à primeira, as duas já flutuantes
+- **THEN** as duas aparecem já flutuantes e, após a abertura, a segunda fica deslocada em cascata em relação à primeira
 
 #### Scenario: Workspace em mosaico
 - **WHEN** o usuário abre um aplicativo num workspace no modo tiling ou scrolling
@@ -35,3 +35,7 @@ O sistema SHALL marcar como "flutuante pelo modo" apenas as janelas que o modo f
 #### Scenario: Janela que abre em tela cheia
 - **WHEN** uma janela pede tela cheia ao abrir num workspace floating e depois sai da tela cheia
 - **THEN** ela fica em tela cheia enquanto pedir e, ao sair, aparece flutuante no retângulo do modo, não em mosaico
+
+#### Scenario: Minimizar ou ocultar uma janela do modo
+- **WHEN** uma janela flutuante pelo modo é minimizada ou ocultada e depois restaurada
+- **THEN** a marca de origem do modo permanece; se o destino já não estiver em floating, ela volta ao mosaico

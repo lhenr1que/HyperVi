@@ -5,7 +5,7 @@
 - [x] Testar e revalidar o contexto do Assist na escolha (orquestrador, depois de juntar `fix-core-lifecycle`): `assist.json` passa a trazer `workspace` e `layout`; o overlay manda `assist:<geração>`; o núcleo só põe a janela se geração, janela, workspace, monitor, layout e retângulo da zona ainda conferirem. Vermelho em `red-assist.log`, verde em `green-assist.log`; teste Rust `pick_is_revalidated_by_the_core`.
 - [x] Testar e corrigir a escala da textura de símbolo.
 - [x] Executar `tools/check.sh` e compilar o plugin com GCC e Clang, registrando as saídas.
-- [ ] O dono executa o roteiro ao vivo abaixo.
+- [x] O dono executa o roteiro ao vivo abaixo.
 
 ## Roteiro ao vivo — somente o dono
 
@@ -29,3 +29,7 @@ kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/n
 hyprctl plugin unload /tmp/kwinish-fix-input-ipc/kwinish-bars.so
 hyprctl reload
 ```
+
+## Arquivamento (01/11/2026)
+
+Arquivada à mão (CLI `openspec` não instalada) depois de o dono relatar, em 01/11/2026, que os testes ao vivo CL e II do `docs/STATUS.md` passaram. Os deltas foram aplicados aos specs principais com o texto copiado como está (MODIFIED substituídos, ADDED no fim, capabilities novas com Purpose escrito no arquivamento). Conferência estrutural: `tools/test-openspec-specs.sh`, que passou a conferir também esta mudança.

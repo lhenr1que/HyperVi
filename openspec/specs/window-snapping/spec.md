@@ -31,3 +31,10 @@ O sistema SHALL usar o monitor indicado na ação (o monitor em que a janela foi
 #### Scenario: Monitor desconhecido
 - **WHEN** o encaixe chega com um nome de monitor que não existe
 - **THEN** a região é calculada no monitor da própria janela
+
+### Requirement: Zonas respeitam elegibilidade da janela
+O sistema SHALL ignorar pedidos de zona para janelas não mapeadas ou em tela cheia, como faz o encaixe pelo teclado.
+
+#### Scenario: Zona em janela inelegível
+- **WHEN** uma ação de zona aponta para uma janela não mapeada ou em tela cheia
+- **THEN** sua geometria não é alterada e o Assist não é iniciado

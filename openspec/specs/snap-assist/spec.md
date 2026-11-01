@@ -27,3 +27,10 @@ O sistema SHALL encaixar a janela na zona do monitor do soltar e NÃO abrir o Sn
 #### Scenario: Shift ao arrastar para o outro monitor
 - **WHEN** a janela do monitor A é solta com Shift sobre uma zona do monitor B
 - **THEN** a janela ocupa a zona no monitor B e o Snap Assist não abre
+
+### Requirement: Contexto da escolha do Assist
+O sistema SHALL recusar a escolha se workspace, monitor ou layout mudou desde a apresentação do Assist.
+
+#### Scenario: Contexto alterado
+- **WHEN** o usuário escolhe uma janela depois de mudar o workspace, o monitor ou o layout
+- **THEN** a escolha não encaixa a janela
