@@ -1,0 +1,28 @@
+FALHOU - probe (g++): ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’ marked ‘override’, but does not override ‘virtual bool CBarPassElement::needsLiveBlur()’ marked ‘override’, but does not override ‘virtual bool CBarPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override 
+FALHOU - probe (clang++): 'draw' marked 'override' but does not override any member functions 'needsLiveBlur' marked 'override' but does not override any member functions 'needsPrecomputeBlur' marked 'override' but does not override any member functions 
+FALHOU - 0.56.2 render forms in barDeco.cpp:
+    303:        g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+    521:            g_pHyprOpenGL->renderRect(buttonBox, color, {.round = static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
+    559:            g_pHyprOpenGL->renderTexture(button.iconTex, pos, {.a = a});
+    587:    g_pHyprRenderer->m_renderPass.add(makeUnique<CBarPassElement>(data));
+    647:    g_pHyprOpenGL->scissor(titleBarBox);
+    656:            g_pHyprOpenGL->scissor(nullptr);
+    671:        g_pHyprOpenGL->renderRect(windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+    679:        g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower(), .blur = true, .blurA = a});
+    681:        g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+    704:        g_pHyprOpenGL->renderTexture(m_pIconTex, iconBox.round(), {.a = a});
+    720:        g_pHyprOpenGL->renderTexture(m_pTextTex, titleBox, {.a = a});
+    726:    g_pHyprOpenGL->scissor(nullptr);
+    958:    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(outer));
+    963:    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(inner));
+    968:    g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(std::move(text)));
+FALHOU - 0.56.2 render forms in BarPassElement.cpp:
+    15:    data.deco->renderPass(g_pHyprRenderer->m_renderData.pMonitor.lock(), data.a);
+    31:    return data.deco->assignedBoxGlobal().translate(-g_pHyprRenderer->m_renderData.pMonitor->m_position).expand(10);
+FALHOU - 0.56.2 render forms in PreviewPassElement.cpp:
+    10:    g_pHyprOpenGL->renderRect(data.box, data.fill, {.round = data.round});
+    17:        g_pHyprOpenGL->renderRect(s, data.line, {});
+FALHOU - 0.56.2 render forms in main.cpp:
+    448:    static auto PR = Event::bus()->m_events.render.stage.listen([&](eRenderStage stage) {
+    451:        const auto M = g_pHyprRenderer->m_renderData.pMonitor.lock();
+probe: 6 falha(s)

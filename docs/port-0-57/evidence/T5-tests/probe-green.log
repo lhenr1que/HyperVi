@@ -1,0 +1,7 @@
+ok - probe compiles (g++)
+ok - probe compiles (clang++)
+ok - no 0.56.2 render forms in barDeco.cpp
+ok - no 0.56.2 render forms in BarPassElement.cpp
+ok - no 0.56.2 render forms in PreviewPassElement.cpp
+ok - no 0.56.2 render forms in main.cpp
+probe: tudo passou

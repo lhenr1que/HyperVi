@@ -255,7 +255,7 @@ static std::string layoutZoneAt(const Vector2D& C, const std::unordered_map<std:
 // the pointer, or - with Shift held - every zone of the active layout, the one under the pointer filled.
 // Alpha-0 has no bar drag, so nothing calls this; it stays compiled because its render port belongs to group R, and
 // alpha-1 brings back the drag condition (bf2049a) with the drag.
-void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
+void CHyprBar::drawSnapPreview(Render::CRenderContext& ctx, PHLMONITOR pMonitor) {
     const auto MIT = g_pGlobalState->zones.find(pMonitor->m_name);
     std::string signature;
     std::vector<std::pair<const SZone*, bool>> shown; // zone, hovered
@@ -300,7 +300,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
         data.border = std::max(1, (int)std::round(2 * SCALE));
         data.fill   = fill;
         data.line   = line;
-        g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+        g_pHyprRenderer->addPassElement(ctx, makeUnique<CPreviewPassElement>(data));
     }
 }
 
@@ -485,7 +485,7 @@ size_t CHyprBar::getVisibleButtonCount(Config::INTEGER barButtonPadding, Config:
     return g_pGlobalState->buttons.size(); // kept for the header; the layout no longer drops buttons
 }
 
-void CHyprBar::renderBarButtons(CBox* barBox, const float scale, const float a) {
+void CHyprBar::renderBarButtons(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a) {
     const auto INACTIVECOLOR = g_pGlobalState->config.inactiveButtonColor->value();
     const auto HEIGHT        = g_pGlobalState->config.barHeight->value();
     const auto PINNED        = m_pWindow.lock() && static_cast<bool>(m_pWindow.lock()->m_state & Desktop::View::WINDOW_STATE_PINNED);
@@ -518,11 +518,11 @@ void CHyprBar::renderBarButtons(CBox* barBox, const float scale, const float a) 
         buttonBox.round();
 
         if (color.a > 0)
-            g_pHyprOpenGL->renderRect(buttonBox, color, {.round = static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
+            g_pHyprOpenGL->renderRect(ctx, buttonBox, color, {.round = static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
     }
 }
 
-void CHyprBar::renderBarButtonsText(CBox* barBox, const float scale, const float a) {
+void CHyprBar::renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a) {
     const auto ICONONHOVER = g_pGlobalState->config.iconOnHover->value();
     const auto HEIGHT      = g_pGlobalState->config.barHeight->value();
     const auto COORDS      = cursorRelativeToBar();
@@ -556,11 +556,11 @@ void CHyprBar::renderBarButtonsText(CBox* barBox, const float scale, const float
         CBox       pos   = {iconX, iconY, button.iconTex->m_size.x, button.iconTex->m_size.y};
 
         if (!ICONONHOVER || (ICONONHOVER && hovering))
-            g_pHyprOpenGL->renderTexture(button.iconTex, pos, {.a = a});
+            g_pHyprOpenGL->renderTexture(ctx, button.iconTex, pos, {.a = a});
     }
 }
 
-void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
+void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR, const float& a, const Render::SWindowRenderPresentation&) {
     const auto ENABLED = g_pGlobalState->config.enabled->value();
 
     if (m_bLastEnabledState != ENABLED) {
@@ -584,10 +584,10 @@ void CHyprBar::draw(PHLMONITOR pMonitor, const float& a) {
         return;
 
     auto data = CBarPassElement::SBarData{this, a};
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CBarPassElement>(data));
+    g_pHyprRenderer->addPassElement(ctx, makeUnique<CBarPassElement>(data));
 }
 
-void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a) {
     const auto  PWINDOW = m_pWindow.lock();
 
     static auto PENABLEBLURGLOBAL = CConfigValue<Config::BOOL>("decoration:blur:enabled");
@@ -644,7 +644,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     if (titleBarBox.w < 1 || titleBarBox.h < 1)
         return;
 
-    g_pHyprOpenGL->scissor(titleBarBox);
+    g_pHyprOpenGL->scissor(ctx, titleBarBox);
 
     if (ROUNDING) {
         // the +1 is a shit garbage temp fix until renderRect supports an alpha matte
@@ -653,7 +653,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
                           PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
 
         if (windowBox.w < 1 || windowBox.h < 1) {
-            g_pHyprOpenGL->scissor(nullptr);
+            g_pHyprOpenGL->disableScissor();
             return;
         }
 
@@ -668,7 +668,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
         windowBox.translate(WORKSPACEOFFSET).scale(pMonitor->m_scale).round();
-        g_pHyprOpenGL->renderRect(windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+        g_pHyprOpenGL->renderRect(ctx, windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         glStencilFunc(GL_NOTEQUAL, 1, -1);
@@ -676,9 +676,9 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     }
 
     if (SHOULDBLUR)
-        g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower(), .blur = true, .blurA = a});
+        g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower(), .blur = true, .blurA = a});
     else
-        g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+        g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
 
     // render title
     if (ENABLETITLE && (m_szLastTitle != PWINDOW->metadata().title() || m_bWindowSizeChanged || !m_pTextTex || m_pTextTex->m_texID == 0 || m_bTitleColorChanged)) {
@@ -701,7 +701,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
     if (m_pIconTex && m_pIconTex->m_texID != 0) {
         const auto PAD = g_pGlobalState->config.barPadding->value() * pMonitor->m_scale;
         CBox       iconBox = {textBox.x + PAD, textBox.y + (BARBUF.y - m_pIconTex->m_size.y) / 2.0, m_pIconTex->m_size.x, m_pIconTex->m_size.y};
-        g_pHyprOpenGL->renderTexture(m_pIconTex, iconBox.round(), {.a = a});
+        g_pHyprOpenGL->renderTexture(ctx, m_pIconTex, iconBox.round(), {.a = a});
     }
 
     if (ENABLETITLE && m_pTextTex) {
@@ -717,15 +717,15 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
         const auto yOffset           = std::round((BARBUF.y - m_pTextTex->m_size.y) / 2.0);
         CBox       titleBox          = {textBox.x + xOffset, textBox.y + yOffset, m_pTextTex->m_size.x, m_pTextTex->m_size.y};
 
-        g_pHyprOpenGL->renderTexture(m_pTextTex, titleBox, {.a = a});
+        g_pHyprOpenGL->renderTexture(ctx, m_pTextTex, titleBox, {.a = a});
     }
 
-    renderBarButtons(&textBox, pMonitor->m_scale, a);
+    renderBarButtons(ctx, &textBox, pMonitor->m_scale, a);
     m_bButtonsDirty = false;
 
-    g_pHyprOpenGL->scissor(nullptr);
+    g_pHyprOpenGL->disableScissor();
 
-    renderBarButtonsText(&textBox, pMonitor->m_scale, a);
+    renderBarButtonsText(ctx, &textBox, pMonitor->m_scale, a);
 
     m_bWindowSizeChanged = false;
     m_bTitleColorChanged = false;
@@ -908,7 +908,7 @@ void CHyprBar::updateTip(size_t hovered) {
 }
 
 // Queued by main.cpp after every window (RENDER_POST_WINDOWS): drawn with the bar, it would sit under the bar's own window.
-void CHyprBar::drawTip(PHLMONITOR M) {
+void CHyprBar::drawTip(Render::CRenderContext& ctx, PHLMONITOR M) {
     auto&      tip = g_pGlobalState->tip;
     const auto W   = m_pWindow.lock();
     if (!tip.shown || tip.monitor != M || (tip.button >= g_pGlobalState->buttons.size() && tip.button != TIP_ICON) || !barActive() || !validMapped(m_pWindow) ||
@@ -955,15 +955,15 @@ void CHyprBar::drawTip(PHLMONITOR M) {
     outer.box   = BOX;
     outer.color = line;
     outer.round = ROUND;
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(outer));
+    g_pHyprRenderer->addPassElement(ctx, makeUnique<CRectPassElement>(outer));
     CRectPassElement::SRectData inner;
     inner.box   = BOX.copy().expand(-std::max(1.0, std::round((double)SCALE)));
     inner.color = fill;
     inner.round = std::max(0, ROUND - 1);
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(inner));
+    g_pHyprRenderer->addPassElement(ctx, makeUnique<CRectPassElement>(inner));
 
     CTexPassElement::SRenderData text;
     text.tex = tip.tex;
     text.box = CBox{BOX.x + std::round(PADX * SCALE), BOX.y + std::round(PADY * SCALE), tip.tex->m_size.x, tip.tex->m_size.y};
-    g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(std::move(text)));
+    g_pHyprRenderer->addPassElement(ctx, makeUnique<CTexPassElement>(std::move(text)));
 }

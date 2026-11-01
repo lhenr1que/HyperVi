@@ -445,12 +445,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                 b->onFloatingChanged();
     });
     // the button tooltip goes after every window: drawn with its bar it would sit under the bar's own window
-    static auto PR = Event::bus()->m_events.render.stage.listen([&](eRenderStage stage) {
-        if (stage != RENDER_POST_WINDOWS)
+    static auto PR = Event::bus()->m_events.render.stage.listen([&](const Event::SRenderStageEvent& e) {
+        if (e.stage != RENDER_POST_WINDOWS || !e.context || !e.monitor)
             return;
-        const auto M = g_pHyprRenderer->m_renderData.pMonitor.lock();
-        if (const auto& tip = g_pGlobalState->tip; M && !tip.bar.expired())
-            tip.bar->drawTip(M);
+        if (const auto& tip = g_pGlobalState->tip; !tip.bar.expired())
+            tip.bar->drawTip(e.context->get(), e.monitor);
     });
     static auto P4 = Event::bus()->m_events.config.preReload.listen([&] { onPreConfigReload(); });
     static auto P5 = Event::bus()->m_events.config.reloaded.listen([&] { onConfigReloaded(); });

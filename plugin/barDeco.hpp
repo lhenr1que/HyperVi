@@ -29,27 +29,27 @@ void tipHide(bool forget);
 class CHyprBar : public IHyprWindowDecoration {
   public:
     CHyprBar(PHLWINDOW);
-    virtual ~CHyprBar();
+    virtual ~CHyprBar() override;
 
-    virtual SDecorationPositioningInfo getPositioningInfo();
+    virtual SDecorationPositioningInfo getPositioningInfo() override;
 
-    virtual void                       onPositioningReply(const SDecorationPositioningReply& reply);
+    virtual void                       onPositioningReply(const SDecorationPositioningReply& reply) override;
 
-    virtual void                       draw(PHLMONITOR, float const& a);
+    virtual void                       draw(Render::CRenderContext& ctx, PHLMONITOR, float const& a, const Render::SWindowRenderPresentation& presentation) override;
 
-    virtual eDecorationType            getDecorationType();
+    virtual eDecorationType            getDecorationType() override;
 
-    virtual void                       updateWindow(PHLWINDOW);
+    virtual void                       updateWindow(PHLWINDOW) override;
 
-    virtual void                       damageEntire();
+    virtual void                       damageEntire() override;
 
-    virtual eDecorationLayer           getDecorationLayer();
+    virtual eDecorationLayer           getDecorationLayer() override;
 
-    virtual uint64_t                   getDecorationFlags();
+    virtual uint64_t                   getDecorationFlags() override;
 
     bool                               m_bButtonsDirty = true;
 
-    virtual std::string                getDisplayName();
+    virtual std::string                getDisplayName() override;
 
     PHLWINDOW                          getOwner();
 
@@ -57,7 +57,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                               onFloatingChanged();
     void                               onFocusChanged();
     void                               onConfigReloaded();
-    void                               drawTip(PHLMONITOR);
+    void                               drawTip(Render::CRenderContext& ctx, PHLMONITOR);
 
     WP<CHyprBar>                       m_self;
 
@@ -86,10 +86,10 @@ class CHyprBar : public IHyprWindowDecoration {
 
     Vector2D                   cursorRelativeToBar();
 
-    void                       renderPass(PHLMONITOR, float const& a);
+    void                       renderPass(Render::CRenderContext& ctx, PHLMONITOR, float const& a);
     void                       renderBarTitle(const Vector2D& bufferSize, const float scale);
-    void renderBarButtons(CBox* barBox, const float scale, const float a);
-    void renderBarButtonsText(CBox* barBox, const float scale, const float a);
+    void renderBarButtons(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a);
+    void renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a);
     void damageOnButtonHover();
     void updateTip(size_t hovered);
 
@@ -109,7 +109,7 @@ class CHyprBar : public IHyprWindowDecoration {
     void                  runAction(const std::string& action);
     void                  openMenu(double x, double y);
     const char*           edgeZone(const Vector2D& cursor, PHLMONITOR monitor);
-    void                  drawSnapPreview(PHLMONITOR monitor);
+    void                  drawSnapPreview(Render::CRenderContext& ctx, PHLMONITOR monitor);
     void onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e);
     std::optional<size_t> buttonAt(const Vector2D& coords);
 

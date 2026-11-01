@@ -17,14 +17,14 @@ class CPreviewPassElement : public IPassElement {
     CPreviewPassElement(const SPreviewData& data_) : data(data_) {}
     virtual ~CPreviewPassElement() = default;
 
-    virtual std::vector<UP<IPassElement>> draw() override;
-    virtual bool                          needsLiveBlur() override {
+    virtual std::vector<UP<IPassElement>> draw(Render::CRenderContext& ctx) override;
+    virtual bool                          needsLiveBlur(Render::CRenderContext&) override {
         return false;
     }
-    virtual bool needsPrecomputeBlur() override {
+    virtual bool needsPrecomputeBlur(Render::CRenderContext&) override {
         return false;
     }
-    virtual std::optional<CBox> boundingBox() override {
+    virtual std::optional<CBox> boundingBox(Render::CRenderContext&) override {
         return data.box;
     }
     virtual const char* passName() override {
