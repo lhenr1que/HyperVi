@@ -146,34 +146,43 @@ function M.pack(dir, opts)
   if r then place(w, r, "pack:" .. dir) end
 end
 
--- Show desktop: stash every window of the active workspace in a special workspace, or bring them back.
--- opts.filter(w) limits which windows are stashed (tests use it; default is all).
--- shortcut: origins live in a Lua table, so a config reload forgets them; move to window tags to survive reloads.
+-- Show desktop: origins are window tags, which survive a core reload.
 local STASH = "special:kwinish_desktop"
-local stashed = {}
 function M.show_desktop(opts)
-  local sel = function(w) return "address:" .. w.address end
-  if next(stashed) then
-    for addr, ws in pairs(stashed) do
-      hl.dispatch(hl.dsp.window.move({ workspace = ws, follow = false, window = "address:" .. addr }))
+  local restored = false
+  for _, w in ipairs(hl.get_windows()) do
+    if w.workspace and w.workspace.name == STASH then
+      for _, tag in ipairs(w.tags or {}) do
+        local ws = tag:match("^kwinish%-desktop%-(%d+)$")
+        if ws then
+          hl.dispatch(hl.dsp.window.move({ workspace = ws, follow = false, window = "address:" .. w.address }))
+          hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = "address:" .. w.address }))
+          restored = true
+          break
+        end
+      end
     end
-    stashed = {}
-    return
   end
+  if restored then return end
   local ws = hl.get_active_workspace()
-  if not ws then return end
+  if not ws or not ws.id or ws.id < 1 then return end
   local filter = opts and opts.filter
   for _, w in ipairs(hl.get_workspace_windows(ws.id)) do
     if w.mapped and not w.hidden and (not filter or filter(w)) then
-      stashed[w.address] = ws.id
-      hl.dispatch(hl.dsp.window.move({ workspace = STASH, follow = false, window = sel(w) }))
+      local sel = "address:" .. w.address
+      for _, tag in ipairs(w.tags or {}) do
+        if tag:match("^kwinish%-desktop%-%d+$") then
+          hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = sel }))
+        end
+      end
+      hl.dispatch(hl.dsp.window.tag({ tag = "+kwinish-desktop-" .. ws.id, window = sel }))
+      hl.dispatch(hl.dsp.window.move({ workspace = STASH, follow = false, window = sel }))
     end
   end
 end
 
 -- Keep above: windows in `above` are raised again whenever focus changes (floating windows only), with or without setup().
 local above, below = {}, {}
-local hooked = false
 -- The state also goes into a window tag so other programs (the window menu) can read it from `hyprctl clients`.
 local function set_tag(w, name, on)
   hl.dispatch(hl.dsp.window.tag({ tag = (on and "+" or "-") .. name, window = "address:" .. w.address }))
@@ -238,7 +247,7 @@ end
 
 -- Window addresses are reused: forget what was kept for a window that closed.
 function M.forget_window(addr)
-  saved[addr], above[addr], below[addr], stashed[addr] = nil, nil, nil, nil
+  saved[addr], above[addr], below[addr] = nil, nil, nil
 end
 
 -- No title bar, border or rounded corners (and hidden from screen capture): toggles, state kept in tags.
@@ -323,15 +332,19 @@ end
 
 -- opts.filter(w) limits both features to matching windows (tests use it).
 -- opts: placement = "smart"|"cascade"|"center"|"cursor" (new floating windows), autoraise_ms = delay before a focused floating window is raised.
+-- The hooks are registered once per compositor Lua state, behind a global guard like the other KWINISH_* hooks, so reloading
+-- the core module does not add them again; they read the options of the latest setup() call.
 function M.setup(opts)
-  if hooked then return end
-  hooked = true
-  opts = opts or {}
+  KWINISH_SETUP_OPTS = opts or {}
+  if KWINISH_SETUP_HOOKS then return end
+  KWINISH_SETUP_HOOKS = true
   local function raise(addr)
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
   end
-  if opts.autoraise_ms then
+  do
     hl.on("window.active", function()
+      local opts = KWINISH_SETUP_OPTS
+      if not opts.autoraise_ms then return end
       local cur = hl.get_active_window()
       local cur_addr = cur and cur.address
       if not cur_addr then return end
@@ -344,8 +357,10 @@ function M.setup(opts)
       end, { timeout = opts.autoraise_ms, type = "oneshot" })
     end)
   end
-  if opts.placement then
+  do
     hl.on("window.open", function(w)
+      local opts = KWINISH_SETUP_OPTS
+      if not opts.placement then return end
       local addr = w.address -- re-fetched below: the window may be gone when the timer fires
       hl.timer(function()
         local win = hl.get_window("address:" .. addr)
@@ -397,6 +412,7 @@ function M.window_action(addr, action)
     hl.dispatch(hl.dsp.window.move({ workspace = tostring(top + 1), window = sel }))
   elseif kind == "workspace" then hl.dispatch(hl.dsp.window.move({ workspace = arg, window = sel }))
   elseif kind == "zone" then
+    if not target({ window = w }) then return end
     local rects = layout_rects(mon or w.monitor)
     local r = rects[tonumber(arg) or 0]
     -- no Snap Assist for a drop on another monitor: the window's workspace and monitor are still the old ones until it lands
@@ -712,7 +728,8 @@ function M.refresh_columns(ws)
   hl.timer(function()
     columns_pending[ws] = nil
     local m = load_modes()[tostring(ws)]
-    if m == "scrolling" then resize_columns(ws, n) end
+    local latest = load_columns()[tostring(ws)]
+    if m == "scrolling" and latest then resize_columns(ws, latest) end
   end, { timeout = 250, type = "oneshot" })
 end
 
@@ -729,6 +746,16 @@ function M.mode_window_opened(w)
   local ws = win and win.workspace and win.workspace.id
   if not (ws and has_tag(win, MODE_NEW .. "*") and load_modes()[tostring(ws)] == "floating") then return end
   set_tag(win, "kwinish-mode-floated", true)
+  local addr, step = win.address, mode_cascade
+  hl.timer(function()
+    if package.loaded.kwinish ~= M then return end
+    local current = hl.get_window("address:" .. addr)
+    if current and current.mapped and current.floating and current.monitor and current.workspace
+      and current.workspace.id == ws and has_tag(current, "kwinish-mode-floated")
+      and load_modes()[tostring(ws)] == "floating" then
+      put(current, modes.open_rect(work_area(current.monitor), step))
+    end
+  end, { timeout = 30, type = "oneshot" })
   mode_cascade = (mode_cascade + 1) % 5
   mode_rule(ws, true)
 end
@@ -783,7 +810,22 @@ if not KWINISH_RULES_HOOK then
   hl.on("window.move_to_workspace", function(w)
     if w and w.address then
       local win = hl.get_window("address:" .. w.address)
-      if win and has_tag(win, "kwinish-mode-floated") then set_tag(win, "kwinish-mode-floated", false) end
+      if win and has_tag(win, "kwinish-mode-floated") then
+        local name = win.workspace and win.workspace.name or ""
+        if name == "special:minimized" or name == STASH then
+          set_tag(win, "kwinish-mode-hidden", true)
+        elseif has_tag(win, "kwinish-mode-hidden") then
+          set_tag(win, "kwinish-mode-hidden", false)
+          local ws = win.workspace and win.workspace.id
+          if not ws or load_modes()[tostring(ws)] ~= "floating" then
+            set_tag(win, "kwinish-mode-floated", false)
+            if win.floating then save_rect(win) end
+            if not win.pinned then hl.dispatch(hl.dsp.window.float({ action = "disable", window = "address:" .. win.address })) end
+          end
+        else
+          set_tag(win, "kwinish-mode-floated", false)
+        end
+      end
       local kw = package.loaded.kwinish
       if win and kw then
         kw.apply_workspace_mode(win) -- floating destination: the window floats too

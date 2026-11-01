@@ -1,0 +1,11 @@
+lua: core/test_kwinish.lua:517: core/test_kwinish.lua:511: setup hooks duplicated on reload
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:511: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:514: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:517: in main chunk
+	[C]: in ?

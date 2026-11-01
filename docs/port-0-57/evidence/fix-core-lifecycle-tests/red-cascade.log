@@ -1,0 +1,11 @@
+lua5.5: core/test_kwinish.lua:506: core/test_kwinish.lua:253: cascade advances even with a stale opening rule
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:253: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:503: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:506: in main chunk
+	[C]: in ?
