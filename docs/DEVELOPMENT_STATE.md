@@ -1,3 +1,7 @@
+## GitHub Actions — 01/11/2026
+
+As execuções nos commits `2050840` e `17bcaa4` falharam em `core/test_userdata.lua` e `tools/test-plugin-hostdrag.sh`. O workflow instala clang e o teste Lua informa o estado do processo filho para diagnosticar a falha no CI; validação remota pendente. Os 35 testes Rust passaram e o plugin compilou nas duas execuções.
+
 ## Limpeza do repositório — 01/11/2026
 
 Por solicitação do dono, os resultados brutos de `spike/nested-open/results/` foram removidos da árvore principal; o experimento e seu resumo permanecem. Os arquivos estão no histórico Git no commit `2050840` e em backup ZIP local completo, criado e verificado antes da limpeza. Código, evidências de port e acervo documental de importação foram preservados. A limpeza não reescreve o histórico Git.

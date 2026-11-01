@@ -29,7 +29,7 @@ os.exit((type(r) == "table" and next(r) == nil) and 10 or 11)]], dir, mod, file,
   local _, how, n = os.execute("timeout 5 " .. sh(arg[-1]) .. " " .. sh(child))
   os.remove(file); os.remove(child)
   if how == "exit" and n == 10 then return "empty" elseif how == "exit" and n == 11 then return "entries" end
-  return n == 124 and "timeout" or "exited"
+  return n == 124 and "timeout" or ("exited: " .. tostring(how) .. " " .. tostring(n))
 end
 
 local loop = "(function() while true do end end)()"
