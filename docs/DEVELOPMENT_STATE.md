@@ -2,7 +2,17 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — T6, R-lifecycle (01/11/2026; commitada com aprovação do dono)
+## Resultado mais recente — T7, build final + check + ELF (01/11/2026; sem código alterado; commitada com aprovação do dono)
+
+- **Escopo (autorizado pelo dono em 01/11/2026):** só verificação sobre `6d8416d`; nenhum arquivo de `plugin/`, `core/`, `ui/` ou `tools/` mudou. Evidências em `docs/port-0-57/evidence/T7-tests/`. Hyprland instalado = headers = **0.57.0**, commit `0aa6745`.
+- **Build isolado** (`build.sh`, `env -i`, HOME/XDG temporários): GCC e Clang **0 erros, `.so` gerado**; avisos GCC 7 e Clang 2, iguais aos da T5/T6. Os `.so` ficaram fora do repositório; sha256 em `T7-sha256.txt`.
+- **`tools/check.sh` isolado** (`env -i`, HOME/TMPDIR temporários): **exit 0** (11 suítes Lua, 8 de tools, cargo e plugin; `check.log`). As linhas "FALHOU" no log são os negativos e as mutações esperados de `test-check`, todos marcados "OK - detectado".
+- **ELF** (`elf.sh`, só `readelf`/`nm`, nada carregado): nos dois `.so` não há `NODELETE` nem símbolos `GNU_UNIQUE` (B1-S3/H-DTOR); `pluginAPIVersion`, `pluginInit` e `pluginExit` estão exportados, e o binário do host procura essas mesmas strings (no 0.57, `PLUGIN_*` são macros para elas, `PluginAPI.hpp:102–123`). Todos os símbolos indefinidos fortes (GCC 300, Clang 279) estão definidos no `/usr/bin/Hyprland` ou nas bibliotecas carregadas. As vtables e o typeinfo de `CBarPassElement`/`CPreviewPassElement` ficam no módulo, daí a importância do Q1. O controle negativo (`negative.cpp`) dá 4 falhas: NODELETE, 2 exportações e 1 símbolo sem definição (`elf-negative.log`).
+- **Limite:** resolver por nome não prova ABI compatível nem carga bem-sucedida. Nada carregado; GL e testes ao vivo ficam para a T8.
+- **Marco 1 (artefato compilável) atingido**, na definição do PLANO §5.
+- **Próxima ação:** T8, o roteiro ao vivo em fish para o dono (GL D9–D11, input, tooltip, unload) em `docs/STATUS.md`. Precisa de autorização. Pendentes: contador Q1/Q2 e o parâmetro `SWindowRenderPresentation`.
+
+## Anterior — T6, R-lifecycle (01/11/2026; commitada com aprovação do dono)
 
 - **Escopo (autorizado pelo dono em 01/11/2026):** `plugin/main.cpp` (`PLUGIN_EXIT`), testes e este arquivo. As 2 linhas `g_pHyprRenderer->m_renderPass.removeAllOfType(...)` saíram: no 0.57 os passes vivem na sessão de render e o host os destrói no `reset()` (`docs/port-0-57/QUIESCENCE.md` Q1, `LEDGER.md` L14). No lugar, Q1: se `g_pHyprRenderer->context().active()`, só registra `Log::ERR` (unload fora de contrato; não dá para vetar). Timer do tooltip, `tipHide` e os 3 `unregisterEffect` inalterados.
 - **Teste novo** `tools/test-plugin-lifecycle.sh` (host-free, estático, ordem no corpo de `PLUGIN_EXIT`; entra no `check.sh` sozinho): sem `m_renderPass`; `active()` lido antes de `tipHide`/`removeTimer`; violação logada; `removeTimer` antes de `tip.timer.reset()`; 3 efeitos desregistrados. Vermelho contra `22c17ca` (4 falhas, `docs/port-0-57/evidence/T6-tests/red.log`), verde depois (`green.log`).

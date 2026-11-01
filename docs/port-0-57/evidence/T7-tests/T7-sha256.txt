@@ -1,0 +1,3 @@
+# HEAD 6d8416d; .so fora do repositório (build.sh <cc> <dir>)
+10321285b6883c4f3bfb4f9ef5f47e4beea148d1151502d9606ac339c35cc691  kwinish-bars-gcc.so
+78e564b6cce119c7d031a5acd2172d1a9f49afef61c9e1422197714490e945da  kwinish-bars-clang.so

@@ -1,0 +1,11 @@
+FALHOU - FLAGS_1 NODELETE presente (dlclose não descarrega)
+ok - sem símbolos GNU_UNIQUE
+FALHOU - não exporta pluginAPIVersion
+ok - exporta pluginInit
+FALHOU - não exporta pluginExit
+FALHOU - 1 de 1 símbolos indefinidos sem definição:
+    kwNoSuchSymbol
+    info: vtable/typeinfo de CBarPassElement não exportadas (locais ao módulo)
+    info: vtable/typeinfo de CPreviewPassElement não exportadas (locais ao módulo)
+elf: 4 falha(s)
+exit=1
