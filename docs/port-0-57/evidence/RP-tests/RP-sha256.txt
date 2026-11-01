@@ -1,0 +1,2 @@
+95af0a4d2d1d4c10dd7b46ffffc58520ec8a661917c90de66ce99ad9b1d79e9c  kwinish-bars-clang.so
+bd96189d09097a60a9bee34466d4b4520af06f0abb3e3e80c3d5abc46dd9a5db  kwinish-bars-gcc.so

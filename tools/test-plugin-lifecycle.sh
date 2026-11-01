@@ -45,4 +45,16 @@ done
 live=$(at 'KwPass::g_live != 0'); live=${live:-0}
 check '[ "$live" -gt 0 ] && grep -qE "Log::logger->log\\(Log::ERR.*KwPass::g_live" <<<"$body"' "Q1: PLUGIN_EXIT logs passes still alive"
 
+# The bar is drawn with the frame's SWindowRenderPresentation, as the native border is (docs/port-0-57/GEOMETRY.md G1): outside
+# the monitor scene the host zeroes or swaps the workspace and floating offsets, and live state would misplace the bar.
+# Textual (these routes need the compositor), comments ignored.
+code() { sed 's|//.*||' "$src/$1"; }
+fn() { awk -v f="$2" 'index($0, f) == 1 {on = 1} on {sub(/\/\/.*/, ""); print} on && /^}/ {exit}' "$src/$1"; }
+check 'code BarPassElement.hpp | grep -qE "Render::SWindowRenderPresentation +presentation"' "the bar pass keeps a copy of the frame's presentation"
+check 'fn barDeco.cpp "void CHyprBar::draw(" | grep -qE "SBarData\\{this, a, presentation\\}"' "draw hands the frame's presentation to the pass"
+r=$(fn barDeco.cpp "void CHyprBar::renderPass(")
+check '[ -n "$r" ] && ! grep -qE "m_renderOffset|presentation\\(\\)\\.floatingOffset\\(\\)|assignedBoxGlobal\\(\\)" <<<"$r"' "renderPass reads no live workspace or floating offset (nor the live assignedBoxGlobal())"
+check 'grep -q "presentation\\.workspaceOffset" <<<"$r" && grep -q "presentation\\.floatingOffset" <<<"$r"' "renderPass places the bar with the presentation's offsets"
+check 'fn BarPassElement.cpp "std::optional<CBox> CBarPassElement::boundingBox(" | grep -q "data\\.presentation"' "the pass bounding box uses the same presentation"
+
 [ $fails = 0 ] && echo "lifecycle: tudo passou" || { echo "lifecycle: $fails falha(s)"; exit 1; }

@@ -779,7 +779,7 @@ void CHyprBar::renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, c
     }
 }
 
-void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a, const Render::SWindowRenderPresentation&) {
+void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a, const Render::SWindowRenderPresentation& presentation) {
     const auto ENABLED = g_pGlobalState->config.enabled->value();
 
     if (m_bLastEnabledState != ENABLED) {
@@ -804,11 +804,11 @@ void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const floa
     if (!PWINDOW->m_ruleApplicator->decorate().valueOrDefault())
         return;
 
-    auto data = CBarPassElement::SBarData{this, a};
+    auto data = CBarPassElement::SBarData{this, a, presentation};
     g_pHyprRenderer->addPassElement(ctx, makeUnique<CBarPassElement>(data));
 }
 
-void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a) {
+void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a, const Render::SWindowRenderPresentation& presentation) {
     const auto  PWINDOW = m_pWindow.lock();
 
     static auto PENABLEBLURGLOBAL = CConfigValue<Config::BOOL>("decoration:blur:enabled");
@@ -844,23 +844,21 @@ void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, cons
         return;
     }
 
-    const auto PWORKSPACE      = PWINDOW->m_workspace;
-    const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(PWINDOW->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
-
+    // placed with this frame's offsets, as the native border is: outside the monitor scene the host zeroes or swaps them
     const auto ROUNDING = PWINDOW->presentation().rounding() + (PRECEDENCE ? 0 : PWINDOW->presentation().borderSize());
 
     const auto scaledRounding = ROUNDING > 0 ? ROUNDING * pMonitor->m_scale - 2 /* idk why but otherwise it looks bad due to the gaps */ : 0;
 
     m_seExtents = {{0, HEIGHT}, {}};
 
-    const auto DECOBOX = assignedBoxGlobal();
+    const auto DECOBOX = assignedBoxGlobal(presentation);
 
     const auto BARBUF = DECOBOX.size() * pMonitor->m_scale;
 
     CBox       titleBarBox = {DECOBOX.x - pMonitor->m_position.x, DECOBOX.y - pMonitor->m_position.y, DECOBOX.w,
                               DECOBOX.h + ROUNDING * 3 /* to fill the bottom cuz we can't disable rounding there */};
 
-    titleBarBox.translate(PWINDOW->presentation().floatingOffset()).scale(pMonitor->m_scale).round();
+    titleBarBox.translate(presentation.floatingOffset).scale(pMonitor->m_scale).round();
 
     if (titleBarBox.w < 1 || titleBarBox.h < 1)
         return;
@@ -869,8 +867,8 @@ void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, cons
 
     if (ROUNDING) {
         // the +1 is a shit garbage temp fix until renderRect supports an alpha matte
-        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->presentation().floatingOffset().x - pMonitor->m_position.x + 1,
-                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->presentation().floatingOffset().y - pMonitor->m_position.y + 1,
+        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + presentation.floatingOffset.x - pMonitor->m_position.x + 1,
+                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + presentation.floatingOffset.y - pMonitor->m_position.y + 1,
                           PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
 
         if (windowBox.w < 1 || windowBox.h < 1) {
@@ -888,7 +886,7 @@ void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, cons
 
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-        windowBox.translate(WORKSPACEOFFSET).scale(pMonitor->m_scale).round();
+        windowBox.translate(presentation.workspaceOffset).scale(pMonitor->m_scale).round();
         g_pHyprOpenGL->renderRect(ctx, windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
@@ -1003,6 +1001,15 @@ CBox CHyprBar::assignedBoxGlobal() {
     const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(m_pWindow->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
 
     return box.translate(WORKSPACEOFFSET);
+}
+
+CBox CHyprBar::assignedBoxGlobal(const Render::SWindowRenderPresentation& presentation) {
+    if (!validMapped(m_pWindow))
+        return {};
+
+    CBox box = m_bAssignedBox;
+    box.translate(g_pDecorationPositioner->getEdgeDefinedPoint(DECORATION_EDGE_TOP, m_pWindow.lock()));
+    return box.translate(presentation.workspaceOffset); // already 0 for a pinned window (WindowRenderPresentation.cpp)
 }
 
 PHLWINDOW CHyprBar::getOwner() {

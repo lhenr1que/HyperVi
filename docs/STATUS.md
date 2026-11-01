@@ -101,6 +101,37 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
+**RP. A barra desenhada com a foto do quadro (`SWindowRenderPresentation`; 01/11/2026; não executado)**
+Correção de render: a barra passa a usar os deslocamentos de workspace e de flutuação que o compositor entrega em cada quadro, como a borda nativa, em vez de ler o estado vivo da janela. No modo normal os dois são iguais; a diferença aparece em animações e cenas de workspace. Só plugin e núcleo; nenhum arquivo seu muda. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
+```bash
+hyprctl plugin list
+```
+```bash
+mkdir -p /tmp/kwinish-rp
+make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-rp/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-rp/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwrp &
+```
+Deve acontecer: `make` sem `error`; `plugin load` sem erro; uma janela `kwrp` com barra. Em todos os passos, a barra tem de acompanhar a janela quadro a quadro, colada nela, sem atraso, salto ou sobra.
+1. **Troca de workspace:** com o `kwrp` em tiling no workspace 1, vá ao 2 e volte ao 1 (SUPER+2, SUPER+1). Durante o deslize, a barra anda junto com a janela.
+2. **Flutuante:** deixe o `kwrp` flutuante (SUPER+V) e repita o passo 1.
+3. **Fixada:** clique no botão de fixar do `kwrp` flutuante e troque de workspace: a janela e a barra ficam paradas na tela enquanto o resto desliza. Clique de novo para desfixar.
+4. **Mover para outro workspace:** com o `kwrp` focado, SUPER+SHIFT+2 e depois vá ao 2: a barra chega junto com a janela. Volte com SUPER+SHIFT+1.
+5. **Abrir e fechar:** abra outro `kitty --class kwrp &` e feche com o botão de fechar da barra: a barra aparece e some junto com a janela.
+6. **Arrasto e encaixe (regressão):** arraste o `kwrp` flutuante pelo título até a borda esquerda e solte: encaixa na metade esquerda, com a barra no lugar.
+7. **Log:** este comando não deve mostrar `Q1 violated` nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+Desfazer (tira o plugin e o núcleo e fecha as janelas de teste):
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwrp") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-rp/kwinish-bars.so
+hyprctl reload
+```
+*Se a sessão travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-rp/kwinish-bars.so`.
+
 **GS. Porta à entrada do arrasto (OpenSpec `guard-titlebar-drag-start`; 01/11/2026; executado pelo dono: passou, com duas observações)**
 Corrige três achados da revisão da alpha-1: a saída de encaixe e a de maximizada não mexem mais na janela durante o arrasto de outro componente; o arrasto adiado só começa na janela da própria barra; e todo `grab` que não começa vira erro Lua. Só plugin e núcleo; o `kwinish-ui` não é necessário. Caminho novo, para não sobrescrever um `.so` carregado. Comandos com caminho completo, sem variáveis; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
 ```bash

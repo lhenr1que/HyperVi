@@ -2,7 +2,29 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — `add-pin-and-icon-tooltips` e `harden-user-data-io` arquivadas (01/11/2026; o dono mandou seguir; commitada com aprovação do dono)
+## Resultado mais recente — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada com aprovação do dono antes do teste ao vivo)
+
+Decisões do dono (01/11/2026), uma por pendência:
+- **`SWindowRenderPresentation`: corrigir agora.** Feito, ver RP abaixo.
+- **73 logs brutos de P5–T6: versionar.** Commitados em `06390bb` (só evidência; conferidos antes, sem segredos: as ocorrências de "token" são prosa técnica).
+- **Contador Q1: fechar.** Mantida a exposição só por log (escolha do dono); evidência ao vivo: teste 10 (01/11/2026), unload sem `Q1 violated` no log. Encerrada.
+- **Pendências com gatilho: fechar como riscos aceitos** (lista abaixo). Saem da lista de pendências.
+
+**RP — a barra desenhada com a foto do quadro** (`GEOMETRY.md` G1):
+- **Defeito latente:** `CHyprBar::draw` ignorava o `SWindowRenderPresentation` do quadro, e `renderPass` somava o deslocamento vivo do workspace (`m_renderOffset`) e o `floatingOffset` vivo da janela. A borda nativa usa a foto (`CHyprBorderDecoration::assignedBoxGlobal(presentation)` + `presentation.floatingOffset`). Fora da cena de monitor o compositor zera ou troca esses valores (`WindowRenderPresentation.cpp`), e a barra ficaria fora do lugar.
+- **Correção:** `SBarData` guarda uma cópia da foto; `draw` a entrega ao passe; `renderPass` e `CBarPassElement::boundingBox` usam `assignedBoxGlobal(presentation)` (novo) e `presentation.floatingOffset`/`workspaceOffset`. O `assignedBoxGlobal()` vivo continua para entrada e dica (G2). Arquivos: `plugin/BarPassElement.{hpp,cpp}`, `plugin/barDeco.{hpp,cpp}`.
+- **Vermelho → verde:** 5 checagens novas em `tools/test-plugin-lifecycle.sh` (textuais, comentários ignorados; essas rotas não rodam sem compositor): 5 falhas contra o `plugin/` de `94a6f0e` (igual ao de `06390bb`, que só traz logs), verde depois. Mutações com controle: 6/6 mortas (uma sobreviveu na primeira rodada, caixa voltando ao `assignedBoxGlobal()` vivo; a checagem foi ampliada). Build isolado GCC/Clang 0 erros, avisos 7/2 (iguais); ELF passa nos dois; `check.sh` exit 0. Evidências em `docs/port-0-57/evidence/RP-tests/`. Simulado; nada carregado.
+- **Pendente:** roteiro **RP** no `docs/STATUS.md` (dono). Commit aprovado pelo dono em 01/11/2026, antes do teste ao vivo.
+
+**Riscos aceitos** (não são pendências; cada um volta só pelo seu gatilho, com nova proposta OpenSpec quando mudar comportamento):
+| Risco | Decisão | Gatilho |
+|---|---|---|
+| Janela em tiling centrada no cursor ao começar o arrasto | nativo do Hyprland (`binds:drag_center_window`), mantido | o dono querer o cursor na barra em tiling |
+| `floatWindow` do núcleo Lua encerra drag ativo (`place`, float, `float_for_mode`, `set_workspace_mode`) | débito aceito; opção (b) `hl.plugin.kwinish.dragging()` com guarda no núcleo de reserva | arrasto encerrado sozinho no uso |
+| Custo C1/C2: entrada capturada na soltura deixa o arrasto até a próxima tecla ou clique | aceito com `alt5-rc` | arrasto preso no uso → paridade 0.56 |
+| Achado 6, opção (b): limiar também na janela flutuante | não escolhida | janela flutuante "andando" no clique |
+
+## Anterior — `add-pin-and-icon-tooltips` e `harden-user-data-io` arquivadas (01/11/2026; o dono mandou seguir; commitada com aprovação do dono)
 
 - **Antes:** desfazer do teste 11 rodado pelo dono (conferido só lendo: sem `~/.config/kwinish`, sem o link `~/.local/bin/kwinish-ui`, backup consumido, plugin descarregado).
 - **Arquivamento (à mão; CLI `openspec` ausente):** `git mv` para `openspec/changes/archive/2026-11-01-{add-pin-and-icon-tooltips,harden-user-data-io}/`; nota de arquivamento em cada `tasks.md`.

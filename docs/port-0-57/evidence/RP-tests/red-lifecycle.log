@@ -1,0 +1,24 @@
+ok - no m_renderPass (gone in 0.57)
+ok - Q1: reads context().active()
+ok - Q1: logs an active session as a violation
+ok - Q1 is read before the tooltip and its timer are released
+ok - tooltip hidden, timer removed from the loop before the SP is dropped
+ok - the 3 rule effects are unregistered
+ok - starts at 0
+ok - construct counts 1
+ok - copy counts another
+ok - move counts another (the moved-from one still dies)
+ok - assignment changes nothing
+ok - back to 0 after scope
+ok - 5 queued
+ok - erase 2 leaves 3
+ok - clear leaves 0
+ok - Q1: BarPassElement.hpp counts its elements (KwPass::SLife member)
+ok - Q1: PreviewPassElement.hpp counts its elements (KwPass::SLife member)
+ok - Q1: PLUGIN_EXIT logs passes still alive
+FALHOU - the bar pass keeps a copy of the frame's presentation
+FALHOU - draw hands the frame's presentation to the pass
+FALHOU - renderPass reads no live workspace or floating offset (nor the live assignedBoxGlobal())
+FALHOU - renderPass places the bar with the presentation's offsets
+FALHOU - the pass bounding box uses the same presentation
+lifecycle: 5 falha(s)

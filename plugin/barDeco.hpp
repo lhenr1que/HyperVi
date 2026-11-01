@@ -97,7 +97,7 @@ class CHyprBar : public IHyprWindowDecoration {
 
     Vector2D                   cursorRelativeToBar();
 
-    void                       renderPass(Render::CRenderContext& ctx, PHLMONITOR, float const& a);
+    void                       renderPass(Render::CRenderContext& ctx, PHLMONITOR, float const& a, const Render::SWindowRenderPresentation& presentation);
     void                       renderBarTitle(const Vector2D& bufferSize, const float scale);
     void renderBarButtons(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a);
     void renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, const float scale, const float a);
@@ -135,6 +135,7 @@ class CHyprBar : public IHyprWindowDecoration {
     std::optional<size_t> buttonAt(const Vector2D& coords);
 
     CBox assignedBoxGlobal();
+    CBox assignedBoxGlobal(const Render::SWindowRenderPresentation& presentation); // as drawn in that frame
 
     CHyprSignalListener m_pMouseButtonCallback;
     CHyprSignalListener m_pMouseMoveCallback;

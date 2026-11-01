@@ -1,0 +1,17 @@
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+clang++ -O2 -ferror-limit=0 -shared -fPIC -std=c++2b -Wno-c++11-narrowing   `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o so/kwinish-bars-clang.so `pkg-config --libs cairo librsvg-2.0`
+main.cpp:39:28: warning: 'pluginAPIVersion' has C-linkage specified, but returns user-defined type 'std::string' (aka 'basic_string<char>') which is incompatible with C [-Wreturn-type-c-linkage]
+   39 | APICALL EXPORT std::string PLUGIN_API_VERSION() {
+      |                            ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:102:37: note: expanded from macro 'PLUGIN_API_VERSION'
+  102 | #define PLUGIN_API_VERSION          pluginAPIVersion
+      |                                     ^
+main.cpp:361:40: warning: 'pluginInit' has C-linkage specified, but returns user-defined type 'PLUGIN_DESCRIPTION_INFO' which is incompatible with C [-Wreturn-type-c-linkage]
+  361 | APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+      |                                        ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:112:30: note: expanded from macro 'PLUGIN_INIT'
+  112 | #define PLUGIN_INIT          pluginInit
+      |                              ^
+2 warnings generated.
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+exit=0

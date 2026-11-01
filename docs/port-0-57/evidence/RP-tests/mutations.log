@@ -1,0 +1,7 @@
+controle: lifecycle: tudo passou
+morta - desenho volta ao floatingOffset vivo :: FALHOU - renderPass reads no live workspace or floating offset (nor the live assignedBoxGlobal())
+morta - bbox volta ao estado vivo :: FALHOU - the pass bounding box uses the same presentation
+morta - draw não entrega a foto :: FALHOU - draw hands the frame's presentation to the pass
+morta - caixa volta ao deslocamento vivo do workspace :: FALHOU - renderPass reads no live workspace or floating offset (nor the live assignedBoxGlobal())
+morta - máscara volta ao deslocamento vivo :: FALHOU - renderPass reads no live workspace or floating offset (nor the live assignedBoxGlobal())
+morta - pass sem a cópia :: FALHOU - the bar pass keeps a copy of the frame's presentation

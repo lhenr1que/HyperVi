@@ -12,7 +12,7 @@ CBarPassElement::CBarPassElement(const CBarPassElement::SBarData& data_) : data(
 }
 
 std::vector<UP<IPassElement>> CBarPassElement::draw(Render::CRenderContext& ctx) {
-    data.deco->renderPass(ctx, ctx.m_data.pMonitor.lock(), data.a);
+    data.deco->renderPass(ctx, ctx.m_data.pMonitor.lock(), data.a, data.presentation);
     return {};
 }
 
@@ -28,7 +28,7 @@ bool CBarPassElement::needsLiveBlur(Render::CRenderContext&) {
 
 std::optional<CBox> CBarPassElement::boundingBox(Render::CRenderContext& ctx) {
     // Temporary fix: expand the bar bb a bit, otherwise occlusion gets too aggressive.
-    return data.deco->assignedBoxGlobal().translate(-ctx.m_data.pMonitor->m_position).expand(10);
+    return data.deco->assignedBoxGlobal(data.presentation).translate(data.presentation.floatingOffset - ctx.m_data.pMonitor->m_position).expand(10);
 }
 
 bool CBarPassElement::needsPrecomputeBlur(Render::CRenderContext&) {

@@ -2,6 +2,7 @@
 // Derived from hyprbars (hyprwm/hyprland-plugins, BSD-3-Clause, Copyright (c) 2023 Hypr Development); changes MIT. See NOTICE.
 #pragma once
 #include <hyprland/src/render/pass/PassElement.hpp>
+#include <hyprland/src/render/WindowRenderPresentation.hpp>
 #include "passLife.hpp"
 
 class CHyprBar;
@@ -9,8 +10,9 @@ class CHyprBar;
 class CBarPassElement : public IPassElement {
   public:
     struct SBarData {
-        CHyprBar* deco = nullptr;
-        float     a    = 1.F;
+        CHyprBar*                         deco = nullptr;
+        float                             a    = 1.F;
+        Render::SWindowRenderPresentation presentation; // a copy: the host's reference ends with draw()
     };
 
     CBarPassElement(const SBarData& data_);
