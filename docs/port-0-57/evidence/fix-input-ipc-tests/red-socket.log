@@ -1,0 +1,32 @@
+   Compiling kwinish-ui v0.1.0 (/home/lhen/Projects/ryoku-work/kwinish-wt-input/ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running unittests src/main.rs (ui/target/debug/deps/kwinish_ui-a95d52a7a692384f)
+
+running 2 tests
+test bars::tests::socket_reply_rejects_stalled_and_oversized ... FAILED
+test bars::tests::socket_reply_rejects_oversized ... FAILED
+
+failures:
+
+---- bars::tests::socket_reply_rejects_stalled_and_oversized stdout ----
+
+thread 'bars::tests::socket_reply_rejects_stalled_and_oversized' (214) panicked at src/bars.rs:509:9:
+assertion `left == right` failed: partial stalled response must be rejected
+  left: "partial"
+ right: ""
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- bars::tests::socket_reply_rejects_oversized stdout ----
+
+thread 'bars::tests::socket_reply_rejects_oversized' (213) panicked at src/bars.rs:514:9:
+oversized response must be rejected
+
+
+failures:
+    bars::tests::socket_reply_rejects_oversized
+    bars::tests::socket_reply_rejects_stalled_and_oversized
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--bin kwinish-ui`
+exit=101

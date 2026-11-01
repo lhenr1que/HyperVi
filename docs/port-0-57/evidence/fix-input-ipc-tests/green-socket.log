@@ -1,0 +1,11 @@
+   Compiling kwinish-ui v0.1.0 (/home/lhen/Projects/ryoku-work/kwinish-wt-input/ui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+     Running unittests src/main.rs (ui/target/debug/deps/kwinish_ui-a95d52a7a692384f)
+
+running 2 tests
+test bars::tests::socket_reply_rejects_stalled_and_oversized ... ok
+test bars::tests::socket_reply_rejects_oversized ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+exit=0
