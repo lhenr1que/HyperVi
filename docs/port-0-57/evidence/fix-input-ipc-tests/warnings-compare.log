@@ -1,0 +1,2 @@
+gcc: baseline=7, mudança=7, mensagens iguais=True
+clang: baseline=2, mudança=2, mensagens iguais=True

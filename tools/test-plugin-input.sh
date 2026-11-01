@@ -77,6 +77,12 @@ if [ "$n" -ge 2 ]; then echo "ok - drawSnapPreview is called"; else echo "FALHOU
 
 # guard-titlebar-drag-start: in each route, the gate comes before any geometry or focus change (comments ignored)
 body() { awk -v f="$2" 'index($0, f) == 1 {on = 1} on {sub(/\/\/.*/, ""); print} on && /^}/ {exit}' "$src/$1"; }
+# fix-input-ipc: a press or a wheel turn only counts for the bar whose window is under the pointer (not a covered focused one),
+# and the shared button symbols keep one texture per monitor scale
+s=$(body barDeco.cpp 'void CHyprBar::onMouseButton(' | grep -c 'inputIsValid(true)'); [ "$s" -ge 1 ] && ! body barDeco.cpp 'void CHyprBar::onMouseButton(' | grep -q 'inputIsValid()' && echo "ok - press: only the bar under the pointer takes it" || { echo "FALHOU - press: onMouseButton must call inputIsValid(true), never inputIsValid()"; fails=$((fails + 1)); }
+s=$(body barDeco.cpp 'void CHyprBar::onMouseAxis(' | grep -c 'inputIsValid(true)'); [ "$s" -ge 1 ] && echo "ok - wheel: only the bar under the pointer takes it" || { echo "FALHOU - wheel: onMouseAxis must call inputIsValid(true)"; fails=$((fails + 1)); }
+present globals.hpp 'unordered_map<float, SP<Render::ITexture>> iconTex' "button symbols: one texture per monitor scale"
+present barDeco.cpp 'button\.iconTex\[scale\]' "button symbols: drawn with the texture of this monitor's scale"
 before() { # file function first then what
   local b a z
   b=$(body "$1" "$2")

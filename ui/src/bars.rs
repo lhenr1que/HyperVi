@@ -108,14 +108,36 @@ fn draw_fill(cr: &gtk4::cairo::Context, f: &Fill) {
     }
 }
 
+const MAX_REPLY: u64 = 1024 * 1024;
+const SOCKET_TIMEOUT: Duration = Duration::from_millis(500);
+
+fn read_reply(s: impl Read) -> String {
+    let mut bytes = Vec::new();
+    if s.take(MAX_REPLY + 1).read_to_end(&mut bytes).is_err() || bytes.len() as u64 > MAX_REPLY {
+        return String::new();
+    }
+    String::from_utf8(bytes).unwrap_or_default()
+}
+
+struct DeadlineReader<'a> {
+    stream: &'a UnixStream,
+    deadline: std::time::Instant,
+}
+impl Read for DeadlineReader<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let remaining = self.deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() { return Err(std::io::ErrorKind::TimedOut.into()); }
+        self.stream.set_read_timeout(Some(remaining))?;
+        self.stream.read(buf)
+    }
+}
+
 fn hypr(cmd: &str) -> String {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
     let sig = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").unwrap_or_default();
     let Ok(mut s) = UnixStream::connect(format!("{dir}/hypr/{sig}/.socket.sock")) else { return String::new() };
-    let _ = s.write_all(cmd.as_bytes());
-    let mut out = String::new();
-    let _ = s.read_to_string(&mut out);
-    out
+    if s.set_write_timeout(Some(SOCKET_TIMEOUT)).is_err() || s.write_all(cmd.as_bytes()).is_err() { return String::new(); }
+    read_reply(DeadlineReader { stream: &s, deadline: std::time::Instant::now() + SOCKET_TIMEOUT })
 }
 
 fn json(cmd: &str) -> serde_json::Value {
@@ -492,6 +514,23 @@ pub fn run(args: Vec<String>) -> glib::ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{corner_curve, parse_color, widest_gap, Rect};
+
+    #[test]
+    fn socket_reply_rejects_stalled_and_oversized() {
+        struct Stalled(bool);
+        impl std::io::Read for Stalled {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                if !self.0 { self.0 = true; buf[..7].copy_from_slice(b"partial"); Ok(7) }
+                else { Err(std::io::ErrorKind::TimedOut.into()) }
+            }
+        }
+        assert_eq!(super::read_reply(Stalled(false)), "", "partial stalled response must be rejected");
+    }
+
+    #[test]
+    fn socket_reply_rejects_oversized() {
+        assert!(super::read_reply(std::io::Cursor::new(vec![b'x'; 1024 * 1024 + 1])).is_empty(), "oversized response must be rejected");
+    }
 
     #[test]
     fn rect_hits() {

@@ -160,7 +160,7 @@ void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent 
     if (!p.pressed || p.taken || (e.button != BTN_LEFT && e.button != BTN_RIGHT))
         return;
     std::optional<size_t> button;
-    if (inputIsValid()) {
+    if (inputIsValid(true)) { // only the bar whose window is really under the pointer, never a covered focused one
         p.valid           = true;
         const auto COORDS = cursorRelativeToBar();
         const auto IB     = iconBox();
@@ -213,7 +213,7 @@ void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent 
 
 // Wheel over the bar: up raises the window, down lowers it (KWin's titlebar wheel action).
 void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e) {
-    if (e.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || e.delta == 0.0 || !validMapped(m_pWindow) || !inputIsValid())
+    if (e.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || e.delta == 0.0 || !validMapped(m_pWindow) || !inputIsValid(true))
         return;
 
     const auto HEIGHT = g_pGlobalState->config.barHeight->value();
@@ -720,8 +720,8 @@ void CHyprBar::renderBarButtons(Render::CRenderContext& ctx, CBox* barBox, const
 
         if (INACTIVECOLOR > 0) {
             color = m_bWindowHasFocus ? color : configColor(INACTIVECOLOR);
-            if (INVALIDATEICONS && button.userfg && button.iconTex)
-                button.iconTex = nullptr;
+            if (INVALIDATEICONS && button.userfg)
+                button.iconTex.clear();
         }
 
         const float y       = std::floor((HEIGHT - button.size) / 2.0);
@@ -754,28 +754,30 @@ void CHyprBar::renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, c
         const float y       = std::floor((HEIGHT - button.size) / 2.0);
         const bool  hovering = VECINRECT(COORDS, std::floor(s.x), y, std::floor(s.x) + button.size + g_pGlobalState->config.barButtonPadding->value(), y + button.size);
 
-        if ((!button.iconTex || button.iconTex->m_texID == 0) && !button.icon.empty()) {
+        // one texture per monitor scale: the buttons are shared by every bar, on monitors of any scale
+        auto& iconTex = button.iconTex[scale];
+        if ((!iconTex || iconTex->m_texID == 0) && !button.icon.empty()) {
             auto fgcol = button.userfg ? button.fgcol : (button.bgcol.r + button.bgcol.g + button.bgcol.b < 1) ? CHyprColor(0xFFFFFFFF) : CHyprColor(0xFF000000);
 
             if (button.icon.starts_with("builtin:")) {
                 // drawn glyph: same size and stroke for every button, independent of installed fonts
                 if (auto* surface = KwIcon::glyph(button.icon.substr(8), std::round(scaledButtonSize), fgcol.r, fgcol.g, fgcol.b, fgcol.a)) {
-                    button.iconTex = g_pHyprRenderer->createTexture(surface);
+                    iconTex = g_pHyprRenderer->createTexture(surface);
                     cairo_surface_destroy(surface);
                 }
             } else
-                button.iconTex = g_pHyprRenderer->renderText(button.icon, fgcol, std::round(button.size * 0.62 * scale), false, "sans", scaledButtonSize);
+                iconTex = g_pHyprRenderer->renderText(button.icon, fgcol, std::round(button.size * 0.62 * scale), false, "sans", scaledButtonSize);
         }
 
-        if (!button.iconTex || button.iconTex->m_texID == 0)
+        if (!iconTex || iconTex->m_texID == 0)
             continue;
 
-        const auto iconX = barBox->x + (s.x + s.drawDx) * scale + scaledButtonSize / 2.0 - button.iconTex->m_size.x / 2.0;
-        const auto iconY = barBox->y + barBox->height / 2.0 - button.iconTex->m_size.y / 2.0;
-        CBox       pos   = {iconX, iconY, button.iconTex->m_size.x, button.iconTex->m_size.y};
+        const auto iconX = barBox->x + (s.x + s.drawDx) * scale + scaledButtonSize / 2.0 - iconTex->m_size.x / 2.0;
+        const auto iconY = barBox->y + barBox->height / 2.0 - iconTex->m_size.y / 2.0;
+        CBox       pos   = {iconX, iconY, iconTex->m_size.x, iconTex->m_size.y};
 
         if (!ICONONHOVER || (ICONONHOVER && hovering))
-            g_pHyprOpenGL->renderTexture(ctx, button.iconTex, pos, {.a = a});
+            g_pHyprOpenGL->renderTexture(ctx, iconTex, pos, {.a = a});
     }
 }
 

@@ -25,7 +25,7 @@ struct SHyprButton {
     CHyprColor           bgcol   = CHyprColor(0, 0, 0, 0);
     float                size    = 10;
     std::string          icon    = "";
-    SP<Render::ITexture> iconTex;
+    std::unordered_map<float, SP<Render::ITexture>> iconTex; // by monitor scale
     bool                 alignSet = false; // false: follow bar_buttons_alignment
     bool                 left     = false;
     bool                 hasHover = false; // false: button_hover_color
