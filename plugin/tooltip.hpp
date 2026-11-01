@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // The title bar button tooltip, the part that needs no compositor: what it says and where it goes. Tested by
 // tools/test-plugin-tooltip.sh.
 #pragma once

@@ -58,7 +58,7 @@ fn t(en: &'static str) -> &'static str {
         "is already used" => "já está em uso",
         "could not read the current binds" => "não consegui ler os atalhos atuais",
         "could not save the shortcut" => "não consegui salvar o atalho",
-        "The Kwinish core is not up to date: reload Hyprland and try again" => "O núcleo do Kwinish não está atualizado: recarregue o Hyprland e tente de novo",
+        "The HyperVi core is not up to date: reload Hyprland and try again" => "O núcleo do HyperVi não está atualizado: recarregue o Hyprland e tente de novo",
         other => other,
     }
 }
@@ -113,7 +113,7 @@ pub fn run(addr: String) -> glib::ExitCode {
 
         if !enter_capture() {
             // the binds are still live, so a key would run its bind: refuse to listen
-            title.set_text(t("The Kwinish core is not up to date: reload Hyprland and try again"));
+            title.set_text(t("The HyperVi core is not up to date: reload Hyprland and try again"));
             let a = app.clone();
             glib::timeout_add_seconds_local_once(4, move || a.quit());
             win.present();

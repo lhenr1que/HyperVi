@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 #pragma once
 #include <hyprland/src/render/pass/PassElement.hpp>
 #include "passLife.hpp"

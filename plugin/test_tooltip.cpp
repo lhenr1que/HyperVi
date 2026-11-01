@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // Tests for tooltip.hpp (no Hyprland): bash tools/test-plugin-tooltip.sh
 #include "tooltip.hpp"
 

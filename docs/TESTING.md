@@ -1,4 +1,4 @@
-# Testes do Kwinish
+# Testes do HyperVi
 
 Guia operacional. A consolidação documental de 29/10/2026 **não executou** as suítes abaixo, builds ou testes ao vivo. Resultados anteriores estão datados em [STATUS](STATUS.md); a existência de um teste não equivale à sua execução nesta revisão.
 

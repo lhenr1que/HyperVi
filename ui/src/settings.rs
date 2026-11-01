@@ -189,7 +189,7 @@ pub fn run() -> glib::ExitCode {
         note.set_margin_top(12);
         list.append(&note);
         let scroll = ScrolledWindow::builder().child(&list).hscrollbar_policy(gtk4::PolicyType::Never).build();
-        let win = ApplicationWindow::builder().application(app).title(if pt { "Kwinish: configurações" } else { "Kwinish settings" })
+        let win = ApplicationWindow::builder().application(app).title(if pt { "HyperVi: configurações" } else { "HyperVi settings" })
             .default_width(560).default_height(720).child(&scroll).build();
         win.present();
     });

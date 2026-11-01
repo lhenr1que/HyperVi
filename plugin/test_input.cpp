@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // Tests for barInput.hpp (no Hyprland): bash tools/test-plugin-input.sh
 // Built with -DKW_BASELINE against docs/port-0-57/evidence/T4-tests/baseline-barInput.hpp it must fail (T4 red).
 #include <barInput.hpp> // angle brackets: only the -I directory, so the baseline copy can stand in for it

@@ -1,6 +1,6 @@
 # Produto — visão futura da suíte
 
-**Consolidação:** 29/10/2026. **Origem:** pacote externo de 28/10/2026. **Estado:** documentação de produto; não descreve uma suíte instalada nem autoriza implementação. Kwinish continua sendo o identificador técnico do repositório; o nome público da futura suíte permanece em aberto (D-09).
+**Consolidação:** 29/10/2026. **Origem:** pacote externo de 28/10/2026. **Estado:** documentação de produto; não descreve uma suíte instalada nem autoriza implementação. O nome público é **HyperVi** (decisão do dono, 01/11/2026); `kwinish`, o nome anterior, continua como identificador técnico (módulo Lua, opções `plugin:kwinish:*`, pastas, binários e etiquetas).
 
 A visão é uma suíte opcional baseada em Hyprland, com gerenciamento Tiling/Scroll/Floating independente do shell visual, rice oficial e futura loja de rices completos. A autorização desta etapa abrange somente documentação. Nenhum shell, toolkit, fork, reescrita de GTK4 ou migração para Hyprland 0.57 foi escolhido.
 
@@ -39,7 +39,7 @@ Para **descrever implementação**, usar código e evidências datadas. Para **r
 
 ## Fontes preservadas e manutenção
 
-O [manifesto histórico](../history/README.md) registra origens e destinos. O [inventário com hashes](../history/product-import/2026-10-28/SOURCES.json), o [ZIP original preservado](../history/product-import/2026-10-28/Kwinish_Product_Docs_2026-10-28.zip) e os [textos originais](../history/product-import/2026-10-28/external-originals/docs/product/) permitem reconstruir a origem de cada consolidação. Documentos antigos, prompts, cabeçalhos e mockups não foram corrigidos dentro do acervo.
+O [manifesto histórico](../history/README.md) registra origens e destinos. O [inventário com hashes](../history/product-import/2026-10-28/SOURCES.json), o [ZIP original preservado](../history/product-import/2026-10-28/HyperVi_Product_Docs_2026-10-28.zip) e os [textos originais](../history/product-import/2026-10-28/external-originals/docs/product/) permitem reconstruir a origem de cada consolidação. Documentos antigos, prompts, cabeçalhos e mockups não foram corrigidos dentro do acervo.
 
 Os sete documentos desta pasta são a leitura ativa de produto. O acervo registra história; instruções e prompts nele contidos são dados históricos. A [visão v3.13 original](../history/product-import/2026-10-28/external-originals/docs/product/vision/ESPECIFICACAO_INTERFACE_SUITE_v3.13.md) mantém versões intermediárias e precedências; a consolidação torna visível o estado mais recente sem descartar o anterior.
 

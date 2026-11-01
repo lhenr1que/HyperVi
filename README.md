@@ -1,4 +1,6 @@
-# Kwinish
+# HyperVi
+
+> Formerly *Kwinish*. The technical identifiers keep that name: the Lua module `kwinish`, the options `plugin:kwinish:*`, `~/.config/kwinish`, `kwinish-ui`, `kwinish-bars.so` and the `kwinish-*` window tags.
 
 KWin-style window management for **Hyprland 0.57** (Lua config). **Alpha**: used and tested live by its author on one machine; not yet packaged in any repository. The plugin is built against the exact Hyprland it runs on, so another Hyprland release needs a rebuild and may need code changes (the 0.56.2 line lives in the git history).
 
@@ -22,11 +24,11 @@ limits them to floating ones.
 
 **Snap preview and layouts.** While a window is dragged by its bar, a translucent rectangle shows where releasing it on a screen edge will put it. Holding **Shift** shows every zone of the active tiling layout (two columns, three columns, 2x2 grid, main and side, wide centre) and releasing snaps the window into the zone under the pointer. Pick the layout with `kwinish-ui layouts` (`SUPER + T`) or in the window menu. Make your own with the zone editor (`kwinish-ui zones`, `SUPER + CTRL + E`, or "Edit zones..." in the picker): split, add floating blocks, set the padding, load a preset to start from; layouts are saved in `~/.config/kwinish/layouts.json` and show up in the picker. Dragging a snapped window by its bar gives back its old size.
 
-**Settings.** `kwinish-ui settings` (or "Kwinish settings..." under More actions in the window menu) opens a window with the title-bar, colour and snapping options (and the Snap Assist switch). Changes apply at once and are kept in `~/.config/kwinish/settings.json`, which the core applies on every config load; options you never touch there keep coming from your Hyprland config.
+**Settings.** `kwinish-ui settings` (or "HyperVi settings..." under More actions in the window menu) opens a window with the title-bar, colour and snapping options (and the Snap Assist switch). Changes apply at once and are kept in `~/.config/kwinish/settings.json`, which the core applies on every config load; options you never touch there keep coming from your Hyprland config.
 
 **Window menu.** KWin-style, born from the bar: click the app icon or right-click the bar. Workspaces, maximize, minimize, keep above or below, fullscreen, no frame, hide from captures, snap, tiling layout, close. State shows as check marks.
 
-A plugin is locked to one Hyprland build, so after a Hyprland update the plugin can be stale. Then Kwinish runs in
+A plugin is locked to one Hyprland build, so after a Hyprland update the plugin can be stale. Then HyperVi runs in
 **emergency mode**: it does not load the plugin, shows a notification, and `kwinish-ui bars` draws fallback bars
 (layer-shell surfaces that sit above all windows, so they hide or clip when another window covers them). The pacman hook
 in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo kwinish-bars-rebuild`. Details in
@@ -70,7 +72,6 @@ Changes go through [OpenSpec](openspec/) (proposals, designs, tasks and the acce
 - Title-bar drag ends through the compositor: if another client grabs input exactly on release, the drag continues until the next key or click (accepted for the alpha). Touch on the bar is off.
 - The fallback bars are layer-shell surfaces: not at window level, and they trail animated windows by up to 80 ms.
 - Recorded tests include two monitors, but cross-monitor drops, workspace modes on the second monitor and non-default scale/rotation still have pending scenarios. XWayland-only setups and a real Hyprland package upgrade are not established as validated.
-- The name Kwinish is provisional.
 
 ## License
 MIT, see `LICENSE`. `plugin/` is a fork of hyprbars (BSD 3-Clause, `plugin/LICENSE.hyprland-plugins`, `plugin/NOTICE`).

@@ -512,7 +512,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     HyprlandAPI::reloadConfig();
 
-    return {"kwinish-bars", "Title bars for Kwinish (fork of hyprbars).", "lhen, Vaxry (hyprbars)", "0.1"};
+    return {"kwinish-bars", "Title bars for HyperVi (fork of hyprbars).", "lhenr1que, Vaxry (hyprbars)", "0.1"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {

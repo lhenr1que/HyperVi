@@ -1,6 +1,6 @@
 # Interface oficial: barra, dock e launcher
 
-Consolidação documental em 29/10/2026, baseada nas fontes de produto de 28/10/2026 e na implementação `a2506c6`. Este documento descreve **produto futuro**. A interface oficial, sua barra, dock e launcher não estão implementados no Kwinish. A revisão documental não executou testes de integração dessas superfícies.
+Consolidação documental em 29/10/2026, baseada nas fontes de produto de 28/10/2026 e na implementação `a2506c6`. Este documento descreve **produto futuro**. A interface oficial, sua barra, dock e launcher não estão implementados no HyperVi. A revisão documental não executou testes de integração dessas superfícies.
 
 O [registro D-01–D-45](DECISIONS.md) conserva o grau literal de aprovação. A aprovação do comportamento não aprova automaticamente algoritmo, toolkit, esquema de configuração ou implementação. A [arquitetura atual](../ARCHITECTURE.md), a [API atual](../API.md) e o [OpenSpec vigente](../../openspec/specs/) continuam separados deste documento.
 
@@ -19,7 +19,7 @@ Os controles visuais devem apresentar o estado observado e encaminhar ações ao
 
 | Requisito | Estado de aprovação | Implementação e validação |
 |---|---|---|
-| Barra inferior contínua com dock integrada na instalação padrão | [D-11](DECISIONS.md#d-11) aprovada | Ausente no Kwinish; mockups são conceitos |
+| Barra inferior contínua com dock integrada na instalação padrão | [D-11](DECISIONS.md#d-11) aprovada | Ausente no HyperVi; mockups são conceitos |
 | Barra e dock separáveis | [D-02](DECISIONS.md#d-02): diretriz adotada, detalhes a definir; D-12 delimita o oficial | Ausente; nenhuma validação Wayland |
 | Número e indicador de Tiling/Scroll/Floating integrados a cada workspace | [D-04](DECISIONS.md#d-04) aprovada | Modos existem no núcleo; representação oficial não existe |
 | Settings e Monitores como módulos opcionais de status | [D-05](DECISIONS.md#d-05) aprovada | Módulos oficiais ausentes; Settings GTK atual tem escopo menor |

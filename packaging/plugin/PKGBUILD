@@ -1,18 +1,18 @@
-# Maintainer: lhen <lhenriqueds99@gmail.com>
+# Maintainer: lhenr1que <lhenriqueds99@gmail.com>
 # The kwinish-bars Hyprland plugin (title bars), built for the Hyprland installed at build time. A plugin is locked to
 # one Hyprland build, so the package also ships its sources and a pacman hook that rebuilds it after hyprland changes.
-pkgname=kwinish-bars-plugin-git
+pkgname=hypervi-bars-plugin-git
 pkgver=0.0.0
 pkgrel=1
-pkgdesc='KWin-style title bars for Hyprland (compositor plugin, fork of hyprbars) with a rebuild hook'
+pkgdesc='HyperVi: KWin-style title bars for Hyprland (compositor plugin, fork of hyprbars) with a rebuild hook'
 arch=('x86_64')
-url='https://example.invalid/kwinish'
+url='https://github.com/lhenr1que/HyperVi'
 license=('MIT' 'BSD-3-Clause')
 depends=('hyprland' 'librsvg' 'cairo')
 makedepends=('git' 'gcc' 'make' 'pkgconf')
 optdepends=('gcc: automatic rebuild after a Hyprland update' 'make: automatic rebuild after a Hyprland update')
-provides=('kwinish-bars-plugin')
-conflicts=('kwinish-bars-plugin')
+provides=('hypervi-bars-plugin')
+conflicts=('hypervi-bars-plugin')
 source=("kwinish::git+file://${KWINISH_SRC:-$PWD/../..}")
 sha256sums=('SKIP')
 

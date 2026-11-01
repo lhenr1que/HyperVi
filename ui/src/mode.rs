@@ -44,7 +44,7 @@ pub fn decide(f: &Facts) -> Mode {
 
 pub fn emergency_text(built: &str, running: &str) -> String {
     format!(
-        "Kwinish: emergency mode. The title-bar plugin was built for Hyprland {built} but {running} is running, so it was not loaded. \
+        "HyperVi: emergency mode. The title-bar plugin was built for Hyprland {built} but {running} is running, so it was not loaded. \
 Fallback bars are active and may sit above other windows or be clipped. Rebuild the kwinish-bars plugin for a consistent look."
     )
 }

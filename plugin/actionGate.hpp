@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // The part of the bar's host actions that needs no compositor: the arguments and guards the 0.56.2 dispatcher
 // translator applied, and the gate that keeps action-failure diagnostics from flooding the log. The Hyprland side
 // is hostActions.hpp. Tested by tools/test-plugin-actions.sh.

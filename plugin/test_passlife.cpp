@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // Q1 pass counter (plugin/passLife.hpp), no Hyprland needed. Run by tools/test-plugin-lifecycle.sh.
 #include "passLife.hpp"
 

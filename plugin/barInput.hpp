@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // The bar's click decisions, with no compositor: which press a bar takes, what it does with it, and which release goes
 // with it, and the bar's drag. barDeco.cpp feeds it the pointer test and runs the result. Alpha-1 (openspec
 // enable-titlebar-drag-alpha1, end policy alt5-rc): every press a bar takes has its release taken too, wherever the pointer

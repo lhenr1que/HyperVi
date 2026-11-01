@@ -128,7 +128,7 @@ fn t(en: &'static str) -> &'static str {
         "Always hide from captures" => "Sempre ocultar de capturas",
         "Forget rules for this app" => "Esquecer as regras deste app",
         "Edit zones..." => "Editar zonas...",
-        "Kwinish settings..." => "Configurações do Kwinish...",
+        "HyperVi settings..." => "Configurações do HyperVi...",
         other => other,
     }
 }
@@ -252,7 +252,7 @@ fn build(st: &State, addr: &str) -> Vec<Item> {
         tog(t("No title bar and frame"), st.noframe, "noframe"),
         tog(t("Hide from captures and recordings"), st.nocapture, "nocapture"),
         Item::Sep,
-        Item::Spawn { label: t("Kwinish settings...").into(), args: vec!["settings".into()] },
+        Item::Spawn { label: t("HyperVi settings...").into(), args: vec!["settings".into()] },
     ]);
     let mut root = vec![
         Item::Sub { label: t("Workspaces").into(), items: ws },

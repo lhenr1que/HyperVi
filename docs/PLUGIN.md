@@ -36,7 +36,7 @@ The pacman hook and rebuild paths have recorded scratch tests, but an actual Hyp
 ## Implemented features and recorded validation
 - Identity: plugin name `kwinish-bars`, config namespace `plugin:kwinish:*` (same keys as hyprbars plus our palette as
   defaults: 28 px, left-aligned bold title, bar over the border), Lua namespace `hl.plugin.kwinish.add_button`, window
-  effects `kwinish:no_bar|bar_color|title_color`, decoration name `KwinishBar`. It skips windows that already carry a
+  effects `kwinish:no_bar|bar_color|title_color`, decoration name `HyperViBar`. It skips windows that already carry a
   hyprbars bar.
 - Buttons run **built-in actions inside the compositor**: `close`, `maximize`, `fullscreen`, `minimize`, `float`, `pin`,
   `raise`, `lower`, `menu`, `exec:<cmd>`. `on_double_click` takes the same names (default `maximize`).
@@ -76,7 +76,7 @@ KWin's bar: app icon and a pin button as well as the title.
 plugin sources in `/usr/share/kwinish/plugin-src`, `/usr/bin/kwinish-bars-rebuild` and a pacman hook
 (`kwinish-bars.hook`, PostTransaction on `hyprland` install/upgrade). The hook rebuilds the plugin for the new Hyprland
 (about 15 s; needs `gcc`, `make` and the Hyprland headers, listed as optional dependencies) and **never fails the pacman
-transaction**: if it cannot build, it prints why, keeps the old plugin, and Kwinish runs in emergency mode. The script is
+transaction**: if it cannot build, it prints why, keeps the old plugin, and HyperVi runs in emergency mode. The script is
 also the manual route: `sudo kwinish-bars-rebuild`. Tested with the sources and a scratch destination: success wrote a
 `.abi` identical to the installed formula; a missing source exited 0 with the message. Not done: the opt-in "hold the
 Hyprland update" hook.

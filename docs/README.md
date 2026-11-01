@@ -1,4 +1,4 @@
-# Documentação do Kwinish
+# Documentação do HyperVi
 
 Consolidação de 29/10/2026, baseada no código do commit `a2506c63dad16384414dc95919b8292aead284df` e no pacote de produto de 28/10. Esta reorganização altera somente documentação. O nome atual identifica o repositório e não decide a identidade definitiva da suíte.
 

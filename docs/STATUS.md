@@ -1,4 +1,4 @@
-# Kwinish: estado e evidências
+# HyperVi (antes Kwinish): estado e evidências
 
 Revisão documental: **29/10/2026**, baseline `a2506c63dad16384414dc95919b8292aead284df` (173 commits). Nenhum teste, build, instalação ou ação no compositor foi executado nesta consolidação.
 
@@ -10,7 +10,7 @@ Arquitetura: [ARCHITECTURE](ARCHITECTURE.md); workflow: [CONTRIBUTING](CONTRIBUT
 
 Atualizado em **01/11/2026** (branch do port para o Hyprland 0.57; o estado de cada etapa está em `docs/DEVELOPMENT_STATE.md`).
 - **Base: Hyprland 0.57.0.** A linha 0.56.2 fica no histórico do Git. O plugin é compilado para o Hyprland exato em que roda.
-- **Consertados, só em simulação, à espera do teste ao vivo do dono** (mudanças OpenSpec ativas, com roteiro no `tasks.md` de cada uma e abaixo, em "Testes pendentes"):
+- **Consertados e aprovados ao vivo pelo dono em 01/11/2026** (roteiros CL e II; mudanças arquivadas):
   - `fix-core-lifecycle`: cascata do modo Floating (falha ao vivo de 28/10), procedência do modo ao minimizar e em "mostrar área de trabalho", origens de "mostrar área de trabalho" que se perdiam ao recarregar o núcleo, ajuste de colunas atrasado, ganchos de `setup()` duplicados na recarga, `zone` em tela cheia;
   - `fix-input-ipc`: clique e roda numa barra coberta pela janela da frente, símbolos dos botões por escala de monitor, socket das barras sem prazo, escolha do Snap Assist sem revalidação.
 - **Entrega:** `Makefile` com os cabeçalhos, pacote do plugin com todos os fontes, recompilação que confere os `install` e CI (`.github/workflows/check.yml`); instalação, remoção e upgrade reais ainda não foram testados, e a CI ainda não rodou (sem remoto).
@@ -105,7 +105,7 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
-**CL. Ciclo de vida do núcleo e cascata do modo Floating (OpenSpec `fix-core-lifecycle`; 01/11/2026; não executado)**
+**CL. Ciclo de vida do núcleo e cascata do modo Floating (OpenSpec `fix-core-lifecycle`; 01/11/2026; executado pelo dono: passou)**
 Confere a cascata do modo Floating (falha ao vivo de 28/10), a procedência do modo ao minimizar e em "mostrar área de trabalho", as origens de "mostrar área de trabalho" depois de recarregar o núcleo e `zone` em tela cheia. Mexe em `workspace-modes.json` (guardado antes). Use um workspace vazio, por exemplo o 5. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish`:
 ```bash
 hyprctl plugin list
@@ -143,7 +143,7 @@ hyprctl reload
 ```
 Se a pasta `/home/lhen/.config/kwinish` sobrar vazia, `rmdir /home/lhen/.config/kwinish` a remove. *Se a sessão travar:* Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-cl/kwinish-bars.so`.
 
-**II. Entrada e comunicação: barra coberta, símbolos por escala, Snap Assist (OpenSpec `fix-input-ipc`; 01/11/2026; não executado)**
+**II. Entrada e comunicação: barra coberta, símbolos por escala, Snap Assist (OpenSpec `fix-input-ipc`; 01/11/2026; executado pelo dono: passou)**
 Só plugin e núcleo. Os passos 2 e 3 gravam o layout ativo em `/home/lhen/.config/kwinish/layout`, guardado antes e devolvido no desfazer. Antes de tudo, este comando não deve listar nenhum `kwinish`:
 ```bash
 hyprctl plugin list

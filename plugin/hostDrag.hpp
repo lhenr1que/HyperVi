@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // Starting a pointer drag (move/resize) on Hyprland 0.57, where CKeybindManager::changeMouseBindMode is gone. This is
 // the START half of the 0.56.2 body (O:managers/KeybindManager.cpp:949-968) on the 0.57 primitives, nothing more:
 //   - a drag already in progress (anyone's) is left alone: nothing is ended, nothing is started;

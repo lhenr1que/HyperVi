@@ -1,4 +1,4 @@
-# O que o usuário pode configurar no Kwinish
+# O que o usuário pode configurar no HyperVi
 
 Levantamento original de 26/10/2026; revisão documental por leitura estática em 29/10/2026, baseline `a2506c6`, sem novos testes. Fontes: [plugin](../plugin/main.cpp), [núcleo](../core/kwinish.lua), [Settings GTK](../ui/src/settings.rs) e [teclas](../core/binds.lua). A ideia de [página no Hub](history/reference/ideias/pagina-no-hub.md) foi preservada no histórico.
 
@@ -37,7 +37,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 - `switcher.setup()` e as teclas de Alt+Tab (`switcher_keys`).
 
 ## 4. Pelo menu da janela (botão direito na barra, ou Alt+F3)
-Mais ações > Configurações do Kwinish... abre `kwinish-ui settings`.
+Mais ações > Configurações do HyperVi... abre `kwinish-ui settings`.
 Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das capturas, fixar em todas as workspaces, mover para workspace, encaixar (metades, quartos, eixos), layout de mosaico, modo e colunas da workspace, regras por app, mover/redimensionar, minimizar, maximizar, fechar. Na alpha-1 do porte 0.57, Mover e Redimensionar voltaram ao menu, depois de Minimizar.
 
 ## 5. Lacunas e perguntas (o que a revisão achou)

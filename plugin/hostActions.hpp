@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Part of kwinish (Copyright (c) 2026 lhen).
+// Part of HyperVi (Copyright (c) 2026 lhenr1que).
 // The bar's host actions on Hyprland 0.57, replacing the 0.56.2 legacy dispatchers (g_pKeybindManager->m_dispatchers).
 // Each wrapper keeps what the dispatcher translator did around the Config::Actions call (window selection, argument
 // parsing, guards) and inspects the result: a failure is logged through a per-site gate (actionGate.hpp), never more

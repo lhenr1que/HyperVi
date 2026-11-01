@@ -2,7 +2,14 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — pronto para o GitHub: etapas C, D e E, CI e publicação (01/11/2026; o dono mandou fazer tudo; testes ao vivo CL e II pendentes)
+## Resultado mais recente — HyperVi: novo nome, CL e II passaram, mudanças arquivadas (01/11/2026; o dono mandou mudar o que precisasse)
+
+- **Testes ao vivo CL e II: passaram** (relato do dono, 01/11/2026). `fix-core-lifecycle` e `fix-input-ipc` arquivadas à mão em `openspec/changes/archive/2026-11-01-*`; deltas aplicados aos specs principais, com `core-lifecycle` e `bars-ipc` novos (Purpose escrito no arquivamento).
+- **`tools/test-openspec-specs.sh` tinha um buraco:** para capabilities que a alpha-1 não tocou (`user-data-io`, `workspace-modes`, `window-snapping` e as novas), um `continue` pulava também a comparação com os deltas mais novos, então o texto delas nunca era conferido. O controle negativo não pegava isso porque a quebra abria o arquivo para escrita antes de lê-lo e o esvaziava. Os dois corrigidos; a conferência real passa (as cópias de todos os arquivamentos estavam certas). O controle só exige mudanças que ainda são donas de algum texto (`accept-floating-press-drag` foi substituída por `fix-input-ipc`).
+- **Novo nome: HyperVi** (decisão do dono). Só o nome do produto muda: README, documentos vivos, textos da UI e das notificações, pacotes `hypervi-git` e `hypervi-bars-plugin-git` (URL `https://github.com/lhenr1que/HyperVi`), licença, cabeçalhos dos fontes e mantenedor como **lhenr1que** (e-mail o mesmo). Os identificadores técnicos continuam `kwinish` (módulo Lua, `plugin:kwinish:*`, `~/.config/kwinish`, `kwinish-ui`, `kwinish-bars.so`, etiquetas `kwinish-*`, `KwinishBar`), dito no README. Registros datados (histórico, evidências, arquivados, seções antigas daqui e do STATUS) ficam com o nome antigo. Pastas não foram renomeadas: os roteiros ao vivo e as worktrees usam os caminhos atuais, e mudar o nome da pasta não é necessário para publicar. Commits novos com `user.name=lhenr1que` (AGENTS.md); o histórico antigo continua com o autor `lhen`, sem reescrita.
+- **Remoto:** `origin` = `https://github.com/lhenr1que/HyperVi.git` no repositório principal. Push só com aprovação do dono.
+
+## Anterior — pronto para o GitHub: etapas C, D e E, CI e publicação (01/11/2026; o dono mandou fazer tudo; testes ao vivo CL e II pendentes)
 
 Pedido do dono (01/11/2026): fazer tudo o que faltava para o Kwinish estar pronto, usar o Codex onde possível, deixar os testes ao vivo para ele e deixar pronto para o GitHub. Decisões dele no chat: repositório **público**; juntar a branch do port na `master` no fim; consertos de comportamento direto pelo OpenSpec, sem parar a cada proposta.
 - **Etapa E (entrega), eu, `91b9cc1`:** `plugin/Makefile` com os cabeçalhos como pré-requisitos; `packaging/plugin/PKGBUILD` instala todos os fontes do plugin menos os testes (faltavam 5 cabeçalhos e a recompilação depois de um upgrade do Hyprland falharia); `kwinish-bars-rebuild` só anuncia sucesso se os `install` funcionarem; `.github/workflows/check.yml` roda `tools/check.sh` num contêiner Arch como usuário comum. Teste novo `tools/test-packaging.sh` (3 falhas antes, verde depois; controle com módulo novo do núcleo fora do pacote). A CI ainda não rodou (sem remoto).
@@ -18,7 +25,7 @@ Pedido do dono (01/11/2026): fazer tudo o que faltava para o Kwinish estar pront
   5. (suspeita, confirmada por teste) a cascata mexia numa janela que entrara em tela cheia nos 30 ms.
   O revisor não rodou o `check.sh` (sandbox só leitura); rodado depois por mim.
 - **Validação:** `check.sh` exit 0 com tudo junto, depois dos consertos da revisão; build GCC/Clang 0 erros, avisos 7/2. Tudo simulado. Roteiros **CL** e **II** no `docs/STATUS.md` (não executados).
-- **Pendências:** testes ao vivo CL e II (dono); depois arquivar `fix-core-lifecycle` e `fix-input-ipc`; criar o repositório no GitHub e o primeiro push (dono; trocar `url` dos `PKGBUILD` de `example.invalid` para o endereço real); instalação real pelos pacotes; testes com dois monitores. Riscos aceitos na tabela abaixo.
+- **Pendências (depois desta seção, ver acima):** instalação real pelos pacotes; testes com dois monitores; primeiro push. Riscos aceitos na tabela abaixo.
 
 ## Anterior — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada em `874a9df`; ao vivo RP: passou)
 

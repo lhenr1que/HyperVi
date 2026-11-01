@@ -34,7 +34,7 @@ Teste simulado não é teste ao vivo: diga qual foi feito.
 - O que só o dono pode verificar vai em `docs/STATUS.md`, "Testes pendentes para o dono", e também por inteiro na resposta do chat: comando (fish), o que deve acontecer, como desfazer.
 - Teste ao vivo que muda arquivo do dono: `bash tools/live-backup.sh save` antes e `restore` para desfazer; nunca `rm` (ver `docs/TESTING.md`).
 - Todo roteiro de teste ao vivo deve incluir o comando para carregar/recarregar o plugin e depois o núcleo do repositório; nunca presumir que o plugin já está carregado (pedido do dono, 27/10/2026). O dono executa esses comandos.
-- Repositório local: sem push, fork ou PR sem pedido explícito. Commits: `git -c user.name=lhen -c user.email=lhenriqueds99@gmail.com commit`.
+- Repositório local: sem push, fork ou PR sem pedido explícito. Commits: `git -c user.name=lhenr1que -c user.email=lhenriqueds99@gmail.com commit`.
 
 ## Encerramento e continuidade
 Vale para todos os agentes, inclusive Hermes. Uma tarefa só está encerrada quando entrega o resultado, informa o estado Git, registra pendências e deixa contexto suficiente para a próxima sessão sem depender da conversa.
