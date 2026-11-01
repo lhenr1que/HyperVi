@@ -89,12 +89,12 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 
 ## Para a próxima sessão
 1. Ler [AGENTS](../AGENTS.md), este arquivo, [arquitetura atual](ARCHITECTURE.md) e [HANDOFF histórico](history/handoffs/HANDOFF.md) (armadilhas: objetos de `hl.bind` por `hyprctl eval` derrubam o Hyprland; `window.open_early` não aceita flutuar/redimensionar; etiqueta posta por regra aparece como `nome*`).
-2. `git status` e `git log --oneline -5`: o baseline desta revisão é `a2506c6`. Mudanças documentais não commitadas podem existir; não confundi-las com trabalho de código. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
+2. `git status` e `git log --oneline -5`; o último marco e o commit de referência estão em `docs/DEVELOPMENT_STATE.md` (o baseline `a2506c6` citado antes aqui é de 28/10, superado). Mudanças documentais não commitadas podem existir; não confundi-las com trabalho de código. Os diretórios não rastreados `.agents/skills/source-command-opsx-*` e as worktrees `kwinish-apply` e `.alethe/worktrees/job-0*` são antigos: não apagar sem o dono.
 3. Para trabalho de código, `bash tools/check.sh` é a validação de software prevista no AGENTS. Nesta tarefa exclusivamente documental, foram verificadas referências e preservação, sem executar suítes ou builds.
-4. `PATH=$HOME/.local/bin:$PATH openspec list` mostra `add-pin-and-icon-tooltips` (tarefas feitas; arquivar depois do teste 10 do dono) e `harden-user-data-io` (13/13, revisada pelo Codex em 28/10; arquivar depois do teste 11).
-5. Carregar o código do repositório no desktop é do dono: `fish ~/Downloads/ryoku-work/kwinish/tools/dev-reload.fish` (plugin e núcleo juntos; vale até o próximo `hyprctl reload`). Mudanças dentro de blocos protegidos por `KWINISH_*` só valem com um bloco novo ou com o pacote reinstalado.
+4. A CLI `openspec` não está instalada (01/11/2026). Mudanças ativas em `openspec/changes/`: `add-pin-and-icon-tooltips` (6/6; arquivar depois do teste 10 do dono) e `harden-user-data-io` (13/13, revisada pelo Codex em 28/10; arquivar depois do teste 11). Os dois roteiros foram reescritos para a árvore 0.57 em 01/11/2026.
+5. Carregar o código do repositório no desktop é do dono, pelos comandos do roteiro de cada teste (plugin num `.so` temporário e depois o núcleo por `hyprctl eval`; vale até o próximo `hyprctl reload`). O caminho `~/Downloads/ryoku-work/kwinish` citado nos roteiros antigos não existe mais. Mudanças dentro de blocos protegidos por `KWINISH_*` só valem com um bloco novo ou com o pacote reinstalado.
 6. Delegação: `codex exec -s read-only` para revisão e `-s workspace-write` numa worktree nova para implementar funcionaram; o dono tem cota do Codex (GPT-6.1). Revisar o diff antes de juntar.
-7. A anotação anterior registrava o backup do teste 5 em `~/.local/state/kwinish-backup/teste-5`, sem desfazer executado pelo dono. O comando histórico de restauração é `bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5`. Sua existência e a decisão de restaurar/descartar não foram verificadas nesta revisão; não remover como parte da manutenção documental.
+7. A anotação anterior registrava o backup do teste 5 em `~/.local/state/kwinish-backup/teste-5`, sem desfazer executado pelo dono. O comando histórico de restauração é `bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-5`. Conferido em 01/11/2026: `~/.local/state/kwinish-backup/` está vazio, sem `teste-5`; nada a restaurar.
 
 ## Testes pendentes para o dono
 
@@ -403,50 +403,73 @@ fish tools/dev-reload.fish
 ```
 Abra uma janela flutuante no DP-1, arraste pela barra até a borda esquerda ou direita do HDMI-A-1 e solte; depois repita com Shift numa zona. A janela deve encaixar **no HDMI-A-1**, não voltar ao DP-1. Desfazer: os mesmos três comandos do teste 2.
 
-**10. Dicas no fixar e no ícone do aplicativo (add-pin-and-icon-tooltips, 27/10)**
-Carregue o plugin e o núcleo do repositório (o primeiro `unload` só vale se o plugin instalado estiver carregado; se não estiver, o erro dele pode ser ignorado):
-```fish
-cd ~/Downloads/ryoku-work/kwinish
-make -C plugin
-hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
-fish tools/dev-reload.fish
+**10. Dicas no fixar e no ícone do aplicativo (add-pin-and-icon-tooltips; roteiro reescrito para a 0.57 em 01/11/2026; dono relatou "o teste passou" em 01/11/2026, ver nota no teste 11)**
+O roteiro de 27/10 apontava para `~/Downloads/ryoku-work/kwinish` (que não existe mais) e para o plugin instalado da 0.56; o original está no Git (`181438b`). Só plugin e núcleo; nenhum arquivo seu muda. Caminho novo, para não sobrescrever um `.so` carregado. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
+```bash
+hyprctl plugin list
 ```
-Teste, numa janela flutuante com a barra do Kwinish (por exemplo um `kitty`):
-1. Pare o ponteiro 1 s no botão de fixar (à esquerda): aparece "Em todas as áreas de trabalho".
-2. Clique nele (a janela fica fixada; a dica some). Saia do botão e pare de novo: agora diz "Só nesta área de trabalho". Clique de novo para desfixar.
-3. Pare o ponteiro 1 s no ícone do aplicativo (canto esquerdo da barra): aparece "Menu da janela", abaixo do ícone e dentro da tela.
-4. Clique no ícone: o menu da janela abre como antes e a dica some.
+```bash
+mkdir -p /tmp/kwinish-t10
+make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-t10/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-t10/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwt10 &
+```
+Deve acontecer: `make` sem `error`; `plugin load` sem erro; uma janela `kwt10` com barra. Deixe-a flutuante (SUPER+V). Os textos abaixo são os do locale português; em inglês, entre parênteses.
+1. Pare o ponteiro 1 s no botão de fixar (à esquerda, botões padrão `default_buttons`): aparece "Em todas as áreas de trabalho" ("On all workspaces").
+2. Clique nele: a janela fica fixada e a dica some. Saia do botão e pare de novo: agora diz "Só nesta área de trabalho" ("Only on this workspace"). Clique de novo para desfixar.
+3. Pare o ponteiro 1 s no ícone do aplicativo (canto esquerdo da barra): aparece "Menu da janela" ("Window menu"), abaixo do ícone e dentro da tela.
+4. Clique no ícone: a dica some. O menu da janela só abre se o `kwinish-ui` estiver no PATH do Hyprland (hoje não está; o teste 11 o põe); sem ele, só confira que a dica sumiu.
 5. Os botões de minimizar, maximizar e fechar continuam com as dicas do teste 8.
-Desfazer (volta ao plugin e ao núcleo instalados; nenhum arquivo seu é mudado pelo teste):
-```fish
-hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
-hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+Desfazer (tira o plugin e o núcleo e fecha a janela de teste):
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt10") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-t10/kwinish-bars.so
 hyprctl reload
 ```
+Depois do desfazer, este comando não deve mostrar `Q1 violated` (o contador Q1 escreve no log ao descarregar) nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+*Se a sessão travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-t10/kwinish-bars.so`.
 
-**11. Leitura e gravação dos seus arquivos com o núcleo novo (harden-user-data-io, 27/10)**
-Antes do teste, os leitores novos já foram rodados sobre os seus arquivos reais, só lendo e fora do compositor: aceitam todos, com as mesmas entradas dos antigos (2 layouts, 4 opções, workspaces 1 a 3 em floating, colunas `2=1`). O `kwinish-ui` do seu PATH é o do repositório (`~/.local/bin/kwinish-ui` aponta para `ui/target/debug/`) e já tem o código novo da interface. Guarde o que o teste pode mudar e carregue o plugin e o núcleo do repositório (o `unload` do instalado só vale se ele estiver carregado; se não estiver, ignore o erro):
-```fish
-cd ~/Downloads/ryoku-work/kwinish
-bash tools/live-backup.sh save ~/.local/state/kwinish-backup/teste-11 ~/.config/kwinish/rules.json ~/.config/kwinish/layout ~/.config/kwinish/settings.json ~/.config/kwinish/workspace-modes.json ~/.config/kwinish/workspace-columns.json
-make -C plugin
-hyprctl plugin unload /usr/lib/hyprland/plugins/kwinish-bars.so
-fish tools/dev-reload.fish
+**11. Leitura e gravação dos seus arquivos com o núcleo novo (harden-user-data-io; roteiro reescrito para a 0.57 em 01/11/2026; dono relatou "o teste passou" em 01/11/2026; passo 2 sem evidência)**
+O roteiro de 27/10 apontava para `~/Downloads/ryoku-work/kwinish`, que não existe mais; o original e o resultado parcial de 28/10 (passo da regra gravado e aplicado) estão no Git (`181438b`). Conferido em 01/11/2026, só lendo: `~/.config/kwinish/` não existe e o `kwinish-ui` não está no PATH. O teste cria os arquivos e põe um link do `kwinish-ui` do repositório em `~/.local/bin`; o desfazer devolve tudo como estava. As saídas de erro do Hyprland vão para o tty1, então os avisos do núcleo são conferidos lendo os arquivos fora do compositor (passo 5). Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado):
+```bash
+hyprctl plugin list
 ```
-Teste:
-1. Nada muda ao carregar: as barras mantêm altura e preenchimento das suas configurações e os workspaces 1, 2 e 3 continuam em floating. `kwinish-ui layouts` mostra "teste" e "meu layout".
-2. Nenhum aviso do núcleo: `tail -n 100 ~/.local/share/sddm/wayland-session.log | string match '*kwinish:*'` não mostra nada.
-3. Gravação de regra: num `kitty` flutuante, clique direito na barra > Mais ações > Regras da janela > "Sempre manter acima das outras". `cat ~/.config/kwinish/rules.json` mostra `{"kitty":{"above":true}}` e `ls -a ~/.config/kwinish/` não mostra nenhum `.tmp`. Abra outro `kitty`: nasce acima. Reabra o menu: a regra aparece marcada; desmarque.
-4. Gravação de layout: em `kwinish-ui layouts`, escolha outro layout. `cat ~/.config/kwinish/layout` mostra o nome escolhido. Volte ao de antes.
-5. Gravação pela interface: `kwinish-ui settings`, mude a "Altura" da barra (muda na hora) e volte ao valor de antes. `ls -a ~/.config/kwinish/` continua sem `.tmp` nem `.bak`.
-Resultado parcial (dono, 28/10): passo 3 gravou o arquivo, o segundo `kitty` nasceu acima e a regra apareceu marcada. O item desmarcado depois foi o "Manter acima das outras" da janela (sem arquivo): `rules.json` continua `{"kitty":{"above":true}}`, e o desfazer abaixo o remove. A janela mantida acima perdia o lugar ao clicar noutra: defeito à parte, corrigido em `5333087` (teste 12). Faltam os passos 1, 2, 4 e 5. Sem terminal, os passos 4 e 5 vão pelo menu da janela (clique direito na barra): Mais ações > Layout de tiling (o escolhido aparece marcado, é o que o arquivo `layout` guarda) e Mais ações > Configurações do Kwinish...
-Desfazer (devolve os cinco arquivos como estavam; o `rules.json`, que não existia, deixa de existir) e volta ao plugin e ao núcleo instalados:
-```fish
-bash ~/Downloads/ryoku-work/kwinish/tools/live-backup.sh restore ~/.local/state/kwinish-backup/teste-11
-hyprctl plugin unload ~/Downloads/ryoku-work/kwinish/plugin/kwinish-bars.so
-hyprctl plugin load /usr/lib/hyprland/plugins/kwinish-bars.so
+Backup primeiro (recusa se o diretório de estado já existir):
+```bash
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh save /home/lhen/.local/state/kwinish-backup/teste-11-057 /home/lhen/.config/kwinish/rules.json /home/lhen/.config/kwinish/layout /home/lhen/.config/kwinish/layouts.json /home/lhen/.config/kwinish/settings.json /home/lhen/.config/kwinish/workspace-modes.json /home/lhen/.config/kwinish/workspace-columns.json /home/lhen/.local/bin/kwinish-ui
+```
+```bash
+cargo build --release --locked --manifest-path /home/lhen/Projects/ryoku-work/kwinish-port-0-57/ui/Cargo.toml
+ln -s /home/lhen/Projects/ryoku-work/kwinish-port-0-57/ui/target/release/kwinish-ui /home/lhen/.local/bin/kwinish-ui
+mkdir -p /tmp/kwinish-t11
+make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-t11/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-t11/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwt11 &
+```
+Deve acontecer: `live-backup: 7 caminho(s) guardado(s)`; `cargo` e `make` sem `error`; `plugin load` sem erro; uma janela `kwt11` com barra. Deixe-a flutuante (SUPER+V).
+1. **Carga sem arquivos:** as barras aparecem com a altura padrão e nada muda nos workspaces.
+2. **Gravação de regra:** clique direito na barra do `kwt11` > Mais ações > Regras da janela > "Sempre manter acima das outras". Se o menu não abrir, o PATH do Hyprland não tem `~/.local/bin`: pare, desfaça e me avise. `cat /home/lhen/.config/kwinish/rules.json` mostra `{"kwt11":{"above":true}}` e `ls -a /home/lhen/.config/kwinish/` não mostra nenhum `.tmp`. Rode `kitty --class kwt11 &` de novo: a janela nova nasce acima das outras.
+3. **Gravação de layout:** `kwinish-ui layouts`, escolha um layout. `cat /home/lhen/.config/kwinish/layout` mostra o nome escolhido. Escolha de novo o que estava (ou "off").
+4. **Gravação pela interface:** `kwinish-ui settings`, mude a "Altura" da barra (muda na hora) e volte ao valor de antes. `ls -a /home/lhen/.config/kwinish/` continua sem `.tmp` nem `.bak`.
+5. **Leitura fora do compositor:** este comando lê os arquivos com os leitores do núcleo e deve imprimir `ok` nas três linhas:
+```bash
+lua -e "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; local j=require('kwjson'); local d=os.getenv('HOME')..'/.config/kwinish/'; for _,p in ipairs({{'rules.json','rules'},{'settings.json','settings'},{'workspace-modes.json','modes'}}) do local _,e=require(p[2]).parse(j.read(d..p[1])); print(p[1], e or 'ok') end"
+```
+Desfazer (fecha as janelas de teste, devolve os sete caminhos como estavam, inclusive removendo os que não existiam e o link, tira a pasta vazia, o plugin e o núcleo):
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt11") | .pid') 2>/dev/null
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore /home/lhen/.local/state/kwinish-backup/teste-11-057
+rmdir /home/lhen/.config/kwinish
+hyprctl plugin unload /tmp/kwinish-t11/kwinish-bars.so
 hyprctl reload
 ```
+Resultado (01/11/2026): o dono relatou "o teste passou", sem dizer se do 10, do 11 ou dos dois. Conferido depois só lendo, com o teste 11 ainda não desfeito: `layout` = `thirds` e `settings.json` = `{"bar_height": 28}`, os três leitores do passo 5 dão `ok`, sem `.tmp` nem `.bak`; o log não tem `Q1 violated`. **Não há `rules.json`**: desmarcar a regra grava `{}` e não apaga o arquivo, então a regra do passo 2 não foi gravada (menu não abriu, item não clicado ou gravação recusada; o stderr vai para o tty1). Falta confirmar o passo 2 com o dono e rodar o desfazer.
+O `rmdir` só remove a pasta se ela estiver vazia; se reclamar, rode `ls -a /home/lhen/.config/kwinish/` e me mostre. *Se a sessão travar:* Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-t11/kwinish-bars.so`.
 
 **12. Pacote novo da master: janela nova no modo floating e "Manter acima das outras" (28/10)**
 **Contexto original do roteiro:** os pacotes r86/r85 de 25/10 eram anteriores à instalação r172 registrada depois. O pacote daquele relato (`kwinish-git r86.260f15b` e `kwinish-bars-plugin-git r85.738905b`) era anterior à correção da abertura no modo floating; o núcleo dele fazia a janela flutuar 150 ms depois de abrir, por isso ela aparecia primeiro no tamanho do tiling, mais ou menos visível conforme a velocidade do app. Rode depois do desfazer do teste 11. Gerar os pacotes (fora do repositório; o `check()` roda as suítes Lua) e instalar:
