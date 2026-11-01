@@ -383,7 +383,7 @@ void CHyprBar::onMouseMove() {
         const auto OLDPOS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
         const auto OLDSIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
         (void)Config::Actions::fullscreenWindow(Fullscreen::FSMODE_NONE, false, W);
-        const auto   SIZE  = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        const auto   SIZE  = W->size(Desktop::View::IGeometric::GEOMETRIC_GOAL); // the current size still animates from maximized
         const double RATIO = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
         (void)Config::Actions::move(Vector2D{C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)}, false, W);
     } else if (startUnsnap(W, C)) {

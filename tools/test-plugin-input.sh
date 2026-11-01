@@ -81,6 +81,10 @@ before barDeco.cpp 'void CHyprBar::onMouseButton(' 'startGate(' 'applyUnsnap(' "
 before barDeco.cpp 'void CHyprBar::handleMovement()' 'startGate(' 'fullWindowFocus(' "gate before focusing for the drag"
 before barDeco.cpp 'void CHyprBar::handleMovement()' 'startGate(' 'KwDrag::begin(' "gate before starting the drag"
 before main.cpp 'int luaGrab(' 'grabStartError(' 'return 0' "grab: every way out goes through grabStartError"
+# leaving maximized: the size after fullscreenWindow( is the animation's goal, not its current (still maximized) value,
+# or the pointer ends off the bar (live test GS, 01/11/2026)
+s=$(body barDeco.cpp 'void CHyprBar::onMouseMove()' | awk '/fullscreenWindow\(/ {f = 1; next} f && /->size\(/ {print; exit}')
+if grep -q 'GEOMETRIC_GOAL' <<<"$s"; then echo "ok - leaving maximized reads the restored size (goal)"; else echo "FALHOU - leaving maximized reads the size mid-animation: ${s:-none}"; fails=$((fails + 1)); fi
 n=$(body main.cpp 'int luaGrab(' | grep -c 'return 0')
 if [ "$n" = 1 ]; then echo "ok - grab: one success return"; else echo "FALHOU - grab: 'return 0' appears $n times in luaGrab (want 1, after grabStartError)"; fails=$((fails + 1)); fi
 

@@ -101,7 +101,7 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
-**GS. Porta à entrada do arrasto (OpenSpec `guard-titlebar-drag-start`; 01/11/2026; não executado)**
+**GS. Porta à entrada do arrasto (OpenSpec `guard-titlebar-drag-start`; 01/11/2026; executado pelo dono: passou, com duas observações)**
 Corrige três achados da revisão da alpha-1: a saída de encaixe e a de maximizada não mexem mais na janela durante o arrasto de outro componente; o arrasto adiado só começa na janela da própria barra; e todo `grab` que não começa vira erro Lua. Só plugin e núcleo; o `kwinish-ui` não é necessário. Caminho novo, para não sobrescrever um `.so` carregado. Comandos com caminho completo, sem variáveis; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
 ```bash
 hyprctl plugin list
@@ -134,6 +134,37 @@ hyprctl reload
 ```
 *Se a sessão travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-gs/kwinish-bars.so`.
 *O que me mandar:* ok ou o que viu em cada passo (1–5).
+*Resultado (dono, 01/11/2026):* passos 2, 4 e 5 passaram; no 1, a janela vizinha nunca foi arrastada (passou). Duas observações:
+- passo 1: ao começar o arrasto de uma janela em tiling, a janela pula para ficar com o centro sob o cursor. É do Hyprland 0.57, não da barra: o próprio host torna a janela flutuante e a centra no cursor (`DragController.cpp:87–158`, opção `binds:drag_center_window`, padrão `true`, não definida na config do dono). Vale também para SUPER+arrastar. Mantido;
+- passo 3: ao sair da maximização, o cursor ficou fora da barra. **Bug da barra**, corrigido no roteiro **MX** abaixo.
+
+**MX. Sair da maximização com o cursor na barra (01/11/2026; executado pelo dono: passou)**
+A barra lia o tamanho da janela no meio da animação de sair da maximização (`GEOMETRIC_CURRENT`, ainda quase o tamanho maximizado) e a colocava deslocada. Agora lê o tamanho final (`GEOMETRIC_GOAL`). Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
+```bash
+hyprctl plugin list
+```
+```bash
+mkdir -p /tmp/kwinish-mx
+make -C ~/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-mx/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-mx/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwt8 &
+```
+Deixe o `kwt8` **flutuante** (SUPER+V). Numa janela em tiling, quem posiciona é o Hyprland (centra no cursor, como no GS passo 1).
+1. Duplo clique no título para maximizar. Aperte o título perto da **direita** e arraste: a janela volta ao tamanho de antes com o cursor na barra, também perto da direita, e segue o arrasto.
+2. Repita apertando perto da **esquerda** e perto do **meio**: o cursor fica na barra, na mesma fração.
+3. Log: este comando não deve mostrar `Q1 violated` nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+Desfazer:
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-mx/kwinish-bars.so
+hyprctl reload
+```
+*O que me mandar:* ok ou o que viu em cada passo (1–3).
+*Resultado (dono, 01/11/2026):* "o teste passou" (passos 1–3, relato geral; `hyprctl plugin list` antes mostrou nenhum plugin carregado).
 
 **A1. Porta 0.57, alpha-1: arrasto pela barra de volta (01/11/2026; executado pelo dono: passou; C11 feito no A1c)**
 OpenSpec `enable-titlebar-drag-alpha1`, política `alt5-rc`: o plugin nunca pede o fim de um arrasto, e o Hyprland o encerra na soltura. Mesmo ambiente da T8 (bash, um só terminal, Hyprland 0.57.0, um monitor DP-1). Os itens marcados *2 monitores* ficam para quando o HDMI-A-1 estiver ligado.

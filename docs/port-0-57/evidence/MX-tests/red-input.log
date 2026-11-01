@@ -1,0 +1,154 @@
+ok - floating: title press focuses and is taken
+ok - floating: its release is taken too
+ok - floating: no drag started, ended or snapped
+ok - tiled: title press focuses and is taken
+ok - tiled: its release is taken too
+ok - tiled: no drag started, ended or snapped
+ok - maximized: title press focuses and is taken
+ok - maximized: its release is taken too
+ok - maximized: no drag started, ended or snapped
+ok - button press runs the button once
+ok - release after minimize (focus gone, pointer off) is taken
+ok - a second release is not ours
+ok - right press on the bar opens the menu
+ok - right release goes with it
+ok - right press on a button opens the menu too
+ok - right release off the bar still goes with it
+ok - icon press opens the menu under the icon
+ok - icon release (pointer now on the menu) is taken
+ok - icon: no drag
+ok - press off the bar passes
+ok - and its release passes
+ok - press where the bar takes no input passes
+ok - and its release passes
+ok - middle press passes
+ok - middle release passes
+ok - side button passes, even on a button
+ok - side release passes
+ok - a release with no press passes
+ok - a right release with no press passes
+ok - right press off the bar while left is held passes
+ok - its release passes
+ok - the left release is still taken
+ok - overlapping bars: one action
+ok - overlapping bars: the release is taken once
+ok - close button press
+ok - release after the bar is destroyed is taken
+ok - and only that one
+ok - right release after the bar is destroyed is taken
+ok - button on floating: cancel, focus, raise, run once (cancel focus raise run1 )
+ok - button on tiled: no raise (cancel focus run1 )
+ok - release: only cancelled
+ok - right click: focus without raise, then the menu (cancel focus run3 )
+ok - icon: menu under the icon
+ok - title: focus and raise only (no drag)
+ok - double click: runs on_double_click
+ok - press off the bar: nothing at all
+ok - its release: nothing at all
+ok - second press within 400 ms is a double click
+ok - a third quick press is another double (as before)
+ok - after 400 ms it is a plain press again
+ok - on_double_click empty: never a double click
+ok - double click: no drag
+ok - a button press does not count toward a double click
+ok - grab without a mode
+ok - grab without an address
+ok - grab with an unknown mode
+ok - alpha-1: grab move is accepted
+ok - alpha-1: grab resize is accepted
+ok - alpha-1: a refused start is reported
+ok - alpha-1: drag active, title press is not taken
+ok - alpha-1: drag active, title release passes
+ok - alpha-1: drag active, button press is not taken
+ok - alpha-1: drag active, button release passes
+ok - alpha-1: drag active, icon press is not taken
+ok - alpha-1: drag active, icon release passes
+ok - alpha-1: drag active, right on the title press is not taken
+ok - alpha-1: drag active, right on the title release passes
+ok - alpha-1: title press is taken (it may become a drag)
+ok - alpha-1: once the drag started, its release passes to the compositor
+ok - alpha-1: a later title click is a click again
+ok - alpha-1: and its release is taken
+ok - alpha-1: a refused start arms nothing
+ok - alpha-1: a started drag is the bar's
+ok - alpha-1: release with the drag going: wait for the compositor to end it
+ok - alpha-1: the compositor ended it after the release: snap, then clear
+ok - alpha-1: another drag ending is not the bar's
+ok - alpha-1: release when the drag already ended: clear, no snap
+ok - alpha-1: ended before the release (a key, another component): clear, no snap
+ok - alpha-1: Shift with no bar drag arms nothing
+ok - alpha-1: and motion restarts nothing
+ok - alpha-1: Shift mid-drag arms the rearm
+ok - alpha-1: drag still going: no restart, nothing ended
+ok - alpha-1: the compositor stopped it after Shift: kept for the rearm
+ok - alpha-1: pointer off the window: no restart
+ok - alpha-1: unsnap pending: no restart
+ok - alpha-1: rearm only starts again
+ok - alpha-1: once
+ok - alpha-1: release clears the rearm
+ok - unsnap: the ease starts
+ok - unsnap: at 0 ms the snapped size
+ok - unsnap: the pointer stays at the same fraction of the bar
+ok - unsnap: halfway in time, 87.5% of the way
+ok - unsnap: the window follows the pointer while it eases
+ok - unsnap: at 140 ms the earlier size, done (the drag may start)
+ok - unsnap: final position under the pointer
+ok - unsnap: released mid-ease, lands on the earlier size
+ok - gate: no drag, pointer on the bar's window: go
+ok - gate: no drag, pointer on another window: not over
+ok - gate: a drag is going: yield
+ok - gate: a drag is going wins over the pointer
+ok - gate: abort stops the unsnap where it is
+ok - gate: yield does not go on
+ok - gate: yield stops the unsnap and the delayed start
+ok - gate: after yield the release passes to the compositor
+ok - gate: not over does not go on and drops the delayed start
+ok - gate: after not over the release is taken, as a click
+ok - gate: go changes nothing
+ok - gate: after go (no drag yet) the release is still the bar's
+ok - grab: error unless found, focused and started (case 0)
+ok - grab: error unless found, focused and started (case 1)
+ok - grab: error unless found, focused and started (case 2)
+ok - grab: error unless found, focused and started (case 3)
+ok - grab: error unless found, focused and started (case 4)
+ok - grab: error unless found, focused and started (case 5)
+ok - grab: error unless found, focused and started (case 6)
+ok - grab: error unless found, focused and started (case 7)
+ok - grab: not found, focus refused and start refused say different things
+ok - grab: a refused start keeps its message
+ok - grab: errors start with grab:
+ok - alt5-rc: no route asks the compositor to end a drag
+ok - no menu grab state (the compositor ends the grab)
+ok - alt5-rc: no route asks the compositor to end a drag
+ok - no menu grab state (the compositor ends the grab)
+ok - no touch state, no unsnap that pauses the compositor's move
+ok - no touch on the bar
+ok - header: no touch members
+ok - globals: no grab flags
+ok - onMouseButton decides and acts through barInput.hpp
+ok - presses tell barInput.hpp about an active drag (the bar yields)
+ok - K1: the bar starts its drag through the helper
+ok - the bar's drag is armed from the helper's result
+ok - a started drag lets its release reach the compositor
+ok - the bar learns from the compositor that its drag ended
+ok - snap on release goes to the core
+ok - unsnap eases (barInput.hpp SUnsnap)
+ok - the drag starts when the unsnap ease is done
+ok - releases are taken by the listener that outlives the bars
+ok - luaGrab checks its arguments through barInput.hpp
+ok - K2: the menu grab starts through the helper
+ok - a grab that did not start is reported (grabRefused through grabStartError)
+ok - seam resistance: motion hook
+ok - Shift rearm listener
+ok - float action guarded by an active drag
+ok - drawSnapPreview is called
+ok - gate before an unsnap step
+ok - gate before leaving maximized
+ok - gate before starting an unsnap
+ok - gate before landing an unsnap on release
+ok - gate before focusing for the drag
+ok - gate before starting the drag
+ok - grab: every way out goes through grabStartError
+FALHOU - leaving maximized reads the size mid-animation:         const auto   SIZE  = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+ok - grab: one success return
+input: 1 grupo(s) falharam

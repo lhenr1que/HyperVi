@@ -2,13 +2,23 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — `guard-titlebar-drag-start` implementada (01/11/2026; commitada com aprovação do dono antes do teste ao vivo; nada ao vivo)
+## Resultado mais recente — GS ao vivo e correção MX (01/11/2026; commitada com aprovação do dono; MX ao vivo: passou)
+
+- **GS ao vivo (dono, 01/11/2026): passou.** Passos 2, 4 e 5 ok; no 1, a vizinha nunca foi arrastada. Observações:
+  - passo 1: janela em tiling pula para ficar centrada no cursor ao começar o arrasto. **Nativo do Hyprland 0.57** (`DragController.cpp:87–158`, `binds:drag_center_window`, padrão `true`, não definida na config do dono; `hyprctl getoption` conferido). Desligar a opção não põe o cursor na barra (o host mede pela área do conteúdo). Mantido; manter o cursor na barra em tiling exigiria a barra flutuar a janela antes do arrasto, mudança de comportamento que pede OpenSpec;
+  - passo 3: ao sair da maximização, cursor fora da barra. **Bug da barra (herdado da 0.56.2):** `onMouseMove` lia o tamanho com `GEOMETRIC_CURRENT`, que no 0.57 é o valor animado (`GeometricMovableAnimated.cpp:28`), ainda quase o maximizado.
+- **Correção MX (conserto pequeno, AGENTS.md; o dono mandou corrigir):** `plugin/barDeco.cpp` lê `GEOMETRIC_GOAL` depois de `fullscreenWindow(NONE)`. O host faz o mesmo raciocínio: lê o tamanho novo logo depois de `setFullscreenMode` (`DragController.cpp:114–136`). Checagem nova em `tools/test-plugin-input.sh` (ignora comentários): vermelho com o código antigo, verde com 153 ok em g++ e clang++. Build isolado GCC/Clang com 0 erros e avisos 7/2, ELF passa, `check.sh` exit 0. Evidências em `docs/port-0-57/evidence/MX-tests/`.
+- **Limite:** que o `GOAL` já traga o tamanho restaurado na mesma chamada vem da leitura do host, não de execução. Roteiro **MX** no `docs/STATUS.md`.
+- **MX ao vivo (dono, 01/11/2026): passou** (passos 1–3, relato geral).
+- **Pendente:** arquivar `guard-titlebar-drag-start` nos specs principais (aprovação do dono); achado 6; achados 4 e 5; pendências antigas (Q1 por log, `SWindowRenderPresentation`, logs P5–T6, `floatWindow` do Lua, C1/C2).
+
+## Anterior — `guard-titlebar-drag-start` implementada (01/11/2026; commitada em `5944fe1`; ao vivo GS: passou)
 
 - **Escopo (o dono mandou prosseguir em 01/11/2026):** `plugin/barInput.hpp` (`eStartGate`, `startGate`, `passGate`, `SUnsnap::abort`, `grabStartError`), `plugin/barDeco.cpp` (porta no movimento, na soltura no meio do unsnap e no começo de `handleMovement`), `plugin/main.cpp` (`luaGrab`), `plugin/test_input.cpp`, `tools/test-plugin-input.sh`, `docs/API.md`, roteiro **GS** no `docs/STATUS.md`, `tasks.md` da mudança e evidências em `docs/port-0-57/evidence/GS-tests/`.
 - **Vermelho → verde:** 18 assertivas e 7 checagens de ordem falham no esqueleto (nenhuma por compilação); verde com 152 ok em g++ e clang++. Mutações com controle: **10/10 mortas por assertiva** (7 executadas, 3 pela ordem no código). Limite: neutralizar a porta no `barDeco.cpp` mantendo o texto sobrevive (rotas que não rodam sem compositor).
 - **Desvios do design, registrados no `tasks.md`:** nas rotas que mexem em geometria, a porta olha só o drag ativo; a janela é conferida em `handleMovement`. A soltura no meio do unsnap também passou pela porta. Na soltura, liberar o par depende da ordem dos listeners (limite).
 - **Build isolado:** GCC e Clang com 0 erros, avisos 7/2; ELF passa; `check.sh` exit 0. Simulado; nada carregado.
-- **Pendente:** roteiro GS ao vivo (dono); arquivar a mudança depois do teste ao vivo. Commit aprovado pelo dono em 01/11/2026, antes do teste ao vivo.
+- **Pendente:** arquivar a mudança. Commit aprovado pelo dono em 01/11/2026, antes do teste ao vivo; GS ao vivo passou (seção acima).
 
 ## Anterior — revisão da alpha-1 e proposta `guard-titlebar-drag-start` (01/11/2026; proposta aprovada e commitada em `f2b3b3e`)
 
