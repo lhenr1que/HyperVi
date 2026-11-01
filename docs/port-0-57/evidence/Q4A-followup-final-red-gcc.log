@@ -1,0 +1,67 @@
+== naive policies (no ownership): the counterexample
+ok - unconditional S1: own drag started and ended by the plugin (liveness)
+ok - unconditional S2: user drag on the same window ENDED (counterexample reproduced)
+ok - target equality S1: own drag started and ended by the plugin (liveness)
+ok - target equality S2: user drag on the same window ENDED (counterexample reproduced)
+ok - target+mode S1: own drag started and ended by the plugin (liveness)
+ok - target+mode S2: user drag on the same window ENDED (counterexample reproduced)
+== proposed: session-scoped listener + generation + target WP
+ok - proposed S1: own drag started and ended by the plugin (liveness)
+ok - proposed S2: user drag on the SAME window kept
+ok - proposed S3: third-party drag active -> no ownership, untouched
+ok - proposed S4.0: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - proposed S4.1: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - proposed S4.2: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - proposed S4.3: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - proposed S5: our target died silently (no ended) -> third-party drag kept
+ok - proposed S7: reentrant third-party start during host dragEnd -> kept
+ok - proposed S8: plugin start refused while inside its own end (no orphan session)
+ok - proposed S9: decoration-early-return end still invalidates; later user drag kept
+ok - proposed S10: `ended` without target reset -> ownership dropped (conservative)
+== variant: plugin-lifetime listener + generation
+ok - persistent S1: own drag started and ended by the plugin (liveness)
+ok - persistent S2: user drag on the SAME window kept
+ok - persistent S3: third-party drag active -> no ownership, untouched
+ok - persistent S4.0: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - persistent S4.1: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - persistent S4.2: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - persistent S4.3: refused inside dragBegin -> no ownership; later third-party drag kept
+ok - persistent S5: our target died silently (no ended) -> third-party drag kept
+ok - persistent S7: reentrant third-party start during host dragEnd -> kept
+ok - persistent S8: reentrant own start: ownership not kept (conservative; started=1)
+ok - persistent S9: decoration-early-return end still invalidates; later user drag kept
+ok - persistent S10: `ended` without target reset -> ownership dropped (conservative)
+ok - premise A3 needed: unguarded re-begin on the same target is indistinguishable (proposed ENDS it) -> documented as limit
+ok - listener reset inside its own handler: ran once, no crash (ASan), disarmed
+ok - after disarm, later `ended` emissions do not call the plugin
+ok - hyprutils: listener added during emission is not invoked by it
+ok - hyprutils: listener released earlier in the same emission is skipped
+ok - Q3 limit reproduced: a plugin listener dropped inside an `ended` emission is skipped, but its handler state is destroyed only at the end of the emission (after the drop)
+ok - unload step 2 with own drag: ended once, listener destroyed
+ok - unload step 2 with a third-party drag (after ours ended): untouched, listener destroyed
+ok - no start after unload step 2 began
+ok - unload step 2 after a silent target death: no end attempted, listener destroyed anyway
+ok - stale ended snapshot: old listener skipped after replacement; new session owns B, no old callback clears it
+ok - new session from ended listener is ended normally on next release
+ok - rearm: own end then begin acquires a fresh session
+ok - rearm: third-party start during end is kept; following begin does not adopt it
+ok - listen() fails: drag started WITHOUT ownership (start behaviour kept); plugin never ends it
+R1 same=0 outer=2 inner=2 target=none owns=0
+OK - R1.other: nested begin refused while outer begin in progress
+OK - R1: failed outer acquisition has no owned or orphan session
+R1 same=1 outer=2 inner=2 target=none owns=0
+OK - R1.same: nested begin refused while outer begin in progress
+OK - R1: failed outer acquisition has no owned or orphan session
+R2 inner=0 target=B owns=1 handlerRuns=0
+OK - R2: nested snapshots cannot invalidate newer acquisition
+OK - R2: obsolete callback tokens ignored in both snapshots
+OK - R2: newer acquisition ends normally
+R3 target=X mode=-1 pluginAdditionalEnd=0
+OK - R3: ownership policy issues no additional end on X
+OK - R3 documented host limit: enclosing end resets new drag mode to INVALID
+R4 pluginInitiatesEnd=0 additionalEnd=1 target=none emissions=2
+FALHOU - R4.host: no extra plugin end of same-target third-party drag before outer ended
+R4 pluginInitiatesEnd=1 additionalEnd=1 target=none emissions=2
+FALHOU - R4.own: no extra plugin end of same-target third-party drag before outer ended
+review regressions: 2 failures
+45 ok, 2 failed

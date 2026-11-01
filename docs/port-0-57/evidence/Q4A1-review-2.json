@@ -1,0 +1,48 @@
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "Q4A1-alt5-contract.md §2 row 5, §8; q4a1test.cpp World::barButton; pinned barDeco.cpp:159–193",
+      "claim": "Y1 yielding does not cover the actual right-button route, so the design still blocks a button event that would natively end a third-party drag. The model's clean O3 result cannot support a route-wide no-blocking claim.",
+      "evidence": "Production handles BTN_RIGHT separately and cancels its press over the bar at :190, before handleDownEvent. The proposed yielding guard is modeled inside the generic bar-down route, and the contract explicitly leaves right-click behavior unchanged. The model neither passes the button identity into barButton nor reproduces the right-click branch.",
+      "counterexample": "A third party starts a drag on B. The pointer is over A's title bar. The user presses BTN_RIGHT. The unchanged Kwinish right-click listener cancels the press and opens the menu, preventing Manager.cpp:353 from ending B's drag on that event. A later release may end it, but the per-event O3 property has already failed."
+    },
+    {
+      "severity": "major",
+      "where": "q4a1test.cpp World::luaGrab and World::pgButton; Q4A1-alt5-contract.md §6–§8",
+      "claim": "The modeled alt5-rc design itself has an uncovered O3 failure: a failed grab acquisition can attach grab input suppression to a third-party drag.",
+      "evidence": "luaGrab sets grabActive=true regardless of kwBegin's result. pgButton passes a grab click through only when target() is null; an existing foreign target therefore causes the press to be cancelled. Neither Y1 nor the any-key grab cleanup fixes this acquisition path.",
+      "counterexample": "Start a third-party drag on B. Invoke luaGrab(A); kwBegin returns ALREADY, but grabActive becomes true. Press a button outside all bars. pgButton clears grabActive, sets grabSwallowPress, and cancels the press while leaving B's drag active. Without that cancellation the host would end B's drag immediately. Release later ends it, but per-event O3 must remain failed."
+    },
+    {
+      "severity": "major",
+      "where": "Q4A1-alt5-contract.md §1 keyboard claim and §2 row 7; q4a1test.cpp World::key; pinned InputManager.cpp:1718–1722 and Manager.cpp:200–215",
+      "claim": "The premise behind clearing grabActive on any binds-enabled key is still too broad. Additional paths skip the native drag end even though the plugin keyboard listener has run.",
+      "evidence": "Manager.cpp can return at :203 when translation state cannot be established and at :215 when handleInternalKeybinds consumes the key. InputManager.cpp also skips onKeyEvent entirely for DISALLOWACTION. The model represents only bindsAllowed and always ends the drag otherwise; the documentation's enumerated exceptions omit these explicit branches.",
+      "counterexample": "Begin a menu grab. Deliver an ordinary non-Shift, non-Escape key from a virtual keyboard for which DISALLOWACTION is true. The proposed any-key listener clears grabActive, but InputManager skips KeybindManager::onKeyEvent, so the drag remains active with no grab flag. With no subsequent click, liveness fails. An internal-keybind early return offers another path requiring evaluation."
+    },
+    {
+      "severity": "minor",
+      "where": "q4a1test.cpp World::button_ O3 before-session filter",
+      "claim": "The new filter avoids blaming Kwinish for its own press-time acquisition, but its observation boundary is narrower than the documented per-event blocking property.",
+      "evidence": "O3 requires the same session to exist both before all modeled plugin callbacks and after cancellation. The model has no scheduling point for other mouse-button listeners. A foreign drag started earlier in the same bus emission can therefore be excluded even though it exists when Kwinish decides to cancel and would be ended by subsequent native processing.",
+      "counterexample": "A foreign mouse-button listener runs before Kwinish and starts a drag during a press. Kwinish then cancels that press, for example through the right-click menu route. Native processing would have ended the newly active drag, but a snapshot taken before the bus emission contains no session and the current filter excludes the event."
+    },
+    {
+      "severity": "minor",
+      "where": "q4a1test.cpp run O4 checks and World::idleInteraction; Q4A1-alt5-contract.md §3 and §9",
+      "claim": "O4 is non-vacuous after the mutation fix, but it still does not check all modeled plugin flags. The round-1 disposition should not imply complete flag-consistency coverage.",
+      "evidence": "Both idleInteraction and the terminal O4 checks omit rearmPending. World::key(true) sets this flag on every bar; handleUp does not clear it. The flag can survive a completed interaction without an O4 failure.",
+      "counterexample": "Press a floating bar and begin dragging. Send Shift, ending the host drag and setting rearmPending. Release the mouse before another motion. Bar drag flags are cleared and no drag remains, but rearmPending is still true; the current result reports no O4 failure."
+    }
+  ],
+  "limits": [
+    "Static review only; no tools, execution, or writes. Compiler, sanitizer, matrix, mutation, and preservation results were inspected as supplied reports, not independently reproduced.",
+    "Round-1 handling is materially improved: capture is reproduced as a liveness regression; expectKw is now a static function; host buttons carry pointer identity; O2 records intermediate interaction ends; unsnap/rearm ordering has a dedicated scenario; mutation detection requires the declared oracle; Lua float, transitive action auditing, and hit-testing are explicitly recorded as limitations. O4 remains terminal by design.",
+    "The release-without-recorded-press claim is supported when processing reaches InputManager.cpp:748–751: onMouseEvent ends the current drag when not captured, and InputManager returns without forwarding the release. It is not an unconditional release guarantee: earlier capture and hotkey branches exist, and callbacks during the native end can start another session.",
+    "The helper recheck addresses the demonstrated decoration-starts-and-returns-false replacement hazard. It neither proves ownership nor validates the intended hit-tested window; the supplied documentation correctly retains those limits.",
+    "The closed source-tree inventory and Lua routes cannot be independently established from the supplied excerpts alone. The documented unaudited transitive actions, touch routing, axis behavior, real binds, hit-testing, snap ordering, and unload combinations remain outside demonstrated coverage.",
+    "Keeping Q4-A BLOCKED and recommending bounded redesign before any separately authorized implementation is honest. Approval as a planning basis must not mean that safety and liveness have been achieved simultaneously: capture already disproves that, Lua indirect ends remain unresolved, and the uncovered input routes above add redesign obligations. Accepting delayed termination would change the liveness contract rather than prove the original one."
+  ]
+}

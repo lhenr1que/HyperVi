@@ -1,0 +1,2415 @@
+Independent adversarial review, no tools or writes. Return ONLY JSON {"verdict":"approve_as_planning_basis|conditional|reject","findings":[{"severity":"blocker|major|minor","where":"...","claim":"...","evidence":"...","counterexample":"concrete event sequence or null"}],"limits":[]}.
+Context: Kwinish (Hyprland 0.57 plugin port). Owner authorized ONLY a host-free investigation of a conservative end-of-drag policy: Kwinish may end only drags it provably owns, never later drags started by others. No production code, listeners, PLUGIN_EXIT, K3/K9/rearm changes are authorized. A previous contract (C3-prev) is known unsafe (R4: target reset and `ended` emission are not atomic; third party re-begins the same target before `ended`; Kwinish end entry then ends it).
+Review: (1) the observability split (plugin-visible vs compositor-only); (2) the window classification W1-W5 against the pinned 0.57 source excerpts; (3) the candidate `veto` policy and its closed-world safety argument - try hard to build a concrete counterexample event sequence inside the stated premises (A1, A3, A4, A5, D2), and say whether D1 is really the only residual; (4) whether the oracles O1/O2/O3 are independent of the policies and non-vacuous (does the suite reward a policy that simply never ends drags?); (5) whether the model omits a host path that matters (group bar, nested ends, refusals inside dragBegin, early decoration return, unmapped path); (6) whether the verdict "Q4-A still BLOCKED; veto safe only under D1; defer/hook/upstream are alternatives needing authorization" is honest. Do not demand host-internal identity beyond what the API exposes; flag overclaims. Approval here can only mean "planning basis", never implementation.
+ROUND 2. Your round-1 JSON is appended at the end of this header. Changes since round 1 (all host-free, no production code):
+- Major accepted and reproduced: new scenario H1.helper.deco-start-false (third-party DRAG_START decoration starts its own drag and returns false). With the CURRENT P8-B helper, every policy (including hook and defer) violates O1 by replacing that session. New column veto-rc = veto + helper variant that re-checks target() after the DRAG_START dispatch (kwDragBeginRechecked); this would require a P8-B helper change, not authorized. A3 strengthened to A3' (no session starts between a caller's target() guard and its dragBegin), with the host's own DRAG_START and GROUP->remove paths listed as not exhaustively audited. New mutant helper-target-recheck is detected.
+- Minors: W4 row corrected (flag inherited, target kept when no window), setClientResizingState :52-57 and Group.cpp remove excerpts added, O3 described as differential not causal, upstream alternative now requires a session id (target payload insufficient), PolDefer lifecycle cancellation and event-loop recursion stated as unverified.
+- probe.cpp added: installed headers confirm wasDraggingWindow()/mode()/target()/ended types; NEG fails only on missing sessionId.
+Re-run results: 42 scenarios x 7 policies, GCC/Clang identical, ASan/UBSan clean, matrix matches, mutations 11 killed / 5 declared redundant of 16.
+Please (1) confirm whether the round-1 major is resolved as a documented precondition (not as an implemented fix), (2) look again for any concrete sequence inside A1, A3', A4, A5, D2 where veto-rc violates O1 other than R4.emit.host (D1), (3) state whether the document is acceptable as a planning basis while implementation stays blocked.
+
+######## round-1 review JSON ########
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "Contract §§1, 3: A3 and the claim that D1 is the only remaining safety premise; policies.hpp: kwDragBegin; host.hpp: decorationsTakeDragStart",
+      "claim": "Checking target() before entering a start path is weaker than guaranteeing that dragBegin cannot replace an intervening session. The closed-world argument needs the latter. As written, A3 permits a concrete O1 counterexample without any ended listener, so D1 is not literally the only residual.",
+      "evidence": "The production helper checks target(), invokes arbitrary DRAG_START decorations, and then calls beginDragTarget without rechecking target(). ConfigActions.cpp:1704–1736 has the same ordering. The model represents only a decoration that takes the start and returns true; it cannot represent a decoration that starts a drag but returns false. The group-bar path also performs GROUP->remove before its unguarded dragBegin, so its inherited entry guard requires a separate reentrancy audit.",
+      "counterexample": "Initially target is null and no ended listeners from third parties exist. Kwinish begin checks target and enters DRAG_START decoration dispatch. A third-party decoration checks target, finds null, starts foreign session S, and returns false. The helper continues and calls its own beginDragTarget, replacing S. Every start caller checked target before its start path, satisfying the stated wording of A3; A1, A4, A5 and the pinned W1–W5 classification remain intact. PolVeto subsequently acquires the replacement session. O1's prohibition on replacing an active session has already been violated. This is not a counterexample if A3 is strengthened explicitly to prohibit intervening starts between the guard and dragBegin."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §2: W2–W4 classifications",
+      "claim": "The classification is useful for the proof, but several table entries describe ordinary execution rather than invariants under nesting.",
+      "evidence": "The supplied source supports no callback between reset and the W1 flag assignment, W2's callback-bearing span, and the ordinary and early-decoration-return tails. However, an unmapped end does not write m_wasDraggingWindow, and :265 resets target only when window() exists. X2 already demonstrates retained target. A nested mapped end can also leave the enclosing W2 flag false, as R4.nested-clear acknowledges. W3's exclusion additionally depends on the complete setClientResizingState forwarding path, not merely the backend excerpts.",
+      "counterexample": "Inside an outer mapped dragEnd callback, start X and make X unmapped, then end X. The nested unmapped path inherits wasDraggingWindow=true from the outer frame. If X has no window, it also retains target. Thus W4 is not unconditionally target=null and flag=false. Its ended emission still invalidates old ownership, so this correction alone does not demonstrate an unsafe veto end."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §4; policytest.cpp: Truth::noteEndRequest, runOne and oracle3",
+      "claim": "O1 and O2 are policy-independent truth checks, and the suite does not reward simply never ending drags. O3 is a differential regression check, not an independent safety or causal oracle.",
+      "evidence": "O1 records caller and session initiator at controller entry. O2 uses truth-layer provenance and emission counts rather than owns(), and PolNone fails O2 in 12 scenarios. O3 instead explicitly depends on PolNone and compares final states from executions whose callback and start opportunities can differ. It can flag a legitimate foreign session enabled by ending an owned session, and it can miss an improper foreign end when neither final execution retains that session; O1 supplies the missing event-level check. O2 also tests eventual attribution of an end, not whether deferred requests are superseded appropriately.",
+      "counterexample": "Kwinish starts A and receives a safe end request. After that request, the scenario conditionally starts foreign B if target is null. A synchronous correct end permits B, while PolNone leaves A active and blocks B. O1 and O2 pass, but O3 reports a foreign session existing only with the policy. That difference alone does not establish unsafe ownership handling."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§6, 8: deferred and upstream alternatives; policies.hpp: PolDefer",
+      "claim": "These are legitimate investigation directions, not established fixes. In particular, an ended target payload alone cannot resolve same-target session reuse.",
+      "evidence": "R4 specifically reuses the same target, so target identity cannot distinguish the ended session from its successor. Moving emission before reset also requires a reentrancy protocol rather than merely relocating the emission. PolDefer retains queued callbacks capturing this after unload; clearing pendingFor prevents an end only while the object remains alive. The text correctly says real cancellation is required, but the model does not verify that lifecycle property. The supplied event-loop excerpt shows ordinary idle scheduling, not an exhaustive exclusion of recursive event-loop dispatch.",
+      "counterexample": "For the target-payload proposal, end owned session A1, reset target, and let an earlier ended listener begin foreign session A2 on the same target A before Kwinish's listener runs. Both sessions have the same target payload. For the deferred model, schedule a callback, unload and destroy the policy, then dispatch the queued callback: it still captures the destroyed object unless actual lifecycle cancellation is added."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§3, 6, 7: scope of the safety conclusion and blocked verdict",
+      "claim": "The blocked implementation verdict is honest. The narrower end-ownership proof is a reasonable planning basis once A3 is made effective rather than merely syntactic; it is not a production or liveness guarantee.",
+      "evidence": "The observable/truth split is appropriate: veto does not consult session identity, stack depth, caller attribution or hookSeq. Within an effectively guarded-start model, successful listener registration, normal synchronous completion and the pinned callback classification, I found no additional concrete foreign-end sequence beyond W5 before invalidation. Nested ends invalidate possession before exposing a cleared flag; refusal ends are caught by the begin generation check; group-bar ownership is rejected through REFUSED_BY_DECO. The disclosed cancelled-button and caller-flag omissions remain integration risks, and exceptions and listener-registration failure are additional exclusions, not consequences of D1.",
+      "counterexample": "Kwinish's movement handler invokes a start taken by the group bar, then sets m_bDraggingThis despite not acquiring ownership. On release, the candidate correctly refuses to end the foreign group-bar drag, but handleUpEvent cancels the button because m_bCancelledDown is set. InputManager returns before the native button path can end the drag. Ownership safety holds while release liveness fails, exactly why implementation must remain blocked."
+    }
+  ],
+  "limits": [
+    "Review used only the supplied text; no tools, writes, builds, host execution or independent source/hash verification were performed.",
+    "The reported compiler, sanitizer and mutation results were assessed as supplied evidence, not reproduced.",
+    "The DRAG_START counterexample uses the literal stated A3 requirement that callers check target; it is excluded by a stronger premise guaranteeing no intervening session before the actual dragBegin.",
+    "No specific synchronous callback from GROUP->remove is established by the supplied excerpts; that path is an audit requirement, not a proven exploit.",
+    "Any approval is for a corrected host-free planning basis only. Production changes, listeners, lifecycle changes, rearm changes and hooks remain unauthorized."
+  ]
+}
+
+######## docs/port-0-57/evidence/Q4A-policy-contract.md ########
+# Q4-A — Política segura de encerramento de drag (estudo host-free, 30/10/2026)
+
+**Escopo:** investigação, modelo e testes host-free. **Nenhum código de produção alterado**; K3/K9/rearm, `PLUGIN_EXIT`, listeners do plugin, render/GL intocados; nada carregado; sem commit. Base `f76c785`. Fontes: `U:` = Hyprland 0.57.0 `0aa6745f` (`DragController.cpp` sha256 `6a7c339a…0a5f`, igual ao dos relatórios anteriores); trechos e greps em `Q4A-policy-host-sources.txt`. Código: `Q4A-policy-tests/` (`host.hpp`, `policies.hpp`, `policytest.cpp`, `probe.cpp`, `run.py`, `expected-matrix.txt`). Saídas: `Q4A-policy-run.log` (runner), `Q4A-policy-detail.txt` (por cenário/política). Revisão: `Q4A-policy-review-*.json`.
+
+## 1. Modelo de eventos (Etapa 1)
+
+`host.hpp` replica `dragBegin` (U:159–251) e `dragEnd` (U:252–334): `m_target` (WP), `m_dragMode`, `m_wasDraggingWindow`, emissão de `ended` por *scope guard* na saída (:258), com o **sinal real** do hyprutils 0.14.3 (snapshots, aninhamento). Ganchos síncronos: decorações `DRAG_END` com continuação ou retorno antecipado (:287–292), group add (:299), `changeFloatingMode` → `window.floating` (:314; LayoutManager.cpp:52), `setTargetGeom` (:321), `fullWindowFocus` → `window.active` (:323; FocusState.cpp:220), foco dentro de `dragBegin` (:245), decorações `DRAG_START` (group bar inicia drag próprio, `CHyprGroupBarDecoration.cpp:417`, foco em :420; ou decoração de terceiro que inicia e devolve `false`). Entradas do Kwinish: início (semântica de `KwDrag::begin`, P8-B), fim (K3/K9), rearm, unload passo 2, fila *idle* (`doLater`). Recusa por tela cheia modelada dentro de `dragBegin` (caso `drag_threshold <= 0`; com limiar > 0 ela ocorre no `mouseMove` do host, fora do início).
+
+As políticas só recebem a camada observável:
+
+| Observável pelo plugin (API pública 0.57; tipos confirmados por `probe.cpp` nos headers instalados) | Só o compositor (ou o oráculo) sabe |
+|---|---|
+| `target()` (WP travado), `mode()`, `wasDraggingWindow()`, `dragThresholdReached()`, `draggingTiled()`, `exclusiveDeviceGrab()` | identidade da sessão; quem chamou `dragBegin`/`dragEnd` |
+| `m_events.ended` **sem payload** (`CSignalT<>`); `m_events.motion` | qual sessão um `ended` encerra; se há `dragEnd` ou emissão na pilha; posição de cada ouvinte no snapshot |
+| eventos do barramento que o plugin assina (`window.active`, `window.floating`, `mouse.*`) | código de outros plugins/Lua dentro dos callbacks; ordem dos ouvintes de terceiros |
+| resultado do helper (`KwDrag::begin`: `STARTED` = `beginDragTarget` foi chamado, não que o drag existe nem que é do plugin) | se o host recusou dentro de `dragBegin`; se uma decoração iniciou drag próprio |
+
+Fatos verificados nesta sessão por grep em todo `src/`: `m_wasDraggingWindow` só é escrito em :275 (`true`), :288 e :325 (`false`); `m_dragMode` só em :161, :267, :289, :329; **nenhum ouvinte do host** em `DragController::m_events.ended` (só a emissão :258); chamadores de `dragBegin` checam `target()` antes (Window.cpp:1861/1871, InputManager.cpp:876, ConfigActions.cpp:1704). Binário instalado exporta `wasDraggingWindow`, `dragBegin`, `dragEnd` (`nm -DC /usr/sbin/Hyprland`).
+
+## 2. Janelas da transição de fim
+
+| Janela | Linhas | Estado típico (topo da pilha) | Código estranho síncrono? | Conclusão |
+|---|---|---|---|---|
+| W1 | :274→:275 | alvo nulo, flag herdada | nenhum | excluída estruturalmente |
+| W2 | :275→:288 / :325 | alvo nulo ou de terceiro reentrante, **flag true** | sim: decorações (inclui group bar → `fullWindowFocus`), group add, `window.floating`, layout, `window.active` (Lua do usuário, outros plugins, Kwinish) | **não** excluível: `mouse.move` pode ser emitido sincronamente via `simulateMouseMovement` por dispatchers (ConfigActions.cpp:92,129,777,1041,1237) e layouts; rearm/unsnap do Kwinish ficam em `mouse.move`. Coberta por **observação** (`wasDraggingWindow`) |
+| W3 | :325→emissão | flag false | só `setClientResizingState` (:52–57) → XDG agenda `doLaterLock` (XDGShell.cpp:444–498, 668–676); X11 vazio | excluída estruturalmente para o caminho lido (0.57 fixada) |
+| W4 | não mapeado :262→emissão | **não escreve a flag** (herda a do quadro externo); alvo **mantido** se não há janela (:263–266) | nenhum após o reset (`unsetOverride` vem antes) | excluída estruturalmente; o `ended` ainda invalida a posse |
+| W5 | emissão de `ended` | alvo nulo/terceiro, flag false | ouvintes de `ended` anteriores ao do Kwinish | mundo fechado: o host não tem ouvintes → excluída. **Mundo aberto: não excluível (D1)** |
+
+Aninhamento: um `dragEnd` mapeado aninhado em W2 zera a flag antes do fim externo, mas emite `ended` antes disso e invalida a posse (`R4.nested-clear`). A flag fica presa em `true` só se uma exceção atravessar W2: efeito apenas de liveness.
+
+## 3. Política candidata `veto` (Etapa 2)
+
+Posse só é usada se **todas** valerem no instante do fim (`policies.hpp`, `PolVeto`):
+
+- **(a) Aquisição verificável:** o `beginDragTarget` do **próprio** plugin rodou (resultado `STARTED`, não `REFUSED_BY_DECO`), nenhum `ended` chegou durante o início e o alvo depois é o pedido. Guarda RAII `inBegin`.
+- **(b) Invalidação:** ouvinte por aquisição com **token** capturado; `ended` com token atual zera a posse e solta o ouvinte; callbacks antigos (snapshots aninhados) são ignorados.
+- **(c)** alvo adquirido vivo e igual a `target()`.
+- **(d) Veto de transição ambígua:** `wasDraggingWindow()` verdadeiro ⇒ não encerra **e** não inicia.
+- **(e) Transação não reentrante:** sem fim/início do plugin em andamento; posse **consumida antes** de `endDragTarget()`.
+- **Rearm** = fim bem-sucedido + novo início com nova aquisição. **Unload passo 2** = `unloading`, fim se (a)–(e), solta o ouvinte sempre.
+- **Pré-requisito do helper (revisão 1):** `KwDrag::begin` precisa **rechecar `target()` depois do despacho `DRAG_START`** e imediatamente antes de `beginDragTarget` (variante `veto-rc`). Sem isso, uma decoração de terceiro que inicia drag e devolve `false` faz o próprio helper substituir a sessão dela (`H1`). Exige mudança no helper P8-B: **não autorizada aqui**.
+
+Nenhum item usa alvo, modo, geração ou flag local isoladamente como prova: alvo só vale junto de (a)+(b); geração/token só invalidam; `wasDraggingWindow` só **veta**. Flags do plugin (`m_bDraggingThis`, `grabActive`) não entram na posse.
+
+**Argumento de segurança (mundo fechado, `veto-rc`).** Suponha um fim do Kwinish sobre sessão S de terceiro com (a)–(e) válidos. Por A3′, `target()` era nulo quando S começou, logo a sessão do plugin terminou após a aquisição por um `dragEnd` (alvo vivo ⇒ `ended` na saída) ou o alvo expirou (viola (c)). Se aquele `dragEnd` já retornou, o ouvinte (registrado antes dele) recebeu `ended` ⇒ (b) falso. Logo o fim do Kwinish ocorreu **dentro** desse `dragEnd`: W1/W3/W4 não têm código estranho; W2 é vetada por (d); resta W5 antes do ouvinte do Kwinish, o que exige ouvinte estranho de `ended` (inexistente no host). Se o fim originou-se no próprio Kwinish, (e) bloqueia também W5.
+
+**Premissas:** A1 thread única; **A3′ (reforçada pela revisão 1):** nenhuma sessão começa entre a guarda `target()` de um chamador e seu `dragBegin` — vale para o helper do Kwinish só com o recheck; para o host, depende de decorações `DRAG_START` (ConfigActions.cpp:1704→1733→1736) e do `GROUP->remove` da group bar antes de seu `dragBegin` sem guarda (Group.cpp:234–299, layout/visibilidade síncronos; **não auditado exaustivamente**); A4 `ended` síncrono e único por fim com alvo vivo; A5 unload fora de emissões; **D1 (nova, não aceita):** nenhum ouvinte de `ended` de terceiros, anterior ao do Kwinish, reinicia drag e alcança sincronamente uma entrada de fim do Kwinish; **D2:** classificação W1–W5 e escritores da flag valem só para `0aa6745f`. Exclusões adicionais (não consequências de D1): falha de `listen` (C6), exceções do host, *wrap* do token.
+
+## 4. Testes host-free (Etapa 3)
+
+`python3 docs/port-0-57/evidence/Q4A-policy-tests/run.py` — GCC 16.2.1 e Clang 23.1.4, `-Werror`, ASan/UBSan; **42 cenários × 7 políticas**; sondas de tipo nos headers instalados (positivo compila; `-DNEG` falha só por `sessionId` ausente). Oráculos sobre a camada de verdade, inacessível às políticas:
+
+- **O1** (evento a evento) nenhum `dragEnd` chamado pelo Kwinish sobre sessão iniciada por outro, nem início do Kwinish que substitua sessão ativa;
+- **O2** pedido de fim em contexto *comprovadamente seguro* (sem `dragEnd`/emissão na pilha, sessão viva iniciada pelo Kwinish, nenhum `ended` desde o início) foi atendido (inclusive no *idle*);
+- **O3** verificação **diferencial**, não causal: estado final comparado com a execução em que o Kwinish nunca encerra (`none`); sessão estrangeira final deve ser idêntica (alvo, ordinal, modo). Diferenças presentes nas duas execuções são anotadas como do compositor. Pode acusar sessão estrangeira legítima habilitada por um fim próprio correto, e não vê fim indevido quando nenhuma execução retém a sessão: O1 cobre esse caso;
+- `s` = contrato do cenário (sem início após unload; `STARTED` só para sessão própria limpa); `o` = sessão do Kwinish viva sem posse (informativo).
+
+Resultado real (`Q4A-policy-run.log`): build 0, execução 0 e sem saída de sanitizer nos dois compiladores; saídas idênticas; sondas OK; matriz igual à esperada; `RESULT: PASS (… this is not an approval)`. Contagem de cenários com falha:
+
+| Política | O1 | O2 | O3 | Leitura |
+|---|---|---|---|---|
+| `none` (nunca encerra; helper atual) | 1 (`H1`, substituição pelo helper) | **13** | — | “não encerrar nada” não passa (`s`: 6 — helper reporta `STARTED` em recusas; sem unload) |
+| `target-eq` | 22 | 1 | 17 | inseguro (`s`: 6) |
+| `C3-prev` (contrato anterior) | 16 | — | 11 | inseguro (todas as rotas R4, G1, G2, G4, R4.emit, H1) |
+| `veto` (helper atual) | 3: `H1`, `R4.emit.host`, `L1.A3` | — | 2 | depende do recheck do helper |
+| **`veto-rc` (candidata)** | **2: `R4.emit.host` (D1), `L1.A3` (A3)** | — | 2 | segura no mundo fechado; falha D1 |
+| `defer` (fim no idle; helper atual) | 2: `H1`, `L1.A3` | — | 1 | fecha W5; exige trabalho diferido (+ recheck) |
+| `hook` (ganchos em begin/end; helper atual) | 1: `H1` | 1 (`H1`) | — | identidade real; exige ganchos (+ recheck) |
+
+Cobertura pedida: R1–R4 (R4 em 9 rotas, aninhado e emissão), drag próprio normal (`N1`), externo na mesma janela (`E1`), callbacks aninhados (`R1`, `R2`, `R4.nested-clear`), fim durante emissão (`R4.emit.*`, `M2`, `M3`), reinício (`N2` rearm, `N3`), saídas sem `ended` (`X1` morte silenciosa; `X2` `ended` sem reset; `X3` recusas; `X4` recusa com callbacks), group bar (`G1` início tomado pela barra, mesmo/outro membro; `G2` soltar no grupo; `G3` aba arrastada pelo usuário; `G4` início pela barra dentro do fim; `G5` início do Kwinish no foco da barra), decoração de terceiro (`H1`), início dentro do fim (`B1`), unload (`U1`–`U3`), limite A3 (`L1`).
+
+**Mutações** da candidata (cópia em scratch; compila, roda sem sanitizer, célula declarada muda): **11/16 detectadas**; 5 redundâncias explicadas: consumir antes do fim e guarda `inEnd` cobrem-se mutuamente (o par removido é detectado por `R4.emit.own`); `++acquisition` no desarme e checagem ouvinte/geração em `owns()` são redundantes com o desarme por aquisição; a rechecagem de token no idle é redundante com `owns()`.
+
+## 5. R4
+
+Preservado: `bash docs/port-0-57/evidence/Q4A-followup-tests/run.sh` **continua exit 1** (2 falhas R4 por assertiva no GCC; o runner para no primeiro compilador) — `Q4A-policy-old-runner-R4.log`. Nenhum arquivo antigo alterado. No estudo novo, `C3-prev` falha todas as rotas R4; `veto-rc` passa as rotas W2 e `R4.emit.own`, mas **falha `R4.emit.host`** (variante W5); `defer` e `hook` passam as rotas R4.
+
+## 6. Limitações
+
+Réplica manual, não o host: sem hit-test, ordem real de decorações, Lua real, `updateDragWindow` completo, cancelamento de eventos de botão, nem laço real de eventos. Classificação das janelas é leitura estática de uma versão. A exclusão de despacho recursivo do laço (`wl_display_run` só em EventLoopManager.cpp:137; nenhum `wl_event_loop_dispatch` em `src/`) é **hipótese** para bibliotecas externas. `PolDefer` não verifica o cancelamento real no unload (o callback enfileirado ainda captura o objeto). Não modelados: C6, exceções do host, *wrap* do token, rollback das flags dos chamadores quando o início é vetado (`handleMovement` marca `m_bDraggingThis` sem olhar o resultado) e o cancelamento da soltura pelo Kwinish (`handleUpEvent`): com a candidata, um drag da **group bar** iniciado durante o início do Kwinish (`G1`) não é encerrado pelo plugin e o host só o encerra num botão **não cancelado** — falha de liveness a decidir antes de produção.
+
+## 7. Veredito
+
+**Q4-A continua BLOQUEADO para implementação.** Com as APIs 0.57 existentes, sem trabalho diferido nem ganchos, `veto-rc` é a política mais forte encontrada; sua garantia de não encerrar drag alheio depende de A3′ e D1 (terceiros), que o plugin não pode verificar, e exige mudar o helper P8-B. Não é garantia de liveness.
+
+## 8. Alternativas (decisão do dono)
+
+1. **Aceitar A3′ + D1** (mesma classe da A3 anterior) e usar `veto-rc` síncrona; documentar o risco com plugins que ouvem `DragController::ended` ou decorações `DRAG_START` que iniciam drag.
+2. **Fim diferido** (`doLaterLock` + cancelamento real em `PLUGIN_EXIT`): fecha W5; muda a ordem dos efeitos (o fim ocorre após o restante do handler, ex. `snapOnRelease`); exige autorização de lifecycle e ainda o recheck.
+3. **Ganchos de função** em `CDragStateController::dragBegin/dragEnd`: identidade real (também cobre A3); exige autorização de hook/lifecycle, verificação de *inlining* e ainda o recheck do helper.
+4. **Upstream:** **id de sessão** em `ended` ou API de posse (payload de alvo **não** basta: R4 reusa o mesmo alvo); mover a emissão antes do reset exigiria também protocolo de reentrada; guarda em `dragBegin`.
+5. **Não encerrar e não cancelar a soltura sem posse** (delegar ao host): liveness pelo comportamento nativo; muda a entrega do botão ao cliente.
+
+## 9. Revisão independente
+
+Sessões novas Hermes / `openai-codex` / `gpt-6.1-sol` (família diferente da desta sessão, Claude), `--safe-mode`, `--max-turns 1`, sem ferramentas de escrita; estática (não executou código). Prompts preservados em `Q4A-policy-review-prompt-*.txt`.
+
+- **Rodada 1 — `conditional`** (`Q4A-policy-review-1.json`): 1 major + 4 minor. **Major reproduzido e aceito:** decoração `DRAG_START` que inicia drag e devolve `false` entre a guarda e o `beginDragTarget` do helper ⇒ substituição pelo Kwinish (`H1`; O1 em todas as políticas com o helper atual). Tratamento: A3 reforçada para A3′; variante `veto-rc` com recheck; mutante `helper-target-recheck` detectado. Minors aceitos: W4 herda a flag e pode manter o alvo; W3 depende do caminho completo de `setClientResizingState` (trecho :52–57 acrescentado); O3 é diferencial; payload de alvo não resolve; `PolDefer` não prova cancelamento; recursão do laço é hipótese. Avaliação do revisor: O1/O2 independentes, a suíte não premia “nunca encerrar”; veredito bloqueado considerado honesto; nenhuma sequência adicional encontrada além de W5 dentro das premissas.
+- **Rodada 2:** ver abaixo.
+
+######## docs/port-0-57/evidence/Q4A-policy-tests/host.hpp ########
+// Q4-A end-policy study: host-free model of the Hyprland 0.57 drag controller (NOT production code).
+// Source pinned: U = Hyprland 0aa6745f, src/layout/supplementary/DragController.cpp
+//   sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f (same file the earlier Q4-A model cites).
+// Signals are the REAL Hyprutils::Signal::CSignalT<> / CHyprSignalListener (installed hyprutils 0.14.3).
+//
+// Two layers, kept apart on purpose:
+//   * OBSERVABLE: what a 0.57 plugin can read or call (public members of CDragStateController / CLayoutManager and the
+//     event-bus callbacks the scenario wires in). Policies only receive `CHost&` and may use ONLY the members in the
+//     "observable" section; the "truth" section is private and read by the oracles through `Truth`.
+//   * TRUTH: information that exists only inside the compositor (or only in this test): session identity, who called
+//     dragBegin/dragEnd, whether a dragEnd frame or an `ended` emission is on the stack. Oracles use it; policies cannot.
+#pragma once
+#include <hyprutils/memory/SharedPtr.hpp>
+#include <hyprutils/memory/WeakPtr.hpp>
+#include <hyprutils/signal/Signal.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
+
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <optional>
+#include <string>
+#include <vector>
+
+using Hyprutils::Memory::CSharedPointer;
+using Hyprutils::Memory::CWeakPointer;
+using Hyprutils::Memory::makeShared;
+using Hyprutils::Signal::CHyprSignalListener;
+using Hyprutils::Signal::CSignalT;
+
+enum eMode : int8_t { M_INVALID = -1, M_MOVE = 0, M_RESIZE = 1 };
+// who is executing a call into the controller (truth only)
+enum eWho : uint8_t { W_HOST = 0, W_USER, W_THIRD, W_GROUPBAR, W_KWINISH };
+inline const char* whoName(eWho w) {
+    static const char* N[] = {"host", "user", "third", "groupbar", "kwinish"};
+    return N[w];
+}
+
+struct STarget {
+    std::string name;
+    bool        mapped = true, hasWorkspace = true, hasWindow = true, fsWorkspaceReject = false;
+    bool        overOtherWindow = true; // :283-286 a window is under the cursor at drop (decorations/group checks run)
+    bool        joinsGroup      = false; // :298-302 drag_into_group adds the dragged window to the group under the cursor
+    bool        draggingTiled   = false; // :311-317 drag started on a tiled window (changeFloatingMode at the end)
+    // group bar decoration on THIS window: DRAG_START handler starts its own drag (CHyprGroupBarDecoration.cpp:392-423)
+    bool        groupBarStart = false;
+    // review 1 (major): a third-party DRAG_START decoration that starts its own drag but returns false
+    bool        foreignDecoStartReturnsFalse = false;
+    std::string groupBarStartsOn; // empty = this window (the dragged tab is the active one); otherwise another member
+};
+using SPT = CSharedPointer<STarget>;
+using WPT = CWeakPointer<STarget>;
+
+struct SSession { // truth
+    uint64_t    id = 0;
+    eWho        who = W_HOST;
+    std::string target;
+    int         ordinal = 0;          // n-th session of (who,target): stable key across runs
+    uint64_t    cleanMark = 0;        // value of `emissions` when its begin returned
+    bool        endedByKwinish = false;
+    bool        endedByOther   = false;
+};
+
+struct SEndRequest { // truth: context of a Kwinish end entry (K3/K9/rearm)
+    int                   endDepth = 0, emitDepth = 0;
+    std::optional<size_t> session; // index into sessions, if a live drag existed
+    bool                  livenessRequired = false;
+    std::string           where;
+};
+
+class CHost {
+  public:
+    // =========================== OBSERVABLE (0.57 public API) ===========================================
+    SPT   target() const { return m_target.lock(); }       // CDragStateController::target()
+    eMode mode() const { return m_dragMode; }               // ::mode()
+    bool  wasDraggingWindow() const { return m_wasDraggingWindow; } // ::wasDraggingWindow()
+    struct {
+        CSignalT<> ended;                                    // ::m_events.ended (no payload)
+    } m_events;
+    void beginDragTarget(SPT t, eMode m) { dragBegin(t, m); } // CLayoutManager::beginDragTarget -> dragBegin
+    bool endDragTarget() { return dragEnd(); }                // CLayoutManager::endDragTarget -> dragEnd
+    // checkInputOnDecorations(INPUT_TYPE_DRAG_START) on the window under the cursor; the native group bar starts its
+    // OWN drag (dragController()->dragBegin directly, CHyprGroupBarDecoration.cpp:417) and returns true.
+    bool decorationsTakeDragStart(SPT t) {
+        if (t->foreignDecoStartReturnsFalse) {
+            CallerScope g(*this, W_THIRD);
+            if (!target()) dragBegin(t, M_MOVE); // the decoration itself checks target(); then returns false
+            return false;
+        }
+        if (!t->groupBarStart)
+            return false;
+        SPT on = t;
+        if (!t->groupBarStartsOn.empty())
+            on = lookup(t->groupBarStartsOn);
+        CallerScope g(*this, W_GROUPBAR);
+        dragBegin(on, M_MOVE);
+        if (auto f = onGroupBarFocus) f(); // copy: may clear itself; :419-420 rawWindowFocus -> window.active (synchronous)
+        return true;
+    }
+    // ---- synchronous foreign code the host runs (event-bus listeners, decorations, layouts, Lua). Scenario-set. ----
+    std::function<bool()> onDecoDragEnd;    // :287 checkInputOnDecorations(DRAG_END); true = decoration took it (:288-292)
+    std::function<void()> onGroupAdd;       // :299 group->add (layout recalculation, focus inside the group)
+    std::function<void()> onFloatingChange; // :314 changeFloatingMode -> window.floating (LayoutManager.cpp:52)
+    std::function<void()> onSetTargetGeom;  // :321 setTargetGeom (layout)
+    std::function<void()> onFocus;          // :323 fullWindowFocus -> window.active (FocusState.cpp:220)
+    std::function<void()> onBeginFocus;     // :245 rawWindowFocus inside dragBegin -> window.active
+    std::function<void()> onGroupBarFocus;  // CHyprGroupBarDecoration.cpp:420
+
+    // ---- NOT in the 0.57 API: what a function hook on CDragStateController::dragBegin/dragEnd could count ----------
+    // (one tick per dragBegin call and per dragEnd call that finds a live target). Used ONLY by PolHook, which models an
+    // architectural alternative that needs hook + lifecycle authorization.
+    uint64_t hookSeq() const { return m_hookSeq; }
+
+    // test-only registry so a decoration can name another window
+    std::vector<SPT> windows;
+    SPT              lookup(const std::string& n) {
+        for (auto& w : windows)
+            if (w->name == n) return w;
+        return nullptr;
+    }
+
+    // idle dispatch (CEventLoopManager::doLater -> wl_event_loop_add_idle). The real loop runs idle callbacks only from
+    // wl_display_run (EventLoopManager.cpp:137), never from inside dragEnd or a signal emission; the model asserts it.
+    std::vector<std::function<void()>> idleQueue;
+    void                               runIdle() {
+        if (m_endDepth || m_emitDepth) { std::printf("MODEL ERROR: idle inside dragEnd/emission\n"); std::abort(); }
+        while (!idleQueue.empty()) {
+            auto q = std::move(idleQueue);
+            idleQueue.clear();
+            for (auto& f : q) f();
+        }
+    }
+
+    // caller attribution (truth)
+    struct CallerScope {
+        CHost& h;
+        CallerScope(CHost& h_, eWho w) : h(h_) { h.m_callers.push_back(w); }
+        ~CallerScope() { h.m_callers.pop_back(); }
+    };
+
+  private:
+    // =========================== HOST STATE (private in 0.57) ===========================================
+    WPT   m_target;
+    eMode m_dragMode          = M_INVALID;
+    bool  m_wasDraggingWindow = false;
+
+    uint64_t m_hookSeq = 0;
+
+    void dragBegin(SPT t, eMode mode) { // U:159-251
+        ++m_hookSeq;
+        noteBegin(t);
+        m_target   = t; // :160 (no guard)
+        m_dragMode = mode;
+        const auto D = m_target.lock();
+        if (!D->mapped) { dragEnd(); return; }        // :174-178
+        if (!D->hasWorkspace) { dragEnd(); return; }  // :180-184
+        if (D->fsWorkspaceReject) { dragEnd(); return; } // :189-190 -> updateDragWindow :123-127 (mapped path)
+        if (auto f = onBeginFocus) f();               // :244-247 rawWindowFocus/raise
+        markClean();
+    }
+
+    bool dragEnd() { // U:252-334
+        auto D = m_target.lock();
+        if (!D) return false; // :255-256: no `ended`
+        ++m_hookSeq;
+        noteEndEntry(D);
+        ++m_endDepth;
+        Hyprutils::Utils::CScopeGuard depth([this] { --m_endDepth; });                 // destroyed AFTER notifyEnded
+        Hyprutils::Utils::CScopeGuard notifyEnded([this] { emitEnded(); });           // :258
+        if (!D->mapped) {                                                              // :262-271
+            if (D->hasWindow) resetTarget();                                           // :265
+            m_dragMode = M_INVALID;
+            return true;
+        }
+        resetTarget();                                                                 // :274
+        m_wasDraggingWindow = true;                                                    // :275
+        if (m_dragMode == M_MOVE && D->overOtherWindow) {                              // :277-286
+            if (onDecoDragEnd) {
+                auto f = onDecoDragEnd; // copy: a callback may clear itself
+                if (f()) {                                                             // :287
+                    m_wasDraggingWindow = false;                                       // :288
+                    m_dragMode          = M_INVALID;                                   // :289
+                    return true;                                                       // :292
+                }
+            }
+            if (D->joinsGroup)
+                if (auto f = onGroupAdd) f();                                          // :299
+        }
+        if (D->draggingTiled)
+            if (auto f = onFloatingChange) f();                                        // :311-314
+        if (auto f = onSetTargetGeom) f();                                             // :321
+        if (auto f = onFocus) f();                                                     // :323
+        m_wasDraggingWindow = false;                                                   // :325
+        // :326-327 setClientResizingState -> XDG setResizing: only doLaterLock (XDGShell.cpp:444-498, 668-676);
+        // X11Backend::setResizing is empty. No synchronous foreign code between :325 and the emission.
+        m_dragMode = M_INVALID;                                                        // :329
+        return true;
+    }
+
+    // =========================== TRUTH (compositor-internal / test-only) =================================
+    friend struct Truth;
+    std::vector<eWho>        m_callers;
+    std::vector<SSession>    m_sessions;
+    std::optional<size_t>    m_cur; // session whose target is m_target (valid only while m_target is alive)
+    int                      m_endDepth = 0, m_emitDepth = 0;
+    uint64_t                 m_emissions = 0;
+    std::vector<std::string> m_violations;
+    std::vector<SEndRequest> m_requests;
+
+    eWho caller() const { return m_callers.empty() ? W_HOST : m_callers.back(); }
+    void noteBegin(const SPT& t) {
+        if (caller() == W_KWINISH && m_target.lock())
+            m_violations.push_back("kwinish replaced an active session (unguarded begin)");
+        SSession s;
+        s.id     = m_sessions.size() + 1;
+        s.who    = caller();
+        s.target = t->name;
+        for (auto& o : m_sessions)
+            if (o.who == s.who && o.target == s.target) ++s.ordinal;
+        s.cleanMark = UINT64_MAX;
+        m_sessions.push_back(s);
+        m_cur = m_sessions.size() - 1;
+    }
+    void markClean() { if (m_cur) m_sessions[*m_cur].cleanMark = m_emissions; }
+    void noteEndEntry(const SPT&) {
+        if (!m_cur) return;
+        auto& s = m_sessions[*m_cur];
+        if (caller() == W_KWINISH) {
+            if (s.who != W_KWINISH)
+                m_violations.push_back(std::string("kwinish ended a ") + whoName(s.who) + " session on " + s.target);
+            s.endedByKwinish = true;
+        } else
+            s.endedByOther = true;
+    }
+    void resetTarget() { m_target.reset(); m_cur.reset(); }
+    void emitEnded() {
+        ++m_emissions;
+        ++m_emitDepth;
+        m_events.ended.emit();
+        --m_emitDepth;
+    }
+};
+
+// Oracle/driver access to the truth layer. Policies must not use this.
+struct Truth {
+    static std::optional<SSession> current(const CHost& h) {
+        if (!h.m_target.lock() || !h.m_cur) return std::nullopt;
+        return h.m_sessions[*h.m_cur];
+    }
+    static const std::vector<SSession>&    sessions(const CHost& h) { return h.m_sessions; }
+    static const std::vector<std::string>& violations(const CHost& h) { return h.m_violations; }
+    static std::vector<SEndRequest>&       requests(CHost& h) { return h.m_requests; }
+    static int                             endDepth(const CHost& h) { return h.m_endDepth; }
+    // the live session was begun by `who`, its begin completed (no refusal) and no `ended` was emitted since
+    static bool startedCleanly(const CHost& h, eWho who) {
+        const auto s = current(h);
+        return s && s->who == who && s->cleanMark != UINT64_MAX && s->cleanMark == h.m_emissions;
+    }
+    static int                             emitDepth(const CHost& h) { return h.m_emitDepth; }
+    // A Kwinish end entry is "provably safe" when: no dragEnd frame and no `ended` emission is on the stack, the live
+    // session was begun by Kwinish itself and no `ended` was emitted since that begin returned. Only then is ending
+    // REQUIRED (liveness). Everywhere else the policy may refuse.
+    static void noteEndRequest(CHost& h, const std::string& where) {
+        SEndRequest r;
+        r.endDepth  = h.m_endDepth;
+        r.emitDepth = h.m_emitDepth;
+        r.where     = where;
+        if (h.m_target.lock() && h.m_cur) {
+            r.session          = *h.m_cur;
+            const auto& s      = h.m_sessions[*h.m_cur];
+            r.livenessRequired = !r.endDepth && !r.emitDepth && s.who == W_KWINISH && s.cleanMark == h.m_emissions;
+        }
+        h.m_requests.push_back(r);
+    }
+};
+
+######## docs/port-0-57/evidence/Q4A-policy-tests/policies.hpp ########
+// Q4-A end-policy candidates (host-free; NOT production code). Every policy sees the host only through the observable
+// section of CHost (target(), mode(), wasDraggingWindow(), m_events.ended, beginDragTarget, endDragTarget,
+// decorationsTakeDragStart, idleQueue). PolHook additionally reads hook counters that do NOT exist in the 0.57 API: it
+// stands for an architectural alternative (function hooks), not for something the plugin can do today.
+#pragma once
+#include "host.hpp"
+
+enum eBeginResult { STARTED, ALREADY, REFUSED, REFUSED_BY_DECO };
+inline const char* beginName(eBeginResult r) {
+    static const char* N[] = {"STARTED", "ALREADY", "REFUSED", "REFUSED_BY_DECO"};
+    return N[r];
+}
+
+// Production start helper (plugin/hostDrag.hpp, P8-B): refuse if any drag, ask decorations for DRAG_START, then begin.
+inline eBeginResult kwDragBegin(CHost& h, SPT t, eMode m) {
+    if (h.target())
+        return ALREADY;
+    if (m == M_MOVE && h.decorationsTakeDragStart(t))
+        return REFUSED_BY_DECO;
+    h.beginDragTarget(t, m);
+    return STARTED;
+}
+
+// Variant of the helper with target() re-checked right before beginDragTarget (would need a P8-B helper change; not
+// authorized here). Closes the window between the entry guard and dragBegin in which DRAG_START decorations run.
+inline eBeginResult kwDragBeginRechecked(CHost& h, SPT t, eMode m) {
+    if (h.target())
+        return ALREADY;
+    if (m == M_MOVE && h.decorationsTakeDragStart(t))
+        return REFUSED_BY_DECO;
+    if (h.target())
+        return ALREADY;
+    h.beginDragTarget(t, m);
+    return STARTED;
+}
+
+struct IPolicy {
+    explicit IPolicy(CHost& h_) : h(h_) {}
+    virtual ~IPolicy()                              = default;
+    virtual const char*  name() const               = 0;
+    virtual eBeginResult begin(SPT t, eMode m)      = 0; // K1/K2
+    virtual void         requestEnd()               = 0; // K3/K9
+    virtual void         requestRearm(SPT t, eMode m) { requestEnd(); (void)begin(t, m); }
+    virtual void         unload()                   = 0; // PLUGIN_EXIT step 2
+    virtual bool         owns() const               = 0;
+    CHost&               h;
+};
+
+// Counterfactual and liveness control: starts like production, never ends anything.
+struct PolNone : IPolicy {
+    using IPolicy::IPolicy;
+    const char*  name() const override { return "none"; }
+    eBeginResult begin(SPT t, eMode m) override { return kwDragBegin(h, t, m); }
+    void         requestEnd() override {}
+    void         requestRearm(SPT, eMode) override {}
+    void         unload() override {}
+    bool         owns() const override { return false; }
+};
+
+// Legacy idea: end when the current target is the one we started.
+struct PolTarget : IPolicy {
+    using IPolicy::IPolicy;
+    WPT          remembered;
+    const char*  name() const override { return "target-eq"; }
+    eBeginResult begin(SPT t, eMode m) override {
+        const auto r = kwDragBegin(h, t, m);
+        remembered   = t;
+        return r;
+    }
+    bool owns() const override { return h.target() && h.target() == remembered.lock(); }
+    void requestEnd() override {
+        if (owns())
+            h.endDragTarget();
+    }
+    void unload() override { requestEnd(); }
+};
+
+// Previous Q4-A follow-up contract C1-C4 (session listener + generation + acquisition token + inBegin/inOwnEnd),
+// acquisition by post-check target()==t. Kept to show which new scenarios it fails.
+struct PolC3 : IPolicy {
+    using IPolicy::IPolicy;
+    uint64_t                generation = 0, acquisition = 0;
+    std::optional<uint64_t> ownedAt;
+    WPT                     ownedTarget;
+    CHyprSignalListener     listener;
+    bool                    inBegin = false, inOwnEnd = false, unloading = false;
+    const char*             name() const override { return "C3-prev"; }
+    void                    disarm() { ++acquisition; ownedAt.reset(); ownedTarget.reset(); listener.reset(); }
+    bool owns() const override { return listener && ownedAt && *ownedAt == generation && !ownedTarget.expired() && h.target() == ownedTarget.lock(); }
+    eBeginResult begin(SPT t, eMode m) override {
+        if (unloading || inOwnEnd || inBegin) return REFUSED;
+        if (h.target()) return ALREADY;
+        inBegin = true;
+        Hyprutils::Utils::CScopeGuard g([this] { inBegin = false; });
+        const uint64_t tok = ++acquisition;
+        listener           = h.m_events.ended.listen([this, tok] { if (tok != acquisition) return; ++generation; disarm(); });
+        const uint64_t G0  = generation;
+        const auto     r   = kwDragBegin(h, t, m);
+        if (generation != G0 || !h.target() || h.target() != t) { disarm(); return r == STARTED ? REFUSED : r; }
+        ownedAt = G0; ownedTarget = t;
+        return STARTED; // NOTE: ignores r (a decoration may have started the drag on t)
+    }
+    void requestEnd() override {
+        if (!owns()) return;
+        inOwnEnd = true;
+        h.endDragTarget();
+        inOwnEnd = false;
+        if (ownedAt) disarm();
+    }
+    void unload() override { unloading = true; if (owns()) requestEnd(); disarm(); }
+};
+
+// ===== CANDIDATE: verifiable ownership + ambiguity veto + consume-before-end =========================================
+// Ownership proof obligations (all must hold at the instant of the end call):
+//   (a) acquired only when the plugin's OWN beginDragTarget ran (helper result STARTED), no `ended` was observed
+//       during the begin and the controller's target is the requested one afterwards;
+//   (b) the session listener armed for that acquisition is still installed and its token is current (no `ended`
+//       delivered to it since); callbacks with an old token are ignored;
+//   (c) the acquired target is alive and is the controller's target;
+//   (d) the host is NOT inside the mapped-window callback span of a dragEnd: wasDraggingWindow() is false
+//       (U:275 sets it after the target reset, :288/:325 clear it before the emission);
+//   (e) no other plugin end/begin transaction is running (non-reentrant), and ownership is CONSUMED before calling
+//       endDragTarget, so nothing reached synchronously from inside that call can reuse it.
+struct PolVeto : IPolicy {
+    using IPolicy::IPolicy;
+    uint64_t                generation = 0, acquisition = 0;
+    std::optional<uint64_t> ownedAt;
+    WPT                     ownedTarget;
+    CHyprSignalListener     listener;
+    bool                    inBegin = false, inEnd = false, unloading = false;
+    bool                    recheck = false; // helper variant (see kwDragBeginRechecked)
+    int                     vetoes = 0;
+    const char*             name() const override { return "veto"; }
+    void                    disarm() { ++acquisition; ownedAt.reset(); ownedTarget.reset(); listener.reset(); } // veto: token + listener
+    bool                    ambiguous() const { return h.wasDraggingWindow(); }
+    bool                    owns() const override {
+        if (!listener || !ownedAt || *ownedAt != generation) return false;     // (b)
+        if (ownedTarget.expired() || h.target() != ownedTarget.lock()) return false; // (c)
+        return true;
+    }
+    eBeginResult begin(SPT t, eMode m) override {
+        if (unloading || inBegin || inEnd) return REFUSED;                 // (e)
+        if (ambiguous()) { ++vetoes; return REFUSED; }                     // (d) do not start inside a host end
+        if (h.target()) return ALREADY;
+        inBegin = true;
+        Hyprutils::Utils::CScopeGuard g([this] { inBegin = false; });
+        const uint64_t tok = ++acquisition;
+        listener           = h.m_events.ended.listen([this, tok] {
+            if (tok != acquisition) return;                                // (b) stale snapshot callback
+            ++generation;
+            disarm();
+        });
+        const uint64_t G0 = generation;
+        const auto     r  = recheck ? kwDragBeginRechecked(h, t, m) : kwDragBegin(h, t, m);
+        if (r != STARTED) { disarm(); return r; }                          // (a) e.g. the group bar took the drag
+        if (generation != G0 || h.target() != t) { disarm(); return REFUSED; } // (a)
+        ownedAt     = G0;
+        ownedTarget = t;
+        return STARTED;
+    }
+    bool endOwned() {
+        if (inEnd || inBegin) return false;                                // (e)
+        if (ambiguous()) { ++vetoes; return false; }                       // (d)
+        if (!owns()) return false;
+        disarm();                                                          // (e) consume before the call
+        inEnd = true;
+        Hyprutils::Utils::CScopeGuard g([this] { inEnd = false; });
+        return h.endDragTarget();
+    }
+    void requestEnd() override { (void)endOwned(); }
+    void requestRearm(SPT t, eMode m) override {
+        if (endOwned()) (void)begin(t, m);
+    }
+    void unload() override { unloading = true; (void)endOwned(); disarm(); }
+};
+
+// Candidate + helper that re-checks target() after the DRAG_START dispatch (review 1 major).
+struct PolVetoRecheck : PolVeto {
+    explicit PolVetoRecheck(CHost& h_) : PolVeto(h_) { recheck = true; }
+    const char* name() const override { return "veto-rc"; }
+};
+
+// ===== ALTERNATIVE (needs deferred work = lifecycle authorization): same proof, end executed at idle ================
+// End entries only RECORD the request with the current acquisition token; an idle callback (doLater) re-checks
+// ownership when no dragEnd frame and no `ended` emission is on the stack, so every `ended` of a finished end has been
+// delivered. Must be cancelled in PLUGIN_EXIT (removeDoLater/doLaterLock) - not authorized in this step.
+struct PolDefer : PolVeto {
+    using PolVeto::PolVeto;
+    std::optional<uint64_t> pendingFor;
+    std::optional<eMode>    pendingRearm;
+    SPT                     rearmTarget;
+    bool                    scheduled = false;
+    const char*             name() const override { return "defer"; }
+    void                    schedule() {
+        if (scheduled) return;
+        scheduled = true;
+        h.idleQueue.push_back([this] {
+            CHost::CallerScope s(h, W_KWINISH);
+            scheduled      = false;
+            const auto tok = pendingFor;
+            const auto rm  = pendingRearm;
+            auto       rt  = rearmTarget;
+            pendingFor.reset(); pendingRearm.reset(); rearmTarget = nullptr;
+            if (!tok || *tok != acquisition) return; // ownership changed since the request
+            if (endOwned() && rm) (void)begin(rt, *rm);
+        });
+    }
+    void requestEnd() override {
+        if (unloading || !owns()) return;
+        pendingFor = acquisition;
+        schedule();
+    }
+    void requestRearm(SPT t, eMode m) override {
+        if (unloading || !owns()) return;
+        pendingFor = acquisition; pendingRearm = m; rearmTarget = t;
+        schedule();
+    }
+    void unload() override { pendingFor.reset(); pendingRearm.reset(); rearmTarget = nullptr; PolVeto::unload(); }
+};
+
+// ===== ALTERNATIVE (needs function hooks on dragBegin/dragEnd = hook + lifecycle authorization) =====================
+// A hook gives a real session identity: any begin or end after the acquisition changes the sequence.
+struct PolHook : IPolicy {
+    using IPolicy::IPolicy;
+    std::optional<uint64_t> ownedSeq;
+    WPT                     ownedTarget;
+    bool                    inBegin = false, inEnd = false, unloading = false;
+    const char*             name() const override { return "hook"; }
+    bool owns() const override { return ownedSeq && *ownedSeq == h.hookSeq() && !ownedTarget.expired() && h.target() == ownedTarget.lock(); }
+    eBeginResult begin(SPT t, eMode m) override {
+        if (unloading || inBegin || inEnd) return REFUSED;
+        if (h.target()) return ALREADY;
+        inBegin = true;
+        Hyprutils::Utils::CScopeGuard g([this] { inBegin = false; });
+        const uint64_t S0 = h.hookSeq();
+        const auto     r  = kwDragBegin(h, t, m);
+        if (r != STARTED) return r;
+        if (h.hookSeq() != S0 + 1 || h.target() != t) return REFUSED; // anything else began/ended meanwhile
+        ownedSeq    = h.hookSeq();
+        ownedTarget = t;
+        return STARTED;
+    }
+    bool endOwned() {
+        if (inEnd || inBegin || !owns()) return false;
+        ownedSeq.reset();
+        inEnd = true;
+        Hyprutils::Utils::CScopeGuard g([this] { inEnd = false; });
+        return h.endDragTarget();
+    }
+    void requestEnd() override { (void)endOwned(); }
+    void requestRearm(SPT t, eMode m) override { if (endOwned()) (void)begin(t, m); }
+    void unload() override { unloading = true; (void)endOwned(); ownedSeq.reset(); }
+};
+
+######## docs/port-0-57/evidence/Q4A-policy-tests/policytest.cpp ########
+// Q4-A end-policy study: scenarios and three independent oracles. Host-free; NOT production code.
+// Build: g++/clang++ -std=c++2b -fsanitize=address,undefined policytest.cpp $(pkg-config --cflags --libs hyprutils)
+#include "policies.hpp"
+
+#include <cstring>
+#include <map>
+#include <memory>
+#include <set>
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Driver: plugin entries are attributed to Kwinish; foreign code pushes its own identity.
+struct Ctx {
+    CHost&                   h;
+    IPolicy&                 p;
+    std::vector<std::string> spec; // scenario-specific contract checks (column s)
+    void expect(bool ok, const char* what) { if (!ok) spec.push_back(what); }
+    SPT      mk(const char* n) {
+        auto t  = makeShared<STarget>();
+        t->name = n;
+        h.windows.push_back(t);
+        return t;
+    }
+    eBeginResult kwBegin(SPT t, eMode m = M_MOVE) {
+        CHost::CallerScope s(h, W_KWINISH);
+        return p.begin(t, m);
+    }
+    void kwEnd(const char* where) { // K3/K9 entry (button release, unsnap pause, menu-grab click...)
+        Truth::noteEndRequest(h, where);
+        CHost::CallerScope s(h, W_KWINISH);
+        p.requestEnd();
+    }
+    void kwRearm(SPT t, const char* where) { // rearm entry (Shift / unsnap restart)
+        Truth::noteEndRequest(h, where);
+        CHost::CallerScope s(h, W_KWINISH);
+        p.requestRearm(t, M_MOVE);
+    }
+    void kwUnload() {
+        Truth::noteEndRequest(h, "unload step 2");
+        CHost::CallerScope s(h, W_KWINISH);
+        p.unload();
+    }
+    void hostEnd() { // key / button / floatWindow / Actions::mouse / unmap (F7)
+        CHost::CallerScope s(h, W_HOST);
+        h.endDragTarget();
+    }
+    void guardedBegin(eWho w, SPT t, eMode m = M_MOVE) { // every 0.57 host caller checks target() first (F2/A3)
+        CHost::CallerScope s(h, w);
+        if (!h.target()) h.beginDragTarget(t, m);
+    }
+    void foreignEnd(eWho w) {
+        CHost::CallerScope s(h, w);
+        h.endDragTarget();
+    }
+    void groupBarStart(eWho w, SPT t) { // Actions::mouse over a group bar (ConfigActions.cpp:1704,1733)
+        CHost::CallerScope s(h, w);
+        if (!h.target()) (void)h.decorationsTakeDragStart(t);
+    }
+};
+
+struct SScenario {
+    const char*                     name;
+    const char*                     what;
+    std::function<void(Ctx&)>       body;
+    std::vector<CHyprSignalListener> keep; // unused placeholder
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+struct SFinal {
+    bool        has = false;
+    eWho        who = W_HOST;
+    std::string target;
+    int         ordinal = 0;
+    eMode       mode    = M_INVALID;
+    bool        wasDragging = false;
+    std::string str() const {
+        if (!has) return std::string("no drag") + (wasDragging ? " wasDragging=1" : "");
+        return std::string(whoName(who)) + ":" + target + "#" + std::to_string(ordinal) + " mode=" + std::to_string(mode) + (wasDragging ? " wasDragging=1" : "");
+    }
+};
+struct SResult {
+    std::vector<std::string> o1, o2, o3, spec;
+    std::string              orphan;
+    SFinal                   fin;
+    std::string              note;
+};
+
+template <typename P>
+static SResult runOne(const SScenario& sc) {
+    CHost h;
+    P     p(h);
+    Ctx   c{h, p, {}};
+    sc.body(c);
+    h.runIdle(); // the event loop returns to idle at the end of the scenario
+    SResult r;
+    r.spec = c.spec;
+    // O1: no improper end/replacement requested by Kwinish (truth: caller + session initiator at the dragEnd entry)
+    r.o1 = Truth::violations(h);
+    // O2: every provably safe own end request was honoured (possibly at idle)
+    for (const auto& q : Truth::requests(h))
+        if (q.livenessRequired && q.session && !Truth::sessions(h)[*q.session].endedByKwinish)
+            r.o2.push_back(std::string("own clean session not ended after request at '") + q.where + "'");
+    if (auto s = Truth::current(h)) {
+        r.fin = {true, s->who, s->target, s->ordinal, h.mode(), h.wasDraggingWindow()};
+        if (s->who == W_KWINISH && !p.owns()) r.orphan = "kwinish session " + s->target + " alive without ownership";
+    } else
+        r.fin.wasDragging = h.wasDraggingWindow();
+    return r;
+}
+
+// O3: compare the final host state with the counterfactual run in which Kwinish never ends anything (PolNone).
+static void oracle3(SResult& r, const SResult& none) {
+    const auto& P = r.fin;
+    const auto& N = none.fin;
+    if (P.wasDragging != N.wasDragging) r.o3.push_back("wasDraggingWindow differs from counterfactual");
+    if (N.has && N.who != W_KWINISH) {
+        if (!P.has || P.who != N.who || P.target != N.target || P.ordinal != N.ordinal || P.mode != N.mode)
+            r.o3.push_back("foreign session " + N.str() + " (counterfactual) became " + P.str());
+    } else if (!N.has && P.has && P.who != W_KWINISH)
+        r.o3.push_back("foreign session " + P.str() + " exists only with the policy");
+    // attribution of the final host state
+    if (P.has && P.mode == M_INVALID) {
+        const bool same = N.has && N.who == P.who && N.target == P.target && N.ordinal == P.ordinal && N.mode == P.mode;
+        if (same)
+            r.note = std::string("compositor-caused: ") + whoName(P.who) + " session left with mode INVALID by the host; identical in the run without Kwinish ends";
+        else if (r.o1.empty())
+            r.note = std::string("host-caused inside an end Kwinish requested for ITS OWN session: ") + whoName(P.who) +
+                " session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)";
+        else
+            r.note = "differs from the run without Kwinish ends; caused by the improper end reported by O1";
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+static std::vector<SScenario> scenarios() {
+    std::vector<SScenario> v;
+    auto add = [&](const char* n, const char* w, std::function<void(Ctx&)> b) { v.push_back({n, w, std::move(b), {}}); };
+
+    // ---- own drag, normal paths ----
+    add("N1.own.release", "own drag, release at top level", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.kwEnd("release");
+    });
+    add("N2.own.rearm", "own drag, rearm (end+begin), then release", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.kwRearm(A, "rearm");
+        c.h.runIdle();
+        c.kwEnd("release after rearm");
+    });
+    add("N3.own.restart", "host ends own drag (key), later Kwinish starts again and releases", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.hostEnd();
+        c.kwBegin(A);
+        c.kwEnd("release of restarted drag");
+    });
+    // ---- external drags ----
+    add("E1.ext.same-window", "host ends own; user drag on SAME window; stale Kwinish release (S2)", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.hostEnd();
+        c.guardedBegin(W_USER, A);
+        c.kwEnd("stale release");
+    });
+    add("E2.ext.already", "third-party drag active; Kwinish begin refused; release", [](Ctx& c) {
+        auto A = c.mk("A"), X = c.mk("X");
+        c.guardedBegin(W_THIRD, X);
+        c.kwBegin(A);
+        c.kwEnd("release");
+    });
+    // ---- R1-R3 (review regressions) ----
+    for (bool same : {false, true})
+        add(same ? "R1.same" : "R1.other", "begin refused inside host -> ended -> earlier listener calls Kwinish begin", [same](Ctx& c) {
+            auto A = c.mk("A"), B = same ? A : c.mk("B");
+            A->mapped = false;
+            auto once = std::make_shared<bool>(false);
+            auto L    = std::make_shared<CHyprSignalListener>();
+            *L        = c.h.m_events.ended.listen([&c, B, once] {
+                if (*once) return;
+                *once     = true;
+                B->mapped = true;
+                c.kwBegin(B);
+            });
+            c.kwBegin(A);
+            L->reset();
+            c.kwEnd("release");
+        });
+    add("R2.nested-snapshots", "listener registered BEFORE Kwinish: ended -> X begin/end -> nested ended -> Kwinish acquires B", [](Ctx& c) {
+        auto A = c.mk("A"), X = c.mk("X"), B = c.mk("B");
+        auto level = std::make_shared<int>(0);
+        auto L     = std::make_shared<CHyprSignalListener>();
+        *L = c.h.m_events.ended.listen([&c, X, B, level] {
+            if (*level == 0) { *level = 1; c.guardedBegin(W_THIRD, X); c.foreignEnd(W_THIRD); }
+            else if (*level == 1) { *level = 2; c.kwBegin(B); }
+        });
+        c.kwBegin(A); // its per-session listener is AFTER L in both snapshots
+        c.hostEnd();
+        L->reset();
+        c.kwEnd("release B");
+    });
+    add("R3.mode-clobber", "third-party starts X inside host end of own drag", [](Ctx& c) {
+        auto A = c.mk("A"), X = c.mk("X");
+        c.kwBegin(A);
+        c.h.onFocus = [&c, X] { c.h.onFocus = nullptr; c.guardedBegin(W_THIRD, X); };
+        c.hostEnd();
+        c.kwEnd("release");
+    });
+    // ---- R4: target reset and `ended` are not atomic; routes inside the mapped callback span (wasDragging=1) ----
+    struct SRoute { const char* n; int k; };
+    for (auto [rn, k] : {SRoute{"R4.host.focus", 0}, SRoute{"R4.host.deco-continue", 1}, SRoute{"R4.host.deco-return", 2}, SRoute{"R4.host.group-add", 3},
+                         SRoute{"R4.host.floating", 4}, SRoute{"R4.host.geometry", 5}, SRoute{"R4.own.focus", 6}, SRoute{"R4.own.deco-return", 7}, SRoute{"R4.host.rearm", 8}})
+        add(rn, "re-begin on SAME target + Kwinish end entry inside the host end", [k](Ctx& c) {
+            auto A   = c.mk("A");
+            auto hit = [&c, A, k] { c.guardedBegin(W_THIRD, A); if (k == 8) c.kwRearm(A, "rearm inside end window"); else c.kwEnd("inside end window"); };
+            if (k == 3) A->joinsGroup = true;
+            if (k == 4) A->draggingTiled = true;
+            c.kwBegin(A);
+            auto once = std::make_shared<bool>(false);
+            auto h1   = [hit, once] { if (!*once) { *once = true; hit(); } };
+            switch (k) {
+                case 0: case 6: case 8: c.h.onFocus = h1; break;
+                case 1: c.h.onDecoDragEnd = [h1] { h1(); return false; }; break;
+                case 2: case 7: c.h.onDecoDragEnd = [h1] { h1(); return true; }; break;
+                case 3: c.h.onGroupAdd = h1; break;
+                case 4: c.h.onFloatingChange = h1; break;
+                case 5: c.h.onSetTargetGeom = h1; break;
+            }
+            if (k == 6 || k == 7) c.kwEnd("release (own end)");
+            else c.hostEnd();
+        });
+    add("R4.nested-clear", "inside host end: X begin/end (nested ended clears wasDragging), re-begin A, Kwinish end", [](Ctx& c) {
+        auto A = c.mk("A"), X = c.mk("X");
+        c.kwBegin(A);
+        c.h.onFocus = [&c, A, X] {
+            c.h.onFocus = nullptr;
+            c.guardedBegin(W_THIRD, X);
+            c.foreignEnd(W_THIRD);
+            c.guardedBegin(W_THIRD, A);
+            c.kwEnd("after nested end, still inside outer end");
+        };
+        c.hostEnd();
+    });
+    // ---- during the `ended` emission (after :325, wasDragging=0): foreign listener registered BEFORE Kwinish ----
+    for (int k : {0, 1, 2})
+        add(k == 0 ? "R4.emit.host" : k == 1 ? "R4.emit.own" : "M2.emit.no-rebegin",
+            k == 2 ? "foreign ended listener triggers a Kwinish end entry without re-begin"
+                   : "foreign ended listener (registered first) re-begins SAME target and triggers a Kwinish end entry",
+            [k](Ctx& c) {
+                auto A    = c.mk("A");
+                auto once = std::make_shared<bool>(false);
+                auto L    = std::make_shared<CHyprSignalListener>();
+                *L        = c.h.m_events.ended.listen([&c, A, once, k] {
+                    if (*once) return;
+                    *once = true;
+                    if (k != 2) c.guardedBegin(W_THIRD, A);
+                    c.kwEnd("inside ended emission");
+                });
+                c.kwBegin(A);
+                if (k == 1) c.kwEnd("release (own end)");
+                else c.hostEnd();
+                L->reset();
+            });
+    add("M3.emit.acquire-then-release", "Kwinish begins B inside an ended emission (stale snapshot), releases at top level", [](Ctx& c) {
+        auto A = c.mk("A"), B = c.mk("B");
+        auto once = std::make_shared<bool>(false);
+        auto L    = std::make_shared<CHyprSignalListener>();
+        *L        = c.h.m_events.ended.listen([&c, B, once] { if (!*once) { *once = true; c.kwBegin(B); } });
+        c.kwBegin(A);
+        c.hostEnd();
+        L->reset();
+        c.kwEnd("release B");
+    });
+    // ---- special exits ----
+    add("X1.silent-death", "own target destroyed (no ended), host end no-op, third drag X, release", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.h.windows.clear();
+        A = nullptr;
+        c.hostEnd();
+        c.guardedBegin(W_THIRD, c.mk("X"));
+        c.kwEnd("release");
+    });
+    add("X2.ended-without-reset", "unmapped target without window: ended emitted, target kept (F5)", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        A->mapped = false; A->hasWindow = false;
+        c.hostEnd();
+        c.kwEnd("release");
+    });
+    for (int v = 0; v < 4; ++v)
+        add(v == 0 ? "X3.refused.unmapped" : v == 1 ? "X3.refused.no-workspace" : v == 2 ? "X3.refused.fs-reject" : "X3.refused.no-window",
+            "begin refused inside dragBegin (ended inside begin); later third drag; release", [v](Ctx& c) {
+                auto A = c.mk("A");
+                if (v == 0) A->mapped = false;
+                if (v == 1) A->hasWorkspace = false;
+                if (v == 2) A->fsWorkspaceReject = true;
+                if (v == 3) { A->mapped = false; A->hasWindow = false; }
+                const auto r = c.kwBegin(A);
+                c.expect(r != STARTED || Truth::startedCleanly(c.h, W_KWINISH), "STARTED only for a Kwinish session that began without an end/refusal");
+                if (v != 3) c.guardedBegin(W_THIRD, c.mk("X"));
+                c.kwEnd("release");
+            });
+    add("X4.fs-reject-callback", "refusal dragEnd inside Kwinish begin runs callbacks: third re-begins A + Kwinish end entry", [](Ctx& c) {
+        auto A = c.mk("A");
+        A->fsWorkspaceReject = true;
+        c.h.onFocus = [&c, A] { c.h.onFocus = nullptr; A->fsWorkspaceReject = false; c.guardedBegin(W_THIRD, A); c.kwEnd("inside refusal end"); };
+        const auto r = c.kwBegin(A);
+        c.expect(r != STARTED || Truth::startedCleanly(c.h, W_KWINISH), "STARTED only for a Kwinish session that began without an end/refusal");
+        c.kwEnd("release");
+    });
+    // ---- group bar ----
+    add("G1.kwbegin-groupbar-same", "Kwinish begin over group bar: bar starts its own drag on the SAME window", [](Ctx& c) {
+        auto A = c.mk("A");
+        A->groupBarStart = true;
+        c.kwBegin(A);
+        c.kwEnd("release");
+    });
+    add("H1.helper.deco-start-false", "Kwinish begin: a third-party DRAG_START decoration starts its own drag and returns false (review 1)", [](Ctx& c) {
+        auto A = c.mk("A");
+        A->foreignDecoStartReturnsFalse = true;
+        c.kwBegin(A);
+        c.kwEnd("release");
+    });
+    add("G1.kwbegin-groupbar-other", "Kwinish begin over group bar: bar starts a drag on another member", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.mk("B");
+        A->groupBarStart = true; A->groupBarStartsOn = "B";
+        c.kwBegin(A);
+        c.kwEnd("release");
+    });
+    add("G2.drop-into-group", "own release drops into a group: group add + focus inside end; third re-begins A + Kwinish entry", [](Ctx& c) {
+        auto A = c.mk("A");
+        A->joinsGroup = true;
+        c.kwBegin(A);
+        c.h.onGroupAdd = [&c, A] { c.h.onGroupAdd = nullptr; c.guardedBegin(W_THIRD, A); c.kwEnd("inside group add"); };
+        c.kwEnd("release (own end)");
+    });
+    add("G3.groupbar-by-user", "host ended own; user drags a tab from the group bar (same window); stale release", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.hostEnd();
+        A->groupBarStart = true;
+        c.groupBarStart(W_USER, A);
+        c.kwEnd("stale release");
+    });
+    add("G4.groupbar-inside-end", "inside host end: Lua/user starts a group-bar drag on SAME window; Kwinish end entry", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        A->groupBarStart = true;
+        c.h.onFocus = [&c, A] { c.h.onFocus = nullptr; c.groupBarStart(W_USER, A); c.kwEnd("inside end window"); };
+        c.hostEnd();
+    });
+    add("G5.groupbar-focus-kwbegin", "group bar start (by user) focuses window; Kwinish begin entry from that focus", [](Ctx& c) {
+        auto A = c.mk("A");
+        A->groupBarStart = true;
+        c.h.onGroupBarFocus = [&c, A] { c.h.onGroupBarFocus = nullptr; c.kwBegin(A); };
+        c.groupBarStart(W_USER, A);
+        c.kwEnd("release");
+    });
+    // ---- begin inside a host end ----
+    add("B1.kwbegin-inside-end", "Kwinish begin entry runs inside the host end of a third drag", [](Ctx& c) {
+        auto A = c.mk("A"), X = c.mk("X");
+        c.guardedBegin(W_THIRD, X);
+        c.h.onFocus = [&c, A] { c.h.onFocus = nullptr; c.kwBegin(A); };
+        c.hostEnd();
+        c.kwEnd("release");
+    });
+    // ---- unload ----
+    add("U1.unload.own", "unload step 2 with own drag", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.kwUnload();
+    });
+    add("U2.unload.third", "unload with a user drag on the same window after own ended", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        c.hostEnd();
+        c.guardedBegin(W_USER, A);
+        c.kwUnload();
+    });
+    add("U3.unload.then-begin", "begin after unload step 2 started", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwUnload();
+        const auto r = c.kwBegin(A);
+        c.expect(r != STARTED && !c.h.target(), "no Kwinish drag starts after unload step 2");
+    });
+    // ---- premise A3 (outside the guarded domain) ----
+    add("L1.A3.unguarded", "third party calls dragBegin on SAME target while own drag is active (violates A3)", [](Ctx& c) {
+        auto A = c.mk("A");
+        c.kwBegin(A);
+        { CHost::CallerScope s(c.h, W_THIRD); c.h.beginDragTarget(A, M_RESIZE); }
+        c.kwEnd("release");
+    });
+    return v;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+template <typename P>
+static std::map<std::string, SResult> runAll(const std::vector<SScenario>& sc, const std::map<std::string, SResult>* none) {
+    std::map<std::string, SResult> out;
+    for (auto& s : sc) {
+        auto r = runOne<P>(s);
+        if (none) oracle3(r, none->at(s.name));
+        out[s.name] = r;
+    }
+    return out;
+}
+
+int main(int argc, char** argv) {
+    const bool verbose = argc > 1 && !std::strcmp(argv[1], "-v");
+    const auto sc      = scenarios();
+    auto       none    = runAll<PolNone>(sc, nullptr);
+    for (auto& [k, r] : none) oracle3(r, none.at(k));
+    std::vector<std::pair<std::string, std::map<std::string, SResult>>> all;
+    all.push_back({"none", none});
+    all.push_back({"target-eq", runAll<PolTarget>(sc, &none)});
+    all.push_back({"C3-prev", runAll<PolC3>(sc, &none)});
+    all.push_back({"veto", runAll<PolVeto>(sc, &none)});
+    all.push_back({"veto-rc", runAll<PolVetoRecheck>(sc, &none)});
+    all.push_back({"defer", runAll<PolDefer>(sc, &none)});
+    all.push_back({"hook", runAll<PolHook>(sc, &none)});
+
+    std::printf("%-30s", "scenario \\ policy");
+    for (auto& [n, _] : all) std::printf(" %-10s", n.c_str());
+    std::printf("\n");
+    for (auto& s : sc) {
+        std::printf("%-30s", s.name);
+        for (auto& [n, m] : all) {
+            const auto& r = m.at(s.name);
+            std::string cell = std::string(r.o1.empty() ? "." : "1") + (r.o2.empty() ? "." : "2") + (r.o3.empty() ? "." : "3") + (r.spec.empty() ? "" : "s") + (r.orphan.empty() ? "" : "o");
+            std::printf(" %-10s", cell.c_str());
+        }
+        std::printf("\n");
+    }
+    std::printf("legend: 1 = O1 improper Kwinish end, 2 = O2 safe own end not honoured, 3 = O3 final state differs from counterfactual, s = scenario contract check failed, o = Kwinish session alive without ownership (info)\n");
+    // machine-readable lines + details
+    for (auto& [n, m] : all)
+        for (auto& s : sc) {
+            const auto& r = m.at(s.name);
+            std::printf("RES %s %s O1=%d O2=%d O3=%d spec=%d orphan=%d final=[%s]%s%s\n", n.c_str(), s.name, !r.o1.empty(), !r.o2.empty(), !r.o3.empty(), !r.spec.empty(), !r.orphan.empty(), r.fin.str().c_str(),
+                        r.note.empty() ? "" : " NOTE: ", r.note.c_str());
+            if (verbose || n == "veto" || n == "veto-rc" || n == "defer")
+                for (auto* vec : {&r.o1, &r.o2, &r.o3, &r.spec})
+                    for (auto& e : *vec) std::printf("    %s/%s: %s\n", n.c_str(), s.name, e.c_str());
+        }
+    return 0;
+}
+
+######## docs/port-0-57/evidence/Q4A-policy-tests/run.py ########
+#!/usr/bin/env python3
+"""Q4-A end-policy runner (host-free). Builds GCC and Clang with ASan/UBSan and -Werror, compares the policy x scenario
+matrix with expected-matrix.txt, checks both compilers print identical output, then runs mutations of the candidate.
+Writes nothing into the repository; scratch dir is printed. Exit 0 = observed matrix equals the expected one AND every
+non-redundant mutant was detected by its declared killer cell. Exit 0 does NOT mean the candidate is approved: read the
+VERDICT lines."""
+import os, pathlib, re, shutil, subprocess, sys, tempfile
+
+HERE = pathlib.Path(__file__).resolve().parent
+SCRATCH = pathlib.Path(tempfile.mkdtemp(prefix="q4a-policy.", dir=os.environ.get("TMPDIR", "/home/lhen/.hermes/cache/scratch")))
+ENV = dict(os.environ, HOME=str(SCRATCH / "home"), XDG_CONFIG_HOME=str(SCRATCH / "home/.config"), XDG_CACHE_HOME=str(SCRATCH / "home/.cache"))
+for k in ("DISPLAY", "WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
+    ENV.pop(k, None)
+(SCRATCH / "home").mkdir()
+HU = subprocess.run(["pkg-config", "--cflags", "--libs", "hyprutils"], capture_output=True, text=True, check=True).stdout.split()
+FILES = ["host.hpp", "policies.hpp", "policytest.cpp"]
+print(f"scratch: {SCRATCH}")
+
+
+def build_run(src: pathlib.Path, cxx: str, tag: str):
+    exe = SCRATCH / f"t-{tag}-{cxx}"
+    b = subprocess.run([cxx, "-std=c++2b", "-Wall", "-Wextra", "-Werror", "-g", "-fsanitize=address,undefined", "-fno-sanitize-recover=all",
+                        str(src / "policytest.cpp"), "-o", str(exe), *HU], capture_output=True, text=True, env=ENV)
+    if b.returncode:
+        return b.returncode, None, b.stdout + b.stderr
+    r = subprocess.run([str(exe)], capture_output=True, text=True, env=ENV, timeout=120)
+    return 0, r, ""
+
+
+def matrix(out: str):
+    lines = out.splitlines()
+    start = next(i for i, l in enumerate(lines) if l.startswith("scenario \\ policy"))
+    end = next(i for i, l in enumerate(lines) if l.startswith("legend:"))
+    head = lines[start].split()[3:]
+    m = {}
+    for l in lines[start + 1:end]:
+        f = l.split()
+        for pol, cell in zip(head, f[1:]):
+            m[(f[0], pol)] = cell
+    return lines[start:end + 1], m
+
+
+fail = False
+outs = {}
+for cxx in ("g++", "clang++"):
+    rc, r, log = build_run(HERE, cxx, "base")
+    if rc:
+        print(f"FAIL: build {cxx} rc={rc}\n{log}")
+        sys.exit(1)
+    (SCRATCH / f"run-{cxx}.txt").write_text(r.stdout + r.stderr)
+    if r.returncode or r.stderr.strip():
+        print(f"FAIL: run {cxx} rc={r.returncode} stderr={r.stderr[:2000]}")
+        sys.exit(1)
+    outs[cxx] = r.stdout
+    print(f"{cxx}: build 0, run 0, no sanitizer output")
+if outs["g++"] != outs["clang++"]:
+    print("FAIL: GCC and Clang outputs differ")
+    fail = True
+else:
+    print("GCC and Clang outputs identical")
+# ---- real installed headers: the observations used by the candidate exist with these types ----
+W = HERE.parents[3]
+PF = ["-std=c++2b", "-Wno-c++11-narrowing", f"-I{W / 'plugin'}"] + subprocess.run(
+    ["pkg-config", "--cflags", "pixman-1", "libdrm", "hyprland", "libinput", "libudev", "wayland-server", "xkbcommon", "cairo", "librsvg-2.0"],
+    capture_output=True, text=True, check=True).stdout.split()
+for cxx in ("g++", "clang++"):
+    pos = subprocess.run([cxx, *PF, "-fsyntax-only", str(HERE / "probe.cpp")], capture_output=True, text=True, env=ENV)
+    neg = subprocess.run([cxx, *PF, "-DNEG", "-fsyntax-only", str(HERE / "probe.cpp")], capture_output=True, text=True, env=ENV)
+    errs = [l for l in (neg.stdout + neg.stderr).splitlines() if re.search(r": (fatal )?error:", l)]
+    ok = pos.returncode == 0 and neg.returncode != 0 and len(errs) == 1 and "sessionId" in errs[0]
+    print(f"{cxx} probe: positive rc={pos.returncode}, NEG rc={neg.returncode}, NEG errors={len(errs)} -> {'OK' if ok else 'FAIL'}")
+    if not ok:
+        print(pos.stderr[:1500], neg.stderr[:1500])
+        fail = True
+
+text, M = matrix(outs["g++"])
+expected = (HERE / "expected-matrix.txt").read_text().splitlines()
+if text != expected:
+    print("FAIL: matrix differs from expected-matrix.txt")
+    for a, b in zip(text, expected):
+        if a != b:
+            print(f"  got: {a}\n  exp: {b}")
+    fail = True
+else:
+    print(f"matrix equals expected-matrix.txt ({len(text) - 2} scenarios x {len(text[0].split()) - 3} policies)")
+print("\n".join(text))
+
+# ---- verdict lines (computed, not hard-coded) ----
+pols = ["none", "target-eq", "C3-prev", "veto", "veto-rc", "defer", "hook"]
+scen = sorted({s for s, _ in M})
+for p in pols:
+    bad = {k: [s for s in scen if k in M[(s, p)]] for k in "123s"}
+    print(f"VERDICT {p}: O1(improper end)={bad['1'] or 'none'} O2(safe own end missed)={bad['2'] or 'none'} "
+          f"O3(final state)={bad['3'] or 'none'} spec={bad['s'] or 'none'}")
+
+# ---- mutations of the candidate (PolVeto and its deferred variant) ----
+# (name, file, find, replace, killer cell "SCENARIO policy" or None = expected redundant)
+MUT = [
+    ("end-ambiguity-veto", "policies.hpp", "        if (ambiguous()) { ++vetoes; return false; }                       // (d)\n", "", "R4.host.focus veto"),
+    ("begin-ambiguity-veto", "policies.hpp", "if (ambiguous()) { ++vetoes; return REFUSED; }", "if (false) { ++vetoes; return REFUSED; }", "B1.kwbegin-inside-end veto"),
+    ("consume-before-end", "policies.hpp", "        disarm();                                                          // (e) consume before the call\n", "", None),
+    ("end-nonreentrant-guard", "policies.hpp", "if (inEnd || inBegin) return false;                                // (e)", "if (false) return false;", None),
+    ("consume-and-end-guard", "policies.hpp", "        if (inEnd || inBegin) return false;                                // (e)\n        if (ambiguous()) { ++vetoes; return false; }                       // (d)\n        if (!owns()) return false;\n        disarm();                                                          // (e) consume before the call\n",
+     "        if (ambiguous()) { ++vetoes; return false; }                       // (d)\n        if (!owns()) return false;\n", "R4.emit.own veto"),
+    ("callback-token", "policies.hpp", "if (tok != acquisition) return;                                // (b) stale snapshot callback", "(void)tok;", "R2.nested-snapshots veto"),
+    ("disarm-bumps-token", "policies.hpp", "disarm() { ++acquisition; ownedAt.reset(); ownedTarget.reset(); listener.reset(); } // veto", "disarm() { ownedAt.reset(); ownedTarget.reset(); listener.reset(); } // veto", None),
+    ("result-aware-acquisition", "policies.hpp", "if (r != STARTED) { disarm(); return r; }", "if (false) { disarm(); return r; }", "G1.kwbegin-groupbar-same veto"),
+    ("generation-in-postcheck", "policies.hpp", "if (generation != G0 || h.target() != t) { disarm(); return REFUSED; } // (a)", "if (h.target() != t) { disarm(); return REFUSED; } (void)G0; // (a)", "X4.fs-reject-callback veto"),
+    ("begin-nonreentrant", "policies.hpp", "if (unloading || inBegin || inEnd) return REFUSED;                 // (e)", "if (unloading || inEnd) return REFUSED;", "R1.other veto"),
+    ("owns-target-alive-equal", "policies.hpp", "        if (ownedTarget.expired() || h.target() != ownedTarget.lock()) return false; // (c)\n", "", "X1.silent-death veto"),
+    ("owns-listener-generation", "policies.hpp", "if (!listener || !ownedAt || *ownedAt != generation) return false;     // (b)", "if (!ownedAt) return false;", None),
+    ("unload-flag", "policies.hpp", "void unload() override { unloading = true; (void)endOwned(); disarm(); }", "void unload() override { (void)endOwned(); disarm(); }", "U3.unload.then-begin veto"),
+    ("defer-executes-synchronously", "policies.hpp", "        pendingFor = acquisition;\n        schedule();\n    }\n    void requestRearm", "        (void)endOwned();\n    }\n    void requestRearm", "R4.emit.host defer"),
+    ("helper-target-recheck", "policies.hpp", "        return REFUSED_BY_DECO;\n    if (h.target())\n        return ALREADY;\n", "        return REFUSED_BY_DECO;\n", "H1.helper.deco-start-false veto-rc"),
+    ("defer-token-recheck", "policies.hpp", "if (!tok || *tok != acquisition) return; // ownership changed since the request", "if (!tok) return;", None),
+]
+killed = redundant_ok = 0
+for name, f, find, repl, killer in MUT:
+    d = SCRATCH / f"mut-{name}"
+    d.mkdir()
+    for x in FILES:
+        shutil.copy(HERE / x, d / x)
+    s = (d / f).read_text()
+    if s.count(find) != 1:
+        print(f"MUT {name}: FAIL anchor count={s.count(find)}")
+        fail = True
+        continue
+    (d / f).write_text(s.replace(find, repl))
+    rc, r, log = build_run(d, "g++", name)
+    if rc:
+        print(f"MUT {name}: FAIL does not compile (not a detection)\n{log[:800]}")
+        fail = True
+        continue
+    if r.returncode or r.stderr.strip():
+        print(f"MUT {name}: FAIL crashed/sanitizer (not a detection): {r.stderr[:400]}")
+        fail = True
+        continue
+    _, MM = matrix(r.stdout)
+    diff = sorted(f"{s} {p}: {M[(s, p)]}->{MM[(s, p)]}" for (s, p) in M if M[(s, p)] != MM.get((s, p)))
+    if killer is None:
+        status = "survives (declared redundant)" if not diff else "KILLED although declared redundant"
+        if diff:
+            fail = True
+        else:
+            redundant_ok += 1
+    else:
+        ks, kp = killer.split()
+        if M[(ks, kp)] != MM[(ks, kp)]:
+            status = f"killed by {killer}"
+            killed += 1
+        else:
+            status = f"FAIL: declared killer {killer} unchanged"
+            fail = True
+    print(f"MUT {name}: {status}; changed cells: {diff if diff else 'none'}")
+print(f"mutations: {killed} killed by declared cell, {redundant_ok} survive as declared redundant, of {len(MUT)}")
+print("RESULT:", "FAIL" if fail else "PASS (matrix reproduced; see VERDICT lines - this is not an approval)")
+sys.exit(1 if fail else 0)
+
+######## docs/port-0-57/evidence/Q4A-policy-tests/expected-matrix.txt ########
+scenario \ policy              none       target-eq  C3-prev    veto       veto-rc    defer      hook      
+N1.own.release                 .2.o       ...        ...        ...        ...        ...        ...       
+N2.own.rearm                   .2.o       ...        ...        ...        ...        ...        ...       
+N3.own.restart                 .2.o       ...        ...        ...        ...        ...        ...       
+E1.ext.same-window             ...        1.3        ...        ...        ...        ...        ...       
+E2.ext.already                 ...        ...        ...        ...        ...        ...        ...       
+R1.other                       .2.o       .2.o       ...        ...        ...        ...        ...       
+R1.same                        .2.o       ...        ...        ...        ...        ...        ...       
+R2.nested-snapshots            .2.o       ...        ...        ...        ...        ...        ...       
+R3.mode-clobber                ...        ...        ...        ...        ...        ...        ...       
+R4.host.focus                  ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-continue          ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-return            ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.group-add              ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.floating               ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.geometry               ...        1.3        1.3        ...        ...        ...        ...       
+R4.own.focus                   .2.o       1..        1..        ...        ...        ...        ...       
+R4.own.deco-return             .2.o       1..        1..        ...        ...        ...        ...       
+R4.host.rearm                  ...        1.3        1.3o       ...        ...        ...        ...       
+R4.nested-clear                ...        1.3        ...        ...        ...        ...        ...       
+R4.emit.host                   ...        1.3        1.3        1.3        1.3        ...        ...       
+R4.emit.own                    .2.o       1..        1..        ...        ...        ...        ...       
+M2.emit.no-rebegin             ...        ...        ...        ...        ...        ...        ...       
+M3.emit.acquire-then-release   .2.o       ...        ...        ...        ...        ...        ...       
+X1.silent-death                ...        ...        ...        ...        ...        ...        ...       
+X2.ended-without-reset         ...o       ...        ...o       ...o       ...o       ...o       ...o      
+X3.refused.unmapped            ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-workspace        ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.fs-reject           ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-window           ...so      ...s       ...o       ...o       ...o       ...o       ...o      
+X4.fs-reject-callback          ...s       1.3s       ...        ...        ...        ...        ...       
+G1.kwbegin-groupbar-same       ...        1.3        1.3        ...        ...        ...        ...       
+H1.helper.deco-start-false     12.o       1..        1..        1..        ...        1..        12.o      
+G1.kwbegin-groupbar-other      ...        ...        ...        ...        ...        ...        ...       
+G2.drop-into-group             .2.o       1..        1..        ...        ...        ...        ...       
+G3.groupbar-by-user            ...        1.3        ...        ...        ...        ...        ...       
+G4.groupbar-inside-end         ...        1.3        1.3        ...        ...        ...        ...       
+G5.groupbar-focus-kwbegin      ...        1.3        ...        ...        ...        ...        ...       
+B1.kwbegin-inside-end          ...o       ...        ...o       ...        ...        ...        ...       
+U1.unload.own                  .2.o       ...        ...        ...        ...        ...        ...       
+U2.unload.third                ...        1.3        ...        ...        ...        ...        ...       
+U3.unload.then-begin           ...so      ...s       ...        ...        ...        ...        ...       
+L1.A3.unguarded                ...        1.3        1.3        1.3        1.3        1.3        ...       
+legend: 1 = O1 improper Kwinish end, 2 = O2 safe own end not honoured, 3 = O3 final state differs from counterfactual, s = scenario contract check failed, o = Kwinish session alive without ownership (info)
+
+######## docs/port-0-57/evidence/Q4A-policy-run.log ########
+scratch: /home/lhen/.hermes/cache/scratch/q4a-policy.l_mi2321
+g++: build 0, run 0, no sanitizer output
+clang++: build 0, run 0, no sanitizer output
+GCC and Clang outputs identical
+g++ probe: positive rc=0, NEG rc=1, NEG errors=1 -> OK
+clang++ probe: positive rc=0, NEG rc=1, NEG errors=1 -> OK
+matrix equals expected-matrix.txt (42 scenarios x 7 policies)
+scenario \ policy              none       target-eq  C3-prev    veto       veto-rc    defer      hook      
+N1.own.release                 .2.o       ...        ...        ...        ...        ...        ...       
+N2.own.rearm                   .2.o       ...        ...        ...        ...        ...        ...       
+N3.own.restart                 .2.o       ...        ...        ...        ...        ...        ...       
+E1.ext.same-window             ...        1.3        ...        ...        ...        ...        ...       
+E2.ext.already                 ...        ...        ...        ...        ...        ...        ...       
+R1.other                       .2.o       .2.o       ...        ...        ...        ...        ...       
+R1.same                        .2.o       ...        ...        ...        ...        ...        ...       
+R2.nested-snapshots            .2.o       ...        ...        ...        ...        ...        ...       
+R3.mode-clobber                ...        ...        ...        ...        ...        ...        ...       
+R4.host.focus                  ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-continue          ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-return            ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.group-add              ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.floating               ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.geometry               ...        1.3        1.3        ...        ...        ...        ...       
+R4.own.focus                   .2.o       1..        1..        ...        ...        ...        ...       
+R4.own.deco-return             .2.o       1..        1..        ...        ...        ...        ...       
+R4.host.rearm                  ...        1.3        1.3o       ...        ...        ...        ...       
+R4.nested-clear                ...        1.3        ...        ...        ...        ...        ...       
+R4.emit.host                   ...        1.3        1.3        1.3        1.3        ...        ...       
+R4.emit.own                    .2.o       1..        1..        ...        ...        ...        ...       
+M2.emit.no-rebegin             ...        ...        ...        ...        ...        ...        ...       
+M3.emit.acquire-then-release   .2.o       ...        ...        ...        ...        ...        ...       
+X1.silent-death                ...        ...        ...        ...        ...        ...        ...       
+X2.ended-without-reset         ...o       ...        ...o       ...o       ...o       ...o       ...o      
+X3.refused.unmapped            ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-workspace        ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.fs-reject           ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-window           ...so      ...s       ...o       ...o       ...o       ...o       ...o      
+X4.fs-reject-callback          ...s       1.3s       ...        ...        ...        ...        ...       
+G1.kwbegin-groupbar-same       ...        1.3        1.3        ...        ...        ...        ...       
+H1.helper.deco-start-false     12.o       1..        1..        1..        ...        1..        12.o      
+G1.kwbegin-groupbar-other      ...        ...        ...        ...        ...        ...        ...       
+G2.drop-into-group             .2.o       1..        1..        ...        ...        ...        ...       
+G3.groupbar-by-user            ...        1.3        ...        ...        ...        ...        ...       
+G4.groupbar-inside-end         ...        1.3        1.3        ...        ...        ...        ...       
+G5.groupbar-focus-kwbegin      ...        1.3        ...        ...        ...        ...        ...       
+B1.kwbegin-inside-end          ...o       ...        ...o       ...        ...        ...        ...       
+U1.unload.own                  .2.o       ...        ...        ...        ...        ...        ...       
+U2.unload.third                ...        1.3        ...        ...        ...        ...        ...       
+U3.unload.then-begin           ...so      ...s       ...        ...        ...        ...        ...       
+L1.A3.unguarded                ...        1.3        1.3        1.3        1.3        1.3        ...       
+legend: 1 = O1 improper Kwinish end, 2 = O2 safe own end not honoured, 3 = O3 final state differs from counterfactual, s = scenario contract check failed, o = Kwinish session alive without ownership (info)
+VERDICT none: O1(improper end)=['H1.helper.deco-start-false'] O2(safe own end missed)=['G2.drop-into-group', 'H1.helper.deco-start-false', 'M3.emit.acquire-then-release', 'N1.own.release', 'N2.own.rearm', 'N3.own.restart', 'R1.other', 'R1.same', 'R2.nested-snapshots', 'R4.emit.own', 'R4.own.deco-return', 'R4.own.focus', 'U1.unload.own'] O3(final state)=none spec=['U3.unload.then-begin', 'X3.refused.fs-reject', 'X3.refused.no-window', 'X3.refused.no-workspace', 'X3.refused.unmapped', 'X4.fs-reject-callback']
+VERDICT target-eq: O1(improper end)=['E1.ext.same-window', 'G1.kwbegin-groupbar-same', 'G2.drop-into-group', 'G3.groupbar-by-user', 'G4.groupbar-inside-end', 'G5.groupbar-focus-kwbegin', 'H1.helper.deco-start-false', 'L1.A3.unguarded', 'R4.emit.host', 'R4.emit.own', 'R4.host.deco-continue', 'R4.host.deco-return', 'R4.host.floating', 'R4.host.focus', 'R4.host.geometry', 'R4.host.group-add', 'R4.host.rearm', 'R4.nested-clear', 'R4.own.deco-return', 'R4.own.focus', 'U2.unload.third', 'X4.fs-reject-callback'] O2(safe own end missed)=['R1.other'] O3(final state)=['E1.ext.same-window', 'G1.kwbegin-groupbar-same', 'G3.groupbar-by-user', 'G4.groupbar-inside-end', 'G5.groupbar-focus-kwbegin', 'L1.A3.unguarded', 'R4.emit.host', 'R4.host.deco-continue', 'R4.host.deco-return', 'R4.host.floating', 'R4.host.focus', 'R4.host.geometry', 'R4.host.group-add', 'R4.host.rearm', 'R4.nested-clear', 'U2.unload.third', 'X4.fs-reject-callback'] spec=['U3.unload.then-begin', 'X3.refused.fs-reject', 'X3.refused.no-window', 'X3.refused.no-workspace', 'X3.refused.unmapped', 'X4.fs-reject-callback']
+VERDICT C3-prev: O1(improper end)=['G1.kwbegin-groupbar-same', 'G2.drop-into-group', 'G4.groupbar-inside-end', 'H1.helper.deco-start-false', 'L1.A3.unguarded', 'R4.emit.host', 'R4.emit.own', 'R4.host.deco-continue', 'R4.host.deco-return', 'R4.host.floating', 'R4.host.focus', 'R4.host.geometry', 'R4.host.group-add', 'R4.host.rearm', 'R4.own.deco-return', 'R4.own.focus'] O2(safe own end missed)=none O3(final state)=['G1.kwbegin-groupbar-same', 'G4.groupbar-inside-end', 'L1.A3.unguarded', 'R4.emit.host', 'R4.host.deco-continue', 'R4.host.deco-return', 'R4.host.floating', 'R4.host.focus', 'R4.host.geometry', 'R4.host.group-add', 'R4.host.rearm'] spec=none
+VERDICT veto: O1(improper end)=['H1.helper.deco-start-false', 'L1.A3.unguarded', 'R4.emit.host'] O2(safe own end missed)=none O3(final state)=['L1.A3.unguarded', 'R4.emit.host'] spec=none
+VERDICT veto-rc: O1(improper end)=['L1.A3.unguarded', 'R4.emit.host'] O2(safe own end missed)=none O3(final state)=['L1.A3.unguarded', 'R4.emit.host'] spec=none
+VERDICT defer: O1(improper end)=['H1.helper.deco-start-false', 'L1.A3.unguarded'] O2(safe own end missed)=none O3(final state)=['L1.A3.unguarded'] spec=none
+VERDICT hook: O1(improper end)=['H1.helper.deco-start-false'] O2(safe own end missed)=['H1.helper.deco-start-false'] O3(final state)=none spec=none
+MUT end-ambiguity-veto: killed by R4.host.focus veto; changed cells: ['G4.groupbar-inside-end veto-rc: ...->1.3', 'G4.groupbar-inside-end veto: ...->1.3', 'R4.host.deco-continue veto-rc: ...->1.3', 'R4.host.deco-continue veto: ...->1.3', 'R4.host.deco-return veto-rc: ...->1.3', 'R4.host.deco-return veto: ...->1.3', 'R4.host.floating veto-rc: ...->1.3', 'R4.host.floating veto: ...->1.3', 'R4.host.focus veto-rc: ...->1.3', 'R4.host.focus veto: ...->1.3', 'R4.host.geometry veto-rc: ...->1.3', 'R4.host.geometry veto: ...->1.3', 'R4.host.group-add veto-rc: ...->1.3', 'R4.host.group-add veto: ...->1.3', 'R4.host.rearm veto-rc: ...->1.3o', 'R4.host.rearm veto: ...->1.3o']
+MUT begin-ambiguity-veto: killed by B1.kwbegin-inside-end veto; changed cells: ['B1.kwbegin-inside-end defer: ...->...o', 'B1.kwbegin-inside-end veto-rc: ...->...o', 'B1.kwbegin-inside-end veto: ...->...o']
+MUT consume-before-end: survives (declared redundant); changed cells: none
+MUT end-nonreentrant-guard: survives (declared redundant); changed cells: none
+MUT consume-and-end-guard: killed by R4.emit.own veto; changed cells: ['R4.emit.own veto-rc: ...->1..', 'R4.emit.own veto: ...->1..']
+MUT callback-token: killed by R2.nested-snapshots veto; changed cells: ['R2.nested-snapshots defer: ...->.2.o', 'R2.nested-snapshots veto-rc: ...->.2.o', 'R2.nested-snapshots veto: ...->.2.o']
+MUT disarm-bumps-token: survives (declared redundant); changed cells: none
+MUT result-aware-acquisition: killed by G1.kwbegin-groupbar-same veto; changed cells: ['G1.kwbegin-groupbar-same defer: ...->1.3', 'G1.kwbegin-groupbar-same veto-rc: ...->1.3', 'G1.kwbegin-groupbar-same veto: ...->1.3', 'H1.helper.deco-start-false veto-rc: ...->1..']
+MUT generation-in-postcheck: killed by X4.fs-reject-callback veto; changed cells: ['X3.refused.no-window defer: ...o->...so', 'X3.refused.no-window veto-rc: ...o->...so', 'X3.refused.no-window veto: ...o->...so', 'X4.fs-reject-callback defer: ...->...s', 'X4.fs-reject-callback veto-rc: ...->...s', 'X4.fs-reject-callback veto: ...->...s']
+MUT begin-nonreentrant: killed by R1.other veto; changed cells: ['R1.other defer: ...->.2.o', 'R1.other veto-rc: ...->.2.o', 'R1.other veto: ...->.2.o']
+MUT owns-target-alive-equal: killed by X1.silent-death veto; changed cells: ['X1.silent-death defer: ...->1.3', 'X1.silent-death veto-rc: ...->1.3', 'X1.silent-death veto: ...->1.3']
+MUT owns-listener-generation: survives (declared redundant); changed cells: none
+MUT unload-flag: killed by U3.unload.then-begin veto; changed cells: ['U3.unload.then-begin defer: ...->...s', 'U3.unload.then-begin veto-rc: ...->...s', 'U3.unload.then-begin veto: ...->...s']
+MUT defer-executes-synchronously: killed by R4.emit.host defer; changed cells: ['R4.emit.host defer: ...->1.3']
+MUT helper-target-recheck: killed by H1.helper.deco-start-false veto-rc; changed cells: ['H1.helper.deco-start-false veto-rc: ...->1..']
+MUT defer-token-recheck: survives (declared redundant); changed cells: none
+mutations: 11 killed by declared cell, 5 survive as declared redundant, of 16
+RESULT: PASS (matrix reproduced; see VERDICT lines - this is not an approval)
+
+######## docs/port-0-57/evidence/Q4A-policy-host-sources.txt ########
+# Pinned Hyprland 0aa6745f excerpts used by the Q4-A end-policy study (read-only copies; line numbers prefixed)
+
+######## U:layout/supplementary/DragController.cpp:59-69  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+   59  SP<ITarget> CDragStateController::target() const {
+   60      return m_target.lock();
+   61  }
+   62  
+   63  eMouseBindMode CDragStateController::mode() const {
+   64      return m_dragMode;
+   65  }
+   66  
+   67  bool CDragStateController::wasDraggingWindow() const {
+   68      return m_wasDraggingWindow;
+   69  }
+
+######## U:layout/supplementary/DragController.cpp:159-334  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+  159  void CDragStateController::dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+  160      m_target              = target;
+  161      m_dragMode            = mode;
+  162      m_draggingTiled       = false;
+  163      m_forcedGrabbedCorner = forcedEdge;
+  164      m_exclusiveDeviceGrab = exclusiveDeviceGrab;
+  165      m_grabbedCorner       = CORNER_NONE;
+  166  
+  167      const auto  DRAGGINGTARGET = m_target.lock();
+  168      static auto PDRAGTHRESHOLD = CConfigValue<Config::INTEGER>("binds:drag_threshold");
+  169  
+  170      m_mouseMoveEventCount = 1;
+  171      m_beginDragSizeXY     = Vector2D();
+  172  
+  173      // Window will be floating. Let's check if it's valid. It should be, but I don't like crashing.
+  174      if (!validMapped(DRAGGINGTARGET->window())) {
+  175          LOG(Log::ERR, "Dragging attempted on an invalid window (not mapped)");
+  176          dragEnd();
+  177          return;
+  178      }
+  179  
+  180      if (!DRAGGINGTARGET->workspace()) {
+  181          LOG(Log::ERR, "Dragging attempted on an invalid window (no workspace)");
+  182          dragEnd();
+  183          return;
+  184      }
+  185  
+  186      // Try to pick up dragged window now if drag_threshold is disabled
+  187      // or at least update dragging related variables for the cursors
+  188      m_dragThresholdReached = *PDRAGTHRESHOLD <= 0;
+  189      if (updateDragWindow())
+  190          return;
+  191  
+  192      // get the grab corner
+  193      static auto RESIZECORNER = CConfigValue<Config::INTEGER>("general:resize_corner");
+  194      if (m_forcedGrabbedCorner && *m_forcedGrabbedCorner != CORNER_NONE) {
+  195          m_grabbedCorner = *m_forcedGrabbedCorner;
+  196          Pointer::Cursor::overrideController->setOverride(std::string{cursorForResizeEdge(m_grabbedCorner)}, Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  197      } else if (*RESIZECORNER != 0 && *RESIZECORNER <= 4 && DRAGGINGTARGET->floating()) {
+  198          switch (*RESIZECORNER) {
+  199              case 1:
+  200                  m_grabbedCorner = CORNER_TOPLEFT;
+  201                  Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  202                  break;
+  203              case 2:
+  204                  m_grabbedCorner = CORNER_TOPRIGHT;
+  205                  Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  206                  break;
+  207              case 3:
+  208                  m_grabbedCorner = CORNER_BOTTOMRIGHT;
+  209                  Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  210                  break;
+  211              case 4:
+  212                  m_grabbedCorner = CORNER_BOTTOMLEFT;
+  213                  Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  214                  break;
+  215          }
+  216      } else if (m_beginDragXY.x < m_beginDragPositionXY.x + m_beginDragSizeXY.x / 2.F) {
+  217          if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+  218              m_grabbedCorner = CORNER_TOPLEFT;
+  219              Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  220          } else {
+  221              m_grabbedCorner = CORNER_BOTTOMLEFT;
+  222              Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  223          }
+  224      } else {
+  225          if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+  226              m_grabbedCorner = CORNER_TOPRIGHT;
+  227              Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  228          } else {
+  229              m_grabbedCorner = CORNER_BOTTOMRIGHT;
+  230              Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  231          }
+  232      }
+  233  
+  234      if (!isResizeMode(m_dragMode))
+  235          Pointer::Cursor::overrideController->setOverride("grabbing", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  236  
+  237      if (m_exclusiveDeviceGrab)
+  238          g_pSeatManager->setPointerFocus(nullptr, {});
+  239  
+  240      DRAGGINGTARGET->damageEntire();
+  241  
+  242      Keybinds::mgr()->shadowBinds();
+  243  
+  244      if (DRAGGINGTARGET->window()) {
+  245          Desktop::focusState()->rawWindowFocus(DRAGGINGTARGET->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  246          Desktop::windowState()->raise(DRAGGINGTARGET->window());
+  247      }
+  248  
+  249      if (isResizeMode(m_dragMode))
+  250          setClientResizingState(DRAGGINGTARGET, true);
+  251  }
+  252  bool CDragStateController::dragEnd() {
+  253      auto draggingTarget = m_target.lock();
+  254  
+  255      if (!draggingTarget)
+  256          return false;
+  257  
+  258      Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+  259  
+  260      m_mouseMoveEventCount = 1;
+  261  
+  262      if (!validMapped(draggingTarget->window())) {
+  263          if (draggingTarget->window()) {
+  264              Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  265              m_target.reset();
+  266          }
+  267          m_dragMode            = MBIND_INVALID;
+  268          m_exclusiveDeviceGrab = false;
+  269          m_forcedGrabbedCorner.reset();
+  270          return true;
+  271      }
+  272  
+  273      Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  274      m_target.reset();
+  275      m_wasDraggingWindow = true;
+  276  
+  277      if (m_dragMode == MBIND_MOVE && draggingTarget->window()) {
+  278          draggingTarget->damageEntire();
+  279  
+  280          const auto DRAGGING_WINDOW = draggingTarget->window();
+  281  
+  282          const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+  283          PHLWINDOW  pWindow =
+  284              Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, DRAGGING_WINDOW);
+  285  
+  286          if (pWindow) {
+  287              if (pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+  288                  m_wasDraggingWindow   = false;
+  289                  m_dragMode            = MBIND_INVALID;
+  290                  m_exclusiveDeviceGrab = false;
+  291                  m_forcedGrabbedCorner.reset();
+  292                  return true;
+  293              }
+  294  
+  295              const bool  FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled;
+  296              static auto PDRAGINTOGROUP   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  297  
+  298              if (pWindow->grouping().group() && DRAGGING_WINDOW->grouping().canBeGroupedInto(pWindow->grouping().group()) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+  299                  pWindow->grouping().group()->add(DRAGGING_WINDOW);
+  300                  // fix the draggingTarget, now it's DRAGGING_WINDOW
+  301                  draggingTarget = DRAGGING_WINDOW->windowTarget();
+  302              }
+  303          }
+  304      }
+  305  
+  306      if (const auto W = draggingTarget->window(); W) {
+  307          W->effects().resetMotionBlur();
+  308          W->presentation().clearFloatingOffset();
+  309      }
+  310  
+  311      if (m_draggingTiled) {
+  312          // make sure to check if we are floating because drag into group could make us tiled already
+  313          if (draggingTarget->floating())
+  314              g_layoutManager->changeFloatingMode(draggingTarget);
+  315  
+  316          draggingTarget->rememberFloatingSize(m_draggingWindowOriginalFloatSize);
+  317      }
+  318  
+  319      draggingTarget->damageEntire();
+  320  
+  321      g_layoutManager->setTargetGeom(draggingTarget->position(), draggingTarget);
+  322  
+  323      Desktop::focusState()->fullWindowFocus(draggingTarget->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  324  
+  325      m_wasDraggingWindow = false;
+  326      if (isResizeMode(m_dragMode))
+  327          setClientResizingState(draggingTarget, false);
+  328  
+  329      m_dragMode            = MBIND_INVALID;
+  330      m_exclusiveDeviceGrab = false;
+  331      m_draggingTiled       = false;
+  332      m_forcedGrabbedCorner.reset();
+  333      return true;
+  334  }
+
+######## U:layout/supplementary/DragController.hpp:17-66  sha256 9feac094865db462e757e990a9fcecbadc655ab28488c42f3da9f483b6afe85a ########
+   17      class CDragStateController {
+   18        public:
+   19          CDragStateController()  = default;
+   20          ~CDragStateController() = default;
+   21  
+   22          void           dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<Layout::eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+   23          bool           dragEnd();
+   24  
+   25          void           mouseMove(const Vector2D& mousePos);
+   26          eMouseBindMode mode() const;
+   27          bool           wasDraggingWindow() const;
+   28          bool           dragThresholdReached() const;
+   29          void           resetDragThresholdReached();
+   30          bool           draggingTiled() const;
+   31          bool           exclusiveDeviceGrab() const;
+   32  
+   33          /*
+   34              Called to try to pick up window for dragging.
+   35              Updates drag related variables and floats window if threshold reached.
+   36              Return true to reject
+   37          */
+   38          bool        updateDragWindow();
+   39  
+   40          SP<ITarget> target() const;
+   41  
+   42          struct {
+   43              CSignalT<> motion;
+   44              CSignalT<> ended;
+   45          } m_events;
+   46  
+   47        private:
+   48          WP<ITarget>                        m_target;
+   49  
+   50          eMouseBindMode                     m_dragMode             = MBIND_INVALID;
+   51          bool                               m_wasDraggingWindow    = false;
+   52          bool                               m_dragThresholdReached = false;
+   53          bool                               m_draggingTiled        = false;
+   54          bool                               m_exclusiveDeviceGrab  = false;
+   55  
+   56          int                                m_mouseMoveEventCount = 0;
+   57          Vector2D                           m_dragHotspot;
+   58          Vector2D                           m_beginDragXY;
+   59          Vector2D                           m_beginDragUntransformedXY;
+   60          Vector2D                           m_lastDragXY;
+   61          Vector2D                           m_beginDragPositionXY;
+   62          Vector2D                           m_beginDragSizeXY;
+   63          Vector2D                           m_draggingWindowOriginalFloatSize;
+   64          Layout::eRectCorner                m_grabbedCorner = sc<Layout::eRectCorner>(0) /* CORNER_NONE */;
+   65          std::optional<Layout::eRectCorner> m_forcedGrabbedCorner;
+   66      };
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:392-450  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  392  bool CHyprGroupBarDecoration::onBeginWindowDragOnDeco(const Vector2D& pos) {
+  393      static auto PSTACKED  = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  394      static auto POUTERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  395      static auto PINNERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  396      if (m_window->grouping().group()->size() == 1)
+  397          return false;
+  398  
+  399      const float BARRELATIVEX = pos.x - assignedBoxGlobal().x;
+  400      const float BARRELATIVEY = pos.y - assignedBoxGlobal().y;
+  401      const int   WINDOWINDEX  = *PSTACKED ? (BARRELATIVEY / (m_barHeight + *POUTERGAP)) : (BARRELATIVEX) / (m_barWidth + *PINNERGAP);
+  402  
+  403      if (!*PSTACKED && (BARRELATIVEX - (m_barWidth + *PINNERGAP) * WINDOWINDEX > m_barWidth))
+  404          return false;
+  405  
+  406      if (*PSTACKED && (BARRELATIVEY - (m_barHeight + *POUTERGAP) * WINDOWINDEX < *POUTERGAP))
+  407          return false;
+  408  
+  409      PHLWINDOW   pWindow = m_window->grouping().group()->fromIndex(WINDOWINDEX);
+  410  
+  411      const auto& GROUP = m_window->grouping().group();
+  412  
+  413      // remove the window from the group
+  414      GROUP->remove(pWindow);
+  415  
+  416      // start a move drag on it
+  417      g_layoutManager->dragController()->dragBegin(pWindow->layoutTarget(), MBIND_MOVE);
+  418  
+  419      if (!Desktop::focusState()->isWindowActive(pWindow))
+  420          Desktop::focusState()->rawWindowFocus(pWindow, Desktop::FOCUS_REASON_CLICK);
+  421  
+  422      return true;
+  423  }
+  424  
+  425  bool CHyprGroupBarDecoration::onEndWindowDragOnDeco(const Vector2D& pos, PHLWINDOW pDraggedWindow) {
+  426      static auto PDRAGINTOGROUP                   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  427      static auto PMERGEFLOATEDINTOTILEDONGROUPBAR = CConfigValue<Config::INTEGER>("group:merge_floated_into_tiled_on_groupbar");
+  428      static auto PMERGEGROUPSONGROUPBAR           = CConfigValue<Config::INTEGER>("group:merge_groups_on_groupbar");
+  429      static auto PSTACKED                         = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  430      static auto POUTERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  431      static auto PINNERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  432      const bool  FLOATEDINTOTILED                 = !m_window->isFloating() && !g_layoutManager->dragController()->draggingTiled();
+  433  
+  434      if (!pDraggedWindow->grouping().canBeGroupedInto(m_window->grouping().group()) || (*PDRAGINTOGROUP != 1 && *PDRAGINTOGROUP != 2) ||
+  435          (FLOATEDINTOTILED && !*PMERGEFLOATEDINTOTILEDONGROUPBAR) || (!*PMERGEGROUPSONGROUPBAR && pDraggedWindow->grouping().group()))
+  436          return false;
+  437  
+  438      const float BARRELATIVE = *PSTACKED ? pos.y - assignedBoxGlobal().y - (m_barHeight + *POUTERGAP) / 2 : pos.x - assignedBoxGlobal().x - m_barWidth / 2;
+  439      const float BARSIZE     = *PSTACKED ? m_barHeight + *POUTERGAP : m_barWidth + *PINNERGAP;
+  440      const int   WINDOWINDEX = (BARRELATIVE < 0 ? -1 : BARRELATIVE / BARSIZE) + 1;
+  441  
+  442      m_window->grouping().group()->add(pDraggedWindow, WINDOWINDEX);
+  443  
+  444      if (!pDraggedWindow->presentation().decoration(DECORATION_GROUPBAR))
+  445          pDraggedWindow->presentation().addDecoration(makeShared<CHyprGroupBarDecoration>(pDraggedWindow));
+  446  
+  447      Desktop::focusState()->fullWindowFocus(pDraggedWindow->windowTarget()->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  448  
+  449      return true;
+  450  }
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:520-530  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  520      return true;
+  521  }
+  522  
+  523  bool CHyprGroupBarDecoration::onInputOnDeco(const eInputType type, const Vector2D& mouseCoords, std::any data) {
+  524      switch (type) {
+  525          case INPUT_TYPE_AXIS: return onScrollOnDeco(mouseCoords, std::any_cast<const IPointer::SAxisEvent>(data));
+  526          case INPUT_TYPE_BUTTON: return onMouseButtonOnDeco(mouseCoords, std::any_cast<const IPointer::SButtonEvent&>(data));
+  527          case INPUT_TYPE_DRAG_START: return onBeginWindowDragOnDeco(mouseCoords);
+  528          case INPUT_TYPE_DRAG_END: return onEndWindowDragOnDeco(mouseCoords, std::any_cast<PHLWINDOW>(data));
+  529          default: return false;
+  530      }
+
+######## U:layout/LayoutManager.cpp:48-57  sha256 e003e7bd18cae031ccd87d3871058c660f94a559e82f351b3abbc07e6beb6750 ########
+   48      IPC::Socket2::sock()->postEvent({
+   49          .event = "changefloatingmode",
+   50          .data  = std::format("{:x},{}", rc<uintptr_t>(target->window().get()), sc<int>(target->floating())),
+   51      });
+   52      Event::bus()->m_events.window.floating.emit(target->window());
+   53  }
+   54  
+   55  void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+   56      m_dragStateController->dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab);
+   57  }
+
+######## U:desktop/state/FocusState.cpp:205-222  sha256 b00d2696bfc4dd96d4d8d80de65493eb39c009fca2cb5e94fd9c7ff9bd22c950 ########
+  205      rawSurfaceFocus(PWINDOWSURFACE, pWindow);
+  206  
+  207      g_pXWaylandManager->activateWindow(pWindow, true); // sets the m_pLastWindow
+  208  
+  209      pWindow->m_ruleApplicator->propertiesChanged(Rule::RULE_PROP_FOCUS);
+  210      pWindow->presentation().onFocusAnimUpdate();
+  211      pWindow->presentation().refreshValues();
+  212  
+  213      if (pWindow->m_hints & Desktop::View::WINDOW_HINT_URGENT)
+  214          pWindow->m_hints &= ~Desktop::View::WINDOW_HINT_URGENT;
+  215  
+  216      // Send an event
+  217      IPC::Socket2::sock()->postEvent({.event = "activewindow", .data = std::format("{},{}", pWindow->metadata().appID(), pWindow->metadata().title())});
+  218      IPC::Socket2::sock()->postEvent({.event = "activewindowv2", .data = std::format("{:x}", rc<uintptr_t>(pWindow.get()))});
+  219  
+  220      Event::bus()->m_events.window.active.emit(pWindow, reason);
+  221  
+  222      g_pInputManager->recheckIdleInhibitorStatus();
+
+######## U:protocols/XDGShell.cpp:444-498  sha256 c7e433685e8cf50b6a6fb282e89808802c9a7d969b7dadf655e55952c43f8858 ########
+  444  uint32_t CXDGToplevelResource::setResizing(bool resizing) {
+  445      bool set = std::ranges::find(m_pendingApply.states, XDG_TOPLEVEL_STATE_RESIZING) != m_pendingApply.states.end();
+  446  
+  447      if (resizing == set)
+  448          return m_owner->m_scheduledSerial;
+  449  
+  450      if (resizing && !set)
+  451          m_pendingApply.states.push_back(XDG_TOPLEVEL_STATE_RESIZING);
+  452      else if (!resizing && set)
+  453          std::erase(m_pendingApply.states, XDG_TOPLEVEL_STATE_RESIZING);
+  454  
+  455      scheduleStateApplication();
+  456  
+  457      return m_owner->scheduleConfigure();
+  458  }
+  459  
+  460  uint32_t CXDGToplevelResource::setSuspeneded(bool sus) {
+  461      if (m_resource->version() < 6)
+  462          return m_owner->scheduleConfigure(); // SUSPENDED is since 6
+  463  
+  464      bool set = std::ranges::find(m_pendingApply.states, XDG_TOPLEVEL_STATE_SUSPENDED) != m_pendingApply.states.end();
+  465  
+  466      if (sus == set)
+  467          return m_owner->m_scheduledSerial;
+  468  
+  469      if (sus && !set)
+  470          m_pendingApply.states.push_back(XDG_TOPLEVEL_STATE_SUSPENDED);
+  471      else if (!sus && set)
+  472          std::erase(m_pendingApply.states, XDG_TOPLEVEL_STATE_SUSPENDED);
+  473  
+  474      scheduleStateApplication();
+  475  
+  476      return m_owner->scheduleConfigure();
+  477  }
+  478  
+  479  void CXDGToplevelResource::scheduleStateApplication() {
+  480  
+  481      if (m_stateUpdate)
+  482          return;
+  483  
+  484      m_stateUpdate = g_pEventLoopManager->doLaterLock([this] {
+  485          wl_array arr;
+  486          wl_array_init(&arr);
+  487  
+  488          if (const auto PSTATES = sc<int*>(wl_array_add(&arr, m_pendingApply.states.size() * sizeof(int))))
+  489              std::ranges::copy(m_pendingApply.states, PSTATES);
+  490  
+  491          m_resource->sendConfigure(m_pendingApply.size.x, m_pendingApply.size.y, &arr);
+  492  
+  493          wl_array_release(&arr);
+  494  
+  495          m_stateUpdate.reset();
+  496      });
+  497  }
+  498  
+
+######## U:protocols/XDGShell.cpp:668-677  sha256 c7e433685e8cf50b6a6fb282e89808802c9a7d969b7dadf655e55952c43f8858 ########
+  668  uint32_t CXDGSurfaceResource::scheduleConfigure() {
+  669      if (m_stateUpdate)
+  670          return m_scheduledSerial;
+  671  
+  672      m_stateUpdate = g_pEventLoopManager->doLaterLock([this] { configure(); });
+  673  
+  674      m_scheduledSerial = wl_display_next_serial(g_pCompositor->m_wlDisplay);
+  675  
+  676      return m_scheduledSerial;
+  677  }
+
+######## U:desktop/view/window/X11Backend.cpp:373-375  sha256 c1c167e5d1bca4ad7c920dce2191b08f9791ba606d0e83462ec6a9a3b71cd138 ########
+  373  void CX11Backend::setResizing(bool) {
+  374      ;
+  375  }
+
+######## U:desktop/view/window/WaylandBackend.cpp:351-355  sha256 d70dd6d39d517ffc3dc7f6c915a68dcd4d7bde8ba4a011d48bca23a48fd1e840 ########
+  351  void CWaylandBackend::setResizing(bool resizing) {
+  352      const auto RESOURCE = m_resource.lock();
+  353      if (RESOURCE && RESOURCE->m_toplevel)
+  354          RESOURCE->m_toplevel->setResizing(resizing);
+  355  }
+
+######## U:managers/eventLoop/EventLoopManager.cpp:124-138  sha256 934797a68b888aabb77457bc8f23c772dd34ea09f58bc20dc76ce4060bbdacd7 ########
+  124  void CEventLoopManager::enterLoop() {
+  125      m_wayland.eventSource = wl_event_loop_add_fd(m_wayland.loop, m_timers.timerfd.get(), WL_EVENT_READABLE, timerWrite, nullptr);
+  126  
+  127      if (const auto& FD = Config::watcher()->getInotifyFD(); FD.isValid())
+  128          m_configWatcherInotifySource = wl_event_loop_add_fd(m_wayland.loop, FD.get(), WL_EVENT_READABLE, configWatcherWrite, nullptr);
+  129  
+  130      syncPollFDs();
+  131      m_listeners.pollFDsChanged = g_pCompositor->m_aqBackend->events.pollFDsChanged.listen([this] { syncPollFDs(); });
+  132  
+  133      // if we have a session, dispatch it to get the pending input devices
+  134      if (g_pCompositor->m_aqBackend->hasSession())
+  135          g_pCompositor->m_aqBackend->session->dispatchPendingEventsAsync();
+  136  
+  137      wl_display_run(m_wayland.display);
+  138  
+
+######## U:managers/eventLoop/EventLoopManager.cpp:215-247  sha256 934797a68b888aabb77457bc8f23c772dd34ea09f58bc20dc76ce4060bbdacd7 ########
+  215  uint64_t CEventLoopManager::doLater(const std::function<void()>& fn) {
+  216      const uint64_t NEW_SEQ = ++LAST_DO_LATER_SEQ;
+  217  
+  218      m_idle.fns.emplace_back(NEW_SEQ, fn);
+  219  
+  220      if (m_idle.eventSource)
+  221          return NEW_SEQ;
+  222  
+  223      m_idle.eventSource = wl_event_loop_add_idle(
+  224          m_wayland.loop,
+  225          [](void* data) {
+  226              auto IDLE = sc<CEventLoopManager::SIdleData*>(data);
+  227              auto fns  = std::move(IDLE->fns);
+  228              IDLE->fns.clear();
+  229              IDLE->eventSource = nullptr;
+  230              for (auto& f : fns) {
+  231                  if (f.second)
+  232                      f.second();
+  233              }
+  234          },
+  235          &m_idle);
+  236  
+  237      return NEW_SEQ;
+  238  }
+  239  
+  240  void CEventLoopManager::removeDoLater(uint64_t seq) {
+  241      std::erase_if(m_idle.fns, [&seq](const auto& e) { return e.first == seq; });
+  242  
+  243      if (m_idle.fns.empty() && m_idle.eventSource) {
+  244          wl_event_source_remove(m_idle.eventSource);
+  245          m_idle.eventSource = nullptr;
+  246      }
+  247  }
+
+######## U:keybinds/Manager.cpp:340-354  sha256 c95d27f9c99b9a952b4ff3b51a9ee517cda14539948d82dca717ce5ea887b12d ########
+  340          nullptr);
+  341  
+  342      return RESULT.passEvent;
+  343  }
+  344  
+  345  bool CKeybindManager::onMouseEvent(const IPointer::SButtonEvent& event, SP<IPointer> pointer, bool captured) {
+  346      const auto MODIFIERS = g_pInputManager->getModsFromAllKBs();
+  347      const auto KEY       = SResolvedKey{.event = "mouse:" + std::to_string(event.button)};
+  348  
+  349      Config::Actions::state()->m_lastMouseCode = event.button;
+  350      Config::Actions::state()->m_lastCode      = 0;
+  351      Config::Actions::state()->m_timeLastMs    = event.timeMs;
+  352  
+  353      const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+  354      cancelTimedBinds();
+
+######## U:managers/input/InputManager.cpp:195-198  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  195  void CInputManager::simulateMouseMovement() {
+  196      m_lastCursorPosFloored = m_lastCursorPosFloored - Vector2D(1, 1); // hack: force the mouseMoveUnified to report without making this a refocus.
+  197      mouseMoveUnified(Time::millis(Time::steadyNow()));
+  198  }
+
+######## U:managers/input/InputManager.cpp:286-295  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  286      PHLWINDOW              pFoundWindow;
+  287      PHLLS                  pFoundLayerSurface;
+  288      const auto             FOCUS_REASON = refocus ? Desktop::FOCUS_REASON_CLICK : Desktop::FOCUS_REASON_FFM;
+  289  
+  290      if (!pointerOnly) {
+  291          Event::SCallbackInfo info;
+  292          Event::bus()->m_events.input.mouse.move.emit(MOUSECOORDSFLOORED, info);
+  293          if (info.cancelled)
+  294              return;
+  295  
+
+######## U:managers/input/InputManager.cpp:720-725  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  720  void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) {
+  721      Event::SCallbackInfo info;
+  722      Event::bus()->m_events.input.mouse.button.emit(e, info);
+  723      if (info.cancelled)
+  724          return;
+  725  
+
+######## U:config/shared/actions/ConfigActions.cpp:1695-1737  sha256 2671bcfb511a9c0fe9bf1ae9773b84e58c8dcf82b42679b050d43f34b3c4dcd0 ########
+ 1695  ActionResult Actions::mouse(const std::string& action) {
+ 1696      const bool PRESSED = Config::Actions::state()->m_passPressed == 1;
+ 1697  
+ 1698      if (!PRESSED) {
+ 1699          if (g_layoutManager->dragController()->target())
+ 1700              g_layoutManager->endDragTarget();
+ 1701          return {};
+ 1702      }
+ 1703  
+ 1704      if (g_layoutManager->dragController()->target())
+ 1705          return {};
+ 1706  
+ 1707      eMouseBindMode mode = MBIND_RESIZE;
+ 1708  
+ 1709      if (action == "movewindow")
+ 1710          mode = MBIND_MOVE;
+ 1711  
+ 1712      // resizewindow with optional ratio mode
+ 1713      else {
+ 1714          try {
+ 1715              const auto SPACEPOS = action.find(' ');
+ 1716              if (SPACEPOS != std::string::npos) {
+ 1717                  switch (std::stoi(action.substr(SPACEPOS + 1))) {
+ 1718                      case 1: mode = MBIND_RESIZE_FORCE_RATIO; break;
+ 1719                      case 2: mode = MBIND_RESIZE_BLOCK_RATIO; break;
+ 1720                      default: break;
+ 1721                  }
+ 1722              }
+ 1723          } catch (...) { /* stoi failed, fall through to default resize */
+ 1724          }
+ 1725      }
+ 1726  
+ 1727      const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+ 1728      const PHLWINDOW PWINDOW = Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+ 1729  
+ 1730      if (!PWINDOW)
+ 1731          return SActionResult{.passEvent = true};
+ 1732  
+ 1733      if (!Fullscreen::controller()->isFullscreen(PWINDOW) && mode == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+ 1734          return {};
+ 1735  
+ 1736      g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+ 1737      return {};
+
+######## grep: writers of m_wasDraggingWindow / listeners of DragController ended (whole src) ########
+./layout/supplementary/DragController.cpp:68:    return m_wasDraggingWindow;
+./layout/supplementary/DragController.cpp:258:    Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+./layout/supplementary/DragController.cpp:275:    m_wasDraggingWindow = true;
+./layout/supplementary/DragController.cpp:288:                m_wasDraggingWindow   = false;
+./layout/supplementary/DragController.cpp:325:    m_wasDraggingWindow = false;
+./layout/supplementary/DragController.hpp:51:        bool                               m_wasDraggingWindow    = false;
+
+######## grep: dragBegin/beginDragTarget/endDragTarget callers ########
+./render/decorations/CHyprGroupBarDecoration.cpp:417:    g_layoutManager->dragController()->dragBegin(pWindow->layoutTarget(), MBIND_MOVE);
+./desktop/view/window/Window.cpp:1673:        g_layoutManager->endDragTarget();
+./desktop/view/window/Window.cpp:1867:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_MOVE, std::nullopt, true);
+./desktop/view/window/Window.cpp:1877:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_RESIZE, backendResizeEdgeToCorner(edge), true);
+./managers/input/InputManager.cpp:877:                    g_layoutManager->beginDragTarget(w->layoutTarget(), MBIND_RESIZE);
+./config/shared/actions/ConfigActions.cpp:253:        g_layoutManager->endDragTarget();
+./config/shared/actions/ConfigActions.cpp:1700:            g_layoutManager->endDragTarget();
+./config/shared/actions/ConfigActions.cpp:1736:    g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+./keybinds/Manager.cpp:223:    const bool DRAG_WAS_ACTIVE = g_layoutManager->endDragTarget();
+./keybinds/Manager.cpp:353:    const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+./layout/LayoutManager.cpp:55:void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+./layout/LayoutManager.cpp:56:    m_dragStateController->dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab);
+./layout/LayoutManager.cpp:113:bool CLayoutManager::endDragTarget() {
+./layout/LayoutManager.cpp:114:    return m_dragStateController->dragEnd();
+./layout/LayoutManager.hpp:78:        void                    beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+./layout/LayoutManager.hpp:83:        bool                    endDragTarget();
+
+
+######## (added after review 1) U:layout/supplementary/DragController.cpp:52-57  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+   52  static void setClientResizingState(SP<ITarget> target, bool resizing) {
+   53      if (!target || !target->window())
+   54          return;
+   55  
+   56      target->window()->backend().setResizing(resizing);
+   57  }
+
+######## (added after review 1) U:desktop/view/Group.cpp:234-299  sha256 77250a1727ec6571366f34311e95e33b306dd8516b5dddd94afcb95cb51a6394 ########
+  234  void CGroup::remove(PHLWINDOW w, Math::eDirection dir, eRemoveFromGroupReason reason) {
+  235      std::optional<size_t> idx;
+  236      for (size_t i = 0; i < m_windows.size(); ++i) {
+  237          if (m_windows.at(i) == w) {
+  238              idx = i;
+  239              break;
+  240          }
+  241      }
+  242  
+  243      if (!idx)
+  244          return;
+  245  
+  246      if ((m_current >= *idx && idx != 0) || (m_current >= m_windows.size() - 1 && m_current > 0))
+  247          m_current--;
+  248  
+  249      auto g = m_self.lock(); // keep ref to avoid uaf after membership is detached
+  250  
+  251      w->grouping().detach();
+  252      removeWindowDecos(w);
+  253  
+  254      w->setInputBlocked(FOCUS_BLOCK_GROUP_INACTIVE, false);
+  255      *w->presentation().alpha(WINDOW_ALPHA_LAYOUT) = 1.F;
+  256  
+  257      const bool REMOVING_GROUP = m_windows.size() <= 1;
+  258  
+  259      if (REMOVING_GROUP) {
+  260          w->windowTarget()->assignToSpace(nullptr);
+  261          g_layoutManager->switchTargets(m_target, w->windowTarget());
+  262      }
+  263  
+  264      // we do it after the above because switchTargets expects this to be a valid group
+  265      m_windows.erase(m_windows.begin() + *idx);
+  266  
+  267      // if groupbar:disable_when_only is enabled and there is only one group member left, we need to fix its size because it will lose its groupbar.
+  268      static auto PDISABLE = CConfigValue<Config::BOOL>("group:groupbar:disable_when_only");
+  269      if (*PDISABLE && m_windows.size() == 1) {
+  270          if (const auto REMAINING_MEMBER = m_windows.at(0).lock()) {
+  271              const auto GROUPBAR = REMAINING_MEMBER->presentation().decoration(DECORATION_GROUPBAR);
+  272              GROUPBAR->updateWindow(REMAINING_MEMBER);
+  273              g_pDecorationPositioner->forceRecalcFor(REMAINING_MEMBER);
+  274          }
+  275      }
+  276  
+  277      if (!m_windows.empty())
+  278          updateWindowVisibility();
+  279  
+  280      // do this here: otherwise the new current is hidden and workspace rules get wrong data
+  281      if (!REMOVING_GROUP) {
+  282          std::optional<Vector2D> focalPoint;
+  283          if (dir != Math::DIRECTION_DEFAULT) {
+  284              const auto box = m_target->position();
+  285              switch (dir) {
+  286                  case Math::DIRECTION_RIGHT: focalPoint = Vector2D(box.x + box.w, box.y + box.h / 2.0); break;
+  287                  case Math::DIRECTION_LEFT: focalPoint = Vector2D(box.x, box.y + box.h / 2.0); break;
+  288                  case Math::DIRECTION_DOWN: focalPoint = Vector2D(box.x + box.w / 2.0, box.y + box.h); break;
+  289                  case Math::DIRECTION_UP: focalPoint = Vector2D(box.x + box.w / 2.0, box.y); break;
+  290                  default: break;
+  291              }
+  292          }
+  293  
+  294          // We don't need to assign a window to a new space if we intend to unmap it
+  295          if (reason == REMOVE_FROM_GROUP_REASON_UNMAP_WINDOW)
+  296              return;
+  297          w->windowTarget()->assignToSpace(m_target->space(), focalPoint);
+  298      }
+  299  }
+
+######## plugin/hostDrag.hpp ########
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+// Starting a pointer drag (move/resize) on Hyprland 0.57, where CKeybindManager::changeMouseBindMode is gone. This is
+// the START half of the 0.56.2 body (O:managers/KeybindManager.cpp:949-968) on the 0.57 primitives, nothing more:
+//   - a drag already in progress (anyone's) is left alone: nothing is ended, nothing is started;
+//   - the window is the one under the pointer (as before; for the menu's resize that is the 0.56.2 behaviour too);
+//   - a non-fullscreen MOVE asks the window's decorations first (INPUT_TYPE_DRAG_START), as before;
+//   - beginDragTarget keeps its defaults (no forced edge, exclusiveDeviceGrab = false), as before.
+// Ending a drag is NOT here: without knowing whose drag is active (session ownership, Q4), ending would also end drags
+// started by other components. See docs/port-0-57/P8-DRAG.md.
+#pragma once
+
+#include <hyprland/src/desktop/state/ViewHitTester.hpp>
+#include <hyprland/src/desktop/state/ViewState.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/layout/LayoutManager.hpp>
+#include <hyprland/src/layout/supplementary/DragController.hpp>
+#include <hyprland/src/layout/target/Target.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+
+#include <cstdint>
+
+namespace KwDrag {
+    enum eBeginResult : uint8_t {
+        BEGIN_STARTED = 0,      // beginDragTarget was called (the host may still refuse inside it)
+        BEGIN_ALREADY_DRAGGING, // a drag was in progress: left untouched
+        BEGIN_NO_WINDOW,        // nothing under the pointer (0.56.2: passEvent)
+        BEGIN_REFUSED_BY_DECO,  // a decoration took the drag start (0.56.2: passEvent = false)
+        BEGIN_BAD_MODE,         // not MBIND_MOVE / MBIND_RESIZE: nothing done
+    };
+
+    // MODE must be MBIND_MOVE or MBIND_RESIZE; anything else does nothing (0.56.2 ended the drag for MBIND_INVALID,
+    // which this helper deliberately does not do).
+    inline eBeginResult begin(eMouseBindMode MODE) {
+        if (MODE != MBIND_MOVE && MODE != MBIND_RESIZE)
+            return BEGIN_BAD_MODE;
+        if (g_layoutManager->dragController()->target())
+            return BEGIN_ALREADY_DRAGGING;
+
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+        if (!PWINDOW)
+            return BEGIN_NO_WINDOW;
+
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
+            if (PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+                return BEGIN_REFUSED_BY_DECO;
+        }
+
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+        return BEGIN_STARTED;
+    }
+}
+
+######## plugin/barDeco.cpp:154-197 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  154  void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
+  155      // a menu Move/Resize is in progress or just ended with this click: the bars stay out of it
+  156      if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+  157          return;
+  158  
+  159      // middle, side and extra buttons are not ours (they used to count as a left click: middle-click on close closed the window)
+  160      if (e.button != BTN_LEFT && e.button != BTN_RIGHT)
+  161          return;
+  162  
+  163      // overlapping bars all hear the same press: the first one that took it cancels it, the others must not act on it too
+  164      // (releases still go to every bar, so each can clear its own drag state)
+  165      if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && info.cancelled)
+  166          return;
+  167  
+  168      // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
+  169      // screen edge, which input validation would reject)
+  170      if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
+  171          handleUpEvent(info);
+  172          return;
+  173      }
+  174  
+  175      if (!inputIsValid())
+  176          return;
+  177  
+  178      if (e.state != WL_POINTER_BUTTON_STATE_PRESSED) {
+  179          if (e.button != BTN_RIGHT)
+  180              handleUpEvent(info);
+  181          return;
+  182      }
+  183  
+  184      if (e.button == BTN_RIGHT) {
+  185          // right click on the bar: the window menu
+  186          const auto HEIGHT = g_pGlobalState->config.barHeight->value();
+  187          if (VECINRECT(cursorRelativeToBar(), 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) {
+  188              if (Desktop::focusState()->window() != m_pWindow.lock())
+  189                  Desktop::focusState()->fullWindowFocus(m_pWindow.lock(), Desktop::FOCUS_REASON_CLICK);
+  190              info.cancelled = true;
+  191              runAction("menu");
+  192          }
+  193          return;
+  194      }
+  195  
+  196      handleDownEvent(info, std::nullopt);
+  197  }
+######## plugin/barDeco.cpp:273-325 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  273  void CHyprBar::rearmDrag() {
+  274      const auto W = m_pWindow.lock();
+  275      if (!W || !m_bDraggingThis || m_bTouchEv)
+  276          return;
+  277      m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  278      g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  279      g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+  280  }
+  281  
+  282  void CHyprBar::onMouseMove(Vector2D coords) {
+  283      // opt-in drag trace: create $XDG_RUNTIME_DIR/kwinish/trace, then read /tmp/kwinish-drag.log
+  284      if (m_bDraggingThis && std::filesystem::exists(std::string(getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp") + "/kwinish/trace")) {
+  285          const auto W = m_pWindow.lock();
+  286          const auto C = g_pInputManager->getMouseCoordsInternal();
+  287          if (W) {
+  288              const auto P = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  289              std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("arg=({:.1f},{:.1f}) cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", coords.x, coords.y, C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
+  290          }
+  291      }
+  292      if (m_rearmPending) {
+  293          m_rearmPending = false;
+  294          rearmDrag();
+  295      }
+  296      if (m_bDraggingThis && !m_bTouchEv) {
+  297          maybeUnsnap();
+  298          if (m_unsnapAnim)
+  299              stepUnsnap();
+  300      }
+  301  
+  302      // ensure proper redraws of button icons on hover when using hardware cursors
+  303      damageOnButtonHover();
+  304  
+  305      if (!m_bDragPending || m_bTouchEv || !validMapped(m_pWindow) || m_touchId != 0)
+  306          return;
+  307  
+  308      // A maximized window is not grabbed by a plain click: only a real drag takes it out of the maximized state, and
+  309      // it comes back under the pointer at its earlier size (KWin's behaviour), not at wherever the maximized rect was.
+  310      if (const auto W = m_pWindow.lock(); W && Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED)) {
+  311          const auto C = g_pInputManager->getMouseCoordsInternal();
+  312          if ((C - m_pressCursor).size() < 6)
+  313              return; // still a click; keep waiting
+  314          const auto OLDPOS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  315          const auto OLDSIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  316          (void)Config::Actions::fullscreenWindow(Fullscreen::FSMODE_NONE, false, W);
+  317          const auto     SIZE   = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  318          const double   RATIO  = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+  319          const Vector2D NEWPOS = {C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)};
+  320          (void)Config::Actions::move(NEWPOS, false, W);
+  321      }
+  322  
+  323      m_bDragPending = false;
+  324      handleMovement();
+  325  }
+######## plugin/barDeco.cpp:376-389 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  376      if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) {
+  377  
+  378          if (m_bDraggingThis) {
+  379              if (m_bTouchEv)
+  380                  KwAct::check(KwAct::SITE_TOUCH_TILE, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));
+  381              g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+  382              Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+  383          }
+  384  
+  385          m_bDraggingThis = false;
+  386          m_bDragPending  = false;
+  387          m_bTouchEv      = false;
+  388          return;
+  389      }
+######## plugin/barDeco.cpp:625-680 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  625  void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+  626      if (m_pWindow.lock() != Desktop::focusState()->window()) {
+  627          // focus moved between the press and the release (e.g. the minimize button): clear the drag state instead of leaving it
+  628          // stuck, which swallowed the next release and could start a drag with no button down
+  629          if (m_bDraggingThis)
+  630              g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  631          m_bDraggingThis  = false;
+  632          m_bCancelledDown = false;
+  633          m_bDragPending   = false;
+  634          m_bTouchEv       = false;
+  635          m_touchId        = 0;
+  636          return;
+  637      }
+  638  
+  639      if (m_bCancelledDown)
+  640          info.cancelled = true;
+  641  
+  642      m_bCancelledDown = false;
+  643  
+  644      if (m_bDraggingThis) {
+  645          if (m_unsnapAnim) {
+  646              m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+  647              stepUnsnap();
+  648          }
+  649          g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  650          m_bDraggingThis = false;
+  651          if (m_bTouchEv)
+  652              (void)Config::Actions::floatWindow(Config::Actions::eTogglableAction::TOGGLE_ACTION_DISABLE);
+  653          else
+  654              snapOnRelease();
+  655  
+  656          Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+  657      }
+  658  
+  659      m_bDragPending = false;
+  660      m_bTouchEv     = false;
+  661      m_touchId      = 0;
+  662  }
+  663  
+  664  void CHyprBar::handleMovement() {
+  665      m_bUnsnapChecked = false;
+  666      m_unsnapAnim     = false;
+  667      m_resistPush     = 0;
+  668      if (const auto W = m_pWindow.lock()) {
+  669          m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  670          // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window
+  671          // can hand focus to that window before this runs, and the drag would grab it instead (a tiled window then
+  672          // floats and follows the pointer). Pin the focus on this bar's window.
+  673          if (Desktop::focusState()->window() != W)
+  674              Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+  675      }
+  676      KwDrag::begin(MBIND_MOVE);
+  677      m_bDraggingThis = true;
+  678      warnIfNoCore();
+  679      Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+  680      return;
+######## plugin/main.cpp:300-320 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  300  // hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
+  301  // next button press ends it (Escape also cancels, handled by the compositor).
+  302  int luaGrab(lua_State* L) {
+  303      if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
+  304          return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
+  305      const std::string mode = lua_tostring(L, 1);
+  306      const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+  307      if (mode != "move" && mode != "resize")
+  308          return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
+  309      for (auto& w : Desktop::windowState()->windows()) {
+  310          if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
+  311              continue;
+  312          Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+  313          if (Desktop::focusState()->window() != w)
+  314              break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
+  315          KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+  316          g_pGlobalState->grabActive = true;
+  317          break;
+  318      }
+  319      return 0;
+  320  }
+######## plugin/main.cpp:456-496 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  456          HyprlandAPI::addNotification(PHANDLE, "[kwinish] Could not hook pointer motion: seam resistance is off.", CHyprColor{1.0, 0.4, 0.2, 1.0}, 8000);
+  457      // Escape cancels the compositor's move/resize on its own; without this the flag stayed set and swallowed the next click
+  458      static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
+  459          if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
+  460              g_pGlobalState->grabActive = false;
+  461          // Shift mid-drag stalls the compositor's move: the dragging bar restarts it on the next pointer motion (no deferred
+  462          // callback, which could outlive the plugin)
+  463          if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
+  464              for (auto& b : g_pGlobalState->bars)
+  465                  if (b)
+  466                      b->m_rearmPending = true;
+  467      });
+  468      // window keys are pointers and get reused: forget what was kept for a window when it closes
+  469      static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
+  470          const auto key = (uintptr_t)w.get();
+  471          g_pGlobalState->hiddenBars.erase(key);
+  472          g_pGlobalState->restores.erase(key);
+  473      });
+  474      // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
+  475      static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
+  476          auto& g = *g_pGlobalState;
+  477          if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+  478              tipHide(false); // any click puts the button tooltip away until the pointer leaves the button (KDE)
+  479              g.tip.pressed = true;
+  480          }
+  481          if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+  482              g.grabActive       = false;
+  483              g.grabSwallowPress = true;
+  484              g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  485              info.cancelled = true;
+  486          } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+  487              g.grabSwallowPress = false;
+  488              info.cancelled     = true;
+  489          }
+  490      });
+  491      static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
+  492          // active/inactive colours: every bar repaints and re-renders its title when focus moves
+  493          for (auto& b : g_pGlobalState->bars)
+  494              if (b)
+  495                  b->onFocusChanged();
+  496      });
+######## core/kwinish.lua:230-237 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  230  end
+  231  -- the focus event fires before the newly focused window is raised, so restack on a short timer; one hook for every core reload
+  232  if not KWINISH_STACK_HOOK then
+  233    KWINISH_STACK_HOOK = true
+  234    hl.on("window.active", function()
+  235      hl.timer(function() local kw = package.loaded.kwinish; if kw then kw.restack() end end, { timeout = 30, type = "oneshot" })
+  236    end)
+  237  end
+######## core/kwinish.lua:548-556 (current production, 0.56.2-style end calls still present = K3/K9/rearm sites) ########
+  548  
+  549  -- Zones depend on monitors, gaps and the bar height: republish when those can change (once per Lua state).
+  550  if not KWINISH_ZONE_HOOKS then
+  551    KWINISH_ZONE_HOOKS = true
+  552    for _, ev in ipairs({ "monitor.layout_changed", "monitor.added", "config.reloaded", "window.active" }) do
+  553      hl.on(ev, function() local kw = package.loaded.kwinish; if kw then kw.publish_zones() end end)
+  554    end
+  555  end
+  556  M.publish_zones()

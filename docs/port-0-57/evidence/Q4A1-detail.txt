@@ -1,0 +1,410 @@
+scenario \ variant             absent    cur-0.56  veto-rc   naive5    alt5      alt5-rc  
+B1.bar.floating                ....      ....      ....      .23.      ....      ....     
+B2.bar.tiled                   ....      ....      ....      .23.      ....      ....     
+B3.bar.click                   ....      ....      ....      .23.      ....      ....     
+B4.bar.focus-moved             ....      ....      ....      ....      ....      ....     
+B5.bar.K9-second-press         ....      ..3.      ..3.      ..3.      ....      ....     
+N1.host.key-end                ....      ....      ....      ....      ....      ....     
+N2.host.unmap                  ....      ....      ....      ....      ....      ....     
+G1.groupbar.via-kwinish-begin  ....      1...      ..3.      ..3.      ....      ....     
+G2.groupbar.user-tab           ....      ....      ....      ....      ....      ....     
+G3.groupbar.drop-into-group    ....      ....      ....      .23.      ....      ....     
+M1.grab.click                  ....      ....      ....      .23.      ....      ....     
+M2.grab.escape                 ....      ....      ....      ....      ....      ....     
+M3.grab.third-after-escape     ....      ....      ....      ....      ....      ....     
+RA1.rearm.shift                ....      ....      ....s     .23.      ....      ....     
+RA2.rearm.third                ....      1...      ..3.      ..3.      ....      ....     
+US1.unsnap                     ....      ....      ....      .23.s     ....      ....     
+US2.unsnap.release-mid         ....      ....      ....      .23.s     ....      ....     
+US3.unsnap.third               ....      1...s     ..3.s     .23.s     ....      ....     
+T1.third.same-window           ....      1...      ..3.      ..3.      ....      ....     
+R4i.rebegin-in-host-end        ....      ....h     ....h     .23.      ....h     ....h    
+H1i.deco-start-false           ....      1...      ..3.      123.      1...      ....     
+L1i.unguarded-third            ....      1...      1...      ..3.      ....      ....     
+F1.float-during-third          ....      1...      1...      1...      ....      ....     
+C1.capture-at-release          ..3.      ....      ....      .23.      .2..      .2..     
+C2.capture-then-key            ..3.      ....      ....      .2..      .2..      .2..     
+K1.grab.escape-nobinds-click   ....      ....      ....      ....      ....      ....     
+K2.grab.escape-nobinds         ....      .2..      .2..      .2..      .2..      .2..     
+Y1.bar-press-during-third      ....      1.3.      ..3.      ..3.      ....      ....     
+M4.grab.shift-then-third       ....      1..4      ..34      ..34      ....      ....     
+US4.unsnap.shift-before-motion ....      ....      ....      .23.s     ....      ....     
+R5.right-click-during-third    ....      ..3.      ..3.      ..3.      ....      ....     
+R6.middle-on-bar-during-own    ....      ....      ....      ....      ....      ....     
+M5.grab.fails-during-third     ....      1...      ..3.      ..3.      ....      ....     
+K3.grab.key-not-ending         ....      .2..      .2..      .2..      .2..      .2..     
+K4.grab.key-not-ending-click   ....      ....      ....      ....      ....      ....     
+RA3.shift-then-release         ....      ...4      ...4      ...4      ....      ....     
+U1.unload.mid-drag             ....      ....      ....      ....      ....      ....     
+P1.pass-mouse-when-bound       ....      ....      ....      .23.      ....      ....     
+P2.pass-mouse-grab             ....      ....      ....      .23.      ....      ....     
+legend: 1 = O1 Kwinish ended/replaced a foreign drag, 2 = O2 own drag not finished, 3 = O3 input blocked/stale, 4 = O4 inconsistent final state, s = scenario check, h = host-caused inconsistency (info)
+RES absent B1.bar.floating final=[no drag]
+RES cur-0.56 B1.bar.floating final=[no drag]
+RES veto-rc B1.bar.floating final=[no drag]
+RES naive5 B1.bar.floating final=[kwinish:A mode=0]
+RES alt5 B1.bar.floating final=[no drag]
+    alt5/B1.bar.floating: end request dropped at barDeco.cpp:649 release
+    alt5/B1.bar.floating: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc B1.bar.floating final=[no drag]
+    alt5-rc/B1.bar.floating: end request dropped at barDeco.cpp:649 release
+    alt5-rc/B1.bar.floating: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent B2.bar.tiled final=[no drag]
+RES cur-0.56 B2.bar.tiled final=[no drag]
+RES veto-rc B2.bar.tiled final=[no drag]
+RES naive5 B2.bar.tiled final=[kwinish:A mode=0]
+RES alt5 B2.bar.tiled final=[no drag]
+    alt5/B2.bar.tiled: end request dropped at barDeco.cpp:649 release
+    alt5/B2.bar.tiled: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc B2.bar.tiled final=[no drag]
+    alt5-rc/B2.bar.tiled: end request dropped at barDeco.cpp:649 release
+    alt5-rc/B2.bar.tiled: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent B3.bar.click final=[no drag]
+RES cur-0.56 B3.bar.click final=[no drag]
+RES veto-rc B3.bar.click final=[no drag]
+RES naive5 B3.bar.click final=[kwinish:A mode=0]
+RES alt5 B3.bar.click final=[no drag]
+    alt5/B3.bar.click: end request dropped at barDeco.cpp:649 release
+    alt5/B3.bar.click: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc B3.bar.click final=[no drag]
+    alt5-rc/B3.bar.click: end request dropped at barDeco.cpp:649 release
+    alt5-rc/B3.bar.click: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent B4.bar.focus-moved final=[no drag]
+RES cur-0.56 B4.bar.focus-moved final=[no drag]
+RES veto-rc B4.bar.focus-moved final=[no drag]
+RES naive5 B4.bar.focus-moved final=[no drag]
+RES alt5 B4.bar.focus-moved final=[no drag]
+    alt5/B4.bar.focus-moved: end request dropped at barDeco.cpp:630 focus moved
+RES alt5-rc B4.bar.focus-moved final=[no drag]
+    alt5-rc/B4.bar.focus-moved: end request dropped at barDeco.cpp:630 focus moved
+RES absent B5.bar.K9-second-press final=[no drag]
+RES cur-0.56 B5.bar.K9-second-press final=[no drag]
+RES veto-rc B5.bar.K9-second-press final=[no drag]
+RES naive5 B5.bar.K9-second-press final=[no drag]
+RES alt5 B5.bar.K9-second-press final=[no drag]
+    alt5/B5.bar.K9-second-press: end request dropped at barDeco.cpp:381 K9
+    alt5/B5.bar.K9-second-press: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc B5.bar.K9-second-press final=[no drag]
+    alt5-rc/B5.bar.K9-second-press: end request dropped at barDeco.cpp:381 K9
+    alt5-rc/B5.bar.K9-second-press: host quirk: press swallowed because a drag was active, release forwarded
+RES absent N1.host.key-end final=[no drag]
+RES cur-0.56 N1.host.key-end final=[no drag]
+RES veto-rc N1.host.key-end final=[no drag]
+RES naive5 N1.host.key-end final=[no drag]
+RES alt5 N1.host.key-end final=[no drag]
+    alt5/N1.host.key-end: end request dropped at barDeco.cpp:649 release
+RES alt5-rc N1.host.key-end final=[no drag]
+    alt5-rc/N1.host.key-end: end request dropped at barDeco.cpp:649 release
+RES absent N2.host.unmap final=[no drag]
+RES cur-0.56 N2.host.unmap final=[no drag]
+RES veto-rc N2.host.unmap final=[no drag]
+RES naive5 N2.host.unmap final=[no drag]
+RES alt5 N2.host.unmap final=[no drag]
+    alt5/N2.host.unmap: end request dropped at barDeco.cpp:649 release
+RES alt5-rc N2.host.unmap final=[no drag]
+    alt5-rc/N2.host.unmap: end request dropped at barDeco.cpp:649 release
+RES absent G1.groupbar.via-kwinish-begin final=[no drag]
+RES cur-0.56 G1.groupbar.via-kwinish-begin final=[no drag]
+RES veto-rc G1.groupbar.via-kwinish-begin final=[groupbar:A mode=0]
+RES naive5 G1.groupbar.via-kwinish-begin final=[groupbar:A mode=0]
+RES alt5 G1.groupbar.via-kwinish-begin final=[no drag]
+    alt5/G1.groupbar.via-kwinish-begin: end request dropped at barDeco.cpp:649 release
+    alt5/G1.groupbar.via-kwinish-begin: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc G1.groupbar.via-kwinish-begin final=[no drag]
+    alt5-rc/G1.groupbar.via-kwinish-begin: end request dropped at barDeco.cpp:649 release
+    alt5-rc/G1.groupbar.via-kwinish-begin: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent G2.groupbar.user-tab final=[no drag]
+RES cur-0.56 G2.groupbar.user-tab final=[no drag]
+RES veto-rc G2.groupbar.user-tab final=[no drag]
+RES naive5 G2.groupbar.user-tab final=[no drag]
+RES alt5 G2.groupbar.user-tab final=[no drag]
+RES alt5-rc G2.groupbar.user-tab final=[no drag]
+RES absent G3.groupbar.drop-into-group final=[no drag]
+RES cur-0.56 G3.groupbar.drop-into-group final=[no drag]
+RES veto-rc G3.groupbar.drop-into-group final=[no drag]
+RES naive5 G3.groupbar.drop-into-group final=[kwinish:A mode=0]
+RES alt5 G3.groupbar.drop-into-group final=[no drag]
+    alt5/G3.groupbar.drop-into-group: end request dropped at barDeco.cpp:649 release
+    alt5/G3.groupbar.drop-into-group: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc G3.groupbar.drop-into-group final=[no drag]
+    alt5-rc/G3.groupbar.drop-into-group: end request dropped at barDeco.cpp:649 release
+    alt5-rc/G3.groupbar.drop-into-group: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent M1.grab.click final=[no drag]
+RES cur-0.56 M1.grab.click final=[no drag]
+RES veto-rc M1.grab.click final=[no drag]
+RES naive5 M1.grab.click final=[kwinish:A mode=0]
+RES alt5 M1.grab.click final=[no drag]
+    alt5/M1.grab.click: end request dropped at main.cpp:484 grab click
+    alt5/M1.grab.click: grab still moving the window between the click press and its release (ends at release)
+RES alt5-rc M1.grab.click final=[no drag]
+    alt5-rc/M1.grab.click: end request dropped at main.cpp:484 grab click
+    alt5-rc/M1.grab.click: grab still moving the window between the click press and its release (ends at release)
+RES absent M2.grab.escape final=[no drag]
+RES cur-0.56 M2.grab.escape final=[no drag]
+RES veto-rc M2.grab.escape final=[no drag]
+RES naive5 M2.grab.escape final=[no drag]
+RES alt5 M2.grab.escape final=[no drag]
+RES alt5-rc M2.grab.escape final=[no drag]
+RES absent M3.grab.third-after-escape final=[no drag]
+RES cur-0.56 M3.grab.third-after-escape final=[no drag]
+RES veto-rc M3.grab.third-after-escape final=[no drag]
+RES naive5 M3.grab.third-after-escape final=[no drag]
+RES alt5 M3.grab.third-after-escape final=[no drag]
+    alt5/M3.grab.third-after-escape: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc M3.grab.third-after-escape final=[no drag]
+    alt5-rc/M3.grab.third-after-escape: host quirk: press swallowed because a drag was active, release forwarded
+RES absent RA1.rearm.shift final=[no drag]
+RES cur-0.56 RA1.rearm.shift final=[no drag]
+RES veto-rc RA1.rearm.shift final=[no drag]
+RES naive5 RA1.rearm.shift final=[kwinish:A mode=0]
+RES alt5 RA1.rearm.shift final=[no drag]
+    alt5/RA1.rearm.shift: end request dropped at barDeco.cpp:649 release
+    alt5/RA1.rearm.shift: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc RA1.rearm.shift final=[no drag]
+    alt5-rc/RA1.rearm.shift: end request dropped at barDeco.cpp:649 release
+    alt5-rc/RA1.rearm.shift: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent RA2.rearm.third final=[no drag]
+RES cur-0.56 RA2.rearm.third final=[no drag]
+RES veto-rc RA2.rearm.third final=[third:A mode=1]
+RES naive5 RA2.rearm.third final=[third:A mode=1]
+RES alt5 RA2.rearm.third final=[no drag]
+    alt5/RA2.rearm.third: end request dropped at barDeco.cpp:649 release
+    alt5/RA2.rearm.third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc RA2.rearm.third final=[no drag]
+    alt5-rc/RA2.rearm.third: end request dropped at barDeco.cpp:649 release
+    alt5-rc/RA2.rearm.third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent US1.unsnap final=[no drag]
+RES cur-0.56 US1.unsnap final=[no drag]
+RES veto-rc US1.unsnap final=[no drag]
+RES naive5 US1.unsnap final=[kwinish:A mode=0]
+RES alt5 US1.unsnap final=[no drag]
+    alt5/US1.unsnap: end request dropped at barDeco.cpp:649 release
+    alt5/US1.unsnap: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc US1.unsnap final=[no drag]
+    alt5-rc/US1.unsnap: end request dropped at barDeco.cpp:649 release
+    alt5-rc/US1.unsnap: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent US2.unsnap.release-mid final=[no drag]
+RES cur-0.56 US2.unsnap.release-mid final=[no drag]
+RES veto-rc US2.unsnap.release-mid final=[no drag]
+RES naive5 US2.unsnap.release-mid final=[kwinish:A mode=0]
+RES alt5 US2.unsnap.release-mid final=[no drag]
+    alt5/US2.unsnap.release-mid: end request dropped at barDeco.cpp:649 release
+RES alt5-rc US2.unsnap.release-mid final=[no drag]
+    alt5-rc/US2.unsnap.release-mid: end request dropped at barDeco.cpp:649 release
+RES absent US3.unsnap.third final=[no drag]
+RES cur-0.56 US3.unsnap.third final=[no drag]
+RES veto-rc US3.unsnap.third final=[third:A mode=1]
+RES naive5 US3.unsnap.third final=[kwinish:A mode=0]
+RES alt5 US3.unsnap.third final=[no drag]
+    alt5/US3.unsnap.third: unsnap aborted: another drag is active
+    alt5/US3.unsnap.third: end request dropped at barDeco.cpp:649 release
+    alt5/US3.unsnap.third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc US3.unsnap.third final=[no drag]
+    alt5-rc/US3.unsnap.third: unsnap aborted: another drag is active
+    alt5-rc/US3.unsnap.third: end request dropped at barDeco.cpp:649 release
+    alt5-rc/US3.unsnap.third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent T1.third.same-window final=[no drag]
+RES cur-0.56 T1.third.same-window final=[no drag]
+RES veto-rc T1.third.same-window final=[third:A mode=0]
+RES naive5 T1.third.same-window final=[third:A mode=0]
+RES alt5 T1.third.same-window final=[no drag]
+    alt5/T1.third.same-window: end request dropped at barDeco.cpp:649 release
+    alt5/T1.third.same-window: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc T1.third.same-window final=[no drag]
+    alt5-rc/T1.third.same-window: end request dropped at barDeco.cpp:649 release
+    alt5-rc/T1.third.same-window: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent R4i.rebegin-in-host-end final=[no drag]
+RES cur-0.56 R4i.rebegin-in-host-end final=[third:A mode=-1]
+RES veto-rc R4i.rebegin-in-host-end final=[third:A mode=-1]
+RES naive5 R4i.rebegin-in-host-end final=[kwinish:A mode=0]
+RES alt5 R4i.rebegin-in-host-end final=[third:A mode=-1]
+    alt5/R4i.rebegin-in-host-end: host-caused: live third drag with mode INVALID (enclosing dragEnd, R3)
+    alt5/R4i.rebegin-in-host-end: end request dropped at barDeco.cpp:649 release
+    alt5/R4i.rebegin-in-host-end: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc R4i.rebegin-in-host-end final=[third:A mode=-1]
+    alt5-rc/R4i.rebegin-in-host-end: host-caused: live third drag with mode INVALID (enclosing dragEnd, R3)
+    alt5-rc/R4i.rebegin-in-host-end: end request dropped at barDeco.cpp:649 release
+    alt5-rc/R4i.rebegin-in-host-end: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent H1i.deco-start-false final=[no drag]
+RES cur-0.56 H1i.deco-start-false final=[no drag]
+RES veto-rc H1i.deco-start-false final=[third:A mode=0]
+RES naive5 H1i.deco-start-false final=[kwinish:A mode=0]
+RES alt5 H1i.deco-start-false final=[no drag]
+    alt5/H1i.deco-start-false: kwinish replaced an active session (unguarded begin)
+    alt5/H1i.deco-start-false: end request dropped at barDeco.cpp:649 release
+    alt5/H1i.deco-start-false: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc H1i.deco-start-false final=[no drag]
+    alt5-rc/H1i.deco-start-false: end request dropped at barDeco.cpp:649 release
+    alt5-rc/H1i.deco-start-false: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent L1i.unguarded-third final=[no drag]
+RES cur-0.56 L1i.unguarded-third final=[no drag]
+RES veto-rc L1i.unguarded-third final=[no drag]
+RES naive5 L1i.unguarded-third final=[third:A mode=1]
+RES alt5 L1i.unguarded-third final=[no drag]
+    alt5/L1i.unguarded-third: end request dropped at barDeco.cpp:649 release
+    alt5/L1i.unguarded-third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc L1i.unguarded-third final=[no drag]
+    alt5-rc/L1i.unguarded-third: end request dropped at barDeco.cpp:649 release
+    alt5-rc/L1i.unguarded-third: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent F1.float-during-third final=[no drag]
+RES cur-0.56 F1.float-during-third final=[no drag]
+RES veto-rc F1.float-during-third final=[no drag]
+RES naive5 F1.float-during-third final=[no drag]
+RES alt5 F1.float-during-third final=[no drag]
+    alt5/F1.float-during-third: float toggle refused while a drag is active
+RES alt5-rc F1.float-during-third final=[no drag]
+    alt5-rc/F1.float-during-third: float toggle refused while a drag is active
+RES absent C1.capture-at-release final=[no drag]
+RES cur-0.56 C1.capture-at-release final=[no drag]
+RES veto-rc C1.capture-at-release final=[no drag]
+RES naive5 C1.capture-at-release final=[kwinish:A mode=0]
+RES alt5 C1.capture-at-release final=[kwinish:A mode=0]
+    alt5/C1.capture-at-release: Kwinish drag on A alive after its interaction ended
+    alt5/C1.capture-at-release: Kwinish drag on A still active after the interaction
+    alt5/C1.capture-at-release: end request dropped at barDeco.cpp:649 release
+    alt5/C1.capture-at-release: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc C1.capture-at-release final=[kwinish:A mode=0]
+    alt5-rc/C1.capture-at-release: Kwinish drag on A alive after its interaction ended
+    alt5-rc/C1.capture-at-release: Kwinish drag on A still active after the interaction
+    alt5-rc/C1.capture-at-release: end request dropped at barDeco.cpp:649 release
+    alt5-rc/C1.capture-at-release: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent C2.capture-then-key final=[no drag]
+RES cur-0.56 C2.capture-then-key final=[no drag]
+RES veto-rc C2.capture-then-key final=[no drag]
+RES naive5 C2.capture-then-key final=[no drag]
+RES alt5 C2.capture-then-key final=[no drag]
+    alt5/C2.capture-then-key: Kwinish drag on A alive after its interaction ended
+    alt5/C2.capture-then-key: end request dropped at barDeco.cpp:649 release
+    alt5/C2.capture-then-key: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc C2.capture-then-key final=[no drag]
+    alt5-rc/C2.capture-then-key: Kwinish drag on A alive after its interaction ended
+    alt5-rc/C2.capture-then-key: end request dropped at barDeco.cpp:649 release
+    alt5-rc/C2.capture-then-key: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent K1.grab.escape-nobinds-click final=[no drag]
+RES cur-0.56 K1.grab.escape-nobinds-click final=[no drag]
+RES veto-rc K1.grab.escape-nobinds-click final=[no drag]
+RES naive5 K1.grab.escape-nobinds-click final=[no drag]
+RES alt5 K1.grab.escape-nobinds-click final=[no drag]
+    alt5/K1.grab.escape-nobinds-click: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc K1.grab.escape-nobinds-click final=[no drag]
+    alt5-rc/K1.grab.escape-nobinds-click: host quirk: press swallowed because a drag was active, release forwarded
+RES absent K2.grab.escape-nobinds final=[no drag]
+RES cur-0.56 K2.grab.escape-nobinds final=[kwinish:A mode=0]
+RES veto-rc K2.grab.escape-nobinds final=[kwinish:A mode=0]
+RES naive5 K2.grab.escape-nobinds final=[kwinish:A mode=0]
+RES alt5 K2.grab.escape-nobinds final=[kwinish:A mode=0]
+    alt5/K2.grab.escape-nobinds: Kwinish drag on A alive after its interaction ended
+    alt5/K2.grab.escape-nobinds: Kwinish drag on A still active after the interaction
+RES alt5-rc K2.grab.escape-nobinds final=[kwinish:A mode=0]
+    alt5-rc/K2.grab.escape-nobinds: Kwinish drag on A alive after its interaction ended
+    alt5-rc/K2.grab.escape-nobinds: Kwinish drag on A still active after the interaction
+RES absent Y1.bar-press-during-third final=[no drag]
+RES cur-0.56 Y1.bar-press-during-third final=[no drag]
+RES veto-rc Y1.bar-press-during-third final=[third:B mode=0]
+RES naive5 Y1.bar-press-during-third final=[third:B mode=0]
+RES alt5 Y1.bar-press-during-third final=[no drag]
+    alt5/Y1.bar-press-during-third: bar press yields to an active drag
+    alt5/Y1.bar-press-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc Y1.bar-press-during-third final=[no drag]
+    alt5-rc/Y1.bar-press-during-third: bar press yields to an active drag
+    alt5-rc/Y1.bar-press-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES absent M4.grab.shift-then-third final=[no drag]
+RES cur-0.56 M4.grab.shift-then-third final=[no drag]
+RES veto-rc M4.grab.shift-then-third final=[third:B mode=0]
+RES naive5 M4.grab.shift-then-third final=[third:B mode=0]
+RES alt5 M4.grab.shift-then-third final=[no drag]
+    alt5/M4.grab.shift-then-third: grab flag cleared: the host ended the drag on a key event
+    alt5/M4.grab.shift-then-third: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc M4.grab.shift-then-third final=[no drag]
+    alt5-rc/M4.grab.shift-then-third: grab flag cleared: the host ended the drag on a key event
+    alt5-rc/M4.grab.shift-then-third: host quirk: press swallowed because a drag was active, release forwarded
+RES absent US4.unsnap.shift-before-motion final=[no drag]
+RES cur-0.56 US4.unsnap.shift-before-motion final=[no drag]
+RES veto-rc US4.unsnap.shift-before-motion final=[no drag]
+RES naive5 US4.unsnap.shift-before-motion final=[kwinish:A mode=0]
+RES alt5 US4.unsnap.shift-before-motion final=[no drag]
+    alt5/US4.unsnap.shift-before-motion: end request dropped at barDeco.cpp:649 release
+    alt5/US4.unsnap.shift-before-motion: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc US4.unsnap.shift-before-motion final=[no drag]
+    alt5-rc/US4.unsnap.shift-before-motion: end request dropped at barDeco.cpp:649 release
+    alt5-rc/US4.unsnap.shift-before-motion: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent R5.right-click-during-third final=[no drag]
+RES cur-0.56 R5.right-click-during-third final=[no drag]
+RES veto-rc R5.right-click-during-third final=[no drag]
+RES naive5 R5.right-click-during-third final=[no drag]
+RES alt5 R5.right-click-during-third final=[no drag]
+    alt5/R5.right-click-during-third: bar right-click yields to an active drag
+    alt5/R5.right-click-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc R5.right-click-during-third final=[no drag]
+    alt5-rc/R5.right-click-during-third: bar right-click yields to an active drag
+    alt5-rc/R5.right-click-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES absent R6.middle-on-bar-during-own final=[no drag]
+RES cur-0.56 R6.middle-on-bar-during-own final=[no drag]
+RES veto-rc R6.middle-on-bar-during-own final=[no drag]
+RES naive5 R6.middle-on-bar-during-own final=[no drag]
+RES alt5 R6.middle-on-bar-during-own final=[no drag]
+    alt5/R6.middle-on-bar-during-own: host quirk: press swallowed because a drag was active, release forwarded
+    alt5/R6.middle-on-bar-during-own: end request dropped at barDeco.cpp:649 release
+RES alt5-rc R6.middle-on-bar-during-own final=[no drag]
+    alt5-rc/R6.middle-on-bar-during-own: host quirk: press swallowed because a drag was active, release forwarded
+    alt5-rc/R6.middle-on-bar-during-own: end request dropped at barDeco.cpp:649 release
+RES absent M5.grab.fails-during-third final=[no drag]
+RES cur-0.56 M5.grab.fails-during-third final=[no drag]
+RES veto-rc M5.grab.fails-during-third final=[third:B mode=0]
+RES naive5 M5.grab.fails-during-third final=[third:B mode=0]
+RES alt5 M5.grab.fails-during-third final=[no drag]
+    alt5/M5.grab.fails-during-third: grab not armed: begin did not start
+    alt5/M5.grab.fails-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc M5.grab.fails-during-third final=[no drag]
+    alt5-rc/M5.grab.fails-during-third: grab not armed: begin did not start
+    alt5-rc/M5.grab.fails-during-third: host quirk: press swallowed because a drag was active, release forwarded
+RES absent K3.grab.key-not-ending final=[no drag]
+RES cur-0.56 K3.grab.key-not-ending final=[kwinish:A mode=0]
+RES veto-rc K3.grab.key-not-ending final=[kwinish:A mode=0]
+RES naive5 K3.grab.key-not-ending final=[kwinish:A mode=0]
+RES alt5 K3.grab.key-not-ending final=[kwinish:A mode=0]
+    alt5/K3.grab.key-not-ending: Kwinish drag on A alive after its interaction ended
+    alt5/K3.grab.key-not-ending: Kwinish drag on A still active after the interaction
+RES alt5-rc K3.grab.key-not-ending final=[kwinish:A mode=0]
+    alt5-rc/K3.grab.key-not-ending: Kwinish drag on A alive after its interaction ended
+    alt5-rc/K3.grab.key-not-ending: Kwinish drag on A still active after the interaction
+RES absent K4.grab.key-not-ending-click final=[no drag]
+RES cur-0.56 K4.grab.key-not-ending-click final=[no drag]
+RES veto-rc K4.grab.key-not-ending-click final=[no drag]
+RES naive5 K4.grab.key-not-ending-click final=[no drag]
+RES alt5 K4.grab.key-not-ending-click final=[no drag]
+    alt5/K4.grab.key-not-ending-click: host quirk: press swallowed because a drag was active, release forwarded
+RES alt5-rc K4.grab.key-not-ending-click final=[no drag]
+    alt5-rc/K4.grab.key-not-ending-click: host quirk: press swallowed because a drag was active, release forwarded
+RES absent RA3.shift-then-release final=[no drag]
+RES cur-0.56 RA3.shift-then-release final=[no drag]
+RES veto-rc RA3.shift-then-release final=[no drag]
+RES naive5 RA3.shift-then-release final=[no drag]
+RES alt5 RA3.shift-then-release final=[no drag]
+    alt5/RA3.shift-then-release: end request dropped at barDeco.cpp:649 release
+RES alt5-rc RA3.shift-then-release final=[no drag]
+    alt5-rc/RA3.shift-then-release: end request dropped at barDeco.cpp:649 release
+RES absent U1.unload.mid-drag final=[no drag]
+RES cur-0.56 U1.unload.mid-drag final=[no drag]
+RES veto-rc U1.unload.mid-drag final=[no drag]
+RES naive5 U1.unload.mid-drag final=[no drag]
+RES alt5 U1.unload.mid-drag final=[no drag]
+RES alt5-rc U1.unload.mid-drag final=[no drag]
+RES absent P1.pass-mouse-when-bound final=[no drag]
+RES cur-0.56 P1.pass-mouse-when-bound final=[no drag]
+RES veto-rc P1.pass-mouse-when-bound final=[no drag]
+RES naive5 P1.pass-mouse-when-bound final=[kwinish:A mode=0]
+RES alt5 P1.pass-mouse-when-bound final=[no drag]
+    alt5/P1.pass-mouse-when-bound: end request dropped at barDeco.cpp:649 release
+    alt5/P1.pass-mouse-when-bound: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES alt5-rc P1.pass-mouse-when-bound final=[no drag]
+    alt5-rc/P1.pass-mouse-when-bound: end request dropped at barDeco.cpp:649 release
+    alt5-rc/P1.pass-mouse-when-bound: snapOnRelease runs BEFORE the host ends the drag (ordering change)
+RES absent P2.pass-mouse-grab final=[no drag]
+RES cur-0.56 P2.pass-mouse-grab final=[no drag]
+RES veto-rc P2.pass-mouse-grab final=[no drag]
+RES naive5 P2.pass-mouse-grab final=[kwinish:A mode=0]
+RES alt5 P2.pass-mouse-grab final=[no drag]
+    alt5/P2.pass-mouse-grab: end request dropped at main.cpp:484 grab click
+RES alt5-rc P2.pass-mouse-grab final=[no drag]
+    alt5-rc/P2.pass-mouse-grab: end request dropped at main.cpp:484 grab click

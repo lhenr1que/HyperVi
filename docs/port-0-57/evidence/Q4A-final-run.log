@@ -1,0 +1,23 @@
+scratch: /home/lhen/.hermes/cache/scratch/q4a-run.wwJgrR
+g++ model: 45 ok, 0 failed
+g++ probe: positive OK, negative only expected sessionId diagnostic
+clang++ model: 45 ok, 0 failed
+clang++ probe: positive OK, negative only expected sessionId diagnostic
+OK   - q01 killed: FALHOU - proposed S3: third-party drag active -> no ownership, untouched
+OK   - q02 killed: FALHOU - proposed S8: plugin start refused while inside its own end (no orphan session)
+OK   - q03 killed: FALHOU - no start after unload step 2 began
+OK   - q04 killed: FALHOU - listener reset inside its own handler: ran once, no crash (ASan), disarmed
+OK   - q05 killed: FALHOU - unload step 2 after a silent target death: no end attempted, listener destroyed anyway
+OK   - q06 killed: FALHOU - listen() fails: drag started WITHOUT ownership (start behaviour kept); plugin never ends it
+OK   - q07 survives as expected: redundant (endIfOurs checks owns() itself)
+OK   - q08 killed: FALHOU - proposed S2: user drag on the SAME window kept
+OK   - q09 survives as expected: redundant under premises (the handler disarms on every `ended`)
+OK   - q10 survives as expected: redundant (target equality already fails when our target expired)
+OK   - q11 survives as expected: redundant under A3 (no unguarded re-begin; `ended` disarms otherwise)
+OK   - q12 survives as expected: redundant (listener is null exactly when disarmed)
+OK   - q13 killed: FALHOU - proposed S4.3: refused inside dragBegin -> no ownership; later third-party drag kept
+OK   - q14 killed: FALHOU - persistent S2: user drag on the SAME window kept
+OK   - q15 killed: FALHOU - persistent S4.3: refused inside dragBegin -> no ownership; later third-party drag kept
+result: PASS
+
+PASS: model GCC/Clang, real-header probes, mutations; no live host

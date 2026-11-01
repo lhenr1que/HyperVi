@@ -1,0 +1,17 @@
+######## probe-g++.log ########
+
+######## probe-clang++.log ########
+
+######## probe-neg-g++.log ########
+probe.cpp: In function ‘void invalidSessionId(DC&)’:
+probe.cpp:14:40: error: ‘using DC = class Layout::Supplementary::CDragStateController’ {aka ‘class Layout::Supplementary::CDragStateController’} has no member named ‘sessionId’
+   14 | void invalidSessionId(DC& c) { (void)c.sessionId(); }
+      |                                        ^~~~~~~~~
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+
+######## probe-neg-clang++.log ########
+probe.cpp:14:40: error: no member named 'sessionId' in 'Layout::Supplementary::CDragStateController'
+   14 | void invalidSessionId(DC& c) { (void)c.sessionId(); }
+      |                                      ~ ^
+1 error generated.

@@ -1,0 +1,8 @@
+scratch: /home/lhen/.hermes/cache/scratch/q4a-run.B9FFTm
+--- run-g++.txt (failure lines) ---
+OK - R1: failed outer acquisition has no owned or orphan session
+OK - R1: failed outer acquisition has no owned or orphan session
+FALHOU - R4.host: no extra plugin end of same-target third-party drag before outer ended
+FALHOU - R4.own: no extra plugin end of same-target third-party drag before outer ended
+45 ok, 2 failed
+runner exit: 1

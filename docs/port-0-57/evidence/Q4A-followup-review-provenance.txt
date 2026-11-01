@@ -1,0 +1,1 @@
+Completed static reviews: Hermes openai-codex/gpt-6.1-sol, separate fresh sessions, same model family as continuation. No writing tools. Exact sent prompts verified against state.db. Verdicts: conditional (3 major/2 minor), conditional (1 residual major). Final R4 regressions added after second completed review; no third review claimed. No implementation approval.

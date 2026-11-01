@@ -1,0 +1,674 @@
+# Pinned Hyprland 0aa6745f excerpts used by the Q4-A end-policy study (read-only copies; line numbers prefixed)
+
+######## U:layout/supplementary/DragController.cpp:59-69  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+   59  SP<ITarget> CDragStateController::target() const {
+   60      return m_target.lock();
+   61  }
+   62  
+   63  eMouseBindMode CDragStateController::mode() const {
+   64      return m_dragMode;
+   65  }
+   66  
+   67  bool CDragStateController::wasDraggingWindow() const {
+   68      return m_wasDraggingWindow;
+   69  }
+
+######## U:layout/supplementary/DragController.cpp:159-334  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+  159  void CDragStateController::dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+  160      m_target              = target;
+  161      m_dragMode            = mode;
+  162      m_draggingTiled       = false;
+  163      m_forcedGrabbedCorner = forcedEdge;
+  164      m_exclusiveDeviceGrab = exclusiveDeviceGrab;
+  165      m_grabbedCorner       = CORNER_NONE;
+  166  
+  167      const auto  DRAGGINGTARGET = m_target.lock();
+  168      static auto PDRAGTHRESHOLD = CConfigValue<Config::INTEGER>("binds:drag_threshold");
+  169  
+  170      m_mouseMoveEventCount = 1;
+  171      m_beginDragSizeXY     = Vector2D();
+  172  
+  173      // Window will be floating. Let's check if it's valid. It should be, but I don't like crashing.
+  174      if (!validMapped(DRAGGINGTARGET->window())) {
+  175          LOG(Log::ERR, "Dragging attempted on an invalid window (not mapped)");
+  176          dragEnd();
+  177          return;
+  178      }
+  179  
+  180      if (!DRAGGINGTARGET->workspace()) {
+  181          LOG(Log::ERR, "Dragging attempted on an invalid window (no workspace)");
+  182          dragEnd();
+  183          return;
+  184      }
+  185  
+  186      // Try to pick up dragged window now if drag_threshold is disabled
+  187      // or at least update dragging related variables for the cursors
+  188      m_dragThresholdReached = *PDRAGTHRESHOLD <= 0;
+  189      if (updateDragWindow())
+  190          return;
+  191  
+  192      // get the grab corner
+  193      static auto RESIZECORNER = CConfigValue<Config::INTEGER>("general:resize_corner");
+  194      if (m_forcedGrabbedCorner && *m_forcedGrabbedCorner != CORNER_NONE) {
+  195          m_grabbedCorner = *m_forcedGrabbedCorner;
+  196          Pointer::Cursor::overrideController->setOverride(std::string{cursorForResizeEdge(m_grabbedCorner)}, Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  197      } else if (*RESIZECORNER != 0 && *RESIZECORNER <= 4 && DRAGGINGTARGET->floating()) {
+  198          switch (*RESIZECORNER) {
+  199              case 1:
+  200                  m_grabbedCorner = CORNER_TOPLEFT;
+  201                  Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  202                  break;
+  203              case 2:
+  204                  m_grabbedCorner = CORNER_TOPRIGHT;
+  205                  Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  206                  break;
+  207              case 3:
+  208                  m_grabbedCorner = CORNER_BOTTOMRIGHT;
+  209                  Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  210                  break;
+  211              case 4:
+  212                  m_grabbedCorner = CORNER_BOTTOMLEFT;
+  213                  Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  214                  break;
+  215          }
+  216      } else if (m_beginDragXY.x < m_beginDragPositionXY.x + m_beginDragSizeXY.x / 2.F) {
+  217          if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+  218              m_grabbedCorner = CORNER_TOPLEFT;
+  219              Pointer::Cursor::overrideController->setOverride("nw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  220          } else {
+  221              m_grabbedCorner = CORNER_BOTTOMLEFT;
+  222              Pointer::Cursor::overrideController->setOverride("sw-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  223          }
+  224      } else {
+  225          if (m_beginDragXY.y < m_beginDragPositionXY.y + m_beginDragSizeXY.y / 2.F) {
+  226              m_grabbedCorner = CORNER_TOPRIGHT;
+  227              Pointer::Cursor::overrideController->setOverride("ne-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  228          } else {
+  229              m_grabbedCorner = CORNER_BOTTOMRIGHT;
+  230              Pointer::Cursor::overrideController->setOverride("se-resize", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  231          }
+  232      }
+  233  
+  234      if (!isResizeMode(m_dragMode))
+  235          Pointer::Cursor::overrideController->setOverride("grabbing", Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  236  
+  237      if (m_exclusiveDeviceGrab)
+  238          g_pSeatManager->setPointerFocus(nullptr, {});
+  239  
+  240      DRAGGINGTARGET->damageEntire();
+  241  
+  242      Keybinds::mgr()->shadowBinds();
+  243  
+  244      if (DRAGGINGTARGET->window()) {
+  245          Desktop::focusState()->rawWindowFocus(DRAGGINGTARGET->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  246          Desktop::windowState()->raise(DRAGGINGTARGET->window());
+  247      }
+  248  
+  249      if (isResizeMode(m_dragMode))
+  250          setClientResizingState(DRAGGINGTARGET, true);
+  251  }
+  252  bool CDragStateController::dragEnd() {
+  253      auto draggingTarget = m_target.lock();
+  254  
+  255      if (!draggingTarget)
+  256          return false;
+  257  
+  258      Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+  259  
+  260      m_mouseMoveEventCount = 1;
+  261  
+  262      if (!validMapped(draggingTarget->window())) {
+  263          if (draggingTarget->window()) {
+  264              Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  265              m_target.reset();
+  266          }
+  267          m_dragMode            = MBIND_INVALID;
+  268          m_exclusiveDeviceGrab = false;
+  269          m_forcedGrabbedCorner.reset();
+  270          return true;
+  271      }
+  272  
+  273      Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  274      m_target.reset();
+  275      m_wasDraggingWindow = true;
+  276  
+  277      if (m_dragMode == MBIND_MOVE && draggingTarget->window()) {
+  278          draggingTarget->damageEntire();
+  279  
+  280          const auto DRAGGING_WINDOW = draggingTarget->window();
+  281  
+  282          const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+  283          PHLWINDOW  pWindow =
+  284              Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, DRAGGING_WINDOW);
+  285  
+  286          if (pWindow) {
+  287              if (pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+  288                  m_wasDraggingWindow   = false;
+  289                  m_dragMode            = MBIND_INVALID;
+  290                  m_exclusiveDeviceGrab = false;
+  291                  m_forcedGrabbedCorner.reset();
+  292                  return true;
+  293              }
+  294  
+  295              const bool  FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled;
+  296              static auto PDRAGINTOGROUP   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  297  
+  298              if (pWindow->grouping().group() && DRAGGING_WINDOW->grouping().canBeGroupedInto(pWindow->grouping().group()) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+  299                  pWindow->grouping().group()->add(DRAGGING_WINDOW);
+  300                  // fix the draggingTarget, now it's DRAGGING_WINDOW
+  301                  draggingTarget = DRAGGING_WINDOW->windowTarget();
+  302              }
+  303          }
+  304      }
+  305  
+  306      if (const auto W = draggingTarget->window(); W) {
+  307          W->effects().resetMotionBlur();
+  308          W->presentation().clearFloatingOffset();
+  309      }
+  310  
+  311      if (m_draggingTiled) {
+  312          // make sure to check if we are floating because drag into group could make us tiled already
+  313          if (draggingTarget->floating())
+  314              g_layoutManager->changeFloatingMode(draggingTarget);
+  315  
+  316          draggingTarget->rememberFloatingSize(m_draggingWindowOriginalFloatSize);
+  317      }
+  318  
+  319      draggingTarget->damageEntire();
+  320  
+  321      g_layoutManager->setTargetGeom(draggingTarget->position(), draggingTarget);
+  322  
+  323      Desktop::focusState()->fullWindowFocus(draggingTarget->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  324  
+  325      m_wasDraggingWindow = false;
+  326      if (isResizeMode(m_dragMode))
+  327          setClientResizingState(draggingTarget, false);
+  328  
+  329      m_dragMode            = MBIND_INVALID;
+  330      m_exclusiveDeviceGrab = false;
+  331      m_draggingTiled       = false;
+  332      m_forcedGrabbedCorner.reset();
+  333      return true;
+  334  }
+
+######## U:layout/supplementary/DragController.hpp:17-66  sha256 9feac094865db462e757e990a9fcecbadc655ab28488c42f3da9f483b6afe85a ########
+   17      class CDragStateController {
+   18        public:
+   19          CDragStateController()  = default;
+   20          ~CDragStateController() = default;
+   21  
+   22          void           dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<Layout::eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+   23          bool           dragEnd();
+   24  
+   25          void           mouseMove(const Vector2D& mousePos);
+   26          eMouseBindMode mode() const;
+   27          bool           wasDraggingWindow() const;
+   28          bool           dragThresholdReached() const;
+   29          void           resetDragThresholdReached();
+   30          bool           draggingTiled() const;
+   31          bool           exclusiveDeviceGrab() const;
+   32  
+   33          /*
+   34              Called to try to pick up window for dragging.
+   35              Updates drag related variables and floats window if threshold reached.
+   36              Return true to reject
+   37          */
+   38          bool        updateDragWindow();
+   39  
+   40          SP<ITarget> target() const;
+   41  
+   42          struct {
+   43              CSignalT<> motion;
+   44              CSignalT<> ended;
+   45          } m_events;
+   46  
+   47        private:
+   48          WP<ITarget>                        m_target;
+   49  
+   50          eMouseBindMode                     m_dragMode             = MBIND_INVALID;
+   51          bool                               m_wasDraggingWindow    = false;
+   52          bool                               m_dragThresholdReached = false;
+   53          bool                               m_draggingTiled        = false;
+   54          bool                               m_exclusiveDeviceGrab  = false;
+   55  
+   56          int                                m_mouseMoveEventCount = 0;
+   57          Vector2D                           m_dragHotspot;
+   58          Vector2D                           m_beginDragXY;
+   59          Vector2D                           m_beginDragUntransformedXY;
+   60          Vector2D                           m_lastDragXY;
+   61          Vector2D                           m_beginDragPositionXY;
+   62          Vector2D                           m_beginDragSizeXY;
+   63          Vector2D                           m_draggingWindowOriginalFloatSize;
+   64          Layout::eRectCorner                m_grabbedCorner = sc<Layout::eRectCorner>(0) /* CORNER_NONE */;
+   65          std::optional<Layout::eRectCorner> m_forcedGrabbedCorner;
+   66      };
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:392-450  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  392  bool CHyprGroupBarDecoration::onBeginWindowDragOnDeco(const Vector2D& pos) {
+  393      static auto PSTACKED  = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  394      static auto POUTERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  395      static auto PINNERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  396      if (m_window->grouping().group()->size() == 1)
+  397          return false;
+  398  
+  399      const float BARRELATIVEX = pos.x - assignedBoxGlobal().x;
+  400      const float BARRELATIVEY = pos.y - assignedBoxGlobal().y;
+  401      const int   WINDOWINDEX  = *PSTACKED ? (BARRELATIVEY / (m_barHeight + *POUTERGAP)) : (BARRELATIVEX) / (m_barWidth + *PINNERGAP);
+  402  
+  403      if (!*PSTACKED && (BARRELATIVEX - (m_barWidth + *PINNERGAP) * WINDOWINDEX > m_barWidth))
+  404          return false;
+  405  
+  406      if (*PSTACKED && (BARRELATIVEY - (m_barHeight + *POUTERGAP) * WINDOWINDEX < *POUTERGAP))
+  407          return false;
+  408  
+  409      PHLWINDOW   pWindow = m_window->grouping().group()->fromIndex(WINDOWINDEX);
+  410  
+  411      const auto& GROUP = m_window->grouping().group();
+  412  
+  413      // remove the window from the group
+  414      GROUP->remove(pWindow);
+  415  
+  416      // start a move drag on it
+  417      g_layoutManager->dragController()->dragBegin(pWindow->layoutTarget(), MBIND_MOVE);
+  418  
+  419      if (!Desktop::focusState()->isWindowActive(pWindow))
+  420          Desktop::focusState()->rawWindowFocus(pWindow, Desktop::FOCUS_REASON_CLICK);
+  421  
+  422      return true;
+  423  }
+  424  
+  425  bool CHyprGroupBarDecoration::onEndWindowDragOnDeco(const Vector2D& pos, PHLWINDOW pDraggedWindow) {
+  426      static auto PDRAGINTOGROUP                   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  427      static auto PMERGEFLOATEDINTOTILEDONGROUPBAR = CConfigValue<Config::INTEGER>("group:merge_floated_into_tiled_on_groupbar");
+  428      static auto PMERGEGROUPSONGROUPBAR           = CConfigValue<Config::INTEGER>("group:merge_groups_on_groupbar");
+  429      static auto PSTACKED                         = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  430      static auto POUTERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  431      static auto PINNERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  432      const bool  FLOATEDINTOTILED                 = !m_window->isFloating() && !g_layoutManager->dragController()->draggingTiled();
+  433  
+  434      if (!pDraggedWindow->grouping().canBeGroupedInto(m_window->grouping().group()) || (*PDRAGINTOGROUP != 1 && *PDRAGINTOGROUP != 2) ||
+  435          (FLOATEDINTOTILED && !*PMERGEFLOATEDINTOTILEDONGROUPBAR) || (!*PMERGEGROUPSONGROUPBAR && pDraggedWindow->grouping().group()))
+  436          return false;
+  437  
+  438      const float BARRELATIVE = *PSTACKED ? pos.y - assignedBoxGlobal().y - (m_barHeight + *POUTERGAP) / 2 : pos.x - assignedBoxGlobal().x - m_barWidth / 2;
+  439      const float BARSIZE     = *PSTACKED ? m_barHeight + *POUTERGAP : m_barWidth + *PINNERGAP;
+  440      const int   WINDOWINDEX = (BARRELATIVE < 0 ? -1 : BARRELATIVE / BARSIZE) + 1;
+  441  
+  442      m_window->grouping().group()->add(pDraggedWindow, WINDOWINDEX);
+  443  
+  444      if (!pDraggedWindow->presentation().decoration(DECORATION_GROUPBAR))
+  445          pDraggedWindow->presentation().addDecoration(makeShared<CHyprGroupBarDecoration>(pDraggedWindow));
+  446  
+  447      Desktop::focusState()->fullWindowFocus(pDraggedWindow->windowTarget()->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  448  
+  449      return true;
+  450  }
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:520-530  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  520      return true;
+  521  }
+  522  
+  523  bool CHyprGroupBarDecoration::onInputOnDeco(const eInputType type, const Vector2D& mouseCoords, std::any data) {
+  524      switch (type) {
+  525          case INPUT_TYPE_AXIS: return onScrollOnDeco(mouseCoords, std::any_cast<const IPointer::SAxisEvent>(data));
+  526          case INPUT_TYPE_BUTTON: return onMouseButtonOnDeco(mouseCoords, std::any_cast<const IPointer::SButtonEvent&>(data));
+  527          case INPUT_TYPE_DRAG_START: return onBeginWindowDragOnDeco(mouseCoords);
+  528          case INPUT_TYPE_DRAG_END: return onEndWindowDragOnDeco(mouseCoords, std::any_cast<PHLWINDOW>(data));
+  529          default: return false;
+  530      }
+
+######## U:layout/LayoutManager.cpp:48-57  sha256 e003e7bd18cae031ccd87d3871058c660f94a559e82f351b3abbc07e6beb6750 ########
+   48      IPC::Socket2::sock()->postEvent({
+   49          .event = "changefloatingmode",
+   50          .data  = std::format("{:x},{}", rc<uintptr_t>(target->window().get()), sc<int>(target->floating())),
+   51      });
+   52      Event::bus()->m_events.window.floating.emit(target->window());
+   53  }
+   54  
+   55  void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+   56      m_dragStateController->dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab);
+   57  }
+
+######## U:desktop/state/FocusState.cpp:205-222  sha256 b00d2696bfc4dd96d4d8d80de65493eb39c009fca2cb5e94fd9c7ff9bd22c950 ########
+  205      rawSurfaceFocus(PWINDOWSURFACE, pWindow);
+  206  
+  207      g_pXWaylandManager->activateWindow(pWindow, true); // sets the m_pLastWindow
+  208  
+  209      pWindow->m_ruleApplicator->propertiesChanged(Rule::RULE_PROP_FOCUS);
+  210      pWindow->presentation().onFocusAnimUpdate();
+  211      pWindow->presentation().refreshValues();
+  212  
+  213      if (pWindow->m_hints & Desktop::View::WINDOW_HINT_URGENT)
+  214          pWindow->m_hints &= ~Desktop::View::WINDOW_HINT_URGENT;
+  215  
+  216      // Send an event
+  217      IPC::Socket2::sock()->postEvent({.event = "activewindow", .data = std::format("{},{}", pWindow->metadata().appID(), pWindow->metadata().title())});
+  218      IPC::Socket2::sock()->postEvent({.event = "activewindowv2", .data = std::format("{:x}", rc<uintptr_t>(pWindow.get()))});
+  219  
+  220      Event::bus()->m_events.window.active.emit(pWindow, reason);
+  221  
+  222      g_pInputManager->recheckIdleInhibitorStatus();
+
+######## U:protocols/XDGShell.cpp:444-498  sha256 c7e433685e8cf50b6a6fb282e89808802c9a7d969b7dadf655e55952c43f8858 ########
+  444  uint32_t CXDGToplevelResource::setResizing(bool resizing) {
+  445      bool set = std::ranges::find(m_pendingApply.states, XDG_TOPLEVEL_STATE_RESIZING) != m_pendingApply.states.end();
+  446  
+  447      if (resizing == set)
+  448          return m_owner->m_scheduledSerial;
+  449  
+  450      if (resizing && !set)
+  451          m_pendingApply.states.push_back(XDG_TOPLEVEL_STATE_RESIZING);
+  452      else if (!resizing && set)
+  453          std::erase(m_pendingApply.states, XDG_TOPLEVEL_STATE_RESIZING);
+  454  
+  455      scheduleStateApplication();
+  456  
+  457      return m_owner->scheduleConfigure();
+  458  }
+  459  
+  460  uint32_t CXDGToplevelResource::setSuspeneded(bool sus) {
+  461      if (m_resource->version() < 6)
+  462          return m_owner->scheduleConfigure(); // SUSPENDED is since 6
+  463  
+  464      bool set = std::ranges::find(m_pendingApply.states, XDG_TOPLEVEL_STATE_SUSPENDED) != m_pendingApply.states.end();
+  465  
+  466      if (sus == set)
+  467          return m_owner->m_scheduledSerial;
+  468  
+  469      if (sus && !set)
+  470          m_pendingApply.states.push_back(XDG_TOPLEVEL_STATE_SUSPENDED);
+  471      else if (!sus && set)
+  472          std::erase(m_pendingApply.states, XDG_TOPLEVEL_STATE_SUSPENDED);
+  473  
+  474      scheduleStateApplication();
+  475  
+  476      return m_owner->scheduleConfigure();
+  477  }
+  478  
+  479  void CXDGToplevelResource::scheduleStateApplication() {
+  480  
+  481      if (m_stateUpdate)
+  482          return;
+  483  
+  484      m_stateUpdate = g_pEventLoopManager->doLaterLock([this] {
+  485          wl_array arr;
+  486          wl_array_init(&arr);
+  487  
+  488          if (const auto PSTATES = sc<int*>(wl_array_add(&arr, m_pendingApply.states.size() * sizeof(int))))
+  489              std::ranges::copy(m_pendingApply.states, PSTATES);
+  490  
+  491          m_resource->sendConfigure(m_pendingApply.size.x, m_pendingApply.size.y, &arr);
+  492  
+  493          wl_array_release(&arr);
+  494  
+  495          m_stateUpdate.reset();
+  496      });
+  497  }
+  498  
+
+######## U:protocols/XDGShell.cpp:668-677  sha256 c7e433685e8cf50b6a6fb282e89808802c9a7d969b7dadf655e55952c43f8858 ########
+  668  uint32_t CXDGSurfaceResource::scheduleConfigure() {
+  669      if (m_stateUpdate)
+  670          return m_scheduledSerial;
+  671  
+  672      m_stateUpdate = g_pEventLoopManager->doLaterLock([this] { configure(); });
+  673  
+  674      m_scheduledSerial = wl_display_next_serial(g_pCompositor->m_wlDisplay);
+  675  
+  676      return m_scheduledSerial;
+  677  }
+
+######## U:desktop/view/window/X11Backend.cpp:373-375  sha256 c1c167e5d1bca4ad7c920dce2191b08f9791ba606d0e83462ec6a9a3b71cd138 ########
+  373  void CX11Backend::setResizing(bool) {
+  374      ;
+  375  }
+
+######## U:desktop/view/window/WaylandBackend.cpp:351-355  sha256 d70dd6d39d517ffc3dc7f6c915a68dcd4d7bde8ba4a011d48bca23a48fd1e840 ########
+  351  void CWaylandBackend::setResizing(bool resizing) {
+  352      const auto RESOURCE = m_resource.lock();
+  353      if (RESOURCE && RESOURCE->m_toplevel)
+  354          RESOURCE->m_toplevel->setResizing(resizing);
+  355  }
+
+######## U:managers/eventLoop/EventLoopManager.cpp:124-138  sha256 934797a68b888aabb77457bc8f23c772dd34ea09f58bc20dc76ce4060bbdacd7 ########
+  124  void CEventLoopManager::enterLoop() {
+  125      m_wayland.eventSource = wl_event_loop_add_fd(m_wayland.loop, m_timers.timerfd.get(), WL_EVENT_READABLE, timerWrite, nullptr);
+  126  
+  127      if (const auto& FD = Config::watcher()->getInotifyFD(); FD.isValid())
+  128          m_configWatcherInotifySource = wl_event_loop_add_fd(m_wayland.loop, FD.get(), WL_EVENT_READABLE, configWatcherWrite, nullptr);
+  129  
+  130      syncPollFDs();
+  131      m_listeners.pollFDsChanged = g_pCompositor->m_aqBackend->events.pollFDsChanged.listen([this] { syncPollFDs(); });
+  132  
+  133      // if we have a session, dispatch it to get the pending input devices
+  134      if (g_pCompositor->m_aqBackend->hasSession())
+  135          g_pCompositor->m_aqBackend->session->dispatchPendingEventsAsync();
+  136  
+  137      wl_display_run(m_wayland.display);
+  138  
+
+######## U:managers/eventLoop/EventLoopManager.cpp:215-247  sha256 934797a68b888aabb77457bc8f23c772dd34ea09f58bc20dc76ce4060bbdacd7 ########
+  215  uint64_t CEventLoopManager::doLater(const std::function<void()>& fn) {
+  216      const uint64_t NEW_SEQ = ++LAST_DO_LATER_SEQ;
+  217  
+  218      m_idle.fns.emplace_back(NEW_SEQ, fn);
+  219  
+  220      if (m_idle.eventSource)
+  221          return NEW_SEQ;
+  222  
+  223      m_idle.eventSource = wl_event_loop_add_idle(
+  224          m_wayland.loop,
+  225          [](void* data) {
+  226              auto IDLE = sc<CEventLoopManager::SIdleData*>(data);
+  227              auto fns  = std::move(IDLE->fns);
+  228              IDLE->fns.clear();
+  229              IDLE->eventSource = nullptr;
+  230              for (auto& f : fns) {
+  231                  if (f.second)
+  232                      f.second();
+  233              }
+  234          },
+  235          &m_idle);
+  236  
+  237      return NEW_SEQ;
+  238  }
+  239  
+  240  void CEventLoopManager::removeDoLater(uint64_t seq) {
+  241      std::erase_if(m_idle.fns, [&seq](const auto& e) { return e.first == seq; });
+  242  
+  243      if (m_idle.fns.empty() && m_idle.eventSource) {
+  244          wl_event_source_remove(m_idle.eventSource);
+  245          m_idle.eventSource = nullptr;
+  246      }
+  247  }
+
+######## U:keybinds/Manager.cpp:340-354  sha256 c95d27f9c99b9a952b4ff3b51a9ee517cda14539948d82dca717ce5ea887b12d ########
+  340          nullptr);
+  341  
+  342      return RESULT.passEvent;
+  343  }
+  344  
+  345  bool CKeybindManager::onMouseEvent(const IPointer::SButtonEvent& event, SP<IPointer> pointer, bool captured) {
+  346      const auto MODIFIERS = g_pInputManager->getModsFromAllKBs();
+  347      const auto KEY       = SResolvedKey{.event = "mouse:" + std::to_string(event.button)};
+  348  
+  349      Config::Actions::state()->m_lastMouseCode = event.button;
+  350      Config::Actions::state()->m_lastCode      = 0;
+  351      Config::Actions::state()->m_timeLastMs    = event.timeMs;
+  352  
+  353      const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+  354      cancelTimedBinds();
+
+######## U:managers/input/InputManager.cpp:195-198  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  195  void CInputManager::simulateMouseMovement() {
+  196      m_lastCursorPosFloored = m_lastCursorPosFloored - Vector2D(1, 1); // hack: force the mouseMoveUnified to report without making this a refocus.
+  197      mouseMoveUnified(Time::millis(Time::steadyNow()));
+  198  }
+
+######## U:managers/input/InputManager.cpp:286-295  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  286      PHLWINDOW              pFoundWindow;
+  287      PHLLS                  pFoundLayerSurface;
+  288      const auto             FOCUS_REASON = refocus ? Desktop::FOCUS_REASON_CLICK : Desktop::FOCUS_REASON_FFM;
+  289  
+  290      if (!pointerOnly) {
+  291          Event::SCallbackInfo info;
+  292          Event::bus()->m_events.input.mouse.move.emit(MOUSECOORDSFLOORED, info);
+  293          if (info.cancelled)
+  294              return;
+  295  
+
+######## U:managers/input/InputManager.cpp:720-725  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  720  void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) {
+  721      Event::SCallbackInfo info;
+  722      Event::bus()->m_events.input.mouse.button.emit(e, info);
+  723      if (info.cancelled)
+  724          return;
+  725  
+
+######## U:config/shared/actions/ConfigActions.cpp:1695-1737  sha256 2671bcfb511a9c0fe9bf1ae9773b84e58c8dcf82b42679b050d43f34b3c4dcd0 ########
+ 1695  ActionResult Actions::mouse(const std::string& action) {
+ 1696      const bool PRESSED = Config::Actions::state()->m_passPressed == 1;
+ 1697  
+ 1698      if (!PRESSED) {
+ 1699          if (g_layoutManager->dragController()->target())
+ 1700              g_layoutManager->endDragTarget();
+ 1701          return {};
+ 1702      }
+ 1703  
+ 1704      if (g_layoutManager->dragController()->target())
+ 1705          return {};
+ 1706  
+ 1707      eMouseBindMode mode = MBIND_RESIZE;
+ 1708  
+ 1709      if (action == "movewindow")
+ 1710          mode = MBIND_MOVE;
+ 1711  
+ 1712      // resizewindow with optional ratio mode
+ 1713      else {
+ 1714          try {
+ 1715              const auto SPACEPOS = action.find(' ');
+ 1716              if (SPACEPOS != std::string::npos) {
+ 1717                  switch (std::stoi(action.substr(SPACEPOS + 1))) {
+ 1718                      case 1: mode = MBIND_RESIZE_FORCE_RATIO; break;
+ 1719                      case 2: mode = MBIND_RESIZE_BLOCK_RATIO; break;
+ 1720                      default: break;
+ 1721                  }
+ 1722              }
+ 1723          } catch (...) { /* stoi failed, fall through to default resize */
+ 1724          }
+ 1725      }
+ 1726  
+ 1727      const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+ 1728      const PHLWINDOW PWINDOW = Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+ 1729  
+ 1730      if (!PWINDOW)
+ 1731          return SActionResult{.passEvent = true};
+ 1732  
+ 1733      if (!Fullscreen::controller()->isFullscreen(PWINDOW) && mode == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+ 1734          return {};
+ 1735  
+ 1736      g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+ 1737      return {};
+
+######## grep: writers of m_wasDraggingWindow / listeners of DragController ended (whole src) ########
+./layout/supplementary/DragController.cpp:68:    return m_wasDraggingWindow;
+./layout/supplementary/DragController.cpp:258:    Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+./layout/supplementary/DragController.cpp:275:    m_wasDraggingWindow = true;
+./layout/supplementary/DragController.cpp:288:                m_wasDraggingWindow   = false;
+./layout/supplementary/DragController.cpp:325:    m_wasDraggingWindow = false;
+./layout/supplementary/DragController.hpp:51:        bool                               m_wasDraggingWindow    = false;
+
+######## grep: dragBegin/beginDragTarget/endDragTarget callers ########
+./render/decorations/CHyprGroupBarDecoration.cpp:417:    g_layoutManager->dragController()->dragBegin(pWindow->layoutTarget(), MBIND_MOVE);
+./desktop/view/window/Window.cpp:1673:        g_layoutManager->endDragTarget();
+./desktop/view/window/Window.cpp:1867:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_MOVE, std::nullopt, true);
+./desktop/view/window/Window.cpp:1877:    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_RESIZE, backendResizeEdgeToCorner(edge), true);
+./managers/input/InputManager.cpp:877:                    g_layoutManager->beginDragTarget(w->layoutTarget(), MBIND_RESIZE);
+./config/shared/actions/ConfigActions.cpp:253:        g_layoutManager->endDragTarget();
+./config/shared/actions/ConfigActions.cpp:1700:            g_layoutManager->endDragTarget();
+./config/shared/actions/ConfigActions.cpp:1736:    g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+./keybinds/Manager.cpp:223:    const bool DRAG_WAS_ACTIVE = g_layoutManager->endDragTarget();
+./keybinds/Manager.cpp:353:    const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+./layout/LayoutManager.cpp:55:void CLayoutManager::beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge, bool exclusiveDeviceGrab) {
+./layout/LayoutManager.cpp:56:    m_dragStateController->dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab);
+./layout/LayoutManager.cpp:113:bool CLayoutManager::endDragTarget() {
+./layout/LayoutManager.cpp:114:    return m_dragStateController->dragEnd();
+./layout/LayoutManager.hpp:78:        void                    beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+./layout/LayoutManager.hpp:83:        bool                    endDragTarget();
+
+
+######## (added after review 1) U:layout/supplementary/DragController.cpp:52-57  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+   52  static void setClientResizingState(SP<ITarget> target, bool resizing) {
+   53      if (!target || !target->window())
+   54          return;
+   55  
+   56      target->window()->backend().setResizing(resizing);
+   57  }
+
+######## (added after review 1) U:desktop/view/Group.cpp:234-299  sha256 77250a1727ec6571366f34311e95e33b306dd8516b5dddd94afcb95cb51a6394 ########
+  234  void CGroup::remove(PHLWINDOW w, Math::eDirection dir, eRemoveFromGroupReason reason) {
+  235      std::optional<size_t> idx;
+  236      for (size_t i = 0; i < m_windows.size(); ++i) {
+  237          if (m_windows.at(i) == w) {
+  238              idx = i;
+  239              break;
+  240          }
+  241      }
+  242  
+  243      if (!idx)
+  244          return;
+  245  
+  246      if ((m_current >= *idx && idx != 0) || (m_current >= m_windows.size() - 1 && m_current > 0))
+  247          m_current--;
+  248  
+  249      auto g = m_self.lock(); // keep ref to avoid uaf after membership is detached
+  250  
+  251      w->grouping().detach();
+  252      removeWindowDecos(w);
+  253  
+  254      w->setInputBlocked(FOCUS_BLOCK_GROUP_INACTIVE, false);
+  255      *w->presentation().alpha(WINDOW_ALPHA_LAYOUT) = 1.F;
+  256  
+  257      const bool REMOVING_GROUP = m_windows.size() <= 1;
+  258  
+  259      if (REMOVING_GROUP) {
+  260          w->windowTarget()->assignToSpace(nullptr);
+  261          g_layoutManager->switchTargets(m_target, w->windowTarget());
+  262      }
+  263  
+  264      // we do it after the above because switchTargets expects this to be a valid group
+  265      m_windows.erase(m_windows.begin() + *idx);
+  266  
+  267      // if groupbar:disable_when_only is enabled and there is only one group member left, we need to fix its size because it will lose its groupbar.
+  268      static auto PDISABLE = CConfigValue<Config::BOOL>("group:groupbar:disable_when_only");
+  269      if (*PDISABLE && m_windows.size() == 1) {
+  270          if (const auto REMAINING_MEMBER = m_windows.at(0).lock()) {
+  271              const auto GROUPBAR = REMAINING_MEMBER->presentation().decoration(DECORATION_GROUPBAR);
+  272              GROUPBAR->updateWindow(REMAINING_MEMBER);
+  273              g_pDecorationPositioner->forceRecalcFor(REMAINING_MEMBER);
+  274          }
+  275      }
+  276  
+  277      if (!m_windows.empty())
+  278          updateWindowVisibility();
+  279  
+  280      // do this here: otherwise the new current is hidden and workspace rules get wrong data
+  281      if (!REMOVING_GROUP) {
+  282          std::optional<Vector2D> focalPoint;
+  283          if (dir != Math::DIRECTION_DEFAULT) {
+  284              const auto box = m_target->position();
+  285              switch (dir) {
+  286                  case Math::DIRECTION_RIGHT: focalPoint = Vector2D(box.x + box.w, box.y + box.h / 2.0); break;
+  287                  case Math::DIRECTION_LEFT: focalPoint = Vector2D(box.x, box.y + box.h / 2.0); break;
+  288                  case Math::DIRECTION_DOWN: focalPoint = Vector2D(box.x + box.w / 2.0, box.y + box.h); break;
+  289                  case Math::DIRECTION_UP: focalPoint = Vector2D(box.x + box.w / 2.0, box.y); break;
+  290                  default: break;
+  291              }
+  292          }
+  293  
+  294          // We don't need to assign a window to a new space if we intend to unmap it
+  295          if (reason == REMOVE_FROM_GROUP_REASON_UNMAP_WINDOW)
+  296              return;
+  297          w->windowTarget()->assignToSpace(m_target->space(), focalPoint);
+  298      }
+  299  }

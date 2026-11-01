@@ -1,0 +1,575 @@
+######## q4model.hpp ########
+// Q4-A host-free model (scratch only; NOT production code).
+// - CDragModel replicates the control flow of the 0.57 CDragStateController::dragBegin/dragEnd
+//   (U:layout/supplementary/DragController.cpp:158-251 and 252-334, commit 0aa6745f) at the level that matters for
+//   ownership: who sets/resets m_target, where `ended` is emitted (scope guard after the early "no target" return),
+//   the refusal paths inside dragBegin (unmapped window / no workspace -> dragEnd; fullscreen-workspace reject in
+//   updateDragWindow -> dragEnd), the DRAG_END decoration early return, and the synchronous callbacks that run before
+//   `ended` (decoration DRAG_END, fullWindowFocus -> window.active listeners).
+// - Signals are the REAL Hyprutils::Signal::CSignalT<> / CHyprSignalListener (installed hyprutils 0.14.3).
+#pragma once
+#include <hyprutils/memory/SharedPtr.hpp>
+#include <hyprutils/memory/WeakPtr.hpp>
+#include <hyprutils/signal/Signal.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
+
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <optional>
+#include <string>
+#include <vector>
+
+using Hyprutils::Memory::CSharedPointer;
+using Hyprutils::Memory::CWeakPointer;
+using Hyprutils::Memory::makeShared;
+using Hyprutils::Signal::CHyprSignalListener;
+using Hyprutils::Signal::CSignalT;
+
+enum eMode : int8_t { M_INVALID = -1, M_MOVE = 0, M_RESIZE = 1 };
+
+struct STarget {
+    std::string name;
+    bool        mapped = true, hasWorkspace = true, hasWindow = true, fsWorkspaceReject = false, decoTakesDragEnd = false;
+};
+using SPT = CSharedPointer<STarget>;
+using WPT = CWeakPointer<STarget>;
+
+inline std::vector<std::string> g_log;
+inline void                     L(const std::string& s) { g_log.push_back(s); }
+
+struct CDragModel {
+    WPT   m_target;
+    eMode m_mode = M_INVALID;
+    struct {
+        CSignalT<> ended;
+    } m_events;
+    std::function<void()> onFocusDuringEnd;     // stands for fullWindowFocus -> window.active listeners
+    std::function<void()> onDecoDragEnd;        // stands for checkInputOnDecorations(INPUT_TYPE_DRAG_END) callbacks
+    int                   endedEmissions = 0;
+
+    SPT target() const { return m_target.lock(); }
+
+    void dragBegin(SPT t, eMode mode) { // U:158-251
+        m_target = t;                    // :160  (no guard: callers must check target() first)
+        m_mode   = mode;
+        const auto D = m_target.lock();
+        if (!D->mapped) { L("dragBegin: invalid window -> dragEnd"); dragEnd(); return; }        // :173-177
+        if (!D->hasWorkspace) { L("dragBegin: no workspace -> dragEnd"); dragEnd(); return; }     // :179-183
+        if (D->fsWorkspaceReject) { L("dragBegin: fullscreen workspace reject -> dragEnd"); dragEnd(); return; } // updateDragWindow :123-126
+        L("dragBegin: started " + D->name);
+    }
+
+    bool dragEnd() { // U:252-334
+        auto D = m_target.lock();
+        if (!D)
+            return false;                                                              // :255-256, no `ended`
+        Hyprutils::Utils::CScopeGuard notifyEnded([this] { ++endedEmissions; m_events.ended.emit(); }); // :258
+        if (!D->mapped) {                                                              // :262-271
+            if (D->hasWindow)
+                m_target.reset();
+            m_mode = M_INVALID;
+            return true;
+        }
+        m_target.reset();                                                              // :274 (before callbacks)
+        if (m_mode == M_MOVE && D->decoTakesDragEnd) {                                 // :287-293
+            if (auto f = onDecoDragEnd) f(); // copy: a callback may clear itself
+            m_mode = M_INVALID;
+            return true;
+        }
+        if (auto f = onDecoDragEnd) f();
+        if (auto f = onFocusDuringEnd) f();                                      // :324 fullWindowFocus
+        m_mode = M_INVALID;
+        return true;
+    }
+};
+inline CDragModel* g_dc = nullptr; // the host's single controller (g_layoutManager->dragController())
+
+// ---- the plugin side ---------------------------------------------------------------------------------------------
+// Start helper = plugin/hostDrag.hpp KwDrag::begin semantics (guard: refuse if any drag is active).
+enum eBeginResult { STARTED, ALREADY, REFUSED };
+
+// Candidate end policies WITHOUT ownership (what K3 could do today) -------------------------------------------------
+struct CNaive {
+    SPT  remembered;
+    int  kind = 0; // 0 unconditional, 1 target equality, 2 target+mode
+    eMode rememberedMode = M_INVALID;
+    eBeginResult begin(SPT t, eMode m) {
+        if (g_dc->target()) return ALREADY;
+        g_dc->dragBegin(t, m);
+        remembered = t; rememberedMode = m;
+        return g_dc->target() ? STARTED : REFUSED;
+    }
+    bool endIfOurs() {
+        const auto T = g_dc->target();
+        if (!T) return false;
+        if (kind == 1 && T != remembered) return false;
+        if (kind == 2 && (T != remembered || g_dc->m_mode != rememberedMode)) return false;
+        return g_dc->dragEnd();
+    }
+    bool owns() const { return true; }
+};
+
+// PROPOSED contract (Q4-A) -------------------------------------------------------------------------------------------
+// Ownership = (a listener on `ended` armed only for our session) AND (no `ended` since acquisition) AND (our target
+// still alive) AND (it is the controller's current target). Acquired only when our begin really started a session.
+struct COwnership {
+    uint64_t            generation = 0;     // bumped by accepted `ended` callbacks
+    uint64_t            acquisition = 0;    // listener identity; NOT a host session ID
+    bool                inBegin = false;   // reject plugin reentry during acquisition
+    std::optional<uint64_t> ownedAt;        // generation at acquisition; nullopt = not owning
+    WPT                 ownedTarget;
+    CHyprSignalListener listener;           // session-scoped: exists only while owning (or while starting)
+    bool                inOwnEnd = false;   // we are inside our own endDragTarget()
+    bool                unloading = false;
+    bool                failListen = false; // test hook: listen() throws (allocation failure)
+    int                 handlerRuns = 0;
+
+    void disarm() { ++acquisition; ownedAt.reset(); ownedTarget.reset(); listener.reset(); }
+
+    bool owns() const { return ownedAt && *ownedAt == generation && !ownedTarget.expired() && g_dc->target() == ownedTarget.lock() && listener; }
+
+    eBeginResult begin(SPT t, eMode m) {
+        if (unloading || inOwnEnd || inBegin)       // acquire/end/unload are non-reentrant plugin transactions
+            return REFUSED;
+        if (g_dc->target())
+            return ALREADY;                       // anyone's drag: untouched (P8-B guard)
+        inBegin = true;
+        Hyprutils::Utils::CScopeGuard finishBegin([this] { inBegin = false; });
+        const uint64_t token = ++acquisition;
+        try {                                     // arm BEFORE begin, so a refusal-`ended` inside dragBegin is seen
+            if (failListen) throw std::bad_alloc();
+            listener = g_dc->m_events.ended.listen([this, token] {
+                // Old callbacks can survive in MORE THAN ONE signal snapshot; reference counts do not identify them.
+                if (token != acquisition) return;
+                ++handlerRuns;
+                ++generation;
+                disarm();
+            });
+        } catch (const std::bad_alloc&) {
+            // rollback policy: start WITHOUT ownership (preserves today's start behaviour; the plugin will not end it,
+            // the host ends it on the next button/key)
+            g_dc->dragBegin(t, m);
+            return g_dc->target() ? STARTED : REFUSED;
+        }
+        const uint64_t G0 = generation;
+        g_dc->dragBegin(t, m);
+        if (generation != G0 || !g_dc->target() || g_dc->target() != t) { // refused inside dragBegin (ended fired) or replaced
+            disarm();
+            return REFUSED;
+        }
+        ownedAt     = G0;
+        ownedTarget = t;
+        return STARTED;
+    }
+
+    bool endIfOurs() { // K3/K9 replacement
+        if (!owns())
+            return false;
+        inOwnEnd       = true;
+        const bool R   = g_dc->dragEnd(); // emits `ended` -> our handler disarms
+        inOwnEnd       = false;
+        if (ownedAt) disarm();            // e.g. host emitted nothing (cannot happen with a live target; defensive)
+        return R;
+    }
+
+    void unloadStep2() { // PLUGIN_EXIT step 2 (Q4), before removing listeners/decorations
+        unloading = true;
+        if (owns())
+            (void)endIfOurs();
+        disarm();        // listener destroyed before the module is unmapped
+    }
+};
+
+######## q4test.cpp ########
+// Q4-A scenarios. Build: g++/clang++ -std=c++2b -fsanitize=address,undefined q4test.cpp $(pkg-config --cflags --libs hyprutils)
+#include "q4model.hpp"
+#include "review_cases.hpp"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+static int fails = 0, oks = 0;
+static void check(bool ok, const std::string& what) {
+    std::printf("%s - %s\n", ok ? "ok" : "FALHOU", what.c_str());
+    (ok ? oks : fails)++;
+}
+
+// Variant with a plugin-lifetime listener (P7 §5 item 6): the generation counter is what invalidates ownership.
+struct CPersistent {
+    uint64_t                generation = 0;
+    std::optional<uint64_t> ownedAt;
+    WPT                     ownedTarget;
+    CHyprSignalListener     listener;
+    void                    init() { listener = g_dc->m_events.ended.listen([this] { ++generation; }); }
+    bool owns() const { return ownedAt && *ownedAt == generation && !ownedTarget.expired() && g_dc->target() == ownedTarget.lock(); }
+    eBeginResult begin(SPT t, eMode m) {
+        if (g_dc->target()) return ALREADY;
+        const auto G0 = generation;
+        g_dc->dragBegin(t, m);
+        if (generation != G0 || g_dc->target() != t) return REFUSED;
+        ownedAt = G0; ownedTarget = t;
+        return STARTED;
+    }
+    bool endIfOurs() { if (!owns()) return false; ownedAt.reset(); return g_dc->dragEnd(); }
+};
+
+static SPT mk(const char* n) { auto t = makeShared<STarget>(); t->name = n; return t; }
+
+// Run one scenario for a policy P. Returns {thirdPartyDragEndedByPlugin, ownDragNotEnded}
+template <typename P>
+static void scenarios(const char* NAME, bool expectSafe) {
+    auto run = [&](const char* sc, auto body) {
+        CDragModel dc; g_dc = &dc; g_log.clear();
+        P p;
+        if constexpr (requires { p.init(); }) p.init();
+        if constexpr (requires { p.kind; }) p.kind = std::strstr(NAME, "unconditional") ? 0 : std::strstr(NAME, "target+mode") ? 2 : 1;
+        body(dc, p, sc);
+    };
+    // S1 liveness: our drag, we end it
+    run("S1", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A");
+        const auto R = p.begin(A, M_MOVE);
+        const bool ended = p.endIfOurs();
+        check(R == STARTED && ended && !dc.target(), std::string(NAME) + " " + sc + ": own drag started and ended by the plugin (liveness)");
+    });
+    // S2 the counterexample: host ends ours (key), user starts on the SAME window, plugin release
+    run("S2", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A");
+        p.begin(A, M_MOVE);
+        dc.dragEnd();                      // host: key press (U:keybinds/Manager.cpp:223)
+        dc.dragBegin(A, M_MOVE);           // user's bind drag on the same window/target, same mode
+        const bool ended = p.endIfOurs();
+        check(expectSafe ? (!ended && dc.target() == A) : (ended && !dc.target()),
+              std::string(NAME) + " " + sc + (expectSafe ? ": user drag on the SAME window kept" : ": user drag on the same window ENDED (counterexample reproduced)"));
+    });
+    if (!expectSafe) return;
+    // S3 begin refused because a third-party drag is active; plugin end must not touch it
+    run("S3", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A"), X = mk("X");
+        dc.dragBegin(X, M_MOVE);
+        const auto R = p.begin(A, M_MOVE);
+        check(R == ALREADY && !p.endIfOurs() && dc.target() == X, std::string(NAME) + " " + sc + ": third-party drag active -> no ownership, untouched");
+    });
+    // S4 refusal inside dragBegin (unmapped / no workspace / fullscreen workspace) -> `ended` inside begin -> no ownership
+    for (int v = 0; v < 4; ++v)
+        run("S4", [&](CDragModel& dc, P& p, const char* sc) {
+            auto A = mk("A");
+            if (v == 3) { A->mapped = false; A->hasWindow = false; } // refusal that emits `ended` WITHOUT resetting the target (U:262-271)
+            else (v == 0 ? A->mapped : v == 1 ? A->hasWorkspace : A->fsWorkspaceReject) = (v == 2);
+            const auto R = p.begin(A, M_MOVE);
+            auto X = mk("X");
+            dc.dragBegin(X, M_MOVE); // later third-party drag
+            check(R == REFUSED && !p.endIfOurs() && dc.target() == X, std::string(NAME) + " " + sc + "." + std::to_string(v) + ": refused inside dragBegin -> no ownership; later third-party drag kept");
+        });
+    // S5 our target dies WITHOUT `ended` (dragEnd returns early on an expired target), then a third-party drag
+    run("S5", [&](CDragModel& dc, P& p, const char* sc) {
+        SPT A = mk("A");
+        p.begin(A, M_MOVE);
+        A = nullptr;                       // target destroyed; controller's WP expires silently
+        dc.dragEnd();                      // host: nothing to end -> no `ended`
+        auto X = mk("X");
+        dc.dragBegin(X, M_MOVE);
+        check(!p.endIfOurs() && dc.target() == X, std::string(NAME) + " " + sc + ": our target died silently (no ended) -> third-party drag kept");
+    });
+    // S7 reentrancy: inside the host's dragEnd of OUR session a callback starts a third-party drag before `ended`
+    run("S7", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A"), X = mk("X");
+        p.begin(A, M_MOVE);
+        dc.onFocusDuringEnd = [&] { dc.onFocusDuringEnd = nullptr; dc.dragBegin(X, M_MOVE); }; // window.active listener of someone else
+        dc.dragEnd();                      // host ends ours; X starts reentrantly; then `ended` (for A) is emitted
+        check(!p.endIfOurs() && dc.target() == X, std::string(NAME) + " " + sc + ": reentrant third-party start during host dragEnd -> kept");
+    });
+    // S8 reentrancy during OUR OWN end: a callback tries to start a plugin drag
+    run("S8", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A"), B = mk("B");
+        p.begin(A, M_MOVE);
+        eBeginResult inner = ALREADY;
+        dc.onFocusDuringEnd = [&] { dc.onFocusDuringEnd = nullptr; inner = p.begin(B, M_MOVE); };
+        p.endIfOurs();
+        const bool ownsAfter = p.owns();
+        if constexpr (requires { p.inOwnEnd; })
+            check(inner == REFUSED && !dc.target() && !ownsAfter, std::string(NAME) + " " + sc + ": plugin start refused while inside its own end (no orphan session)");
+        else
+            check(!ownsAfter, std::string(NAME) + " " + sc + ": reentrant own start: ownership not kept (conservative; started=" + std::to_string(inner == STARTED) + ")");
+    });
+    // S9 DRAG_END decoration early return path still emits `ended`
+    run("S9", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A");
+        A->decoTakesDragEnd = true;
+        p.begin(A, M_MOVE);
+        dc.dragEnd();
+        dc.dragBegin(A, M_MOVE);
+        check(!p.endIfOurs() && dc.target() == A, std::string(NAME) + " " + sc + ": decoration-early-return end still invalidates; later user drag kept");
+    });
+    // S10 target without window: dragEnd emits `ended` but does NOT reset m_target (U:262-271)
+    run("S10", [&](CDragModel& dc, P& p, const char* sc) {
+        auto A = mk("A");
+        p.begin(A, M_MOVE);
+        A->mapped = false; A->hasWindow = false;
+        dc.dragEnd();                     // ended emitted, target still set
+        check(!p.endIfOurs() && dc.target() == A, std::string(NAME) + " " + sc + ": `ended` without target reset -> ownership dropped (conservative)");
+    });
+}
+
+int main() {
+    std::printf("== naive policies (no ownership): the counterexample\n");
+    scenarios<CNaive>("unconditional", false);
+    scenarios<CNaive>("target equality", false);
+    scenarios<CNaive>("target+mode", false);
+    std::printf("== proposed: session-scoped listener + generation + target WP\n");
+    scenarios<COwnership>("proposed", true);
+    std::printf("== variant: plugin-lifetime listener + generation\n");
+    scenarios<CPersistent>("persistent", true);
+
+    // ---- premise A3: an UNGUARDED third-party beginDragTarget while ours is active, on the SAME target -------------
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A = mk("A");
+        p.begin(A, M_MOVE);
+        dc.dragBegin(A, M_RESIZE);         // replaces m_target without `ended` (U:160 has no guard)
+        const bool ended = p.endIfOurs();
+        check(ended, "premise A3 needed: unguarded re-begin on the same target is indistinguishable (proposed ENDS it) -> documented as limit");
+    }
+    // ---- listener lifetime with the real hyprutils signal --------------------------------------------------------
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A = mk("A");
+        p.begin(A, M_MOVE);
+        p.endIfOurs();                     // handler resets its own listener during the emission
+        check(p.handlerRuns == 1 && !p.listener, "listener reset inside its own handler: ran once, no crash (ASan), disarmed");
+        const int before = p.handlerRuns;
+        auto B = mk("B");
+        dc.dragBegin(B, M_MOVE); dc.dragEnd(); // later sessions emit `ended`
+        check(p.handlerRuns == before, "after disarm, later `ended` emissions do not call the plugin");
+    }
+    {
+        // a listener registered during an emission is not called by that emission (snapshot)
+        CDragModel dc; g_dc = &dc; int late = 0; CHyprSignalListener l2;
+        auto l1 = dc.m_events.ended.listen([&] { l2 = dc.m_events.ended.listen([&] { ++late; }); });
+        auto A = mk("A"); dc.dragBegin(A, M_MOVE); dc.dragEnd();
+        check(late == 0, "hyprutils: listener added during emission is not invoked by it");
+    }
+    {
+        // a listener dropped by its owner BEFORE its turn in the same emission is skipped (strongRef()==1)
+        CDragModel dc; g_dc = &dc; int second = 0; CHyprSignalListener l2;
+        auto l1 = dc.m_events.ended.listen([&] { l2.reset(); });
+        l2 = dc.m_events.ended.listen([&] { ++second; });
+        auto A = mk("A"); dc.dragBegin(A, M_MOVE); dc.dragEnd();
+        check(second == 0, "hyprutils: listener released earlier in the same emission is skipped");
+    }
+    {
+        // Q3 limit: if the module drops its listener from INSIDE an `ended` emission (e.g. unload triggered by another
+        // listener), the emission's snapshot still holds the CSignalListener: its std::function is destroyed AFTER our
+        // reset, i.e. after an unmap if unload were synchronous there. Measured with a destructor counter.
+        struct SProbe { int* d = nullptr; ~SProbe() { if (d) ++*d; } }; // no temporary: only the shared instance counts
+        CDragModel dc; g_dc = &dc; int destroyed = 0, destroyedAtReset = -1, oursRan = 0;
+        CHyprSignalListener ours;
+        // `other` is registered first, so it runs first in the emission and drops our listener ("unload" inside it)
+        auto other = dc.m_events.ended.listen([&] { ours.reset(); destroyedAtReset = destroyed; });
+        {
+            auto probe = std::make_shared<SProbe>();
+            probe->d   = &destroyed;
+            ours       = dc.m_events.ended.listen([probe, &oursRan] { (void)probe; ++oursRan; });
+        }
+        auto A = mk("A"); dc.dragBegin(A, M_MOVE); dc.dragEnd();
+        check(oursRan == 0 && destroyedAtReset == 0 && destroyed == 1,
+              "Q3 limit reproduced: a plugin listener dropped inside an `ended` emission is skipped, but its handler state is destroyed only at the end of the emission (after the drop)");
+    }
+    // ---- unload step 2 ---------------------------------------------------------------------------------------------
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A = mk("A");
+        p.begin(A, M_MOVE);
+        p.unloadStep2();
+        check(!dc.target() && !p.listener && dc.endedEmissions == 1, "unload step 2 with own drag: ended once, listener destroyed");
+    }
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A = mk("A"), X = mk("X");
+        p.begin(A, M_MOVE); dc.dragEnd(); dc.dragBegin(X, M_MOVE);
+        p.unloadStep2();
+        check(dc.target() == X && !p.listener, "unload step 2 with a third-party drag (after ours ended): untouched, listener destroyed");
+        check(p.begin(A, M_MOVE) == REFUSED, "no start after unload step 2 began");
+    }
+    {
+        // our target dies silently while we own it; unload must still destroy the armed listener
+        CDragModel dc; g_dc = &dc; COwnership p; SPT A = mk("A");
+        p.begin(A, M_MOVE);
+        A = nullptr;
+        p.unloadStep2();
+        check(!p.listener && dc.endedEmissions == 0, "unload step 2 after a silent target death: no end attempted, listener destroyed anyway");
+    }
+    // Stale emission snapshot: the first listener starts a NEW plugin session while the old `ended` is being emitted.
+    // Replacing the per-session listener drops its old owner ref; real hyprutils skips the old snapshot callback.
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A=mk("A"), B=mk("B");
+        eBeginResult inner=REFUSED;
+        auto first=dc.m_events.ended.listen([&] { inner=p.begin(B,M_MOVE); });
+        p.begin(A,M_MOVE);
+        dc.dragEnd();
+        check(inner==STARTED && p.owns() && dc.target()==B && p.handlerRuns==0,
+              "stale ended snapshot: old listener skipped after replacement; new session owns B, no old callback clears it");
+        first.reset();
+        p.endIfOurs();
+        check(!p.owns() && !dc.target(), "new session from ended listener is ended normally on next release");
+    }
+    {
+        CDragModel dc; g_dc=&dc; COwnership p; auto A=mk("A");
+        p.begin(A,M_MOVE);
+        const bool ended=p.endIfOurs();
+        const auto r=ended?p.begin(A,M_RESIZE):REFUSED;
+        check(ended && r==STARTED && p.owns() && dc.m_mode==M_RESIZE, "rearm: own end then begin acquires a fresh session");
+        p.endIfOurs();
+    }
+    {
+        CDragModel dc; g_dc=&dc; COwnership p; auto A=mk("A"), X=mk("X");
+        p.begin(A,M_MOVE);
+        dc.onFocusDuringEnd=[&] { dc.onFocusDuringEnd=nullptr; dc.dragBegin(X,M_MOVE); };
+        const bool ended=p.endIfOurs();
+        const auto r=ended?p.begin(A,M_RESIZE):REFUSED;
+        check(ended && r==ALREADY && !p.owns() && dc.target()==X,
+              "rearm: third-party start during end is kept; following begin does not adopt it");
+    }
+    // ---- initialization failure ------------------------------------------------------------------------------------
+    {
+        CDragModel dc; g_dc = &dc; COwnership p; auto A = mk("A");
+        p.failListen = true;
+        const auto R = p.begin(A, M_MOVE);
+        check(R == STARTED && !p.owns() && !p.endIfOurs() && dc.target() == A, "listen() fails: drag started WITHOUT ownership (start behaviour kept); plugin never ends it");
+    }
+    fails += ReviewCases::reviewCases();
+    std::printf("%d ok, %d failed\n", oks, fails);
+    return fails ? 1 : 0;
+}
+
+######## review_cases.hpp ########
+#include "q4model.hpp"
+#include <cstdio>
+namespace ReviewCases {
+static int failures=0;
+static void ck(bool b,const char* name) { std::printf("%s - %s\n",b?"OK":"FALHOU",name); failures+=!b; }
+static SPT mk(const char* n) { auto x=makeShared<STarget>(); x->name=n; return x; }
+inline int reviewCases() {
+    for (bool same:{false,true}) {
+        CDragModel dc; g_dc=&dc; COwnership p; auto A=mk("A"),B=same?A:mk("B");
+        A->mapped=false;
+        eBeginResult inner=ALREADY;
+        bool once=false;
+        auto earlier=dc.m_events.ended.listen([&] {
+            if(once) return;
+            once=true;
+            B->mapped=true;
+            inner=p.begin(B,M_MOVE);
+        });
+        auto outer=p.begin(A,M_MOVE);
+        std::printf("R1 same=%d outer=%d inner=%d target=%s owns=%d\n",same,outer,inner,dc.target()?dc.target()->name.c_str():"none",p.owns());
+        ck(inner==REFUSED,same?"R1.same: nested begin refused while outer begin in progress":"R1.other: nested begin refused while outer begin in progress");
+        ck(outer==REFUSED && !dc.target() && !p.listener,"R1: failed outer acquisition has no owned or orphan session");
+    }
+    {
+        CDragModel dc; g_dc=&dc; COwnership p; auto A=mk("A"),X=mk("X"),B=mk("B");
+        int level=0;
+        eBeginResult inner=REFUSED;
+        auto earlier=dc.m_events.ended.listen([&] {
+            if(level==0) { level=1; dc.dragBegin(X,M_MOVE); dc.dragEnd(); }
+            else if(level==1) { level=2; inner=p.begin(B,M_MOVE); }
+        });
+        p.begin(A,M_MOVE);
+        dc.dragEnd();
+        std::printf("R2 inner=%d target=%s owns=%d handlerRuns=%d\n",inner,dc.target()?dc.target()->name.c_str():"none",p.owns(),p.handlerRuns);
+        ck(inner==STARTED && dc.target()==B && p.owns(),"R2: nested snapshots cannot invalidate newer acquisition");
+        ck(p.handlerRuns==0,"R2: obsolete callback tokens ignored in both snapshots");
+        earlier.reset(); p.endIfOurs();
+        ck(!dc.target() && !p.listener,"R2: newer acquisition ends normally");
+    }
+    {
+        CDragModel dc; g_dc=&dc; COwnership p; auto A=mk("A"),X=mk("X");
+        p.begin(A,M_MOVE);
+        dc.onFocusDuringEnd=[&] { dc.onFocusDuringEnd=nullptr; dc.dragBegin(X,M_MOVE); };
+        dc.dragEnd();
+        std::printf("R3 target=%s mode=%d pluginAdditionalEnd=%d\n",dc.target()?dc.target()->name.c_str():"none",dc.m_mode,p.endIfOurs());
+        ck(dc.target()==X && !p.endIfOurs(),"R3: ownership policy issues no additional end on X");
+#ifdef REQUIRE_FULL_INTACT
+        ck(dc.m_mode==M_MOVE,"R3: full-intact claim requires MOVE mode (expected red: host clobbers mode)");
+#else
+        ck(dc.m_mode==M_INVALID,"R3 documented host limit: enclosing end resets new drag mode to INVALID");
+#endif
+    }
+    std::printf("review regressions: %d failures\n",failures);
+    return failures?1:0;
+}
+} // namespace ReviewCases
+
+######## mut.sh ########
+#!/usr/bin/env bash
+# Q4-A model mutations: each edits a copy of q4model.hpp / q4test.cpp (persistent variant lives in q4test.cpp).
+# "killed" = builds (GCC, ASan/UBSan) and the suite fails; a survivor is reported with the reason it is expected
+# (redundant under the stated premises) or flagged UNEXPECTED.
+set -u
+P=$(cd "$(dirname "$0")" && pwd); M=$P/mut; rm -rf "$M"; mkdir -p "$M"
+HU="$(pkg-config --cflags --libs hyprutils)"
+FAILN=0
+while IFS='~' read -r NAME FILE EXPECT FIND REPL; do
+    [ -z "$NAME" ] && continue
+    D=$M/$NAME; mkdir -p "$D"; cp "$P/q4model.hpp" "$P/q4test.cpp" "$P/review_cases.hpp" "$D/"
+    FF="$(printf '%b' "$FIND")" RR="$(printf '%b' "$REPL")" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$D/$FILE"
+    cmp -s "$P/$FILE" "$D/$FILE" && { echo "FAIL - $NAME did not apply"; FAILN=1; continue; }
+    if ! g++ -std=c++2b -g -fsanitize=address,undefined -fno-sanitize-recover=all "$D/q4test.cpp" -o "$D/t" $HU >"$D/build.log" 2>&1; then echo "FAIL - $NAME does not build"; FAILN=1; continue; fi
+    "$D/t" >"$D/run.txt" 2>&1; RC=$?
+    FIRST=$(grep -m1 -E 'FALHOU|ERROR: AddressSanitizer|runtime error' "$D/run.txt" | cut -c1-110)
+    if [ "$EXPECT" = kill ]; then
+        if [ $RC -ne 0 ] && grep -q FALHOU "$D/run.txt" && ! grep -q 'AddressSanitizer' "$D/run.txt"; then echo "OK   - $NAME killed: $FIRST"; else echo "FAIL - $NAME expected kill (rc=$RC) $FIRST"; FAILN=1; fi
+    else
+        if [ $RC -eq 0 ]; then echo "OK   - $NAME survives as expected: $EXPECT"; else echo "NOTE - $NAME expected redundant ($EXPECT) but killed: $FIRST"; fi
+    fi
+done <<'EOF'
+q01~q4model.hpp~kill~        if (g_dc->target())\n            return ALREADY;                       // anyone's drag~        if (false)\n            return ALREADY;                       // anyone's drag
+q02~q4model.hpp~kill~        if (unloading || inOwnEnd || inBegin)~        if (unloading || inBegin)
+q03~q4model.hpp~kill~        if (unloading || inOwnEnd || inBegin)~        if (inOwnEnd || inBegin)
+q04~q4model.hpp~kill~                disarm();~                ownedAt.reset();
+q05~q4model.hpp~kill~        disarm();        // listener destroyed before the module is unmapped~        (void)0;
+q06~q4model.hpp~kill~            g_dc->dragBegin(t, m);\n            return g_dc->target() ? STARTED : REFUSED;~            return REFUSED;
+q07~q4model.hpp~redundant (endIfOurs checks owns() itself)~        if (owns())\n            (void)endIfOurs();\n        disarm();~        (void)endIfOurs();\n        disarm();
+q08~q4model.hpp~kill~    bool owns() const { return ownedAt && *ownedAt == generation && !ownedTarget.expired() && g_dc->target() == ownedTarget.lock() && listener; }~    bool owns() const { return (bool)g_dc->target(); }
+q09~q4model.hpp~redundant under premises (the handler disarms on every `ended`)~*ownedAt == generation && ~
+q10~q4model.hpp~redundant (target equality already fails when our target expired)~!ownedTarget.expired() && ~
+q11~q4model.hpp~redundant under A3 (no unguarded re-begin; `ended` disarms otherwise)~ && g_dc->target() == ownedTarget.lock()~
+q12~q4model.hpp~redundant (listener is null exactly when disarmed)~ && listener; }~; }
+q13~q4model.hpp~kill~generation != G0 || ~
+q14~q4test.cpp~kill~    bool owns() const { return ownedAt && *ownedAt == generation && !ownedTarget.expired() && g_dc->target() == ownedTarget.lock(); }~    bool owns() const { return ownedAt && !ownedTarget.expired() && g_dc->target() == ownedTarget.lock(); }
+q15~q4test.cpp~kill~        if (generation != G0 || g_dc->target() != t) return REFUSED;~        if (g_dc->target() != t) return REFUSED;
+q16~q4model.hpp~kill~if (unloading || inOwnEnd || inBegin)~if (unloading || inOwnEnd)
+q17~q4model.hpp~kill~if (token != acquisition) return;~if (false) return;
+EOF
+echo "result: $([ $FAILN = 0 ] && echo PASS || echo FAIL)"; exit $FAILN
+
+######## run.sh ########
+#!/usr/bin/env bash
+# Run from any directory. Copies fixtures to scratch; never writes build artifacts into the repository.
+set -euo pipefail
+P=$(cd "$(dirname "$0")" && pwd)
+W=${1:-$(git -C "$P" rev-parse --show-toplevel)}
+O=$(mktemp -d "${TMPDIR:-/home/lhen/.hermes/cache/scratch}/q4a-run.XXXXXX")
+printf 'scratch: %s\n' "$O"
+cp "$P/q4model.hpp" "$P/q4test.cpp" "$P/mut.sh" "$P/probe.cpp" "$P/review_cases.hpp" "$O/"
+export HOME="$O/home" XDG_CONFIG_HOME="$O/home/.config" XDG_CACHE_HOME="$O/home/.cache" XDG_DATA_HOME="$O/home/.local/share"
+mkdir -p "$HOME"
+unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+cd "$O"
+F="-std=c++2b -Wno-c++11-narrowing -I$W/plugin $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+for C in g++ clang++; do
+    $C -std=c++2b -Wall -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all q4test.cpp -o "q4-$C" $(pkg-config --cflags --libs hyprutils) > "build-$C.log" 2>&1
+    "./q4-$C" > "run-$C.txt" 2>&1
+    printf '%s model: ' "$C"; python3 -c 'import sys; print(open(sys.argv[1]).read().splitlines()[-1])' "run-$C.txt"
+    $C $F -fsyntax-only probe.cpp > "probe-$C.log" 2>&1
+    if $C $F -DNEG -fsyntax-only probe.cpp > "probe-neg-$C.log" 2>&1; then printf 'FAIL: NEG compiled\n'; exit 1; fi
+    python3 - "$C" <<'PY'
+import re,sys,pathlib
+s=pathlib.Path('probe-neg-'+sys.argv[1]+'.log').read_text()
+e=[l for l in s.splitlines() if re.search(r': (fatal )?error:',l)]
+assert len(e)==1 and 'sessionId' in e[0] and ('no member named' in e[0] or 'no member' in e[0]),s
+print(sys.argv[1]+' probe: positive OK, negative only expected sessionId diagnostic')
+PY
+done
+cmp run-g++.txt run-clang++.txt
+bash mut.sh > mutations.log 2>&1
+python3 -c 'import pathlib; print(pathlib.Path("mutations.log").read_text())'
+printf 'PASS: model GCC/Clang, real-header probes, mutations; no live host\n'

@@ -1,0 +1,40 @@
+{
+  "verdict": "approve_as_planning_basis",
+  "findings": [
+    {
+      "severity": "minor",
+      "where": "Contract §§3, 7, 9; policies.hpp: kwDragBeginRechecked and PolVetoRecheck",
+      "claim": "The round-1 major is resolved as an explicit planning precondition, not as an implemented fix. The current helper remains unsafe in H1; approval applies only to investigating veto-rc under the strengthened premises.",
+      "evidence": "H1 now represents a decoration starting a foreign session and returning false. The supplied matrix records O1 failures for every policy using the current helper, while veto-rc rechecks target immediately before beginDragTarget and refuses replacement. The contract explicitly requires an unauthorized P8-B helper change and acknowledges that A3' remains unverified for host decoration and GROUP->remove paths.",
+      "counterexample": null
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§1–3, 6–7; host.hpp and policies.hpp: PolVeto",
+      "claim": "No additional concrete veto-rc O1 counterexample was found within A1, effective A3', A4, A5 and D2, apart from the D1 family. D1 is the remaining ambiguous end window under those assumptions, not the only outstanding production prerequisite.",
+      "evidence": "The candidate does not use truth-layer session identity, caller attribution, stack depth or hookSeq. Acquisition requires its own begin call and no observed ended; nested mapped ends deliver invalidation before their cleared flag can be reused outside emission; refusal ends invalidate acquisition; group-bar takeover returns REFUSED_BY_DECO. The supplied excerpts support W1's callback-free reset-to-flag span, W3's ordinary and early-return tails, and W4's inherited flag and conditional reset. W2's flag is not a stack invariant, but the documented nested invalidation argument addresses that. A3', successful listener registration, normal completion and the other exclusions remain separate prerequisites.",
+      "counterexample": "Kwinish acquires A. The host ends A and resets target. During ended emission, an earlier third-party listener starts a new foreign drag on A and synchronously invokes Kwinish's end entry before Kwinish's acquisition listener runs. The flag is false and stale possession still matches A, so veto-rc ends the foreign session. This satisfies the other stated premises and violates D1."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §4; policytest.cpp: introductory comment, Truth::noteEndRequest, runOne and oracle3; run.py: mutations",
+      "claim": "O1 and O2 are policy-independent and non-vacuous; O3 is correctly qualified in the contract but the code's description of three independent oracles remains inaccurate. Mutation detection should not be read as proving every mutated safeguard necessary for ownership safety.",
+      "evidence": "O1 observes controller-entry provenance and replacement events without consulting owns(). O2 uses truth-layer session provenance and emission history; none fails it in 13 scenarios, including the ordinary release case, so never ending does not pass. O2 checks eventual attribution, not complete deferred-request supersession semantics. O3 depends explicitly on PolNone and final-state comparisons. The begin-ambiguity-veto mutation is counted as detected solely because an informational orphan marker changes, without an O1, O2 or scenario-contract failure. The runner honestly defines detection as a changed cell, but that is weaker than a safety-oracle kill.",
+      "counterexample": null
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§6–8: blocked verdict and alternatives",
+      "claim": "The implementation-blocked verdict is honest. Deferred, hook and upstream approaches are investigation alternatives requiring authorization, not established fixes; in particular, adding a session id only to ended does not by itself close the pre-listener W5 window.",
+      "evidence": "The document discloses the unaudited group-removal/start paths, missing updateDragWindow behavior, caller-flag rollback, cancelled-button liveness, deferred lifecycle cancellation and event-loop recursion assumptions. The model covers group-bar takeover, nested ends, internal refusals, early decoration return and unmapped target retention sufficiently for the conditional ownership argument, not for integration approval. A session id delivered in ended can identify the notification once received, but cannot invalidate stale ownership before an earlier listener reaches the synchronous end entry. An upstream solution must also provide current-session validation, conditional end, or an appropriate reentrancy protocol.",
+      "counterexample": "Add an ended(sessionId) payload but otherwise retain synchronous veto-rc. Kwinish owns session A1. The host resets target while ending A1. An earlier ended listener begins foreign A2 on the same target and invokes Kwinish's end entry before Kwinish receives ended(A1). Kwinish still ends A2; the identifying payload arrives too late."
+    }
+  ],
+  "limits": [
+    "Static review used only the supplied material. No tools, writes, builds, host execution or independent source/hash verification were performed.",
+    "Compiler, sanitizer, header-probe and mutation results were assessed as supplied evidence, not reproduced.",
+    "A3' is interpreted as an effective prohibition on replacing an active session, including inherited guards through decoration and group-bar paths, not merely a requirement that a caller checked target sometime earlier.",
+    "No additional in-premise counterexample was found; this is not an exhaustive proof over the compositor, third-party callbacks or omitted host behavior.",
+    "Approval means acceptable host-free planning basis only. Production implementation, helper changes, listeners, PLUGIN_EXIT, K3/K9/rearm changes, deferred work and hooks remain unauthorized and blocked."
+  ]
+}

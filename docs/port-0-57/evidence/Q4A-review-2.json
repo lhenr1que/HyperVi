@@ -1,0 +1,52 @@
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "Q4A-tests/q4model.hpp: COwnership::begin; Q4A-DRAG-OWNERSHIP.md: C1 and reentrancy discussion",
+      "claim": "An outer begin can erase ownership successfully acquired by a reentrant begin during its internal refusal. The contract has no begin-in-progress guard or acquisition identity to prevent this.",
+      "evidence": "Register an ended listener before the ownership listener. Call p.begin(A) with A unmapped and hasWindow=true. A's internal dragEnd resets the target and emits ended. The earlier listener calls p.begin(B), which replaces the old listener and successfully acquires B. On returning to the outer begin, target()!=A causes unconditional disarm(), clearing B's ownership and listener while B remains active. This respects A3 because B starts after A's target reset. Existing S4 tests do not begin a new plugin session inside the refusal emission.",
+      "suggested_test": "Add this scenario with the real signal and assert that the nested start is either explicitly refused or remains owned after the outer call returns. Cover both different-target and same-target reacquisition, and decide how outer and inner return values and caller flags must behave."
+    },
+    {
+      "severity": "major",
+      "where": "Q4A-tests/q4test.cpp: stale emission snapshot scenario; Q4A-DRAG-OWNERSHIP.md: F8 and callback-antigo claims",
+      "claim": "Replacing the listener does not reliably suppress an obsolete callback when nested ended emissions retain the old listener in multiple snapshots.",
+      "evidence": "The supplied signal skips only strongRef()==1. During the outer end of owned A, an earlier listener can start and end third-party X. The nested ended emission snapshots the still-owned old listener again. An earlier listener in that nested emission then calls p.begin(B), replacing the old listener. The old listener still has two snapshot references, so its nested callback is not skipped; it increments generation and disarms B's new ownership. All starts can obey A3. The supplied stale-snapshot test has only one emission snapshot and therefore does not establish the broader claim.",
+      "suggested_test": "Add guarded two-level actual dragEnd reentrancy using the real signal, with B acquired in the inner emission. Assert that an obsolete listener cannot mutate B's ownership. Evaluate a per-acquisition callback token or explicitly prohibit and substantiate nested ended emissions; generation as currently used is not such a token."
+    },
+    {
+      "severity": "major",
+      "where": "Q4A-tests/q4test.cpp: S7 and rearm third-party scenario; Q4A-DRAG-OWNERSHIP.md: transition matrix and third-party-intact claims",
+      "claim": "The tests establish preservation of the third-party target, not preservation of a functioning third-party drag during end reentrancy.",
+      "evidence": "Both the supplied host dragEnd and CDragModel::dragEnd assign the mode to INVALID after synchronous callbacks. If a callback starts X in MOVE mode, the enclosing end subsequently leaves target()==X but mode==INVALID. S7 checks only target identity and whether the plugin calls another end. The rearm negative likewise omits mode. Thus 'drag do outro intacto' is stronger than these tests support. The clobber is in the enclosing host operation, not an extra unauthorized end by the ownership policy.",
+      "suggested_test": "Assert target and mode immediately after the enclosing end, then model or validate subsequent motion and release. Narrow the documented guarantee to 'the plugin does not issue an additional end' unless real-host investigation establishes a stronger guarantee."
+    },
+    {
+      "severity": "minor",
+      "where": "QUIESCENCE.md: Q4; LEDGER.md: L17; Q4A-DRAG-OWNERSHIP.md: relationship with Q1-Q5",
+      "claim": "The older Q4/L17 acceptance criteria still prescribe unconditional legacy mouse-bind reset based on plugin flags, conflicting with the proposed ownership-gated end.",
+      "evidence": "QUIESCENCE.md requires changeMouseBindMode(MBIND_INVALID) if drag/grab flags were active, and L17 says the plugin must restore MBIND_INVALID on those flags. The proposed C4 deliberately does nothing without current ownership, even when stale caller flags remain. The package also states that changeMouseBindMode is absent in 0.57. These criteria cannot be applied literally alongside C4.",
+      "suggested_test": "Mark the older criteria as superseded or pending revision. Specify separate assertions for clearing plugin-local flags, ending a currently owned host drag, and leaving a third-party host drag unchanged after ownership loss."
+    },
+    {
+      "severity": "minor",
+      "where": "Q4A-DRAG-OWNERSHIP.md: section 6 criterion 4",
+      "claim": "The proposed equivalence target is ambiguous: ownership depends on 0.57 behavior, but the implementation gate names the 0.56.2 body for end-path equivalence.",
+      "evidence": "The isolated model and signal contract explicitly target Hyprland 0.57.0, including its internal refusal emissions and callback ordering. Criterion 4 instead requests equivalence against the 0.56.2 body. Legacy behavioral comparison is useful but cannot substitute for validating the modeled 0.57 ownership boundaries.",
+      "suggested_test": "Separate legacy user-visible behavior tests from differential or source-aligned tests against the pinned 0.57 begin/end paths, including internal refusal and synchronous callback locations."
+    }
+  ],
+  "limits": [
+    "This is a completed independent static review of the supplied text only. No tools, writes, builds, sanitizer runs, or host execution were performed; reported logs were not independently reproduced.",
+    "The package is honest preparatory work and may remain a planning artifact, but the major counterexamples require resolution or explicit, substantiated scope restrictions before its implementation gate can pass.",
+    "Under the tested non-nested paths, session-scoped disarming explains generation-check redundancy in owns(); generation detects the refusal-without-target-reset case. Neither establishes acquisition isolation across the reentrant cases identified above.",
+    "C6 start-without-ownership remains explicitly unapproved. Its test and mutation result demonstrate the explored behavior, not an acceptable rollback policy.",
+    "Initialization rollback is not established by the listen-failure test. Host/callback exceptions, caller-flag restoration, existing rule-effect rollback, and coordinated listener cleanup remain pending decisions or proofs, as the package acknowledges.",
+    "The inOwnEnd guard covers the tested normal-return own-end reentrancy. It is not exception-safe as written; exception policy and rollback are expressly unresolved.",
+    "Listener self-reset is distinct from safe module unloading. Snapshot-held handlers and their destructors require Q3, including nested snapshots and other transient retainers; Q2 entry counters alone cannot establish that safety.",
+    "Q1, complete Q2 instrumentation, Q3 structural assumptions, full Q4 interaction cleanup, and Q5 remain unvalidated by this drag-only model. A3 and A5 require explicit owner acceptance, and reload safety relative to ended remains open.",
+    "No production listener may be integrated before coordinated teardown is explicitly authorized and proven. This review authorizes no production implementation, PLUGIN_EXIT change, K3/K9/rearm change, or commit.",
+    "Owner decisions and real nested/live-host validation remain required. Q4 is not solved."
+  ]
+}

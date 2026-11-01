@@ -1,0 +1,68 @@
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "Q4A1-alt5-contract.md §1 and §6; InputManager.cpp:729–751; Manager.cpp:353; World::button",
+      "claim": "An uncancelled release is not sufficient to guarantee native drag termination. The central claim needs an explicit input-capture precondition, including for unload.",
+      "evidence": "Input capture is processed before the missing-press branch. When captured, InputManager.cpp:736–740 calls onMouseEvent with captured=true and returns; Manager.cpp:353 then skips endDragTarget. World::button omits these branches and never exercises keybindMouse(true). On the ordinary uncaptured missing-press path, lines 748–751 do support calling the native end path and returning without normal client forwarding.",
+      "counterexample": "Kwinish cancels a floating-bar press and starts its drag. Input capture becomes active before release. Kwinish lets the release through and clears its flags. The host takes lines 736–740, skips drag termination, and returns. All physical buttons are released but the Kwinish drag remains active. Unloading before that release does not change the captured host path."
+    },
+    {
+      "severity": "major",
+      "where": "Q4A1-alt5-contract.md §2, §6; barDeco.cpp:316, 400–413, 619–622, 688 onward",
+      "claim": "The event map does not establish the absence of all indirect Kwinish end requests.",
+      "evidence": "The supplied excerpts include fullscreenWindow, closeWindow, configurable double-click actions, button actions, and an asynchronously spawned Lua window_action. Their transitive implementations are not supplied or modeled. The runAction excerpt stops at line 700. Finding and guarding floatWindow is useful, but cannot establish that it is the only indirect ending action. Axis dispatches raise/lower, whose complete implementations are also absent.",
+      "counterexample": null
+    },
+    {
+      "severity": "major",
+      "where": "q4a1test.cpp: scenarios(), expectKw, and stored scenario lambdas",
+      "claim": "Several scenario bodies retain a dangling reference to the local expectKw closure.",
+      "evidence": "expectKw is an automatic local variable in scenarios(). Scenario lambdas use [&] and call expectKw after scenarios() has returned. Calling through that expired closure is undefined behavior. A stateless closure and clean sanitizer output do not make its lifetime valid.",
+      "counterexample": "scenarios() constructs B1 with a reference capture of expectKw and returns the vector. expectKw is destroyed. main invokes B1 through run(), which calls the expired closure."
+    },
+    {
+      "severity": "major",
+      "where": "q4a1test.cpp: World::button, run() O3; Q4A1-alt5-contract.md §3",
+      "claim": "O3 is a terminal-state approximation, not the documented guarantee that cancelled events do not leave drags alive; its native-quirk exemptions are not independently justified.",
+      "evidence": "blocked is checked only against the final current session, so cancelled events that delay termination but are followed by another terminating event pass. hostSwallowedPress and hostSwallowedRelease automatically excuse client pairing failures without a matched absent-plugin execution establishing that the plugin did not cause them. Held buttons and client state are keyed only by integer button, whereas the pinned host tracks button plus pointer. B5 therefore tests different button IDs, not genuine same-button multiple-pointer behavior.",
+      "counterexample": "Start a third-party drag, then press a floating Kwinish bar. Kwinish cancels the press and its guarded begin refuses the existing drag. That drag survives an event which would have ended it without Kwinish. Release later reaches the host and ends it, so final O3 passes despite the documented event-level condition having failed."
+    },
+    {
+      "severity": "major",
+      "where": "q4a1test.cpp: run() O2/O4; host.hpp: dragEnd; Q4A1-alt5-contract.md §3–§4",
+      "claim": "The four oracles are not sufficient to establish interaction-wide liveness and final consistency, despite useful separate truth attribution and mutation checks.",
+      "evidence": "O2 inspects only the current session at scenario end. O4 omits rearmPending, unsnapSteps, touch state, and consistency of an active target with mode()==M_INVALID. In particular, host dragEnd can reset the target, invoke foreign code that starts another drag, and subsequently overwrite that new drag's mode. The R4i scenario exercises such reentry but O4 does not flag it. The runner also accepts any changed declared cell as a mutant kill rather than requiring the intended oracle.",
+      "counterexample": "Start a Kwinish bar drag. On release, native dragEnd resets its target and invokes onFocus. The scenario's third party starts a new drag there. The outer dragEnd resumes and sets mode to M_INVALID. A live third-party target remains with invalid mode, but O4 passes because it checks invalid mode only in the opposite direction: a non-invalid mode without a target."
+    },
+    {
+      "severity": "major",
+      "where": "q4a1test.cpp: World::barMotion, kwRearm, stepUnsnapAlt5; Q4A1-alt5-contract.md §6–§7",
+      "claim": "The proposed rearm and deferred-unsnap routes conflict in an untested sequence, even within the supplied model.",
+      "evidence": "barMotion processes rearmPending before deferredUnsnap. A snapped-bar press sets dragging=true without starting a host drag. Shift then arms rearm, so the next motion starts a drag before unsnap. stepUnsnapAlt5 sees that target and aborts the unsnap as though it belonged to someone else.",
+      "counterexample": "With alt5-rc, press a snapped floating bar, press Shift before the first motion, then move. kwRearm starts the Kwinish drag while the window is still snapped. stepUnsnapAlt5 immediately aborts deferredUnsnap because target() is non-null. Further motion never unsnaps the window. Release clears the flags and ends the drag, allowing O1–O4 to pass while the promised unsnap behavior fails."
+    },
+    {
+      "severity": "minor",
+      "where": "Q4A1-alt5-contract.md §5; hostDrag.hpp:39–54; policies.hpp: kwDragBeginRechecked",
+      "claim": "The helper recheck is justified for the demonstrated decoration callback gap, but is not a complete ownership or start-correctness guarantee.",
+      "evidence": "A decoration can start a drag and return false between the entry guard and beginDragTarget, so checking target again prevents the demonstrated overwrite without relying on A3′ or D1. The native group bar returns true and already takes the early-return path. However, the model supplies the intended window directly while production hit-tests the pointer, and further host callbacks during begin are outside this recheck's protection.",
+      "counterexample": "Drag window A, press Shift so the host ends the drag, move the pointer over window B, then trigger rearm. Production KwDrag::begin hit-tests B and can start dragging B, while A's bar retains its dragging flag. The model instead passes A directly and cannot detect the wrong-window start."
+    },
+    {
+      "severity": "major",
+      "where": "Q4A1-alt5-contract.md §6–§8",
+      "claim": "Alternative 5 remains a plausible planning direction, but the current evidence supports further contract and host-free test work, not the stated affirmative feasibility claims or an implementation-ready limited scope.",
+      "evidence": "Capture already supplies a concrete liveness counterexample. The action inventory is incomplete, touch and real pointer identity are unmodeled, snap dispatch crosses an asynchronous Lua boundary, and hit-testing and release-time geometry remain unresolved. The document honestly discloses many limits and says Q4-A is unresolved, but its unconditional 'Sim' answers and implementation recommendation exceed what those limits permit.",
+      "counterexample": "A menu grab starts a drag, the user presses Escape through a keyboard with binds disabled, and Kwinish clears grabActive. Manager.cpp:197–198 returns before its native drag end. With no subsequent terminating button event, the grab interaction is cancelled from Kwinish's perspective but its drag remains active; World::key instead always ends it."
+    }
+  ],
+  "limits": [
+    "Review used only the supplied text; no tools, writes, builds, or live compositor tests were performed.",
+    "The supplied excerpts do not include the complete Config::Actions call graph, Lua core, touch host path, hotkey implementation, unload implementation, or full dragBegin implementation. Their absence prevents an exhaustive safety audit.",
+    "The ordinary uncaptured missing-press release path supports native end invocation and no normal client forwarding, but not guaranteed quiescence after reentrant callbacks or release binds.",
+    "Conditional approval means retaining alternative 5 as a planning candidate only, after correcting the claims, model lifetime bug, missing host branches, route inventory, and oracle gaps. It authorizes no production implementation and does not establish simultaneous safety and liveness.",
+    "No safety conclusion here relies on the rejected A3′ or D1 premises."
+  ]
+}

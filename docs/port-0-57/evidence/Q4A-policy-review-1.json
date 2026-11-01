@@ -1,0 +1,47 @@
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "Contract §§1, 3: A3 and the claim that D1 is the only remaining safety premise; policies.hpp: kwDragBegin; host.hpp: decorationsTakeDragStart",
+      "claim": "Checking target() before entering a start path is weaker than guaranteeing that dragBegin cannot replace an intervening session. The closed-world argument needs the latter. As written, A3 permits a concrete O1 counterexample without any ended listener, so D1 is not literally the only residual.",
+      "evidence": "The production helper checks target(), invokes arbitrary DRAG_START decorations, and then calls beginDragTarget without rechecking target(). ConfigActions.cpp:1704–1736 has the same ordering. The model represents only a decoration that takes the start and returns true; it cannot represent a decoration that starts a drag but returns false. The group-bar path also performs GROUP->remove before its unguarded dragBegin, so its inherited entry guard requires a separate reentrancy audit.",
+      "counterexample": "Initially target is null and no ended listeners from third parties exist. Kwinish begin checks target and enters DRAG_START decoration dispatch. A third-party decoration checks target, finds null, starts foreign session S, and returns false. The helper continues and calls its own beginDragTarget, replacing S. Every start caller checked target before its start path, satisfying the stated wording of A3; A1, A4, A5 and the pinned W1–W5 classification remain intact. PolVeto subsequently acquires the replacement session. O1's prohibition on replacing an active session has already been violated. This is not a counterexample if A3 is strengthened explicitly to prohibit intervening starts between the guard and dragBegin."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §2: W2–W4 classifications",
+      "claim": "The classification is useful for the proof, but several table entries describe ordinary execution rather than invariants under nesting.",
+      "evidence": "The supplied source supports no callback between reset and the W1 flag assignment, W2's callback-bearing span, and the ordinary and early-decoration-return tails. However, an unmapped end does not write m_wasDraggingWindow, and :265 resets target only when window() exists. X2 already demonstrates retained target. A nested mapped end can also leave the enclosing W2 flag false, as R4.nested-clear acknowledges. W3's exclusion additionally depends on the complete setClientResizingState forwarding path, not merely the backend excerpts.",
+      "counterexample": "Inside an outer mapped dragEnd callback, start X and make X unmapped, then end X. The nested unmapped path inherits wasDraggingWindow=true from the outer frame. If X has no window, it also retains target. Thus W4 is not unconditionally target=null and flag=false. Its ended emission still invalidates old ownership, so this correction alone does not demonstrate an unsafe veto end."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §4; policytest.cpp: Truth::noteEndRequest, runOne and oracle3",
+      "claim": "O1 and O2 are policy-independent truth checks, and the suite does not reward simply never ending drags. O3 is a differential regression check, not an independent safety or causal oracle.",
+      "evidence": "O1 records caller and session initiator at controller entry. O2 uses truth-layer provenance and emission counts rather than owns(), and PolNone fails O2 in 12 scenarios. O3 instead explicitly depends on PolNone and compares final states from executions whose callback and start opportunities can differ. It can flag a legitimate foreign session enabled by ending an owned session, and it can miss an improper foreign end when neither final execution retains that session; O1 supplies the missing event-level check. O2 also tests eventual attribution of an end, not whether deferred requests are superseded appropriately.",
+      "counterexample": "Kwinish starts A and receives a safe end request. After that request, the scenario conditionally starts foreign B if target is null. A synchronous correct end permits B, while PolNone leaves A active and blocks B. O1 and O2 pass, but O3 reports a foreign session existing only with the policy. That difference alone does not establish unsafe ownership handling."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§6, 8: deferred and upstream alternatives; policies.hpp: PolDefer",
+      "claim": "These are legitimate investigation directions, not established fixes. In particular, an ended target payload alone cannot resolve same-target session reuse.",
+      "evidence": "R4 specifically reuses the same target, so target identity cannot distinguish the ended session from its successor. Moving emission before reset also requires a reentrancy protocol rather than merely relocating the emission. PolDefer retains queued callbacks capturing this after unload; clearing pendingFor prevents an end only while the object remains alive. The text correctly says real cancellation is required, but the model does not verify that lifecycle property. The supplied event-loop excerpt shows ordinary idle scheduling, not an exhaustive exclusion of recursive event-loop dispatch.",
+      "counterexample": "For the target-payload proposal, end owned session A1, reset target, and let an earlier ended listener begin foreign session A2 on the same target A before Kwinish's listener runs. Both sessions have the same target payload. For the deferred model, schedule a callback, unload and destroy the policy, then dispatch the queued callback: it still captures the destroyed object unless actual lifecycle cancellation is added."
+    },
+    {
+      "severity": "minor",
+      "where": "Contract §§3, 6, 7: scope of the safety conclusion and blocked verdict",
+      "claim": "The blocked implementation verdict is honest. The narrower end-ownership proof is a reasonable planning basis once A3 is made effective rather than merely syntactic; it is not a production or liveness guarantee.",
+      "evidence": "The observable/truth split is appropriate: veto does not consult session identity, stack depth, caller attribution or hookSeq. Within an effectively guarded-start model, successful listener registration, normal synchronous completion and the pinned callback classification, I found no additional concrete foreign-end sequence beyond W5 before invalidation. Nested ends invalidate possession before exposing a cleared flag; refusal ends are caught by the begin generation check; group-bar ownership is rejected through REFUSED_BY_DECO. The disclosed cancelled-button and caller-flag omissions remain integration risks, and exceptions and listener-registration failure are additional exclusions, not consequences of D1.",
+      "counterexample": "Kwinish's movement handler invokes a start taken by the group bar, then sets m_bDraggingThis despite not acquiring ownership. On release, the candidate correctly refuses to end the foreign group-bar drag, but handleUpEvent cancels the button because m_bCancelledDown is set. InputManager returns before the native button path can end the drag. Ownership safety holds while release liveness fails, exactly why implementation must remain blocked."
+    }
+  ],
+  "limits": [
+    "Review used only the supplied text; no tools, writes, builds, host execution or independent source/hash verification were performed.",
+    "The reported compiler, sanitizer and mutation results were assessed as supplied evidence, not reproduced.",
+    "The DRAG_START counterexample uses the literal stated A3 requirement that callers check target; it is excluded by a stronger premise guaranteeing no intervening session before the actual dragBegin.",
+    "No specific synchronous callback from GROUP->remove is established by the supplied excerpts; that path is an audit requirement, not a proven exploit.",
+    "Any approval is for a corrected host-free planning basis only. Production changes, listeners, lifecycle changes, rearm changes and hooks remain unauthorized."
+  ]
+}

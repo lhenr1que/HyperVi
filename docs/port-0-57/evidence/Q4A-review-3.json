@@ -1,0 +1,17 @@
+{
+  "verdict": "conditional",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "candidate/q4model.hpp: COwnership::owns and endIfOurs; candidate-doc.md: C3–C4 and section 5",
+      "claim": "Same-target third-party reacquisition before the enclosing host end emits ended can still be mistaken for current plugin ownership, allowing an additional end of the third-party session. Neither the acquisition token nor inBegin closes this interval.",
+      "evidence": "Start owned A, then call dc.dragEnd(). In onFocusDuringEnd, clear that callback, call dc.dragBegin(A, M_MOVE), and then call p.endIfOurs(). The third-party begin obeys A3 because the enclosing end already reset m_target. However, the enclosing ended emission has not happened: ownedAt still equals generation, ownedTarget is A, target() is A, and listener remains armed. Consequently owns() returns true and endIfOurs() ends the third-party session. All calls are synchronous and require neither exceptions nor token wrap. The same sequence during p.endIfOurs() is not blocked by inOwnEnd, because endIfOurs() does not check that flag. Existing S7/R3 use a different target X and call the plugin end only after the enclosing end returns. Planning approval needs this counterexample explicitly recorded as another unresolved gate, or a substantiated restriction excluding plugin end entry during this interval."
+    }
+  ],
+  "limits": [
+    "Static review of the supplied text only; no tools, writes, builds, sanitizer runs, or host execution. Supplied execution logs were not independently reproduced.",
+    "R1's acquisition guard and R2's callback token address their supplied counterexamples. R3 is appropriately narrowed to a host limitation, but the new same-target counterexample concerns an additional plugin-issued end, not the acknowledged host mode clobber.",
+    "C6 allocation-failure policy, host/callback exception handling and rollback, token wrap, historical-contract reconciliation, full Q1–Q5 lifecycle proof, owner acceptance of assumptions, and nested/live-host validation remain open gates.",
+    "This verdict concerns an isolated planning artifact only. It authorizes no production integration, lifecycle changes, commits, or declaration that Q4 is solved."
+  ]
+}

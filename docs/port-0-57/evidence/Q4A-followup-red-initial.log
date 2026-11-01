@@ -1,0 +1,14 @@
+R1 same=0 outer=2 inner=0 target=B owns=0
+FAIL - R1.other: nested begin refused while outer begin in progress
+FAIL - R1: failed outer acquisition has no owned or orphan session
+R1 same=1 outer=0 inner=0 target=A owns=1
+FAIL - R1.same: nested begin refused while outer begin in progress
+FAIL - R1: failed outer acquisition has no owned or orphan session
+R2 inner=0 target=B owns=0 handlerRuns=1
+FAIL - R2: nested snapshots cannot invalidate newer acquisition
+FAIL - R2: obsolete callback tokens ignored in both snapshots
+FAIL - R2: newer acquisition ends normally
+R3 target=X mode=-1 pluginAdditionalEnd=0
+OK - R3: ownership policy issues no additional end on X
+FAIL - R3: full-intact claim requires MOVE mode (expected red: host clobbers mode)
+review regressions: 8 failures

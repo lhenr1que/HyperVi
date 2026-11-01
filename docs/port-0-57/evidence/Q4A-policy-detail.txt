@@ -1,0 +1,350 @@
+scenario \ policy              none       target-eq  C3-prev    veto       veto-rc    defer      hook      
+N1.own.release                 .2.o       ...        ...        ...        ...        ...        ...       
+N2.own.rearm                   .2.o       ...        ...        ...        ...        ...        ...       
+N3.own.restart                 .2.o       ...        ...        ...        ...        ...        ...       
+E1.ext.same-window             ...        1.3        ...        ...        ...        ...        ...       
+E2.ext.already                 ...        ...        ...        ...        ...        ...        ...       
+R1.other                       .2.o       .2.o       ...        ...        ...        ...        ...       
+R1.same                        .2.o       ...        ...        ...        ...        ...        ...       
+R2.nested-snapshots            .2.o       ...        ...        ...        ...        ...        ...       
+R3.mode-clobber                ...        ...        ...        ...        ...        ...        ...       
+R4.host.focus                  ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-continue          ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.deco-return            ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.group-add              ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.floating               ...        1.3        1.3        ...        ...        ...        ...       
+R4.host.geometry               ...        1.3        1.3        ...        ...        ...        ...       
+R4.own.focus                   .2.o       1..        1..        ...        ...        ...        ...       
+R4.own.deco-return             .2.o       1..        1..        ...        ...        ...        ...       
+R4.host.rearm                  ...        1.3        1.3o       ...        ...        ...        ...       
+R4.nested-clear                ...        1.3        ...        ...        ...        ...        ...       
+R4.emit.host                   ...        1.3        1.3        1.3        1.3        ...        ...       
+R4.emit.own                    .2.o       1..        1..        ...        ...        ...        ...       
+M2.emit.no-rebegin             ...        ...        ...        ...        ...        ...        ...       
+M3.emit.acquire-then-release   .2.o       ...        ...        ...        ...        ...        ...       
+X1.silent-death                ...        ...        ...        ...        ...        ...        ...       
+X2.ended-without-reset         ...o       ...        ...o       ...o       ...o       ...o       ...o      
+X3.refused.unmapped            ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-workspace        ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.fs-reject           ...s       ...s       ...        ...        ...        ...        ...       
+X3.refused.no-window           ...so      ...s       ...o       ...o       ...o       ...o       ...o      
+X4.fs-reject-callback          ...s       1.3s       ...        ...        ...        ...        ...       
+G1.kwbegin-groupbar-same       ...        1.3        1.3        ...        ...        ...        ...       
+H1.helper.deco-start-false     12.o       1..        1..        1..        ...        1..        12.o      
+G1.kwbegin-groupbar-other      ...        ...        ...        ...        ...        ...        ...       
+G2.drop-into-group             .2.o       1..        1..        ...        ...        ...        ...       
+G3.groupbar-by-user            ...        1.3        ...        ...        ...        ...        ...       
+G4.groupbar-inside-end         ...        1.3        1.3        ...        ...        ...        ...       
+G5.groupbar-focus-kwbegin      ...        1.3        ...        ...        ...        ...        ...       
+B1.kwbegin-inside-end          ...o       ...        ...o       ...        ...        ...        ...       
+U1.unload.own                  .2.o       ...        ...        ...        ...        ...        ...       
+U2.unload.third                ...        1.3        ...        ...        ...        ...        ...       
+U3.unload.then-begin           ...so      ...s       ...        ...        ...        ...        ...       
+L1.A3.unguarded                ...        1.3        1.3        1.3        1.3        1.3        ...       
+legend: 1 = O1 improper Kwinish end, 2 = O2 safe own end not honoured, 3 = O3 final state differs from counterfactual, s = scenario contract check failed, o = Kwinish session alive without ownership (info)
+RES none N1.own.release O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none N2.own.rearm O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none N3.own.restart O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#1 mode=0]
+RES none E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES none E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES none R1.other O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:B#0 mode=0]
+RES none R1.same O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#1 mode=0]
+RES none R2.nested-snapshots O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:B#0 mode=0]
+RES none R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.deco-continue O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.group-add O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.floating O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.host.geometry O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.own.focus O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none R4.own.deco-return O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none R4.host.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none R4.emit.host O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES none R4.emit.own O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES none M3.emit.acquire-then-release O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:B#0 mode=0]
+RES none X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES none X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none X3.refused.unmapped O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES none X3.refused.no-workspace O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES none X3.refused.fs-reject O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES none X3.refused.no-window O1=0 O2=0 O3=0 spec=1 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none X4.fs-reject-callback O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none G1.kwbegin-groupbar-same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES none H1.helper.deco-start-false O1=1 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES none G2.drop-into-group O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES none G4.groupbar-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=-1] NOTE: compositor-caused: groupbar session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES none B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES none U1.unload.own O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES none U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES none U3.unload.then-begin O1=0 O2=0 O3=0 spec=1 orphan=1 final=[kwinish:A#0 mode=0]
+RES none L1.A3.unguarded O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=1]
+RES target-eq N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq E1.ext.same-window O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES target-eq R1.other O1=0 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:B#0 mode=0]
+RES target-eq R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES target-eq R4.host.focus O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.deco-continue O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.deco-return O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.group-add O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.floating O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.geometry O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.own.focus O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.own.deco-return O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.host.rearm O1=1 O2=0 O3=1 spec=0 orphan=0 final=[kwinish:A#1 mode=-1] NOTE: differs from the run without Kwinish ends; caused by the improper end reported by O1
+RES target-eq R4.nested-clear O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.emit.host O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq R4.emit.own O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES target-eq X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=0 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES target-eq X3.refused.unmapped O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES target-eq X3.refused.no-workspace O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES target-eq X3.refused.fs-reject O1=0 O2=0 O3=0 spec=1 orphan=0 final=[third:X#0 mode=0]
+RES target-eq X3.refused.no-window O1=0 O2=0 O3=0 spec=1 orphan=0 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES target-eq X4.fs-reject-callback O1=1 O2=0 O3=1 spec=1 orphan=0 final=[no drag]
+RES target-eq G1.kwbegin-groupbar-same O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq H1.helper.deco-start-false O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES target-eq G2.drop-into-group O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq G3.groupbar-by-user O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq G4.groupbar-inside-end O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq G5.groupbar-focus-kwbegin O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES target-eq U2.unload.third O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES target-eq U3.unload.then-begin O1=0 O2=0 O3=0 spec=1 orphan=0 final=[kwinish:A#0 mode=0]
+RES target-eq L1.A3.unguarded O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES C3-prev E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES C3-prev R1.other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev R4.host.focus O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.deco-continue O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.deco-return O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.group-add O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.floating O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.geometry O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.own.focus O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.own.deco-return O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.host.rearm O1=1 O2=0 O3=1 spec=0 orphan=1 final=[kwinish:A#1 mode=-1] NOTE: differs from the run without Kwinish ends; caused by the improper end reported by O1
+RES C3-prev R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev R4.emit.host O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev R4.emit.own O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES C3-prev X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev X3.refused.unmapped O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES C3-prev X3.refused.no-workspace O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES C3-prev X3.refused.fs-reject O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES C3-prev X3.refused.no-window O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev X4.fs-reject-callback O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev G1.kwbegin-groupbar-same O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev H1.helper.deco-start-false O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES C3-prev G2.drop-into-group O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES C3-prev G4.groupbar-inside-end O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES C3-prev G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES C3-prev B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES C3-prev U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES C3-prev U3.unload.then-begin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES C3-prev L1.A3.unguarded O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+RES veto N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES veto E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto R1.other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.deco-continue O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.group-add O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.floating O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.host.geometry O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.own.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto R4.own.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto R4.host.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto R4.emit.host O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+    veto/R4.emit.host: kwinish ended a third session on A
+    veto/R4.emit.host: foreign session third:A#0 mode=0 (counterfactual) became no drag
+RES veto R4.emit.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES veto M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto X3.refused.unmapped O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto X3.refused.no-workspace O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto X3.refused.fs-reject O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto X3.refused.no-window O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto X4.fs-reject-callback O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto G1.kwbegin-groupbar-same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto H1.helper.deco-start-false O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+    veto/H1.helper.deco-start-false: kwinish replaced an active session (unguarded begin)
+RES veto G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES veto G2.drop-into-group O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto G4.groupbar-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=-1] NOTE: compositor-caused: groupbar session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES veto U3.unload.then-begin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto L1.A3.unguarded O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+    veto/L1.A3.unguarded: kwinish ended a third session on A
+    veto/L1.A3.unguarded: foreign session third:A#0 mode=1 (counterfactual) became no drag
+RES veto-rc N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES veto-rc E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto-rc R1.other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.deco-continue O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.group-add O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.floating O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.host.geometry O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.own.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto-rc R4.own.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto-rc R4.host.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc R4.emit.host O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+    veto-rc/R4.emit.host: kwinish ended a third session on A
+    veto-rc/R4.emit.host: foreign session third:A#0 mode=0 (counterfactual) became no drag
+RES veto-rc R4.emit.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES veto-rc M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto-rc X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc X3.refused.unmapped O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto-rc X3.refused.no-workspace O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto-rc X3.refused.fs-reject O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES veto-rc X3.refused.no-window O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc X4.fs-reject-callback O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc G1.kwbegin-groupbar-same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto-rc H1.helper.deco-start-false O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES veto-rc G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES veto-rc G2.drop-into-group O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES veto-rc G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto-rc G4.groupbar-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=-1] NOTE: compositor-caused: groupbar session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES veto-rc G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES veto-rc B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES veto-rc U3.unload.then-begin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES veto-rc L1.A3.unguarded O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+    veto-rc/L1.A3.unguarded: kwinish ended a third session on A
+    veto-rc/L1.A3.unguarded: foreign session third:A#0 mode=1 (counterfactual) became no drag
+RES defer N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES defer E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES defer R1.other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.deco-continue O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.group-add O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.floating O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.host.geometry O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.own.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES defer R4.own.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES defer R4.host.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer R4.emit.host O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES defer R4.emit.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES defer X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer X3.refused.unmapped O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES defer X3.refused.no-workspace O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES defer X3.refused.fs-reject O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES defer X3.refused.no-window O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer X4.fs-reject-callback O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer G1.kwbegin-groupbar-same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES defer H1.helper.deco-start-false O1=1 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+    defer/H1.helper.deco-start-false: kwinish replaced an active session (unguarded begin)
+RES defer G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES defer G2.drop-into-group O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES defer G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES defer G4.groupbar-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=-1] NOTE: compositor-caused: groupbar session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES defer G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES defer B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES defer U3.unload.then-begin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES defer L1.A3.unguarded O1=1 O2=0 O3=1 spec=0 orphan=0 final=[no drag]
+    defer/L1.A3.unguarded: kwinish ended a third session on A
+    defer/L1.A3.unguarded: foreign session third:A#0 mode=1 (counterfactual) became no drag
+RES hook N1.own.release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook N2.own.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook N3.own.restart O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook E1.ext.same-window O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES hook E2.ext.already O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES hook R1.other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook R1.same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook R2.nested-snapshots O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook R3.mode-clobber O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.deco-continue O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.group-add O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.floating O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.host.geometry O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.own.focus O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES hook R4.own.deco-return O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES hook R4.host.rearm O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.nested-clear O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook R4.emit.host O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES hook R4.emit.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=0]
+RES hook M2.emit.no-rebegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook M3.emit.acquire-then-release O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook X1.silent-death O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES hook X2.ended-without-reset O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook X3.refused.unmapped O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES hook X3.refused.no-workspace O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES hook X3.refused.fs-reject O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:X#0 mode=0]
+RES hook X3.refused.no-window O1=0 O2=0 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=-1] NOTE: compositor-caused: kwinish session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook X4.fs-reject-callback O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: compositor-caused: third session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook G1.kwbegin-groupbar-same O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES hook H1.helper.deco-start-false O1=1 O2=1 O3=0 spec=0 orphan=1 final=[kwinish:A#0 mode=0]
+RES hook G1.kwbegin-groupbar-other O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:B#0 mode=0]
+RES hook G2.drop-into-group O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=-1] NOTE: host-caused inside an end Kwinish requested for ITS OWN session: third session left with mode INVALID by the enclosing dragEnd (R3 host limit; O1 shows no foreign session was ended)
+RES hook G3.groupbar-by-user O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES hook G4.groupbar-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=-1] NOTE: compositor-caused: groupbar session left with mode INVALID by the host; identical in the run without Kwinish ends
+RES hook G5.groupbar-focus-kwbegin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[groupbar:A#0 mode=0]
+RES hook B1.kwbegin-inside-end O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook U1.unload.own O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook U2.unload.third O1=0 O2=0 O3=0 spec=0 orphan=0 final=[user:A#0 mode=0]
+RES hook U3.unload.then-begin O1=0 O2=0 O3=0 spec=0 orphan=0 final=[no drag]
+RES hook L1.A3.unguarded O1=0 O2=0 O3=0 spec=0 orphan=0 final=[third:A#0 mode=1]

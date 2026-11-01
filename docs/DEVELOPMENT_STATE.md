@@ -72,6 +72,50 @@ Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é espe
 - **Pendências:** `docs/port-0-57/LEDGER.md:33` (L05) ainda descreve o registro legado — atualizar com autorização de escrita para o ledger. A sonda prova a expressão e a forma textual, não múltiplos teclados reais (só GL/ao vivo). Remover `onNewButton` (código morto) fica para decisão do dono.
 - **Próxima ação:** T2 (grupo W), que exige aprovação própria.
 
+## Anterior — Q4-A1: alternativa 5, não pedir fim sem posse (30/10/2026)
+
+- **Escopo cumprido:** só testes host-free, documentação e revisão. HEAD continua `f76c785`, sem commit/merge/staging; nenhum código de produção, helper `KwDrag::begin`, K3/K9/rearm, `PLUGIN_EXIT`, render/GL, carga de plugin, teste gráfico, instalação ou OpenSpec tocado; outras worktrees intocadas.
+- **Novos (não rastreados):**
+  - `docs/port-0-57/evidence/Q4A1-alt5-contract.md` (mapa de eventos, oráculos, resultados, viabilidade, limitações, revisão);
+  - `Q4A1-tests/` (`q4a1test.cpp`, `run.py`, `expected-matrix.txt`);
+  - `Q4A1-{run.log,detail.txt,detail-verbose.txt,sources.txt,old-runner-R4.log,review-1.json,review-2.json,review-prompt-1.txt,review-prompt-2.txt,sha256.txt}`.
+  - **Modificados:** aviso no topo de `Q4A-DRAG-OWNERSHIP.md` e este arquivo. `Q4A-policy-tests/` reusado sem alteração.
+- **Validação real:** `python3 docs/port-0-57/evidence/Q4A1-tests/run.py` exit 0:
+  - 39 cenários × 6 variantes (`absent`, `cur-0.56`, `veto-rc`, `naive5`, `alt5`, `alt5-rc`);
+  - GCC 16.2.1/Clang 23.1.4, `-Werror`, ASan/UBSan, saídas idênticas;
+  - 15/15 mutações detectadas pelo oráculo declarado;
+  - reexecuta o estudo anterior (42 × 7 inalterado: R1–R4, H1, L1).
+  - `Q4A-followup-tests/run.sh` continua exit 1 (R4).
+- **Resultados:**
+  - `cur-0.56` encerra drag de terceiro em 10 cenários;
+  - `naive5` (só tirar os fins) prende drags (O2 18, O3 24);
+  - `alt5-rc` limpa O1/O3/O4, mas falha **O2** em C1/C2 (captura de entrada: regressão) e K2/K3 (teclas que não chegam a Manager.cpp:223: preexistente).
+  - Recheck de `target()` no helper é **necessário** (H1i), não aplicado.
+- **Veredito:** Q4-A **continua BLOQUEADA** (segurança e liveness não simultâneas; núcleo Lua com `floatWindow` encerra qualquer drag; mudanças de rotas de input não autorizadas). Recomendação: **redesenho delimitado** antes de implementação limitada.
+- **Decisões do dono pendentes:** liveness sob captura; `floatWindow` do Lua; diferenças de comportamento (grab termina na soltura, ordem do snap, clique pós-grab, sem menu durante drag alheio); conferência de janela no rearm; reconciliação com o critério legado Q4/L17 (`MBIND_INVALID` no unload).
+
+## Anterior — Q4-A: política segura de encerramento de drag (30/10/2026)
+
+- **Escopo cumprido:** só investigação/modelo/testes host-free e docs Q4-A. HEAD continua `f76c785`, branch `port-kwinish-bars-to-hyprland-0-57`, sem commit/merge/staging; nenhum código de produção, K3/K9/rearm, `PLUGIN_EXIT`, listener, render/GL, carga de plugin, teste gráfico, instalação ou OpenSpec tocado. Worktrees históricas: HEAD e contagem de dirty iguais ao início.
+- **Novos (não rastreados):** `docs/port-0-57/evidence/Q4A-policy-contract.md` (contrato, janelas W1–W5, matriz, veredito, alternativas), `Q4A-policy-tests/` (`host.hpp`, `policies.hpp`, `policytest.cpp`, `probe.cpp`, `run.py`, `expected-matrix.txt`), `Q4A-policy-{run.log,detail.txt,host-sources.txt,old-runner-R4.log,review-1.json,review-2.json,review-prompt-1.txt,review-prompt-2.txt,sha256.txt}`. **Modificados:** `Q4A-DRAG-OWNERSHIP.md` (aviso no topo) e este arquivo. Evidências Q4-A anteriores intocadas (hash).
+- **Candidata `veto-rc`:** posse só com início próprio (`STARTED`), ouvinte por aquisição com token, alvo vivo; **veto quando `wasDraggingWindow()`** (U:275–325, janela de callbacks do `dragEnd`); posse consumida antes do fim; fim/início não reentrantes; recheck de `target()` no helper após `DRAG_START` (exige mudar o helper P8-B; não autorizado).
+- **Validação real:** `python3 docs/port-0-57/evidence/Q4A-policy-tests/run.py` exit 0: 42 cenários × 7 políticas, GCC 16.2.1/Clang 23.1.4 com `-Werror` e ASan/UBSan, saídas idênticas, sondas de headers instalados OK, matriz = esperada, mutações 11 detectadas/5 redundâncias explicadas (1 detectada só pela marca informativa). `none` falha O2 em 13 cenários (não encerrar não passa). `veto-rc` falha O1 só em `R4.emit.host` (premissa **D1**: ouvinte de `ended` de terceiros antes do Kwinish) e `L1` (A3). `defer` e `hook` fecham W5, mas exigem trabalho diferido/ganchos. Exit 0 = matriz reproduzida, **não aprovação**.
+- **R4:** preservado; `bash docs/port-0-57/evidence/Q4A-followup-tests/run.sh` continua exit 1 (2 falhas R4 por assertiva).
+- **Revisão** (Hermes/`openai-codex`/`gpt-6.1-sol`, família diferente; prompts conferidos no `state.db`): rodada 1 `conditional` (major reproduzido: decoração `DRAG_START` que inicia drag e devolve `false` faz o helper atual substituir a sessão → cenário `H1`, premissa A3′, variante `veto-rc`); rodada 2 `approve_as_planning_basis` (só minors, tratados; correções não re-revisadas).
+- **Veredito:** Q4-A **continua BLOQUEADO** para implementação. Sem novas APIs, a garantia depende de A3′ e D1 (terceiros), não verificáveis pelo plugin. Pendentes também: liveness da soltura cancelada com drag de group bar (`G1`), rollback das flags dos chamadores, C6, exceções, *wrap* do token, auditoria de `GROUP->remove`.
+- **Decisão do dono necessária:** (1) aceitar A3′+D1 e `veto-rc` síncrona; (2) fim diferido (`doLaterLock` + cancelamento em `PLUGIN_EXIT`); (3) ganchos em `dragBegin/dragEnd`; (4) upstream com validação da sessão atual/fim condicional; (5) não encerrar e não cancelar a soltura sem posse. Todas pedem autorização própria; nenhuma implementação iniciada.
+
+## Anterior — fechamento P8-B e preparação Q4-A (30/10/2026)
+
+- **Commit autorizado P8-B:** `f76c785` — `refactor(plugin): port drag initiation to Hyprland 0.57`; base `1e4aca1`, branch `port-kwinish-bars-to-hyprland-0-57`. Só K1/K2, helper e testes/docs diretamente relacionados. K3/K9/rearm e `PLUGIN_EXIT` não alterados; nenhum `endDragTarget()` novo em produção. Sondas/regressões/mutações reexecutadas antes do commit (P8-B 18/18). Sem merge/rebase/push. O plugin **permanece incompatível com Hyprland 0.57**.
+- **Q4-A: investigação/revisão avançou; implementação BLOQUEADA.** `docs/port-0-57/Q4A-DRAG-OWNERSHIP.md` aponta para o contrato revisado em `evidence/Q4A-followup-contract.md`. Nenhuma mudança de produção; HEAD continua `f76c785`; nenhum commit novo. Evidências anteriores preservadas sem alteração.
+- **Revisão agora concluída:** Anthropic/Gemini seguiam em cooldown; pool OpenAI estava disponível. Duas sessões novas Hermes / `openai-codex` / `gpt-6.1-sol`, mesma família do modelo da continuação, sem ferramentas de escrita: `conditional` (3 major +2 minor), depois `conditional` (1 major residual). Prompts enviados conferidos byte a byte no `state.db`; pareceres `Q4A-review-{2,3}.json`.
+- **Correções só no modelo host-free:** guarda RAII `inBegin` impede que aquisição externa apague uma reentrante; token local capturado impede que callback antigo, retido em snapshots aninhados, apague posse nova. Também reduzida a alegação sobre drag de terceiro: o host pode manter o alvo mas invalidar o modo durante seu próprio fim. Minors de critérios legados Q4/L17 e comparação 0.56.2 vs 0.57 documentados.
+- **Verde intermediário, não final:** 45 checks antigos +9 regressões por compilador, GCC/Clang ASan/UBSan; sondas reais verdes; 17 mutações (12 mortas, 5 redundantes). Esses resultados precedem R4.
+- **Estado final: VERMELHO por R4.** Depois do reset do alvo pelo host e antes de `ended`, terceiro reinicia na mesma janela; entrada de fim do plugin ainda vê a posse antiga e encerra o drag de terceiro. Reproduzido com fim externo pelo host e pelo plugin, respeitando A3. GCC/Clang **exit 1**, 2 falhas por assertiva, sem erro de sanitizer; demais checks passam. `bash docs/port-0-57/evidence/Q4A-followup-tests/run.sh` deve falhar. Não usar o runner antigo de 45 checks nem o total de mutações intermediário como aprovação final.
+- **Pendência necessária:** provar que nenhuma entrada de fim do plugin é alcançável na janela reset→`ended`, ou adotar observação/identificação mais forte, com autorização própria se exigir hook/lifecycle. Essa premissa adicional não foi provada nem aceita. C6 (falha de `listen`/rollback), exceções, wrap do token, terceiros e unload fora de emissões retentoras seguem pendentes.
+- **Próxima ação:** investigação estrutural de R4 e decisão explícita sobre o domínio de reentrada; depois nova revisão. Não integrar listeners sem teardown coordenado. Sem produção, `PLUGIN_EXIT`, K3/K9/rearm, render/GL, carga de plugin, testes gráficos ou commits Q4 nesta autorização.
+
 ## Anterior — P8-B (30/10/2026): drag K1–K3/K9 (parcial; aprovada e commitada)
 
 **K1/K2 (início) implementados e testados; K3, K9 e os dois rearm BLOQUEADOS por dependência de Q4.** Detalhe: `docs/port-0-57/P8-DRAG.md`. Git: branch `port-kwinish-bars-to-hyprland-0-57`; commits: `943aea4` P5, `d34c88d` P6, `1e4aca1` P8-A e o commit isolado de P8-B (`refactor(plugin): port drag initiation to Hyprland 0.57`, ver `git log`); sem merge/rebase/push. Prompts de revisão e o traço completo de P8-B ficam não rastreados. O plugin **continua incompatível com Hyprland 0.57** (não compila).

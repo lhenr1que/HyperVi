@@ -1,0 +1,1222 @@
+# Q4-A1 sources: pinned Hyprland 0aa6745f input path + current Kwinish event routes (read-only copies, line-numbered)
+
+######## U:managers/input/InputManager.cpp:249-295  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  249  void CInputManager::mouseMoveUnified(uint32_t time, bool refocus, bool mouse, std::optional<Vector2D> overridePos, bool pointerOnly) {
+  250      if (!pointerOnly)
+  251          m_lastInputMouse = mouse;
+  252  
+  253      if (g_pCompositor->m_isShuttingDown)
+  254          return;
+  255  
+  256      Vector2D const mouseCoords        = overridePos.value_or(getMouseCoordsInternal());
+  257      auto const     MOUSECOORDSFLOORED = mouseCoords.floor();
+  258  
+  259      if (MOUSECOORDSFLOORED == m_lastCursorPosFloored && !refocus && !pointerOnly)
+  260          return;
+  261  
+  262      static auto PFOLLOWMOUSE          = CConfigValue<Config::INTEGER>("input:follow_mouse");
+  263      static auto PFOLLOWMOUSETHRESHOLD = CConfigValue<Config::FLOAT>("input:follow_mouse_threshold");
+  264      static auto PMOUSEREFOCUS         = CConfigValue<Config::INTEGER>("input:mouse_refocus");
+  265      static auto PFOLLOWONDND          = CConfigValue<Config::INTEGER>("misc:always_follow_on_dnd");
+  266      static auto PFLOATBEHAVIOR        = CConfigValue<Config::INTEGER>("input:float_switch_override_focus");
+  267      static auto PMOUSEFOCUSMON        = CConfigValue<Config::INTEGER>("misc:mouse_move_focuses_monitor");
+  268      static auto PRESIZEONBORDER       = CConfigValue<Config::INTEGER>("general:resize_on_border");
+  269      static auto PRESIZECURSORICON     = CConfigValue<Config::INTEGER>("general:hover_icon_on_border");
+  270  
+  271      const auto  FOLLOWMOUSE = *PFOLLOWONDND && PROTO::data->dndActive() ? 1 : *PFOLLOWMOUSE;
+  272  
+  273      if (!pointerOnly) {
+  274          if (FOLLOWMOUSE == 1 && m_lastCursorMovement.getSeconds() < 0.5)
+  275              m_mousePosDelta += MOUSECOORDSFLOORED.distance(m_lastCursorPosFloored);
+  276          else
+  277              m_mousePosDelta = 0;
+  278  
+  279          m_foundSurfaceToFocus.reset();
+  280          m_foundLSToFocus.reset();
+  281          m_foundWindowToFocus.reset();
+  282      }
+  283      SP<CWLSurfaceResource> foundSurface;
+  284      Vector2D               surfaceCoords;
+  285      Vector2D               surfacePos = Vector2D(-1337, -1337);
+  286      PHLWINDOW              pFoundWindow;
+  287      PHLLS                  pFoundLayerSurface;
+  288      const auto             FOCUS_REASON = refocus ? Desktop::FOCUS_REASON_CLICK : Desktop::FOCUS_REASON_FFM;
+  289  
+  290      if (!pointerOnly) {
+  291          Event::SCallbackInfo info;
+  292          Event::bus()->m_events.input.mouse.move.emit(MOUSECOORDSFLOORED, info);
+  293          if (info.cancelled)
+  294              return;
+  295  
+
+######## U:managers/input/InputManager.cpp:720-773  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  720  void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) {
+  721      Event::SCallbackInfo info;
+  722      Event::bus()->m_events.input.mouse.button.emit(e, info);
+  723      if (info.cancelled)
+  724          return;
+  725  
+  726      if (e.mouse)
+  727          recheckMouseWarpOnMouseInput();
+  728  
+  729      PROTO::inputCapture->button(e.button, e.state);
+  730  
+  731      if (Hotkeys::mgr()->onButton(e, mouse)) {
+  732          Keybinds::mgr()->onMouseEvent(e, mouse, PROTO::inputCapture->isCaptured());
+  733          return;
+  734      }
+  735  
+  736      if (PROTO::inputCapture->isCaptured()) {
+  737          Keybinds::mgr()->onMouseEvent(e, mouse, true);
+  738          if (e.state == WL_POINTER_BUTTON_STATE_RELEASED)
+  739              std::erase_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; });
+  740          return;
+  741      }
+  742  
+  743      m_lastCursorMovement.reset();
+  744  
+  745      if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+  746          m_currentlyHeldButtons.emplace_back(e.button, mouse);
+  747      } else {
+  748          if (std::ranges::find_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; }) ==
+  749              m_currentlyHeldButtons.end()) {
+  750              Keybinds::mgr()->onMouseEvent(e, mouse);
+  751              return;
+  752          }
+  753          std::erase_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; });
+  754      }
+  755  
+  756      switch (m_clickBehavior) {
+  757          case CLICKMODE_DEFAULT: processMouseDownNormal(e, mouse); break;
+  758          case CLICKMODE_KILL: processMouseDownKill(e); break;
+  759          default: break;
+  760      }
+  761  
+  762      if (m_focusHeldByButtons && m_currentlyHeldButtons.empty() && e.state == WL_POINTER_BUTTON_STATE_RELEASED) {
+  763          if (m_refocusHeldByButtons)
+  764              refocus();
+  765          else
+  766              simulateMouseMovement();
+  767  
+  768          m_focusHeldByButtons   = false;
+  769          m_refocusHeldByButtons = false;
+  770      }
+  771  
+  772      g_pSeatManager->sendPointerFrame();
+  773  }
+
+######## U:managers/input/InputManager.cpp:845-939  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+  845  void CInputManager::processMouseDownNormal(const IPointer::SButtonEvent& e, SP<IPointer> mouse) {
+  846  
+  847      // notify the keybind manager
+  848      static auto PPASSMOUSE         = CConfigValue<Config::INTEGER>("binds:pass_mouse_when_bound");
+  849      const auto  PASS               = Keybinds::mgr()->onMouseEvent(e, mouse);
+  850      static auto PFOLLOWMOUSE       = CConfigValue<Config::INTEGER>("input:follow_mouse");
+  851      static auto PSWALLOWFOCUSCLICK = CConfigValue<Config::BOOL>("input:swallow_focus_click");
+  852      static auto PRESIZEONBORDER    = CConfigValue<Config::INTEGER>("general:resize_on_border");
+  853      static auto PBORDERSIZE        = CConfigValue<Config::INTEGER>("general:border_size");
+  854      static auto PBORDERGRABEXTEND  = CConfigValue<Config::INTEGER>("general:extend_border_grab_area");
+  855      const auto  BORDER_GRAB_AREA   = *PRESIZEONBORDER ? *PBORDERSIZE + *PBORDERGRABEXTEND : 0;
+  856  
+  857      if (!PASS && !*PPASSMOUSE)
+  858          return;
+  859  
+  860      const auto mouseCoords = g_pInputManager->getMouseCoordsInternal();
+  861      const auto w           = Desktop::viewState()->hitTest().windowAt(mouseCoords, Desktop::View::ALLOW_FLOATING | Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS);
+  862  
+  863      if (w && !m_lastFocusOnLS && !g_pSessionLockManager->isSessionLocked() && w->presentation().checkInputOnDecorations(INPUT_TYPE_BUTTON, mouseCoords, e))
+  864          return;
+  865  
+  866      // clicking on border triggers resize
+  867      // TODO detect click on LS properly
+  868      if (*PRESIZEONBORDER && !g_pSessionLockManager->isSessionLocked() && !m_lastFocusOnLS && e.state == WL_POINTER_BUTTON_STATE_PRESSED &&
+  869          (!w || !w->backend().traits().overrideRedirect)) {
+  870          if (w && !Fullscreen::controller()->isFullscreen(w)) {
+  871              const CBox real = w->geometricBox(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  872              const CBox grab = {real.x - BORDER_GRAB_AREA, real.y - BORDER_GRAB_AREA, real.width + 2 * BORDER_GRAB_AREA, real.height + 2 * BORDER_GRAB_AREA};
+  873  
+  874              if ((grab.containsPoint(mouseCoords) && (!real.containsPoint(mouseCoords) || w->presentation().isInCurvedCorner(mouseCoords.x, mouseCoords.y))) &&
+  875                  !w->hasPopupAt(mouseCoords)) {
+  876                  if (!g_layoutManager->dragController()->target())
+  877                      g_layoutManager->beginDragTarget(w->layoutTarget(), MBIND_RESIZE);
+  878                  return;
+  879              }
+  880          }
+  881      }
+  882  
+  883      switch (e.state) {
+  884          case WL_POINTER_BUTTON_STATE_PRESSED: {
+  885              if (*PFOLLOWMOUSE == 3) // don't refocus on full loose
+  886                  break;
+  887  
+  888              if ((g_pSeatManager->m_mouse.expired() || !isConstrained()) /* No constraints */
+  889                  && (w && Desktop::focusState()->window() != w) /* window should change */) {
+  890                  // a bit hacky
+  891                  // if we only pressed one button, allow us to refocus. m_lCurrentlyHeldButtons.size() > 0 will stick the focus
+  892                  if (m_currentlyHeldButtons.size() == 1) {
+  893                      const auto COPY = m_currentlyHeldButtons;
+  894                      m_currentlyHeldButtons.clear();
+  895                      refocus();
+  896                      m_currentlyHeldButtons = COPY;
+  897                  } else
+  898                      refocus();
+  899  
+  900                  if (*PSWALLOWFOCUSCLICK && Desktop::focusState()->window() == w)
+  901                      m_swallowedFocusButtons.emplace_back(e.button, mouse);
+  902              }
+  903  
+  904              // if clicked on a floating window make it top
+  905              if (!g_pSeatManager->m_state.pointerFocus)
+  906                  break;
+  907  
+  908              auto HLSurf = Desktop::View::CWLSurface::fromResource(g_pSeatManager->m_state.pointerFocus.lock());
+  909  
+  910              // pointerFocus can target a surface without a Desktop::View (e.g. IME popups), so view() may be null.
+  911              const auto PVIEW = HLSurf ? HLSurf->view() : nullptr;
+  912              if (PVIEW && PVIEW->type() == Desktop::View::VIEW_TYPE_WINDOW)
+  913                  Desktop::windowState()->raise(dynamicPointerCast<Desktop::View::CWindow>(PVIEW));
+  914  
+  915              break;
+  916          }
+  917          case WL_POINTER_BUTTON_STATE_RELEASED: break;
+  918      }
+  919  
+  920      bool swallowed = false;
+  921      if (e.state == WL_POINTER_BUTTON_STATE_PRESSED)
+  922          swallowed = std::ranges::any_of(m_swallowedFocusButtons, [&](const auto& b) { return b.button == e.button && b.pointer == mouse; });
+  923      else
+  924          swallowed = std::erase_if(m_swallowedFocusButtons, [&](const auto& b) { return b.button == e.button && b.pointer == mouse; });
+  925  
+  926      if (!swallowed) {
+  927          // notify app if we didn't handle it
+  928          g_pSeatManager->sendPointerButton(e.timeMs, e.button, e.state);
+  929      }
+  930  
+  931      if (const auto PMON = State::monitorState()->query().vec(mouseCoords).run(); PMON != Desktop::focusState()->monitor() && PMON)
+  932          Desktop::focusState()->rawMonitorFocus(PMON);
+  933  
+  934      if (g_pSeatManager->m_seatGrab && e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+  935          m_hardInput = true;
+  936          simulateMouseMovement();
+  937          m_hardInput = false;
+  938      }
+  939  }
+
+######## U:managers/input/InputManager.cpp:1701-1725  sha256 e218e6d49ccf7fd565a1239d61b726c7d11c4ad57a69934f21acf311e0968858 ########
+ 1701  void CInputManager::onKeyboardKey(const IKeyboard::SKeyEvent& event, SP<IKeyboard> pKeyboard) {
+ 1702      if (!pKeyboard->m_enabled || !pKeyboard->m_allowed)
+ 1703          return;
+ 1704  
+ 1705      const bool           DISALLOWACTION = pKeyboard->isVirtual() && shouldIgnoreVirtualKeyboard(pKeyboard);
+ 1706  
+ 1707      const auto           IME    = m_relay.m_inputMethod.lock();
+ 1708      const bool           HASIME = IME && IME->hasGrab();
+ 1709      const bool           USEIME = HASIME && !DISALLOWACTION;
+ 1710  
+ 1711      Event::SCallbackInfo info;
+ 1712      Event::bus()->m_events.input.keyboard.key.emit(event, info);
+ 1713      if (info.cancelled)
+ 1714          return;
+ 1715  
+ 1716      PROTO::inputCapture->key(event.keycode, event.state);
+ 1717  
+ 1718      bool passEvent = DISALLOWACTION && !PROTO::inputCapture->isCaptured();
+ 1719  
+ 1720      if (!DISALLOWACTION) {
+ 1721          const bool HOTKEY_CONSUMED = Hotkeys::mgr()->onKey(event, pKeyboard);
+ 1722          passEvent                  = Keybinds::mgr()->onKeyEvent(event, pKeyboard) && !HOTKEY_CONSUMED && !PROTO::inputCapture->isCaptured();
+ 1723      }
+ 1724  
+ 1725      if (g_pSeatManager->m_keyboardEventHandlers.dispatch(event, pKeyboard, passEvent))
+
+######## U:keybinds/Manager.cpp:189-224  sha256 c95d27f9c99b9a952b4ff3b51a9ee517cda14539948d82dca717ce5ea887b12d ########
+  189  bool CKeybindManager::onKeyEvent(std::any event, SP<IKeyboard> keyboard) {
+  190      if (!g_pCompositor->m_sessionActive) {
+  191          invokeReleaseCallbacks(m_inputState.takeAllReleaseCallbacks());
+  192          m_inputState.clear();
+  193          cancelTimedBinds();
+  194          return true;
+  195      }
+  196  
+  197      if (!keyboard->m_allowBinds)
+  198          return true;
+  199  
+  200      if (!m_xkbTranslationState) {
+  201          updateXKBTranslationState();
+  202          if (!m_xkbTranslationState)
+  203              return true;
+  204      }
+  205  
+  206      const auto KEY_EVENT = std::any_cast<IKeyboard::SKeyEvent>(event);
+  207      const auto KEYCODE   = KEY_EVENT.keycode + 8;
+  208      const auto KEYSYM    = xkb_state_key_get_one_sym(keyboard->m_resolveBindsBySym ? keyboard->m_xkbSymState : m_xkbTranslationState, KEYCODE);
+  209      const auto INTERNAL  = xkb_state_key_get_one_sym(keyboard->m_xkbState, KEYCODE);
+  210  
+  211      if (KEYSYM == XKB_KEY_Escape || INTERNAL == XKB_KEY_Escape)
+  212          PROTO::data->abortDndIfPresent();
+  213  
+  214      if (!PROTO::inputCapture->isCaptured() && handleInternalKeybinds(INTERNAL))
+  215          return false;
+  216  
+  217      const auto MODIFIERS = g_pInputManager->getModsFromAllKBs();
+  218  
+  219      Config::Actions::state()->m_timeLastMs    = KEY_EVENT.timeMs;
+  220      Config::Actions::state()->m_lastCode      = KEYCODE;
+  221      Config::Actions::state()->m_lastMouseCode = 0;
+  222  
+  223      const bool DRAG_WAS_ACTIVE = g_layoutManager->endDragTarget();
+  224      cancelTimedBinds();
+
+######## U:keybinds/Manager.cpp:345-417  sha256 c95d27f9c99b9a952b4ff3b51a9ee517cda14539948d82dca717ce5ea887b12d ########
+  345  bool CKeybindManager::onMouseEvent(const IPointer::SButtonEvent& event, SP<IPointer> pointer, bool captured) {
+  346      const auto MODIFIERS = g_pInputManager->getModsFromAllKBs();
+  347      const auto KEY       = SResolvedKey{.event = "mouse:" + std::to_string(event.button)};
+  348  
+  349      Config::Actions::state()->m_lastMouseCode = event.button;
+  350      Config::Actions::state()->m_lastCode      = 0;
+  351      Config::Actions::state()->m_timeLastMs    = event.timeMs;
+  352  
+  353      const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+  354      cancelTimedBinds();
+  355  
+  356      if (event.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+  357          if (!m_inputState.press({
+  358                  .key              = KEY,
+  359                  .modifiersAtPress = MODIFIERS,
+  360                  .forwarded        = true,
+  361                  .capturedAtPress  = captured,
+  362                  .actionMouseCode  = event.button,
+  363                  .actionTimeMs     = event.timeMs,
+  364                  .submapAtPress    = std::string{currentSubmap()},
+  365                  .positionAtPress  = Pointer::mgr()->untransformedPosition(),
+  366                  .device           = pointer,
+  367              })) {
+  368              const auto* existing = m_inputState.find(KEY, pointer);
+  369              return (!existing || existing->forwarded) && !DRAG_WAS_ACTIVE;
+  370          }
+  371  
+  372          auto* pressedInput = m_inputState.find(KEY, pointer);
+  373          auto  result       = processEvent(
+  374              {
+  375                  .heldKeys         = m_inputState.heldKeys(),
+  376                  .trigger          = KEY,
+  377                  .modifiersNow     = MODIFIERS,
+  378                  .modifiersAtPress = MODIFIERS,
+  379                  .pressed          = true,
+  380                  .device           = pointer,
+  381                  .submap           = std::string{currentSubmap()},
+  382              },
+  383              nullptr, pressedInput);
+  384  
+  385          m_inputState.setForwarded(KEY, pointer, result.passEvent);
+  386          if (!result.passEvent)
+  387              shadowBinds();
+  388          return result.passEvent && !DRAG_WAS_ACTIVE;
+  389      }
+  390  
+  391      auto* pressedInput = m_inputState.find(KEY, pointer);
+  392      if (!pressedInput)
+  393          return !DRAG_WAS_ACTIVE;
+  394  
+  395      const bool FORWARDED = pressedInput->forwarded;
+  396      invokeDeferredBinds(pressedInput->key, pointer);
+  397      pressedInput = m_inputState.find(KEY, pointer);
+  398      if (!pressedInput) {
+  399          shadowBinds();
+  400          return FORWARDED && !DRAG_WAS_ACTIVE;
+  401      }
+  402  
+  403      processEvent(
+  404          {
+  405              .heldKeys         = m_inputState.heldKeys(),
+  406              .trigger          = KEY,
+  407              .modifiersNow     = MODIFIERS,
+  408              .modifiersAtPress = pressedInput->modifiersAtPress,
+  409              .pressed          = false,
+  410              .device           = pointer,
+  411              .submap           = pressedInput->submapAtPress,
+  412          },
+  413          nullptr, pressedInput);
+  414      m_inputState.release(KEY, pointer);
+  415      shadowBinds();
+  416      return FORWARDED && !DRAG_WAS_ACTIVE;
+  417  }
+
+######## U:config/shared/actions/ConfigActions.cpp:230-262  sha256 2671bcfb511a9c0fe9bf1ae9773b84e58c8dcf82b42679b050d43f34b3c4dcd0 ########
+  230          return std::unexpected(std::format("Invalid signal number {}", sig));
+  231  
+  232      kill(window->backend().pid(), sig);
+  233  
+  234      return {};
+  235  }
+  236  
+  237  ActionResult Actions::floatWindow(eTogglableAction action, std::optional<PHLWINDOW> w) {
+  238      auto window = xtract(w);
+  239      if (!window)
+  240          return {};
+  241  
+  242      bool wantFloat = false;
+  243      switch (action) {
+  244          case TOGGLE_ACTION_TOGGLE: wantFloat = !window->isFloating(); break;
+  245          case TOGGLE_ACTION_ENABLE: wantFloat = true; break;
+  246          case TOGGLE_ACTION_DISABLE: wantFloat = false; break;
+  247      }
+  248  
+  249      if (wantFloat == window->isFloating())
+  250          return {};
+  251  
+  252      if (g_layoutManager->dragController()->target())
+  253          g_layoutManager->endDragTarget();
+  254  
+  255      g_layoutManager->changeFloatingMode(window->layoutTarget());
+  256  
+  257      if (window->isFloating())
+  258          Desktop::windowState()->raise(window);
+  259  
+  260      if (window->m_workspace) {
+  261          window->m_workspace->updateWindows();
+  262          window->m_workspace->updateWindowData();
+
+######## U:config/shared/actions/ConfigActions.cpp:1695-1737  sha256 2671bcfb511a9c0fe9bf1ae9773b84e58c8dcf82b42679b050d43f34b3c4dcd0 ########
+ 1695  ActionResult Actions::mouse(const std::string& action) {
+ 1696      const bool PRESSED = Config::Actions::state()->m_passPressed == 1;
+ 1697  
+ 1698      if (!PRESSED) {
+ 1699          if (g_layoutManager->dragController()->target())
+ 1700              g_layoutManager->endDragTarget();
+ 1701          return {};
+ 1702      }
+ 1703  
+ 1704      if (g_layoutManager->dragController()->target())
+ 1705          return {};
+ 1706  
+ 1707      eMouseBindMode mode = MBIND_RESIZE;
+ 1708  
+ 1709      if (action == "movewindow")
+ 1710          mode = MBIND_MOVE;
+ 1711  
+ 1712      // resizewindow with optional ratio mode
+ 1713      else {
+ 1714          try {
+ 1715              const auto SPACEPOS = action.find(' ');
+ 1716              if (SPACEPOS != std::string::npos) {
+ 1717                  switch (std::stoi(action.substr(SPACEPOS + 1))) {
+ 1718                      case 1: mode = MBIND_RESIZE_FORCE_RATIO; break;
+ 1719                      case 2: mode = MBIND_RESIZE_BLOCK_RATIO; break;
+ 1720                      default: break;
+ 1721                  }
+ 1722              }
+ 1723          } catch (...) { /* stoi failed, fall through to default resize */
+ 1724          }
+ 1725      }
+ 1726  
+ 1727      const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+ 1728      const PHLWINDOW PWINDOW = Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+ 1729  
+ 1730      if (!PWINDOW)
+ 1731          return SActionResult{.passEvent = true};
+ 1732  
+ 1733      if (!Fullscreen::controller()->isFullscreen(PWINDOW) && mode == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+ 1734          return {};
+ 1735  
+ 1736      g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+ 1737      return {};
+
+######## U:layout/supplementary/DragController.cpp:252-357  sha256 6a7c339a4519dcd7787596cd00a3b7931451e770aff1c347242d87427dc30a5f ########
+  252  bool CDragStateController::dragEnd() {
+  253      auto draggingTarget = m_target.lock();
+  254  
+  255      if (!draggingTarget)
+  256          return false;
+  257  
+  258      Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+  259  
+  260      m_mouseMoveEventCount = 1;
+  261  
+  262      if (!validMapped(draggingTarget->window())) {
+  263          if (draggingTarget->window()) {
+  264              Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  265              m_target.reset();
+  266          }
+  267          m_dragMode            = MBIND_INVALID;
+  268          m_exclusiveDeviceGrab = false;
+  269          m_forcedGrabbedCorner.reset();
+  270          return true;
+  271      }
+  272  
+  273      Pointer::Cursor::overrideController->unsetOverride(Pointer::Cursor::CURSOR_OVERRIDE_SPECIAL_ACTION);
+  274      m_target.reset();
+  275      m_wasDraggingWindow = true;
+  276  
+  277      if (m_dragMode == MBIND_MOVE && draggingTarget->window()) {
+  278          draggingTarget->damageEntire();
+  279  
+  280          const auto DRAGGING_WINDOW = draggingTarget->window();
+  281  
+  282          const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+  283          PHLWINDOW  pWindow =
+  284              Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, DRAGGING_WINDOW);
+  285  
+  286          if (pWindow) {
+  287              if (pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+  288                  m_wasDraggingWindow   = false;
+  289                  m_dragMode            = MBIND_INVALID;
+  290                  m_exclusiveDeviceGrab = false;
+  291                  m_forcedGrabbedCorner.reset();
+  292                  return true;
+  293              }
+  294  
+  295              const bool  FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled;
+  296              static auto PDRAGINTOGROUP   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  297  
+  298              if (pWindow->grouping().group() && DRAGGING_WINDOW->grouping().canBeGroupedInto(pWindow->grouping().group()) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+  299                  pWindow->grouping().group()->add(DRAGGING_WINDOW);
+  300                  // fix the draggingTarget, now it's DRAGGING_WINDOW
+  301                  draggingTarget = DRAGGING_WINDOW->windowTarget();
+  302              }
+  303          }
+  304      }
+  305  
+  306      if (const auto W = draggingTarget->window(); W) {
+  307          W->effects().resetMotionBlur();
+  308          W->presentation().clearFloatingOffset();
+  309      }
+  310  
+  311      if (m_draggingTiled) {
+  312          // make sure to check if we are floating because drag into group could make us tiled already
+  313          if (draggingTarget->floating())
+  314              g_layoutManager->changeFloatingMode(draggingTarget);
+  315  
+  316          draggingTarget->rememberFloatingSize(m_draggingWindowOriginalFloatSize);
+  317      }
+  318  
+  319      draggingTarget->damageEntire();
+  320  
+  321      g_layoutManager->setTargetGeom(draggingTarget->position(), draggingTarget);
+  322  
+  323      Desktop::focusState()->fullWindowFocus(draggingTarget->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  324  
+  325      m_wasDraggingWindow = false;
+  326      if (isResizeMode(m_dragMode))
+  327          setClientResizingState(draggingTarget, false);
+  328  
+  329      m_dragMode            = MBIND_INVALID;
+  330      m_exclusiveDeviceGrab = false;
+  331      m_draggingTiled       = false;
+  332      m_forcedGrabbedCorner.reset();
+  333      return true;
+  334  }
+  335  
+  336  void CDragStateController::mouseMove(const Vector2D& mousePos) {
+  337      if (m_target.expired())
+  338          return;
+  339  
+  340      const auto  DRAGGINGTARGET = m_target.lock();
+  341      static auto PDRAGTHRESHOLD = CConfigValue<Config::INTEGER>("binds:drag_threshold");
+  342  
+  343      // Window invalid or drag begin size 0,0 meaning we rejected it.
+  344      if ((!validMapped(DRAGGINGTARGET->window()) || m_beginDragSizeXY == Vector2D())) {
+  345          dragEnd();
+  346          return;
+  347      }
+  348  
+  349      // Yoink dragged window here instead if using drag_threshold and it has been reached
+  350      if (*PDRAGTHRESHOLD > 0 && !m_dragThresholdReached) {
+  351          if ((m_beginDragUntransformedXY.distanceSq(Pointer::mgr()->untransformedPosition()) <= std::pow(*PDRAGTHRESHOLD, 2) && m_beginDragXY == m_lastDragXY))
+  352              return;
+  353          m_dragThresholdReached = true;
+  354          if (updateDragWindow())
+  355              return;
+  356          m_events.motion.emit();
+  357      }
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:392-450  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  392  bool CHyprGroupBarDecoration::onBeginWindowDragOnDeco(const Vector2D& pos) {
+  393      static auto PSTACKED  = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  394      static auto POUTERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  395      static auto PINNERGAP = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  396      if (m_window->grouping().group()->size() == 1)
+  397          return false;
+  398  
+  399      const float BARRELATIVEX = pos.x - assignedBoxGlobal().x;
+  400      const float BARRELATIVEY = pos.y - assignedBoxGlobal().y;
+  401      const int   WINDOWINDEX  = *PSTACKED ? (BARRELATIVEY / (m_barHeight + *POUTERGAP)) : (BARRELATIVEX) / (m_barWidth + *PINNERGAP);
+  402  
+  403      if (!*PSTACKED && (BARRELATIVEX - (m_barWidth + *PINNERGAP) * WINDOWINDEX > m_barWidth))
+  404          return false;
+  405  
+  406      if (*PSTACKED && (BARRELATIVEY - (m_barHeight + *POUTERGAP) * WINDOWINDEX < *POUTERGAP))
+  407          return false;
+  408  
+  409      PHLWINDOW   pWindow = m_window->grouping().group()->fromIndex(WINDOWINDEX);
+  410  
+  411      const auto& GROUP = m_window->grouping().group();
+  412  
+  413      // remove the window from the group
+  414      GROUP->remove(pWindow);
+  415  
+  416      // start a move drag on it
+  417      g_layoutManager->dragController()->dragBegin(pWindow->layoutTarget(), MBIND_MOVE);
+  418  
+  419      if (!Desktop::focusState()->isWindowActive(pWindow))
+  420          Desktop::focusState()->rawWindowFocus(pWindow, Desktop::FOCUS_REASON_CLICK);
+  421  
+  422      return true;
+  423  }
+  424  
+  425  bool CHyprGroupBarDecoration::onEndWindowDragOnDeco(const Vector2D& pos, PHLWINDOW pDraggedWindow) {
+  426      static auto PDRAGINTOGROUP                   = CConfigValue<Config::INTEGER>("group:drag_into_group");
+  427      static auto PMERGEFLOATEDINTOTILEDONGROUPBAR = CConfigValue<Config::INTEGER>("group:merge_floated_into_tiled_on_groupbar");
+  428      static auto PMERGEGROUPSONGROUPBAR           = CConfigValue<Config::INTEGER>("group:merge_groups_on_groupbar");
+  429      static auto PSTACKED                         = CConfigValue<Config::INTEGER>("group:groupbar:stacked");
+  430      static auto POUTERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_out");
+  431      static auto PINNERGAP                        = CConfigValue<Config::INTEGER>("group:groupbar:gaps_in");
+  432      const bool  FLOATEDINTOTILED                 = !m_window->isFloating() && !g_layoutManager->dragController()->draggingTiled();
+  433  
+  434      if (!pDraggedWindow->grouping().canBeGroupedInto(m_window->grouping().group()) || (*PDRAGINTOGROUP != 1 && *PDRAGINTOGROUP != 2) ||
+  435          (FLOATEDINTOTILED && !*PMERGEFLOATEDINTOTILEDONGROUPBAR) || (!*PMERGEGROUPSONGROUPBAR && pDraggedWindow->grouping().group()))
+  436          return false;
+  437  
+  438      const float BARRELATIVE = *PSTACKED ? pos.y - assignedBoxGlobal().y - (m_barHeight + *POUTERGAP) / 2 : pos.x - assignedBoxGlobal().x - m_barWidth / 2;
+  439      const float BARSIZE     = *PSTACKED ? m_barHeight + *POUTERGAP : m_barWidth + *PINNERGAP;
+  440      const int   WINDOWINDEX = (BARRELATIVE < 0 ? -1 : BARRELATIVE / BARSIZE) + 1;
+  441  
+  442      m_window->grouping().group()->add(pDraggedWindow, WINDOWINDEX);
+  443  
+  444      if (!pDraggedWindow->presentation().decoration(DECORATION_GROUPBAR))
+  445          pDraggedWindow->presentation().addDecoration(makeShared<CHyprGroupBarDecoration>(pDraggedWindow));
+  446  
+  447      Desktop::focusState()->fullWindowFocus(pDraggedWindow->windowTarget()->window(), Desktop::FOCUS_REASON_DESKTOP_STATE_CHANGE);
+  448  
+  449      return true;
+  450  }
+
+######## U:render/decorations/CHyprGroupBarDecoration.cpp:520-530  sha256 09463020c03d9fa0b48f26057db41ca1db6f9ed844f086166905dcb0dbcf8eef ########
+  520      return true;
+  521  }
+  522  
+  523  bool CHyprGroupBarDecoration::onInputOnDeco(const eInputType type, const Vector2D& mouseCoords, std::any data) {
+  524      switch (type) {
+  525          case INPUT_TYPE_AXIS: return onScrollOnDeco(mouseCoords, std::any_cast<const IPointer::SAxisEvent>(data));
+  526          case INPUT_TYPE_BUTTON: return onMouseButtonOnDeco(mouseCoords, std::any_cast<const IPointer::SButtonEvent&>(data));
+  527          case INPUT_TYPE_DRAG_START: return onBeginWindowDragOnDeco(mouseCoords);
+  528          case INPUT_TYPE_DRAG_END: return onEndWindowDragOnDeco(mouseCoords, std::any_cast<PHLWINDOW>(data));
+  529          default: return false;
+  530      }
+
+######## U:layout/algorithm/floating/default/DefaultFloatingAlgorithm.cpp:140-150  sha256 83a63deb0481f28958a3473059555cc67775f6eff0f0f7abc334f1bde912724d ########
+  140              return;
+  141          }
+  142      }
+  143  
+  144      auto       LAST_SIZE    = target->lastFloatingSize();
+  145      const auto CURRENT_SIZE = target->position().size();
+  146  
+  147      // ignore positioning a dragged target
+  148      if (g_layoutManager->dragController()->target() == target)
+  149          return;
+  150  
+
+######## U:layout/algorithm/floating/default/DefaultFloatingAlgorithm.cpp:222-244  sha256 83a63deb0481f28958a3473059555cc67775f6eff0f0f7abc334f1bde912724d ########
+  222  void CDefaultFloatingAlgorithm::resizeTarget(const Vector2D& Δ, SP<ITarget> target, eRectCorner corner) {
+  223      auto pos = target->position();
+  224      pos.w += Δ.x;
+  225      pos.h += Δ.y;
+  226      pos.translate(-Δ / 2.F);
+  227      setPositionGlobal(target, pos);
+  228  
+  229      if (g_layoutManager->dragController()->target() == target)
+  230          target->warpPositionSize();
+  231  
+  232      updateTarget(target);
+  233  }
+  234  
+  235  void CDefaultFloatingAlgorithm::moveTarget(const Vector2D& Δ, SP<ITarget> target) {
+  236      auto pos = target->position();
+  237      pos.translate(Δ);
+  238      setPositionGlobal(target, pos);
+  239  
+  240      if (g_layoutManager->dragController()->target() == target)
+  241          target->warpPositionSize();
+  242  
+  243      updateTarget(target);
+  244  }
+
+######## P:plugin/barDeco.cpp:56-70  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+   56      const auto PMONITOR         = pWindow->m_monitor.lock();
+   57      PMONITOR->m_scheduledRecalc = true;
+   58  
+   59      // button events
+   60      m_pMouseButtonCallback = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) { onMouseButton(info, e); });
+   61      m_pTouchDownCallback   = Event::bus()->m_events.input.touch.down.listen([&](ITouch::SDownEvent e, Event::SCallbackInfo& info) { onTouchDown(info, e); });
+   62      m_pTouchUpCallback     = Event::bus()->m_events.input.touch.up.listen([&](ITouch::SUpEvent e, Event::SCallbackInfo& info) { onTouchUp(info, e); });
+   63  
+   64      // move events
+   65      m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
+   66      m_pMouseAxisCallback = Event::bus()->m_events.input.mouse.axis.listen([&](IPointer::SAxisEvent e, Event::SCallbackInfo& info) { onMouseAxis(info, e); });
+   67      m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D c, Event::SCallbackInfo& info) { onMouseMove(c); });
+   68  
+   69      Animation::mgr()->createAnimation(configColor(g_pGlobalState->config.barColor->value()), m_cRealBarColor, Config::animationTree()->getAnimationPropertyConfig("border"),
+   70                                        pWindow, AVARDAMAGE_NONE);
+
+######## P:plugin/barDeco.cpp:154-226  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  154  void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
+  155      // a menu Move/Resize is in progress or just ended with this click: the bars stay out of it
+  156      if (g_pGlobalState->grabActive || g_pGlobalState->grabSwallowPress)
+  157          return;
+  158  
+  159      // middle, side and extra buttons are not ours (they used to count as a left click: middle-click on close closed the window)
+  160      if (e.button != BTN_LEFT && e.button != BTN_RIGHT)
+  161          return;
+  162  
+  163      // overlapping bars all hear the same press: the first one that took it cancels it, the others must not act on it too
+  164      // (releases still go to every bar, so each can clear its own drag state)
+  165      if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && info.cancelled)
+  166          return;
+  167  
+  168      // a release must reach us wherever the pointer ended up (a drag can end over another layer, e.g. a panel at the
+  169      // screen edge, which input validation would reject)
+  170      if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button != BTN_RIGHT && (m_bDraggingThis || m_bCancelledDown || m_bDragPending)) {
+  171          handleUpEvent(info);
+  172          return;
+  173      }
+  174  
+  175      if (!inputIsValid())
+  176          return;
+  177  
+  178      if (e.state != WL_POINTER_BUTTON_STATE_PRESSED) {
+  179          if (e.button != BTN_RIGHT)
+  180              handleUpEvent(info);
+  181          return;
+  182      }
+  183  
+  184      if (e.button == BTN_RIGHT) {
+  185          // right click on the bar: the window menu
+  186          const auto HEIGHT = g_pGlobalState->config.barHeight->value();
+  187          if (VECINRECT(cursorRelativeToBar(), 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) {
+  188              if (Desktop::focusState()->window() != m_pWindow.lock())
+  189                  Desktop::focusState()->fullWindowFocus(m_pWindow.lock(), Desktop::FOCUS_REASON_CLICK);
+  190              info.cancelled = true;
+  191              runAction("menu");
+  192          }
+  193          return;
+  194      }
+  195  
+  196      handleDownEvent(info, std::nullopt);
+  197  }
+  198  
+  199  void CHyprBar::onTouchDown(Event::SCallbackInfo& info, ITouch::SDownEvent e) {
+  200      // Don't do anything if you're already grabbed a window with another finger
+  201      if (!inputIsValid() || e.touchID != 0)
+  202          return;
+  203  
+  204      handleDownEvent(info, e);
+  205  }
+  206  
+  207  void CHyprBar::onTouchUp(Event::SCallbackInfo& info, ITouch::SUpEvent e) {
+  208      if (!m_bDragPending || !m_bTouchEv || e.touchID != m_touchId)
+  209          return;
+  210  
+  211      handleUpEvent(info);
+  212  }
+  213  
+  214  // Wheel over the bar: up raises the window, down lowers it (KWin's titlebar wheel action).
+  215  void CHyprBar::onMouseAxis(Event::SCallbackInfo& info, const IPointer::SAxisEvent& e) {
+  216      if (e.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || e.delta == 0.0 || !validMapped(m_pWindow) || !inputIsValid())
+  217          return;
+  218  
+  219      const auto HEIGHT = g_pGlobalState->config.barHeight->value();
+  220      const auto COORDS = cursorRelativeToBar();
+  221      if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1))
+  222          return;
+  223  
+  224      info.cancelled = true;
+  225      runAction(e.delta < 0 ? "raise" : "lower");
+  226  }
+
+######## P:plugin/barDeco.cpp:273-345  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  273  void CHyprBar::rearmDrag() {
+  274      const auto W = m_pWindow.lock();
+  275      if (!W || !m_bDraggingThis || m_bTouchEv)
+  276          return;
+  277      m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  278      g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  279      g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+  280  }
+  281  
+  282  void CHyprBar::onMouseMove(Vector2D coords) {
+  283      // opt-in drag trace: create $XDG_RUNTIME_DIR/kwinish/trace, then read /tmp/kwinish-drag.log
+  284      if (m_bDraggingThis && std::filesystem::exists(std::string(getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "/tmp") + "/kwinish/trace")) {
+  285          const auto W = m_pWindow.lock();
+  286          const auto C = g_pInputManager->getMouseCoordsInternal();
+  287          if (W) {
+  288              const auto P = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  289              std::ofstream("/tmp/kwinish-drag.log", std::ios::app) << std::format("arg=({:.1f},{:.1f}) cursor=({:.0f},{:.0f}) window=({:.0f},{:.0f}) monitor={}\n", coords.x, coords.y, C.x, C.y, P.x, P.y, W->m_monitor ? W->m_monitor->m_name : "?");
+  290          }
+  291      }
+  292      if (m_rearmPending) {
+  293          m_rearmPending = false;
+  294          rearmDrag();
+  295      }
+  296      if (m_bDraggingThis && !m_bTouchEv) {
+  297          maybeUnsnap();
+  298          if (m_unsnapAnim)
+  299              stepUnsnap();
+  300      }
+  301  
+  302      // ensure proper redraws of button icons on hover when using hardware cursors
+  303      damageOnButtonHover();
+  304  
+  305      if (!m_bDragPending || m_bTouchEv || !validMapped(m_pWindow) || m_touchId != 0)
+  306          return;
+  307  
+  308      // A maximized window is not grabbed by a plain click: only a real drag takes it out of the maximized state, and
+  309      // it comes back under the pointer at its earlier size (KWin's behaviour), not at wherever the maximized rect was.
+  310      if (const auto W = m_pWindow.lock(); W && Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED)) {
+  311          const auto C = g_pInputManager->getMouseCoordsInternal();
+  312          if ((C - m_pressCursor).size() < 6)
+  313              return; // still a click; keep waiting
+  314          const auto OLDPOS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  315          const auto OLDSIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  316          (void)Config::Actions::fullscreenWindow(Fullscreen::FSMODE_NONE, false, W);
+  317          const auto     SIZE   = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  318          const double   RATIO  = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+  319          const Vector2D NEWPOS = {C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)};
+  320          (void)Config::Actions::move(NEWPOS, false, W);
+  321      }
+  322  
+  323      m_bDragPending = false;
+  324      handleMovement();
+  325  }
+  326  
+  327  void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+  328      if (!m_bDragPending || !m_bTouchEv || !validMapped(m_pWindow) || e.touchID != m_touchId)
+  329          return;
+  330  
+  331      auto PMONITOR     = m_pWindow->m_monitor.lock();
+  332      PMONITOR          = PMONITOR ? PMONITOR : Desktop::focusState()->monitor();
+  333      const auto COORDS = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y);
+  334  
+  335      if (!m_bDraggingThis) {
+  336          // Initial setup for dragging a window (the focused one, as the "activewindow" dispatchers did).
+  337          KwAct::check(KwAct::SITE_TOUCH_FLOAT, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE));
+  338          KwAct::resizeFocused(KwAct::SITE_TOUCH_RESIZE, "exact 50% 50%");
+  339          // pin it so you can change workspaces while dragging a window
+  340          KwAct::check(KwAct::SITE_TOUCH_PIN, Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE));
+  341      }
+  342      KwAct::moveFocused(KwAct::SITE_TOUCH_MOVE, KwAct::exactPixelArg((int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+  343      m_bDraggingThis = true;
+  344      warnIfNoCore();
+  345  }
+
+######## P:plugin/barDeco.cpp:347-427  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  347  void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch::SDownEvent> touchEvent) {
+  348      m_bTouchEv = touchEvent.has_value();
+  349      if (m_bTouchEv)
+  350          m_touchId = touchEvent.value().touchID;
+  351  
+  352      const auto PWINDOW = m_pWindow.lock();
+  353  
+  354      auto       COORDS = cursorRelativeToBar();
+  355      if (m_bTouchEv) {
+  356          ITouch::SDownEvent e        = touchEvent.value();
+  357          PHLMONITOR         PMONITOR = nullptr;
+  358          for (auto& m : State::monitorState()->monitors()) {
+  359              if (m->m_name == (!e.device->m_boundOutput.empty() ? e.device->m_boundOutput : "")) {
+  360                  PMONITOR = m;
+  361                  break;
+  362              }
+  363          }
+  364          PMONITOR = PMONITOR ? PMONITOR : Desktop::focusState()->monitor();
+  365          COORDS   = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y) - assignedBoxGlobal().pos();
+  366      }
+  367  
+  368      const auto HEIGHT           = g_pGlobalState->config.barHeight->value();
+  369      const auto BARBUTTONPADDING = g_pGlobalState->config.barButtonPadding->value();
+  370      const auto BARPADDING       = g_pGlobalState->config.barPadding->value();
+  371      const auto ALIGNBUTTONS     = g_pGlobalState->config.barButtonsAlignment->value();
+  372      const auto ON_DOUBLE_CLICK  = g_pGlobalState->config.onDoubleClick->value();
+  373  
+  374      const bool BUTTONSRIGHT = ALIGNBUTTONS != "left";
+  375  
+  376      if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) {
+  377  
+  378          if (m_bDraggingThis) {
+  379              if (m_bTouchEv)
+  380                  KwAct::check(KwAct::SITE_TOUCH_TILE, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));
+  381              g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+  382              Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+  383          }
+  384  
+  385          m_bDraggingThis = false;
+  386          m_bDragPending  = false;
+  387          m_bTouchEv      = false;
+  388          return;
+  389      }
+  390  
+  391      if (Desktop::focusState()->window() != PWINDOW)
+  392          Desktop::focusState()->fullWindowFocus(PWINDOW, Desktop::FOCUS_REASON_CLICK);
+  393  
+  394      if (PWINDOW->isFloating())
+  395          Desktop::windowState()->raise(PWINDOW);
+  396  
+  397      info.cancelled   = true;
+  398      m_bCancelledDown = true;
+  399  
+  400      if (doButtonPress(BARPADDING, BARBUTTONPADDING, HEIGHT, COORDS, BUTTONSRIGHT))
+  401          return;
+  402  
+  403      // click on the app icon: the window menu, under the icon
+  404      if (const auto IB = iconBox(); !IB.empty() && VECINRECT(COORDS, IB.x, IB.y, IB.x + IB.w, IB.y + IB.h)) {
+  405          const auto BOX = assignedBoxGlobal();
+  406          openMenu(BOX.x + BARPADDING, BOX.y + BOX.h);
+  407          m_bDragPending = false;
+  408          return;
+  409      }
+  410  
+  411      if (!ON_DOUBLE_CLICK.empty() &&
+  412          std::chrono::duration_cast<std::chrono::milliseconds>(Time::steadyNow() - m_lastMouseDown).count() < 400 /* Arbitrary delay I found suitable */) {
+  413          runAction(ON_DOUBLE_CLICK);
+  414          m_bDragPending = false;
+  415      } else {
+  416          m_lastMouseDown = Time::steadyNow();
+  417          m_pressCursor   = g_pInputManager->getMouseCoordsInternal();
+  418          // The compositor grabs the window under the pointer when the move starts. Waiting for the first motion (as
+  419          // upstream does) lets a fast move leave the bar and grab whatever is below, so a floating window's drag
+  420          // starts right at the press, while the pointer is still on its bar. Tiled windows keep the lazy start.
+  421          if (PWINDOW->isFloating() && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
+  422              m_bDragPending = false;
+  423              handleMovement();
+  424          } else
+  425              m_bDragPending = true; // tiled and maximized windows start the drag on the first real motion (onMouseMove)
+  426      }
+  427  }
+
+######## P:plugin/barDeco.cpp:530-589  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  530      if (m_bUnsnapChecked)
+  531          return;
+  532  
+  533      const auto W = m_pWindow.lock();
+  534      if (!W)
+  535          return;
+  536  
+  537      const auto C = g_pInputManager->getMouseCoordsInternal();
+  538      if ((C - m_pressCursor).size() < 6)
+  539          return;
+  540      m_bUnsnapChecked = true;
+  541  
+  542      const auto IT = g_pGlobalState->restores.find((uintptr_t)W.get());
+  543      if (IT == g_pGlobalState->restores.end())
+  544          return;
+  545  
+  546      const auto R    = IT->second;
+  547      // the position at the press: the compositor may already have moved the window a few pixels by the time the pointer
+  548      // has travelled far enough to count as a drag
+  549      const auto POS  = m_dragStart;
+  550      const auto SIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  551      g_pGlobalState->restores.erase(IT);
+  552  
+  553      // only a window still sitting where the snap put it is "snapped"
+  554      if (std::abs(POS.x - R.snapPos.x) > 4 || std::abs(POS.y - R.snapPos.y) > 4 || std::abs(SIZE.x - R.snapSize.x) > 4 || std::abs(SIZE.y - R.snapSize.y) > 4)
+  555          return;
+  556  
+  557      m_unsnapRatio = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+  558      m_unsnapGrabY = m_pressCursor.y - R.snapPos.y;
+  559      m_unsnapFrom  = SIZE;
+  560      m_unsnapTo    = R.size;
+  561      m_unsnapT0    = Time::steadyNow();
+  562      m_unsnapAnim  = true;
+  563  
+  564      // The size eases back over 140 ms, the window kept under the pointer at the same fraction of its bar; the compositor's
+  565      // move is paused meanwhile and restarted from the final geometry. Pointer motion drives the steps.
+  566      g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  567      stepUnsnap();
+  568  }
+  569  
+  570  void CHyprBar::stepUnsnap() {
+  571      const auto W = m_pWindow.lock();
+  572      if (!m_unsnapAnim || !W || !m_bDraggingThis) {
+  573          m_unsnapAnim = false;
+  574          return;
+  575      }
+  576      const double   P   = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - m_unsnapT0).count() / 140.0);
+  577      const double   E   = 1.0 - std::pow(1.0 - P, 3.0);
+  578      const Vector2D SZ  = m_unsnapFrom + (m_unsnapTo - m_unsnapFrom) * E;
+  579      const auto     C   = g_pInputManager->getMouseCoordsInternal();
+  580      const Vector2D POS = {C.x - m_unsnapRatio * SZ.x, C.y - m_unsnapGrabY};
+  581      (void)Config::Actions::resize(SZ, false, W);
+  582      (void)Config::Actions::move(POS, false, W);
+  583      if (P >= 1.0) {
+  584          m_unsnapAnim = false;
+  585          m_dragStart  = POS;
+  586          g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  587          g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+  588      }
+  589  }
+
+######## P:plugin/barDeco.cpp:594-681  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  594  void CHyprBar::snapOnRelease() {
+  595      const auto W = m_pWindow.lock();
+  596      if (!W || !W->isFloating())
+  597          return;
+  598  
+  599      const auto C = g_pInputManager->getMouseCoordsInternal();
+  600      const auto M = monitorAtPointer(C);
+  601      if (!M)
+  602          return;
+  603  
+  604      std::string where;
+  605      if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+  606          // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
+  607          if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
+  608              if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())
+  609                  where = "zone:" + Z.substr(2);
+  610      } else if (const char* zone = edgeZone(C, M))
+  611          where = std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
+  612      const auto ACTIVE = Desktop::focusState()->window();
+  613      Log::logger->log(Log::DEBUG, "kwinish-bars", "snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
+  614                       M->m_name, where.empty() ? "none" : where);
+  615      // a plain click on the bar must not snap
+  616      if (where.empty() || (C - m_pressCursor).size() < 10)
+  617          return;
+  618  
+  619      (void)Config::Actions::move(m_dragStart, false, W);
+  620      // the core computes the rectangle on the monitor of the drop, not on the one the window is still on ("zone:2@HDMI-A-1")
+  621      Config::Supplementary::executor()->spawn(
+  622          std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
+  623  }
+  624  
+  625  void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+  626      if (m_pWindow.lock() != Desktop::focusState()->window()) {
+  627          // focus moved between the press and the release (e.g. the minimize button): clear the drag state instead of leaving it
+  628          // stuck, which swallowed the next release and could start a drag with no button down
+  629          if (m_bDraggingThis)
+  630              g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  631          m_bDraggingThis  = false;
+  632          m_bCancelledDown = false;
+  633          m_bDragPending   = false;
+  634          m_bTouchEv       = false;
+  635          m_touchId        = 0;
+  636          return;
+  637      }
+  638  
+  639      if (m_bCancelledDown)
+  640          info.cancelled = true;
+  641  
+  642      m_bCancelledDown = false;
+  643  
+  644      if (m_bDraggingThis) {
+  645          if (m_unsnapAnim) {
+  646              m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+  647              stepUnsnap();
+  648          }
+  649          g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  650          m_bDraggingThis = false;
+  651          if (m_bTouchEv)
+  652              (void)Config::Actions::floatWindow(Config::Actions::eTogglableAction::TOGGLE_ACTION_DISABLE);
+  653          else
+  654              snapOnRelease();
+  655  
+  656          Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+  657      }
+  658  
+  659      m_bDragPending = false;
+  660      m_bTouchEv     = false;
+  661      m_touchId      = 0;
+  662  }
+  663  
+  664  void CHyprBar::handleMovement() {
+  665      m_bUnsnapChecked = false;
+  666      m_unsnapAnim     = false;
+  667      m_resistPush     = 0;
+  668      if (const auto W = m_pWindow.lock()) {
+  669          m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+  670          // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window
+  671          // can hand focus to that window before this runs, and the drag would grab it instead (a tiled window then
+  672          // floats and follows the pointer). Pin the focus on this bar's window.
+  673          if (Desktop::focusState()->window() != W)
+  674              Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+  675      }
+  676      KwDrag::begin(MBIND_MOVE);
+  677      m_bDraggingThis = true;
+  678      warnIfNoCore();
+  679      Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+  680      return;
+  681  }
+
+######## P:plugin/barDeco.cpp:686-700  sha256 3a58f0c6f8d6fcf34c3c5e52acc7b0fdea6da387132ad65ebc39a7fc3b3a8988 ########
+  686  // maximize, fullscreen and minimize act on the focused window (the click just focused the bar's), as the 0.56.2
+  687  // dispatchers did; a failure is logged (hostActions.hpp) and changes nothing else.
+  688  void CHyprBar::runAction(const std::string& action) {
+  689      const auto W = m_pWindow.lock();
+  690      if (!W)
+  691          return;
+  692  
+  693      if (action == "close")
+  694          (void)Config::Actions::closeWindow(W);
+  695      else if (action == "float")
+  696          (void)Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+  697      else if (action == "pin")
+  698          (void)Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+  699      else if (action == "raise")
+  700          (void)Config::Actions::alterZOrder("top", W);
+
+######## P:plugin/main.cpp:300-320  sha256 a0dbc8912f426c3612958e8024483e7a832c58ac93b73cbd4d97d0bb3690d891 ########
+  300  // hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
+  301  // next button press ends it (Escape also cancels, handled by the compositor).
+  302  int luaGrab(lua_State* L) {
+  303      if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
+  304          return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
+  305      const std::string mode = lua_tostring(L, 1);
+  306      const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+  307      if (mode != "move" && mode != "resize")
+  308          return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
+  309      for (auto& w : Desktop::windowState()->windows()) {
+  310          if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
+  311              continue;
+  312          Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+  313          if (Desktop::focusState()->window() != w)
+  314              break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
+  315          KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+  316          g_pGlobalState->grabActive = true;
+  317          break;
+  318      }
+  319      return 0;
+  320  }
+
+######## P:plugin/main.cpp:440-515  sha256 a0dbc8912f426c3612958e8024483e7a832c58ac93b73cbd4d97d0bb3690d891 ########
+  440      if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+  441          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
+  442          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+  443          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
+  444          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
+  445          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
+  446          HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+  447      }
+  448      for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+  449          if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+  450              g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+  451              if (g_pMotionHook && !g_pMotionHook->hook())
+  452                  g_pMotionHook = nullptr;
+  453              break;
+  454          }
+  455      if (!g_pMotionHook)
+  456          HyprlandAPI::addNotification(PHANDLE, "[kwinish] Could not hook pointer motion: seam resistance is off.", CHyprColor{1.0, 0.4, 0.2, 1.0}, 8000);
+  457      // Escape cancels the compositor's move/resize on its own; without this the flag stayed set and swallowed the next click
+  458      static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
+  459          if (g_pGlobalState->grabActive && e.keycode == KEY_ESC && e.state == WL_KEYBOARD_KEY_STATE_PRESSED)
+  460              g_pGlobalState->grabActive = false;
+  461          // Shift mid-drag stalls the compositor's move: the dragging bar restarts it on the next pointer motion (no deferred
+  462          // callback, which could outlive the plugin)
+  463          if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
+  464              for (auto& b : g_pGlobalState->bars)
+  465                  if (b)
+  466                      b->m_rearmPending = true;
+  467      });
+  468      // window keys are pointers and get reused: forget what was kept for a window when it closes
+  469      static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
+  470          const auto key = (uintptr_t)w.get();
+  471          g_pGlobalState->hiddenBars.erase(key);
+  472          g_pGlobalState->restores.erase(key);
+  473      });
+  474      // ends a menu Move/Resize: the click is ours (it must not reach the app or start a bar drag) and so is its release
+  475      static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
+  476          auto& g = *g_pGlobalState;
+  477          if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+  478              tipHide(false); // any click puts the button tooltip away until the pointer leaves the button (KDE)
+  479              g.tip.pressed = true;
+  480          }
+  481          if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+  482              g.grabActive       = false;
+  483              g.grabSwallowPress = true;
+  484              g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+  485              info.cancelled = true;
+  486          } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+  487              g.grabSwallowPress = false;
+  488              info.cancelled     = true;
+  489          }
+  490      });
+  491      static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
+  492          // active/inactive colours: every bar repaints and re-renders its title when focus moves
+  493          for (auto& b : g_pGlobalState->bars)
+  494              if (b)
+  495                  b->onFocusChanged();
+  496      });
+  497      static auto P6 = Event::bus()->m_events.window.floating.listen([&](PHLWINDOW w) {
+  498          // floating_only: a bar appears or disappears when the window changes mode
+  499          for (auto& b : g_pGlobalState->bars)
+  500              if (b && b->getOwner() == w)
+  501                  b->onFloatingChanged();
+  502      });
+  503      // the button tooltip goes after every window: drawn with its bar it would sit under the bar's own window
+  504      static auto PR = Event::bus()->m_events.render.stage.listen([&](eRenderStage stage) {
+  505          if (stage != RENDER_POST_WINDOWS)
+  506              return;
+  507          const auto M = g_pHyprRenderer->m_renderData.pMonitor.lock();
+  508          if (const auto& tip = g_pGlobalState->tip; M && !tip.bar.expired())
+  509              tip.bar->drawTip(M);
+  510      });
+  511      static auto P4 = Event::bus()->m_events.config.preReload.listen([&] { onPreConfigReload(); });
+  512      static auto P5 = Event::bus()->m_events.config.reloaded.listen([&] { onConfigReloaded(); });
+  513  
+  514      // add deco to existing windows
+  515      for (auto& w : Desktop::windowState()->windows()) {
+
+######## P:plugin/hostDrag.hpp:1-70  sha256 f1afecf9cff80f60c35fbf4acb74c0e5b574bd4d9003e44d1f8ba7eab251e9c2 ########
+    1  // SPDX-License-Identifier: MIT
+    2  // Part of kwinish (Copyright (c) 2026 lhen).
+    3  // Starting a pointer drag (move/resize) on Hyprland 0.57, where CKeybindManager::changeMouseBindMode is gone. This is
+    4  // the START half of the 0.56.2 body (O:managers/KeybindManager.cpp:949-968) on the 0.57 primitives, nothing more:
+    5  //   - a drag already in progress (anyone's) is left alone: nothing is ended, nothing is started;
+    6  //   - the window is the one under the pointer (as before; for the menu's resize that is the 0.56.2 behaviour too);
+    7  //   - a non-fullscreen MOVE asks the window's decorations first (INPUT_TYPE_DRAG_START), as before;
+    8  //   - beginDragTarget keeps its defaults (no forced edge, exclusiveDeviceGrab = false), as before.
+    9  // Ending a drag is NOT here: without knowing whose drag is active (session ownership, Q4), ending would also end drags
+   10  // started by other components. See docs/port-0-57/P8-DRAG.md.
+   11  #pragma once
+   12  
+   13  #include <hyprland/src/desktop/state/ViewHitTester.hpp>
+   14  #include <hyprland/src/desktop/state/ViewState.hpp>
+   15  #include <hyprland/src/desktop/view/window/Window.hpp>
+   16  #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+   17  #include <hyprland/src/layout/LayoutManager.hpp>
+   18  #include <hyprland/src/layout/supplementary/DragController.hpp>
+   19  #include <hyprland/src/layout/target/Target.hpp>
+   20  #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+   21  #include <hyprland/src/managers/input/InputManager.hpp>
+   22  
+   23  #include <cstdint>
+   24  
+   25  namespace KwDrag {
+   26      enum eBeginResult : uint8_t {
+   27          BEGIN_STARTED = 0,      // beginDragTarget was called (the host may still refuse inside it)
+   28          BEGIN_ALREADY_DRAGGING, // a drag was in progress: left untouched
+   29          BEGIN_NO_WINDOW,        // nothing under the pointer (0.56.2: passEvent)
+   30          BEGIN_REFUSED_BY_DECO,  // a decoration took the drag start (0.56.2: passEvent = false)
+   31          BEGIN_BAD_MODE,         // not MBIND_MOVE / MBIND_RESIZE: nothing done
+   32      };
+   33  
+   34      // MODE must be MBIND_MOVE or MBIND_RESIZE; anything else does nothing (0.56.2 ended the drag for MBIND_INVALID,
+   35      // which this helper deliberately does not do).
+   36      inline eBeginResult begin(eMouseBindMode MODE) {
+   37          if (MODE != MBIND_MOVE && MODE != MBIND_RESIZE)
+   38              return BEGIN_BAD_MODE;
+   39          if (g_layoutManager->dragController()->target())
+   40              return BEGIN_ALREADY_DRAGGING;
+   41  
+   42          const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+   43          const PHLWINDOW PWINDOW =
+   44              Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+   45  
+   46          if (!PWINDOW)
+   47              return BEGIN_NO_WINDOW;
+   48  
+   49          if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
+   50              if (PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+   51                  return BEGIN_REFUSED_BY_DECO;
+   52          }
+   53  
+   54          g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+   55          return BEGIN_STARTED;
+   56      }
+   57  }
