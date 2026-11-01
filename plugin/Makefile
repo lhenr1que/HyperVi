@@ -15,8 +15,11 @@ TARGET = kwinish-bars.so
 
 all: $(TARGET)
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(INCLUDES) $^ $> -o $@ $(LIBS)
+# every header is a prerequisite, so a header change rebuilds the plugin; only the .cpp files are compiled
+HDR = $(filter-out test_%,$(wildcard *.hpp))
+
+$(TARGET): $(SRC) $(HDR)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(INCLUDES) $(SRC) -o $@ $(LIBS)
 
 clean:
 	rm ./$(TARGET)

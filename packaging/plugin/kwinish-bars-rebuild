@@ -15,13 +15,13 @@ tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
 cp -r "$src"/. "$tmp"/
 
-if make -C "$tmp" abi >"$tmp/build.log" 2>&1; then
-    install -Dm755 "$tmp/kwinish-bars.so" "$dest/kwinish-bars.so"
-    install -Dm644 "$tmp/kwinish-bars.abi" "$dest/kwinish-bars.abi"
-    echo "kwinish-bars: rebuilt for Hyprland $(pkg-config --modversion hyprland). Restart Hyprland or run: hyprctl plugin load $dest/kwinish-bars.so"
-else
+if ! make -C "$tmp" abi >"$tmp/build.log" 2>&1; then
     echo "kwinish-bars: rebuild failed; last lines of the build log:"
     tail -n 15 "$tmp/build.log"
     echo "kwinish-bars: the old plugin was kept; Kwinish runs in emergency mode until a rebuild works."
+elif install -Dm755 "$tmp/kwinish-bars.so" "$dest/kwinish-bars.so" && install -Dm644 "$tmp/kwinish-bars.abi" "$dest/kwinish-bars.abi"; then
+    echo "kwinish-bars: rebuilt for Hyprland $(pkg-config --modversion hyprland). Restart Hyprland or run: hyprctl plugin load $dest/kwinish-bars.so"
+else
+    echo "kwinish-bars: rebuilt, but installing it into $dest failed (see above); run: sudo kwinish-bars-rebuild"
 fi
 exit 0

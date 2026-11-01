@@ -53,8 +53,7 @@ if [ -z "$lua_only" ]; then
   echo "== Rust"
   need cargo "testes Rust" && { cargo test --locked --manifest-path ui/Cargo.toml || fail "cargo test"; }
 
-  # Build into the temp dir: it never rewrites a .so the compositor may have mapped, and it always compiles
-  # (the Makefile does not track headers, so an up-to-date plugin/kwinish-bars.so proves nothing).
+  # Build into the temp dir: it never rewrites a .so the compositor may have mapped, and it always compiles.
   echo "== plugin"
   need make "plugin" && { make -C plugin TARGET="$tmp/kwinish-bars.so" || fail "make -C plugin"; }
 fi
