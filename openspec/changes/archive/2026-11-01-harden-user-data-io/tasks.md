@@ -32,3 +32,7 @@
 
 - Implementar com /opsx:apply harden-user-data-io ou $openspec-apply-change harden-user-data-io depois da revisão dos artefatos.
 - Arquivar somente após revisão e verificações previstas; testes de instalação real, quando necessários, recebem comandos completos no STATUS e no chat.
+
+## Arquivamento (01/11/2026)
+
+Arquivada à mão (CLI `openspec` não instalada) depois do teste ao vivo 11, reescrito para a árvore 0.57 (`70c746a`) e executado pelo dono em 01/11/2026: passou (`2b96382`; o passo 2 foi fechado depois de uma chamada de diagnóstico que desligou a regra, porque a ação é um interruptor). Revisão independente (Codex, 28/10) e `openspec validate --strict` registrados na 5.2, quando a CLI existia. O dono mandou seguir em 01/11/2026. Capability nova: o spec principal `openspec/specs/user-data-io/spec.md` foi criado com o Purpose e os 5 requisitos ADDED do delta, copiados como estão. Conferência estrutural: `tools/test-openspec-specs.sh` passou a conferir também esta mudança (inclusive o Purpose); vermelho antes de mover a pasta e depois de mover sem criar o spec, verde depois, e o controle negativo pega uma quebra no texto novo.

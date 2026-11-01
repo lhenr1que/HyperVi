@@ -18,3 +18,7 @@
 ## Workflow follow-up
 
 - Arquivar com `/opsx:archive` (ou `$openspec-archive-change` no Codex) depois do teste do dono.
+
+## Arquivamento (01/11/2026)
+
+Arquivada à mão (CLI `openspec` não instalada) depois do teste ao vivo 10, reescrito para a árvore 0.57 (`70c746a`) e relatado pelo dono como passou em 01/11/2026 (o relato "o teste passou" cobriu os testes 10 e 11 juntos). O dono mandou seguir em 01/11/2026. No spec principal `title-bar`, os 2 requisitos MODIFIED substituíram os anteriores e o ADDED "Dica no botão de fixar e no ícone do aplicativo" foi para o fim, com o texto copiado como está. Conferência estrutural: `tools/test-openspec-specs.sh` passou a conferir também esta mudança; vermelho antes de mover a pasta e depois de mover sem aplicar o delta, verde depois, e o controle negativo pega uma quebra no texto novo.

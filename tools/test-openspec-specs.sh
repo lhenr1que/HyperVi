@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Structural check of the main OpenSpec specs after archiving enable-titlebar-drag-alpha1 and then the
-# later changes that MODIFIED alpha-1's requirements, oldest first (no openspec CLI here).
+# later changes (MODIFIED or ADDED requirements, a new capability), oldest first (no openspec CLI here).
 # Also proves the checker itself: a broken copy of the specs must be rejected (negative control).
 set -u
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
@@ -9,7 +9,9 @@ import glob, os, re, shutil, sys, tempfile
 
 root = sys.argv[1]
 ID = "enable-titlebar-drag-alpha1"
-LATER = ["guard-titlebar-drag-start", "accept-floating-press-drag"] # archived after ID, in order; the newest text wins
+LATER = ["guard-titlebar-drag-start", "accept-floating-press-drag", # archived after ID, in order; the newest text wins
+         "add-pin-and-icon-tooltips", "harden-user-data-io"]
+CAPS = ("title-bar", "snap-assist", "user-data-io") # user-data-io: new capability of harden-user-data-io
 REMOVED = ["Drag da decoração indisponível na alpha-0", "Menu sem comandos de grab mudos na alpha-0",
            "Reativação do drag após alpha-0"]
 RENAMED = ["Toque na decoração indisponível", "Cliques de mouse pareados"]
@@ -27,7 +29,7 @@ def blocks_of(path):
 
 def check(specs, deltas, laters):
     errs = []
-    got = {c: blocks_of(f"{specs}/{c}/spec.md") for c in ("title-bar", "snap-assist")}
+    got = {c: (blocks_of(f"{specs}/{c}/spec.md") if os.path.exists(f"{specs}/{c}/spec.md") else {}) for c in CAPS}
     for cap, rs in got.items():
         if not rs: errs.append(f"{cap}: sem requisitos")
         for name, body in rs.items():
@@ -45,11 +47,19 @@ def check(specs, deltas, laters):
     # the delta's texts are copied as they are; a requirement the later change modified carries the later text
     newer = {c: {} for c in got} # requirement -> (change, text) of the newest delta that has it
     for cid, later in laters:
-        if not os.path.exists(f"{later}/title-bar/spec.md"): errs.append(f"{cid}: sem delta de title-bar")
+        if not any(os.path.exists(f"{later}/{c}/spec.md") for c in got): errs.append(f"{cid}: sem delta")
         for c in got:
             if os.path.exists(f"{later}/{c}/spec.md"):
-                newer[c].update({n: (cid, b) for n, b in blocks_of(f"{later}/{c}/spec.md").items()})
+                delta = open(f"{later}/{c}/spec.md", encoding="utf-8").read()
+                newer[c].update({n: (cid, b) for n, b in reqs(delta).items()})
+                # a new capability's Purpose comes from its delta
+                purpose = re.search(r"^## Purpose\n(.*?)(?=^## )", delta, flags=re.M | re.S)
+                main = f"{specs}/{c}/spec.md"
+                if not os.path.exists(main): errs.append(f"{c}: falta o spec principal")
+                elif purpose and purpose.group(1).strip() not in open(main, encoding="utf-8").read():
+                    errs.append(f"{c}: Purpose diferente do delta de {cid}")
     for cap, rs in got.items():
+        if not os.path.exists(f"{deltas}/{cap}/spec.md"): continue
         for n, body in blocks_of(f"{deltas}/{cap}/spec.md").items():
             if n in REMOVED or n in newer[cap]: continue
             if rs.get(n, "").strip() != body.strip(): errs.append(f"{cap}/{n}: diferente do delta")
@@ -80,6 +90,10 @@ try:
         t = open(p, encoding="utf-8").read()
         t = t.replace("o próximo clique termina o movimento pelo compositor", "o próximo clique termina o movimento", 1)
         t = t.replace("sem esperar o limiar", "depois do limiar", 1)
+        t = t.replace("Menu da janela/Window menu", "Menu/Window menu", 1)
+        u = f"{tmp}/s/user-data-io/spec.md"
+        if os.path.exists(u):
+            open(u, "w", encoding="utf-8").write(open(u, encoding="utf-8").read().replace("32 níveis", "64 níveis", 1))
         t = t.replace("SHALL", "deve", 1).replace("### Requirement: Cliques de mouse pareados",
               "### Requirement: Drag da decoração indisponível na alpha-0\nO sistema SHALL x.\n\n#### Scenario: a\n- **WHEN** a\n- **THEN** b\n\n### Requirement: Cliques de mouse preservados e pareados na alpha-0")
         open(p, "w", encoding="utf-8").write(t)

@@ -2,7 +2,17 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — roteiros 10 e 11 reescritos para a 0.57 e executados (01/11/2026; só documentação; roteiros em `70c746a`, fechamento commitado com aprovação do dono)
+## Resultado mais recente — `add-pin-and-icon-tooltips` e `harden-user-data-io` arquivadas (01/11/2026; o dono mandou seguir; commitada com aprovação do dono)
+
+- **Antes:** desfazer do teste 11 rodado pelo dono (conferido só lendo: sem `~/.config/kwinish`, sem o link `~/.local/bin/kwinish-ui`, backup consumido, plugin descarregado).
+- **Arquivamento (à mão; CLI `openspec` ausente):** `git mv` para `openspec/changes/archive/2026-11-01-{add-pin-and-icon-tooltips,harden-user-data-io}/`; nota de arquivamento em cada `tasks.md`.
+  - `title-bar`: os 2 requisitos MODIFIED ("Dica nos botões de minimizar, maximizar e fechar", "Texto da dica no idioma do ambiente") substituídos e o ADDED "Dica no botão de fixar e no ícone do aplicativo" no fim, texto copiado como está.
+  - Capability nova `openspec/specs/user-data-io/spec.md`: Purpose e 5 requisitos ADDED do delta.
+- **`tools/test-openspec-specs.sh`:** as duas entraram na lista de mudanças posteriores; `user-data-io` entrou nas capabilities conferidas (inclusive o Purpose); mudança sem delta de `title-bar` é aceita. Vermelho antes de mover (5 falhas) e depois de mover sem aplicar (8 falhas); a primeira aplicação por script cortou a primeira linha de cada bloco e o teste pegou (13 falhas, `sem SHALL/MUST`); refeita a partir do Git, verde. O controle negativo ganhou uma quebra em cada texto novo e pega as duas. `check.sh` exit 0. Simulado; nada ao vivo.
+- **Pendências (nenhuma iniciada):** janela em tiling centrada no cursor (nativo, mantido); contador Q1 só por log; `SWindowRenderPresentation`; 73 logs brutos de P5–T6; `floatWindow` do núcleo Lua; custo C1/C2. Alternativa (b) do achado 6 só pelo gatilho. Não há mudança OpenSpec ativa.
+- **Limites da próxima sessão:** reconfirmar Git e escopo; commitar só com aprovação; carga do plugin e testes ao vivo são do dono; sem `sudo`, `~/.config` ou push.
+
+## Anterior — roteiros 10 e 11 reescritos para a 0.57 e executados (01/11/2026; só documentação; roteiros em `70c746a`, fechamento commitado com aprovação do dono)
 
 - **Achado no levantamento:** `add-pin-and-icon-tooltips` (6/6) e `harden-user-data-io` (13/13) continuam ativas em `openspec/changes/`, esperando os testes ao vivo 10 e 11, e não estavam na lista de pendências. Os roteiros de 27/10 apontavam para `~/Downloads/ryoku-work/kwinish` (não existe mais) e para o plugin instalado da 0.56.
 - **Feito (`docs/STATUS.md`):** testes 10 e 11 reescritos no formato do GS (plugin num `.so` em `/tmp/kwinish-t10` e `/tmp/kwinish-t11`, núcleo por `hyprctl eval`, janelas `kwt10`/`kwt11`, desfazer completo). Teste 10 confere também o log do contador Q1 depois do unload (só a ausência de `Q1 violated`). Teste 11: `~/.config/kwinish/` não existe e o `kwinish-ui` não está no PATH (conferido só lendo); o roteiro guarda 7 caminhos com `live-backup.sh` (inclusive `~/.local/bin/kwinish-ui`), compila o `kwinish-ui` e põe um link, e confere os arquivos fora do compositor com os leitores do núcleo, porque o stderr do Hyprland vai para o tty1. "Para a próxima sessão" atualizada (itens 2, 4, 5 e 7; `~/.local/state/kwinish-backup/` vazio).
