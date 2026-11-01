@@ -101,7 +101,7 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
-**A1. Porta 0.57, alpha-1: arrasto pela barra de volta (01/11/2026; executado pelo dono: passou, menos C11)**
+**A1. Porta 0.57, alpha-1: arrasto pela barra de volta (01/11/2026; executado pelo dono: passou; C11 feito no A1c)**
 OpenSpec `enable-titlebar-drag-alpha1`, política `alt5-rc`: o plugin nunca pede o fim de um arrasto, e o Hyprland o encerra na soltura. Mesmo ambiente da T8 (bash, um só terminal, Hyprland 0.57.0, um monitor DP-1). Os itens marcados *2 monitores* ficam para quando o HDMI-A-1 estiver ligado.
 
 *Fase A: preparar (nada muda no compositor).*
@@ -159,7 +159,7 @@ C9. **Unload durante arrasto:** rode a linha abaixo e, em até 3 s, arraste um `
 sleep 4; hyprctl plugin unload /tmp/kwinish-a1/kwinish-bars.so; sleep 3; hyprctl plugin load /tmp/kwinish-a1/kwinish-bars.so
 ```
 C10. **Log:** `grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30` não mostra `Q1 violated` nem `error`.
-C11. *2 monitores:* arrastar até a divisa resiste (`seam_resistance`, 200 px) e mostra a prévia da borda; soltar com Shift numa zona do outro monitor encaixa lá, sem Snap Assist.
+C11. *2 monitores:* ver o roteiro **A1c** abaixo.
 *Custo aceito, sem passo próprio (C1/C2 do contrato):* se outro programa capturar a entrada bem na hora de soltar, o arrasto continua até a próxima tecla ou clique. Se isso acontecer no uso, anote; é o gatilho para trocar à paridade 0.56.
 
 *Desfazer (tira o plugin e o núcleo, fecha as janelas de teste e o menu e apaga o link do `kwinish-ui`; nenhum outro arquivo seu é tocado).*
@@ -173,6 +173,42 @@ bash ~/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore ~/.loc
 *Se a sessão real travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-a1/kwinish-bars.so`. Se nem assim responder, encerre a sessão.
 *O que me mandar:* para cada item (B1–B3, C1–C11), ok ou o que viu. Se algo falhar, mande também as saídas dos `grep` de log.
 *Resultado (dono, 01/11/2026):* B1–B3 e C1–C8, C10 passaram (relato geral). **C9 não chegou a testar o plugin:** rodado num terminal sem a variável `T`, virou `hyprctl plugin unload /kwinish-bars.so` ("plugin not loaded") e o `load` falhou ("cannot open shared object file"); o plugin da alpha-1 continuou carregado. O comando do C9 agora usa o caminho completo; **refeito pelo dono em 01/11: passou** (unload durante arrasto na sessão real). O unload durante arrasto passou no aninhado (B2). **C11 não feito** (um monitor). Desfazer ainda não executado em 01/11 (plugin carregado, link do `kwinish-ui` e backup `a1` presentes, conferido só com consultas).
+
+**A1c. Dois monitores: divisa e soltar no outro monitor (C11 do A1; 01/11/2026; executado pelo dono: passou)**
+Pré-requisito: DP-1 e HDMI-A-1 ligados **lado a lado** (a resistência só vale numa divisa vertical). Em 01/11 só o DP-1 estava ligado. Sem `~/.config/kwinish`, o núcleo usa o layout `grid` (2×2). Comandos com caminho completo, sem variáveis; rode um por vez.
+```bash
+hyprctl monitors -j | jq -r '.[] | "\(.name) x=\(.x) y=\(.y) w=\(.width) h=\(.height) scale=\(.scale)"'
+```
+Deve mostrar os dois, com o `x` de um igual ao `x + w` do outro (escala 1; com outra escala, compare as larguras lógicas).
+```bash
+mkdir -p /tmp/kwinish-a1c
+make -C ~/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-a1c/kwinish-bars.so
+cargo build --locked --manifest-path ~/Projects/ryoku-work/kwinish-port-0-57/ui/Cargo.toml
+bash ~/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh save ~/.local/state/kwinish-backup/a1c ~/.local/bin/kwinish-ui
+ln -s ~/Projects/ryoku-work/kwinish-port-0-57/ui/target/debug/kwinish-ui ~/.local/bin/kwinish-ui
+hyprctl plugin load /tmp/kwinish-a1c/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwt8 & kitty --class kwt8 & kitty --class kwt8 &
+```
+Deve acontecer: `make` sem `error`; `cargo` com `Finished`; `live-backup` diz `1 caminho(s) guardado(s)`; o `plugin load` sem erro. O `kwinish-ui` no PATH é o que abre o Snap Assist: sem ele, o "Assist não abre" do passo 4 não provaria nada. Deixe os três `kwt8` flutuantes (SUPER+V) no DP-1.
+1. **Divisa:** arraste um `kwt8` pelo título em direção ao HDMI-A-1. O ponteiro para na borda e aparece a prévia da borda; continuando a empurrar (cerca de 200 px de movimento), ele atravessa. Afastar-se da divisa e voltar recomeça a resistência.
+2. **Borda no outro monitor:** arraste um `kwt8` do DP-1 até a borda esquerda ou direita do HDMI-A-1 e solte, sem Shift. Ele ocupa a metade **no HDMI-A-1**, não volta ao DP-1.
+3. **Controle do Assist (mesmo monitor):** com outro `kwt8` flutuante solto no DP-1, arraste um terceiro com Shift e solte numa zona do **DP-1**. Ele ocupa a zona, e o Snap Assist abre sobre a próxima zona vazia. Feche o Assist com Esc.
+4. **Shift no outro monitor:** arraste um `kwt8` do DP-1 com Shift e solte numa zona do **HDMI-A-1**. Ele ocupa a zona no HDMI-A-1, e o Snap Assist **não** abre.
+5. **Log:** este comando não deve mostrar `Q1 violated` nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+Desfazer (tira o plugin e o núcleo, fecha as janelas de teste e o Assist e apaga o link do `kwinish-ui`):
+```bash
+pkill -x kwinish-ui
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-a1c/kwinish-bars.so
+hyprctl reload
+bash ~/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore ~/.local/state/kwinish-backup/a1c
+```
+*O que me mandar:* ok ou o que viu em cada passo (1–5).
+*Resultado (dono, 01/11/2026):* "teste passou" (passos 1–5, relato geral, com o HDMI-A-1 ligado).
 
 **A1b. Animação ao sair do encaixe (01/11/2026; executado pelo dono: passou)**
 Desde o A1, a janela encaixada volta ao tamanho de antes numa animação de 140 ms, **antes** de o arrasto começar (alt5-rc: nada é pausado nem encerrado). Só plugin e núcleo; o `kwinish-ui` não é necessário. Caminho novo, para não sobrescrever um `.so` carregado. Um só terminal.

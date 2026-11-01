@@ -45,5 +45,5 @@ Estado em 01/11/2026: proposta **aprovada pelo dono**; implementação feita no 
 - 3.1: o unsnap anima por 140 ms **antes** do início do drag (`KwIn::SUnsnap` em `barInput.hpp`); a 0.56.2 animava com o drag pausado (pedido de fim), o que a alt5-rc não permite. Primeiro feito sem animação; o dono pediu a animação em 01/11/2026.
 - Encaixe ao soltar: roda no sinal `ended` do controlador de drag (depois do fim nativo), por um listener que pertence à barra.
 - Spec: o requisito "Mover e Redimensionar pelo menu na alpha-1" teve o texto da recusa corrigido (o grab foca a janela antes do início, como em `bf2049a`).
-- Ao vivo (dono, 01/11/2026): roteiros A1 (menos C11, um monitor) e A1b (animação) passaram.
+- Ao vivo (dono, 01/11/2026): roteiros A1, A1b (animação) e A1c (C11, dois monitores) passaram.
 - 5.4: commit aprovado pelo dono em 01/11/2026; revisão independente não feita.

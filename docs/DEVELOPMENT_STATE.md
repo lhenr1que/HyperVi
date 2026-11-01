@@ -2,7 +2,7 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — alpha-1 implementada (01/11/2026; commitada com aprovação do dono; ao vivo: passou, menos C11)
+## Resultado mais recente — alpha-1 implementada (01/11/2026; commitada com aprovação do dono; ao vivo: tudo passou)
 
 - **Escopo (o dono mandou implementar em 01/11/2026):**
   - D1 arquivada à mão em `openspec/changes/archive/2026-11-01-disable-titlebar-drag-alpha0/`, porque a CLI `openspec` não está instalada. Os deltas foram aplicados aos specs principais `title-bar` (+5 requisitos) e `snap-assist` (Assist trocado). A nota de arquivamento em `tasks.md` registra a 4.3/4.4 cumpridas e as parciais aceitas.
@@ -37,8 +37,9 @@ Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é espe
 - **Resultado ao vivo (dono, 01/11/2026):** roteiro A1 passou em B1–B3 e C1–C8, C10 (relato geral, inclusive unload durante arrasto no aninhado). **C9** (unload durante arrasto na sessão real) não testou o plugin: a variável `T` estava vazia no terminal; o comando no STATUS agora usa o caminho completo, e o dono o refez: **passou**. **C11** (dois monitores) não feito.
 - **Animação do unsnap:** o dono escolheu animar antes do início (alt5-rc mantida). Implementada. Verde: input com 121 ok, cargo 32/32; build GCC/Clang com 0 erros e avisos 7/2; ELF passa; `check.sh` isolado exit 0. Desfazer do A1 conferido só com consultas: nenhum plugin carregado e link removido.
 - **A1b ao vivo (dono, 01/11/2026): passou** (animação, soltura no meio, Shift).
-- **Pendente:** C11 (dois monitores: divisa e soltar no outro monitor), revisão independente, arquivar `enable-titlebar-drag-alpha1` (depois do C11, a critério do dono), exposição do Q1 só por log, `SWindowRenderPresentation`.
-- **Próxima ação:** C11 quando houver dois monitores; depois, arquivar a mudança da alpha-1.
+- **A1c ao vivo (dono, 01/11/2026): passou.** Dois monitores: resistência na divisa, borda e Shift no outro monitor, e Assist só no mesmo monitor. Com isso, o C11 está feito.
+- **Pendente:** arquivar `enable-titlebar-drag-alpha1` (a CLI `openspec` não está instalada), revisão independente opcional, exposição do Q1 só por log, `SWindowRenderPresentation`, logs brutos antigos de P5–T6 sem versionar.
+- **Próxima ação recomendada:** arquivar a mudança da alpha-1 nos specs principais (à mão, como a D1, ou com a CLI se o dono a instalar).
 
 ## Anterior — proposta OpenSpec da alpha-1 (01/11/2026; aprovada pelo dono e commitada)
 
