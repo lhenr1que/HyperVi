@@ -2,7 +2,23 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — contador Q1 + T9 (01/11/2026; commitado com aprovação do dono)
+## Decisão do dono — T10 / Q4: arrasto da barra na alpha-1 (01/11/2026; só decisão, nada implementado; registro commitado)
+
+- **Escolhida: `alt5-rc`** (`docs/port-0-57/evidence/Q4A1-alt5-contract.md`, §§3–7). O Kwinish **nunca pede o fim** de um arrasto: quem encerra é o host, pelo fim nativo na soltura. A barra cede a um arrasto já ativo. O ajudante confere de novo o alvo depois das decorações (feito na T9, `510d204`).
+  - Ganho: no modelo, o plugin C++ não encerra nem substitui arrasto de terceiro (O1, O3 e O4 limpos).
+  - **Custo aceito:** se um cliente capturar a entrada na hora da soltura (C1/C2), o arrasto da barra fica vivo até a próxima tecla ou o próximo clique não capturado. É regressão frente ao 0.56.2.
+  - K2/K3 (teclas que não chegam ao fim nativo) já falhavam antes e continuam.
+- **Alternativa anotada, para trocar se o custo aparecer na prática: paridade 0.56 (`cur-0.56`, "D2 aceita risco conhecido" do PLANO).** O Kwinish volta a pedir o fim do arrasto nas rotas do 0.56.2 (K3, K9, rearm).
+  - Ganho: o arrasto nunca fica preso.
+  - Custo: no modelo, encerra arrasto de terceiro em 9–10 cenários (F1, G1, H1i, L1i, M4, M5, RA2, T1, US3, Y1). Fica registrado como débito conhecido.
+  - **Gatilho para trocar:** arrasto preso relatado no uso (C1/C2) e mais incômodo que o risco de cortar arrasto alheio. Mudança de política: exige nova proposta OpenSpec.
+- **Em paralelo, opcional:** propor ao Hyprland o fim condicional à sessão ou ganchos de início/fim de arrasto; com isso, nenhuma das duas precisa de concessão.
+- **Ainda pendente antes de implementar:** o que fazer com os `floatWindow` do núcleo Lua, que encerram qualquer arrasto e que a alt5 não cobre.
+  - As mudanças de produção que a alt5 exige estão no contrato Q4-A1 §6; os números de linha citados lá são anteriores à T4. As rotas a restaurar partem de `bf2049a`.
+  - Reativar o arrasto muda o comportamento (desfaz a D1 da alpha-0): **exige proposta OpenSpec antes do código**, como na T3/T4.
+- **Próxima ação recomendada (precisa de autorização):** proposta OpenSpec da alpha-1 com `alt5-rc`, incluindo a decisão sobre o `floatWindow` do Lua e o critério de troca acima.
+
+## Anterior — contador Q1 + T9 (01/11/2026; commitado com aprovação do dono)
 
 - **Escopo (o dono mandou seguir a ordem sugerida em 01/11/2026: Q1 → T9; T10 continua com ele):**
   - Q1: `plugin/passLife.hpp` (novo), `BarPassElement.hpp`, `PreviewPassElement.hpp`, `main.cpp` (`PLUGIN_EXIT` e include);
