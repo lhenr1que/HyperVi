@@ -1,0 +1,368 @@
+== Lua
+Lua 5.5.1  Copyright (C) 1994-2026 Lua.org, PUC-Rio
+assist ok
+binds ok
+geometry ok
+kwinish ok
+kwjson ok
+layouts ok
+modes ok
+rules ok
+settings ok
+switcher ok
+ok - rules: Lua loop in the file is not run, gives nothing (empty)
+ok - rules: os.exit() in the file is not run, gives nothing (empty)
+ok - rules: truncated
+ok - rules: array root
+ok - rules: entry that is not an object
+ok - layouts: Lua loop in the file is not run, gives nothing (empty)
+ok - layouts: os.exit() in the file is not run, gives nothing (empty)
+ok - layouts: truncated
+ok - layouts: object root
+ok - layouts: unknown member with a dash ignored
+ok - layouts: brackets inside a label kept
+ok - layouts: zones that are not a list
+ok - settings: os.exit() in the file is not run, gives nothing (empty)
+ok - settings: truncated
+ok - settings: array root
+ok - settings: nested name ignored, top-level value kept
+ok - settings: escaped string decoded
+ok - settings: a string is not a boolean
+ok - modes: truncated
+ok - modes: array root
+ok - modes: nested object ignored
+ok - modes: valid entries next to an odd one
+ok - columns: truncated
+ok - columns: array root
+ok - columns: nested object ignored
+ok - columns: a string is not a number
+ok - shortcuts: truncated
+ok - shortcuts: array root
+ok - shortcuts: nested object ignored
+ok - shortcuts: escaped combo decoded
+ok - formats: rules.json
+ok - formats: layouts.json (kwinish-ui's pretty JSON)
+ok - formats: settings.json
+ok - formats: shortcuts.json
+ok - formats: workspace-modes.json and workspace-columns.json
+userdata ok
+== Lua: 11 arquivo(s)
+== tools
+ok - tudo passa (código 0)
+ok - roda as duas suítes, tools, cargo test --locked e make
+ok - plugin compilado no diretório temporário, nada em plugin/
+ok - temporário apagado ao sair
+ok - uma suíte Lua falha (código 1)
+ok - as suítes seguintes ainda rodam
+ok - a falha aparece no resumo
+ok - um teste de tools/ falha (código 1)
+ok - cargo test falha (código 1)
+ok - compilação do plugin falha (código 1)
+ok - lua -v falha (código 1)
+ok - sem o comando lua (código 1)
+ok - sem lua: não diz que passou
+ok - sem o comando cargo (código 1)
+ok - sem cargo: não diz que passou
+ok - sem o comando make (código 1)
+ok - sem make: não diz que passou
+ok - nenhuma suíte core/test_*.lua (código 1)
+ok - nenhum teste tools/test-*.sh (código 1)
+ok - --lua-only passa (código 0)
+ok - --lua-only não roda tools, cargo nem make
+ok - --lua-only com suíte falhando (código 1)
+ok - opção desconhecida (código 2)
+ok - argumento a mais (código 2)
+ok - suíte que inspeciona o ambiente (código 0)
+ok - HOME e XDG apontam para o temporário do check
+ok - sem sockets da sessão (Hyprland, Wayland)
+ok - CARGO_HOME fica no HOME de fora
+ok - roda na raiz do repositório
+ok - nada gravado no HOME de fora e temporário apagado
+test-check: tudo passou
+ok - save guarda arquivo, link, link quebrado e ausentes
+ok - restore termina sem erro
+ok - arquivo volta com o mesmo conteúdo e modo
+ok - link volta para o mesmo alvo
+ok - link quebrado volta como link quebrado
+ok - caminhos ausentes voltam a não existir
+ok - diretório de estado apagado depois
+ok - nenhum temporário de restore sobrou
+ok - restore sem nada para fazer: ausente continua ausente
+ok - não remove diretório criado no lugar de um ausente
+ok - save recusa diretório de estado já existente e não o altera
+ok - restore recusa diretório alheio e não o apaga
+ok - restore recusa backup sem a marca e não altera nada
+ok - save recusa caminho relativo sem criar estado
+ok - save recusa diretório sem criar estado
+ok - uso errado falha
+ok - falha ao copiar: save sai com erro e o backup incompleto não restaura
+test-live-backup: tudo passou
+isolamento ok: 11 suítes não gravaram no HOME/XDG herdado
+ok - exact pixel argument
+ok - negative coordinate kept
+ok - casts truncate toward zero, as before
+ok - 1x1 is usable
+ok - 800x600 is usable
+ok - width below 1 refused
+ok - height 0 refused
+ok - negative refused
+ok - NaN passes, exactly like the translator's comparison
+ok - spawn nullopt is a failure
+ok - spawn pid 0 is a failure
+ok - spawn pid > 0 is a success
+ok - first failure is logged, nothing suppressed
+ok - second failure inside the window is suppressed
+ok - third failure inside the window is suppressed
+ok - after the window: logged, reports 2 suppressed
+ok - window restarts at the logged line
+ok - suppressed count resets after each logged line
+ok - earlier timestamp inside the window is suppressed
+ok - and the gate still opens after the window
+ok - a second site is not suppressed by the first
+ok - window is 10 s
+ok - every site has a distinct name
+ok - out-of-range site is '?'
+OK - P1-P5: 320762 verificacoes (variante 0)
+OK - negativo 1 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 1)
+OK - negativo 2 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 2)
+OK - negativo 3 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 3)
+OK - negativo 4 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 4)
+OK - negativo 5 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 5)
+OK - negativo 6 detectado: FALHOU - P2 logical F / bottom extension / AA (variante 6)
+OK - negativo 7 detectado: FALHOU - P2 logical F / bottom extension / AA (variante 7)
+OK - negativo 8 detectado: FALHOU - P3 fixed expand(10) cannot cover large bottom extension (variante 8)
+OK - negativo 9 detectado: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 9)
+OK - negativo 10 detectado: FALHOU - P5 all components divide by scale exactly once (variante 10)
+OK - negativo 11 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 11)
+OK - negativo 12 detectado: FALHOU - P1 literal numeric oracle / residual rounding (variante 12)
+OK - negativo 13 detectado: FALHOU - P5 all components divide by scale exactly once (variante 13)
+OK - mutacao "W duas vezes" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "F duas vezes" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "M omitido" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "M com sinal errado" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "escala dupla" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "arredonda w/h isolados" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "largura = altura" detectada: FALHOU - P1 literal numeric oracle / residual rounding (variante 0)
+OK - mutacao "bbox sem F" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "bbox sem extensao" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "bbox em unidade fisica" detectada: FALHOU - P2 logical F / bottom extension / AA (variante 0)
+OK - mutacao "damage so do novo" detectada: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 0)
+OK - mutacao "damage sem nextafter" detectada: FALHOU - P4 fractional union preserves logical edges (review regression) (variante 0)
+OK - mutacao "preview fisico como logico" detectada: FALHOU - P5 all components divide by scale exactly once (variante 0)
+OK - mutacao "preview dimensoes sem escala" detectada: FALHOU - P5 all components divide by scale exactly once (variante 0)
+OK - mutacao "preview sem alargar origem" detectada: FALHOU - P5 ulp-adjacent origins and edges preserve strict coverage (variante 0)
+OK - mutacao "preview sem alargar extensao" detectada: FALHOU - P5 fractional right edge above integer (review regression) (variante 0)
+OK - mutacao "preview borda sem nextafter" detectada: FALHOU - P5 ulp-adjacent origins and edges preserve strict coverage (variante 0)
+OK - mutacao "resolvido: physicalLocal sem teste" detectada: FALHOU - P1 physicalLocal rejects an extent absorbed by the origin (was width -1) (variante 0)
+OK - mutacao "resolvido: bbox sem teste" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "saida: union sem pos-teste" detectada: FALHOU - P4 unionDamage refuses a union wider than the box domain (variante 0)
+OK - mutacao "saida: preview sem pos-teste" detectada: FALHOU - P5 previewBBox refuses a result whose extent collapsed by division (variante 0)
+OK - mutacao "resolvido: union sem teste" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "resolvido: preview sem teste" detectada: FALHOU - P5 previewBBox rejects an extent absorbed by a negative origin (variante 0)
+OK - mutacao "resolvido: so eixo x" detectada: FALHOU - P2 logicalBBox rejects an extent absorbed by the origin (variante 0)
+OK - mutacao "resolvido: aceita igualdade" detectada: FALHOU - P1 physicalLocal rejects an extent absorbed by the origin (was width -1) (variante 0)
+OK - mutacao "dominio: within sem limite" detectada: FALHOU - P3 original counterexample 2^53 rejected by physicalLocal (variante 0)
+OK - mutacao "dominio: limite aberto" detectada: FALHOU - P3 largest in-domain analogue of the counterexample covered (variante 0)
+OK - mutacao "dominio: sem fabs (so positivo)" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: comprimento aceita zero" detectada: FALHOU - P3 logicalBBox rejects zero/negative length even when AA/extension would widen it (variante 0)
+OK - mutacao "dominio: comprimento aceita negativo" detectada: FALHOU - P3 logicalBBox rejects zero/negative length even when AA/extension would widen it (variante 0)
+OK - mutacao "dominio: comprimento sem teto" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: escala sem minimo" detectada: FALHOU - P3 physicalLocal rejects zero/negative length or scale below minimum (variante 0)
+OK - mutacao "dominio: escala sem maximo" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: escala minimo aberto" detectada: FALHOU - P3 physicalLocal accepts the closed domain limit (variante 0)
+OK - mutacao "dominio: y do ponto sem teste" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: D.h sem teste" detectada: FALHOU - P3 physicalLocal rejects non-finite/overflow/out-of-domain field (variante 0)
+OK - mutacao "dominio: extBottom aceita negativo" detectada: FALHOU - P3 logicalBBox rejects bad extBottom (variante 0)
+OK - mutacao "dominio: extBottom sem teto" detectada: FALHOU - P3 logicalBBox rejects bad extBottom (variante 0)
+OK - mutacao "dominio: aaMargin sem teste" detectada: FALHOU - P3 logicalBBox rejects bad aaMargin (variante 0)
+OK - mutacao "dominio: unionDamage sem teste" detectada: FALHOU - P4 unionDamage rejects an absorbed extent in the second operand (variante 0)
+OK - mutacao "dominio: unionDamage so prev" detectada: FALHOU - P4 unionDamage rejects an absorbed extent in the second operand (variante 0)
+OK - mutacao "dominio: previewBBox sem teto fisico" detectada: FALHOU - P5 previewBBox rejects bad physical component (variante 0)
+OK - mutacao "dominio: previewBBox sem escala" detectada: FALHOU - P5 previewBBox rejects bad scale (variante 0)
+OK - mutacao "dominio: kMaxLogical = 2^53" rejeitada por static_assert
+OK - mutacao "dominio: kMaxBox = 2^53" rejeitada por static_assert
+OK - mutacao "dominio: kMaxScale = 2^20" rejeitada por static_assert
+OK - g++: suite, 13 negativos e todas as mutacoes rejeitados pela assertiva esperada
+ok - floating: title press focuses and is taken
+ok - floating: its release is taken too
+ok - floating: no drag started, ended or snapped
+ok - tiled: title press focuses and is taken
+ok - tiled: its release is taken too
+ok - tiled: no drag started, ended or snapped
+ok - maximized: title press focuses and is taken
+ok - maximized: its release is taken too
+ok - maximized: no drag started, ended or snapped
+ok - button press runs the button once
+ok - release after minimize (focus gone, pointer off) is taken
+ok - a second release is not ours
+ok - right press on the bar opens the menu
+ok - right release goes with it
+ok - right press on a button opens the menu too
+ok - right release off the bar still goes with it
+ok - icon press opens the menu under the icon
+ok - icon release (pointer now on the menu) is taken
+ok - icon: no drag
+ok - press off the bar passes
+ok - and its release passes
+ok - press where the bar takes no input passes
+ok - and its release passes
+ok - middle press passes
+ok - middle release passes
+ok - side button passes, even on a button
+ok - side release passes
+ok - a release with no press passes
+ok - a right release with no press passes
+ok - right press off the bar while left is held passes
+ok - its release passes
+ok - the left release is still taken
+ok - overlapping bars: one action
+ok - overlapping bars: the release is taken once
+ok - close button press
+ok - release after the bar is destroyed is taken
+ok - and only that one
+ok - right release after the bar is destroyed is taken
+ok - button on floating: cancel, focus, raise, run once (cancel focus raise run1 )
+ok - button on tiled: no raise (cancel focus run1 )
+ok - release: only cancelled
+ok - right click: focus without raise, then the menu (cancel focus run3 )
+ok - icon: menu under the icon
+ok - title: focus and raise only (no drag)
+ok - double click: runs on_double_click
+ok - press off the bar: nothing at all
+ok - its release: nothing at all
+ok - second press within 400 ms is a double click
+ok - a third quick press is another double (as before)
+ok - after 400 ms it is a plain press again
+ok - on_double_click empty: never a double click
+ok - double click: no drag
+ok - a button press does not count toward a double click
+ok - grab without a mode
+ok - grab without an address
+ok - grab with an unknown mode
+ok - grab move is refused as unavailable
+ok - grab resize is refused as unavailable
+ok - no drag begin/end helper
+ok - no mouse-bind start/end/rearm
+ok - no menu grab state
+ok - no seam-resistance hook or Shift rearm
+ok - no drag begin/end helper
+ok - no mouse-bind start/end/rearm
+ok - no menu grab state
+ok - no seam-resistance hook or Shift rearm
+ok - no drag/touch/unsnap state
+ok - no drag, unsnap or snap-on-release routes
+ok - no touch on the bar
+ok - the bar sends no snap to the core
+ok - header: no drag/touch members
+ok - globals: no grab flags
+ok - onMouseButton decides and acts through barInput.hpp
+ok - releases are taken by the listener that outlives the bars
+ok - luaGrab answers through barInput.hpp
+ok - drawSnapPreview defined, never called
+input: tudo passou
+ok - no m_renderPass (gone in 0.57)
+ok - Q1: reads context().active()
+ok - Q1: logs an active session as a violation
+ok - Q1 is read before the tooltip and its timer are released
+ok - tooltip hidden, timer removed from the loop before the SP is dropped
+ok - the 3 rule effects are unregistered
+lifecycle: tudo passou
+ok - LANG=pt_BR is Portuguese
+ok - an empty LC_ALL is skipped
+ok - LC_ALL wins over LANG
+ok - LC_MESSAGES wins over LANG
+ok - LANG=C is English
+ok - no locale is English
+ok - minimize pt
+ok - minimize en
+ok - maximize pt
+ok - maximize en
+ok - maximize on a maximized window pt
+ok - maximize on a maximized window en
+ok - close pt
+ok - close en
+ok - pin pt
+ok - pin en
+ok - pin on a pinned window pt
+ok - pin on a pinned window en
+ok - menu (the app icon) pt
+ok - menu (the app icon) en
+ok - float has no tip
+ok - fullscreen has no tip
+ok - exec: has no tip
+ok - under the button, centred
+ok - pushed left at the right edge
+ok - pushed right at the left edge of a second monitor
+ok - above the bar when there is no room below
+ok - wider than the monitor: starts at its left edge, top kept
+== tools: 8 arquivo(s)
+== Rust
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/main.rs (ui/target/debug/deps/kwinish_ui-a95d52a7a692384f)
+
+running 32 tests
+test bars::tests::colour_parse ... ok
+test bars::tests::curve_runs_from_left_edge_to_top_edge ... ok
+test bars::tests::rect_hits ... ok
+test bars::tests::gaps ... ok
+test assist::choice_tests::rejects_replaced_generation_and_missing_window ... ok
+test menu::tests::marks_follow_the_core ... ok
+test mode::tests::modes ... ok
+test mon::tests::picks_monitor_by_point ... ok
+test settings::tests::colour_roundtrip ... ok
+test settings::tests::live_code_is_plain_lua ... ok
+test shortcut::tests::combos ... ok
+test shortcut::tests::conflict_check ... ok
+test zones::tests::a_failed_backup_stops_the_save ... ok
+test zones::tests::a_failed_rename_leaves_the_old_file ... ok
+test menu::tests::no_move_or_resize_in_alpha0 ... ok
+test zones::tests::edges_and_moving ... ok
+test zones::tests::an_unreadable_file_stops_the_save ... ok
+test zones::tests::a_file_that_is_not_text_is_kept_too ... ok
+test zones::tests::floating_block_delete_just_removes ... ok
+test zones::tests::atomic_write_keeps_a_backup_of_an_unreadable_file ... ok
+test zones::tests::file_roundtrip_and_slug ... ok
+test zones::tests::parse_drops_what_the_core_would_reject ... ok
+test zones::tests::layout_cases_agree_with_the_core ... ok
+test zones::tests::split_and_delete_roundtrip ... ok
+test zones::tests::text_the_reader_refuses_is_never_written ... ok
+test zones::tests::valid_files_as_written_are_read_back ... ok
+test zones::tests::whitespace_is_kept_an_empty_file_is_not ... ok
+test assist::tests::parses_core_state ... ok
+test zones::tests::parse_refuses_what_the_core_refuses ... ok
+test zones::tests::a_file_the_reader_refuses_is_backed_up_before_saving ... ok
+test zones::tests::read_stops_after_the_limit ... ok
+test zones::tests::json_agrees_with_the_core ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+== plugin
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+g++ -O2 -shared -fPIC -std=c++2b -Wno-c++11-narrowing  --no-gnu-unique `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o /tmp/kwinish-check.hhwe5GrO/kwinish-bars.so `pkg-config --libs cairo librsvg-2.0`
+barDeco.cpp: In member function ‘virtual SDecorationPositioningInfo CHyprBar::getPositioningInfo()’:
+barDeco.cpp:83:57: warning: narrowing conversion of ‘(((!((CHyprBar*)this)->CHyprBar::barActive()) || (!(bool)ENABLED)) ? 0 : ((long int)HEIGHT))’ from ‘long int’ to ‘int’ [-Wnarrowing]
+   83 |     info.desiredExtents = {{0, !barActive() || !ENABLED ? 0 : HEIGHT}, {0, 0}};
+      |                                ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+barDeco.cpp: In member function ‘void CHyprBar::renderPass(Render::CRenderContext&, PHLMONITOR, const float&)’:
+barDeco.cpp:633:24: warning: narrowing conversion of ‘(long int)HEIGHT’ from ‘long int’ to ‘int’ [-Wnarrowing]
+  633 |     m_seExtents = {{0, HEIGHT}, {}};
+      |                        ^~~~~~
+barDeco.cpp:671:85: warning: narrowing conversion of ‘(float)scaledRounding’ from ‘float’ to ‘int’ [-Wnarrowing]
+  671 |         g_pHyprOpenGL->renderRect(ctx, windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
+      |                                                                                     ^~~~~~~~~~~~~~
+barDeco.cpp:679:70: warning: narrowing conversion of ‘(float)scaledRounding’ from ‘float’ to ‘int’ [-Wnarrowing]
+  679 |         g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower(), .blur = true, .blurA = a});
+      |                                                                      ^~~~~~~~~~~~~~
+barDeco.cpp:681:70: warning: narrowing conversion of ‘(float)scaledRounding’ from ‘float’ to ‘int’ [-Wnarrowing]
+  681 |         g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
+      |                                                                      ^~~~~~~~~~~~~~
+barDeco.cpp:698:51: warning: narrowing conversion of ‘(int)(double)BARBUF.Hyprutils::Math::Vector2D::x’ from ‘int’ to ‘double’ [-Wnarrowing]
+  698 |     CBox textBox = {titleBarBox.x, titleBarBox.y, (int)BARBUF.x, (int)BARBUF.y};
+      |                                                   ^~~~~~~~~~~~~
+barDeco.cpp:698:66: warning: narrowing conversion of ‘(int)(double)BARBUF.Hyprutils::Math::Vector2D::y’ from ‘int’ to ‘double’ [-Wnarrowing]
+  698 |     CBox textBox = {titleBarBox.x, titleBarBox.y, (int)BARBUF.x, (int)BARBUF.y};
+      |                                                                  ^~~~~~~~~~~~~
+At global scope:
+cc1plus: note: unrecognized command-line option ‘-Wno-c++11-narrowing’ may have been intended to silence earlier diagnostics
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+check: tudo passou

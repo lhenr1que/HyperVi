@@ -1,0 +1,8 @@
+FALHOU - no m_renderPass (gone in 0.57)
+FALHOU - Q1: reads context().active()
+FALHOU - Q1: logs an active session as a violation
+FALHOU - Q1 is read before the tooltip and its timer are released
+ok - tooltip hidden, timer removed from the loop before the SP is dropped
+ok - the 3 rule effects are unregistered
+lifecycle: 4 falha(s)
+red-exit=1

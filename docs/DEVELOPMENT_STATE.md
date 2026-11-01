@@ -2,7 +2,16 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — T5, R-API (01/11/2026; commitada)
+## Resultado mais recente — T6, R-lifecycle (01/11/2026; commitada com aprovação do dono)
+
+- **Escopo (autorizado pelo dono em 01/11/2026):** `plugin/main.cpp` (`PLUGIN_EXIT`), testes e este arquivo. As 2 linhas `g_pHyprRenderer->m_renderPass.removeAllOfType(...)` saíram: no 0.57 os passes vivem na sessão de render e o host os destrói no `reset()` (`docs/port-0-57/QUIESCENCE.md` Q1, `LEDGER.md` L14). No lugar, Q1: se `g_pHyprRenderer->context().active()`, só registra `Log::ERR` (unload fora de contrato; não dá para vetar). Timer do tooltip, `tipHide` e os 3 `unregisterEffect` inalterados.
+- **Teste novo** `tools/test-plugin-lifecycle.sh` (host-free, estático, ordem no corpo de `PLUGIN_EXIT`; entra no `check.sh` sozinho): sem `m_renderPass`; `active()` lido antes de `tipHide`/`removeTimer`; violação logada; `removeTimer` antes de `tip.timer.reset()`; 3 efeitos desregistrados. Vermelho contra `22c17ca` (4 falhas, `docs/port-0-57/evidence/T6-tests/red.log`), verde depois (`green.log`).
+- **Build isolado** (`T6-tests/build.sh`): GCC e Clang **0 erros, `.so` gerado** (T5: 2 erros); avisos idênticos aos da T5 (GCC 7, Clang 2). Sonda da T5 segue verde.
+- **`bash tools/check.sh`: exit 0** (primeira vez na porta; `T6-tests/check.log`). Link do `.so` não prova resolução de símbolos na carga (T7/T8).
+- **Não feito (fora da autorização ou decisão pendente):** contador de vida de `CBarPassElement`/`CPreviewPassElement` (complemento de Q1; exige mexer nesses arquivos e decidir exposição ao harness) e guarda RAII de Q2 em todos os pontos de entrada. Sem revisão Codex nesta tarefa. Nada carregado nem testado ao vivo.
+- **Próxima ação:** T7 (build final + `check.sh` isolado + inspeção ELF). Decidir contador Q1/Q2.
+
+## Anterior — T5, R-API (01/11/2026; commitada)
 
 - **Escopo (autorizado pelo dono em 01/11/2026):** só assinaturas de render. `plugin/barDeco.{cpp,hpp}`, `BarPassElement.{cpp,hpp}`, `PreviewPassElement.{cpp,hpp}`, `main.cpp` (listener `render.stage`). `CRenderContext&` em `draw`/`renderPass`/botões/tooltip/preview; overrides de `IPassElement` com `ctx`; `renderRect`/`renderTexture`/`scissor(ctx, …)`; `scissor(nullptr)` → `disableScissor()`; passes por `addPassElement(ctx, …)`; monitor do passe por `ctx.m_data.pMonitor`; tooltip desenhado com `e.context`/`e.monitor` do `SRenderStageEvent` em `RENDER_POST_WINDOWS`; `roundingPower` por `presentation()`; `override` nos virtuais de `CHyprBar`. Técnica de stencil (GL cru) mantida como está; offsets da barra mantêm o cálculo 0.56.2 e **ignoram** o novo parâmetro `SWindowRenderPresentation` (diferença do upstream a conferir ao vivo). `PLUGIN_EXIT` intocado (T6).
 - **Sonda** (`docs/port-0-57/evidence/T5-tests/run-probe.sh`, g++/clang++ `-fsyntax-only` com os headers 0.57 + inventário textual fora de `PLUGIN_EXIT`): vermelho em `2395356` (6 falhas: classes abstratas, formas antigas; `probe-red.log`), verde depois (`probe-green.log`). Mutações 6/6 mortas (3 pela compilação/`static_assert`, 3 pelo inventário textual; `mutations.log`).

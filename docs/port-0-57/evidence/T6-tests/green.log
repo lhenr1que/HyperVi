@@ -1,0 +1,8 @@
+ok - no m_renderPass (gone in 0.57)
+ok - Q1: reads context().active()
+ok - Q1: logs an active session as a violation
+ok - Q1 is read before the tooltip and its timer are released
+ok - tooltip hidden, timer removed from the loop before the SP is dropped
+ok - the 3 rule effects are unregistered
+lifecycle: tudo passou
+green-exit=0

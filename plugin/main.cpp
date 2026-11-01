@@ -471,8 +471,10 @@ APICALL EXPORT void PLUGIN_EXIT() {
     for (auto& m : State::monitorState()->monitors())
         m->m_scheduledRecalc = true;
 
-    g_pHyprRenderer->m_renderPass.removeAllOfType("CBarPassElement");
-    g_pHyprRenderer->m_renderPass.removeAllOfType("CPreviewPassElement"); // queued by the drag preview: it would outlive the library
+    // Q1 (docs/port-0-57/QUIESCENCE.md): our passes live in the render session and the host destroys them on reset(); an
+    // unload during a session is out of contract and cannot be vetoed, so it is only logged
+    if (g_pHyprRenderer->context().active())
+        Log::logger->log(Log::ERR, "kwinish-bars", "unload during an active render session (Q1 violated): queued bar passes may outlive the library");
 
     // the event loop keeps its own reference to the tooltip timer, and its callback is code of this library
     tipHide(true);
