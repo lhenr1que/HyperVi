@@ -3,7 +3,9 @@
 #  - no 0.56.2 m_renderPass: 0.57 passes live in the render session and the host clears them on reset();
 #  - Q1 (docs/port-0-57/QUIESCENCE.md): context().active() is read first, before the tooltip and its timer are released,
 #    and an active session is logged as a violation (unload cannot be vetoed);
-#  - the tooltip timer is removed from the event loop before the global SP is dropped; the 3 rule effects are unregistered.
+#  - the tooltip timer is removed from the event loop before the global SP is dropped; the 3 rule effects are unregistered;
+#  - Q1 counter: builds and runs plugin/test_passlife.cpp (plugin/passLife.hpp); both pass classes carry it and
+#    PLUGIN_EXIT logs a count left over.
 # KWINISH_SRC=<dir> checks another copy of plugin/.
 set -u
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
@@ -28,5 +30,19 @@ check '[ "$logq1" -gt "$active" ]' "Q1: logs an active session as a violation"
 check '[ "$active" -gt 0 ] && [ "$active" -lt "$tip" ] && [ "$active" -lt "$rm" ]' "Q1 is read before the tooltip and its timer are released"
 check '[ "$tip" -gt 0 ] && [ "$rm" -gt 0 ] && [ "$rm" -lt "$reset" ]' "tooltip hidden, timer removed from the loop before the SP is dropped"
 check '[ "$(grep -c unregisterEffect <<<"$body")" = 3 ]' "the 3 rule effects are unregistered"
+
+t=$(mktemp -d "${TMPDIR:-/tmp}/kwinish-test-lifecycle.XXXXXXXX") || exit 1
+trap 'rm -rf -- "$t"' EXIT
+cxx=${CXX:-g++}
+if "$cxx" -std=c++2b -Wall -Wextra -Werror -I "$src" "$src/test_passlife.cpp" -o "$t/test_passlife"; then
+  "$t/test_passlife" || fails=$((fails + 1))
+else
+  echo "FALHOU - compilar plugin/test_passlife.cpp"; fails=$((fails + 1))
+fi
+for f in BarPassElement.hpp PreviewPassElement.hpp; do
+  check 'grep -qE "^ +KwPass::SLife +[a-zA-Z_]+;" "$src/$f"' "Q1: $f counts its elements (KwPass::SLife member)"
+done
+live=$(at 'KwPass::g_live != 0'); live=${live:-0}
+check '[ "$live" -gt 0 ] && grep -qE "Log::logger->log\\(Log::ERR.*KwPass::g_live" <<<"$body"' "Q1: PLUGIN_EXIT logs passes still alive"
 
 [ $fails = 0 ] && echo "lifecycle: tudo passou" || { echo "lifecycle: $fails falha(s)"; exit 1; }

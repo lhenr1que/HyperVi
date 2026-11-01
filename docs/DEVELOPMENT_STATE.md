@@ -2,7 +2,20 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — T8, roteiro ao vivo para o dono (01/11/2026; executado pelo dono: tudo passou; commitada com aprovação do dono)
+## Resultado mais recente — contador Q1 + T9 (01/11/2026; commitado com aprovação do dono)
+
+- **Escopo (o dono mandou seguir a ordem sugerida em 01/11/2026: Q1 → T9; T10 continua com ele):**
+  - Q1: `plugin/passLife.hpp` (novo), `BarPassElement.hpp`, `PreviewPassElement.hpp`, `main.cpp` (`PLUGIN_EXIT` e include);
+  - T9: `plugin/hostDrag.hpp`;
+  - testes: `plugin/test_passlife.cpp`, `plugin/test_hostdrag.cpp`, `tools/test-plugin-hostdrag.sh` (novos) e `tools/test-plugin-lifecycle.sh` (ampliado).
+- **Q1:** `KwPass::SLife` é um membro das duas classes de passe e conta os elementos vivos em `KwPass::g_live` (construtor e cópia somam; destrutor subtrai). Se o valor for ≠ 0, o `PLUGIN_EXIT` registra `Log::ERR` (não pode vetar o unload). **Exposição escolhida: só esse log**, sem função de teste; o QUIESCENCE.md marcava isso como decisão pendente e o dono pode mudar. **Q2 adiado**: guardas RAII em todos os pontos de entrada, só se houver problema real ou antes de distribuir.
+- **T9 (H1):** `KwDrag::begin` confere de novo `dragController()->target()` depois de `checkInputOnDecorations(INPUT_TYPE_DRAG_START)`. Se uma decoração iniciou um arrasto e devolveu `false`, o ajudante devolve `BEGIN_ALREADY_DRAGGING` em vez de passar por cima. O `hostDrag.hpp` não tem chamador desde a T4, então o build não o compilava mais; `test-plugin-hostdrag.sh` o compila (só sintaxe, GCC e Clang) contra os headers 0.57.
+- **Vermelho → verde:** lifecycle 4 falhas → 0, hostdrag 2 falhas → 0 (`docs/port-0-57/evidence/Q1T9-tests/{red,green}-*.log`). Mutações **10/10 mortas** (`mutations.log`); a primeira rodada deu 7/10 porque `#include "..."` pegava o cabeçalho real em vez da cópia mutada; os scripts passaram a compilar o teste a partir de `$src`. O `test-plugin-input.sh` (T4) não tem esse defeito, porque usa `<barInput.hpp>`.
+- **Build isolado:** GCC e Clang com 0 erros, `.so` gerado, avisos iguais (7/2). ELF passa nos dois; `KwPass::g_live` é exportado como `V` (fraco), não `GNU_UNIQUE`. **`check.sh` isolado: exit 0** (tools: 9 arquivos).
+- **Limites:** H1 é provado pela compilação e pela ordem no código-fonte, não pela execução, porque o ajudante não roda sem o compositor. O modelo executável continua no estudo Q4-A1 (`H1i`). O contador Q1 não foi verificado ao vivo (exigiria recarregar o plugin; é do dono). Sem revisão independente.
+- **Próxima ação:** decisão T10 (alt5-rc, paridade 0.56 como débito, ou upstream) antes da alpha-1.
+
+## Anterior — T8, roteiro ao vivo para o dono (01/11/2026; executado pelo dono: tudo passou; commitada com aprovação do dono)
 
 - **Escopo (autorizado pelo dono em 01/11/2026):** só o roteiro "T8" em `docs/STATUS.md` (Testes pendentes para o dono) e esta seção. Nenhum código mudou. Nada foi carregado nem executado no compositor.
 - **Estado do sistema conferido** só com consultas (`hyprctl version`, `plugin list`, `instances`, `pacman -Q`, ambiente do processo): Hyprland 0.57.0 (`0aa6745`) em execução, nenhum plugin carregado, pacotes `kwinish-*` ausentes, sem `~/.config/kwinish` e sem `kwinish-ui` no PATH; config `~/.config/hypr/hyprland.lua` sem Kwinish e sem `enforce_permissions`; `LANG=en_US.UTF-8`, por isso as dicas aparecem em inglês. **Fish não está instalado** e o repositório saiu de `~/Downloads/ryoku-work`. Por decisão do dono em 01/11, o roteiro é em **bash** (exceção à regra "fish" do AGENTS). Os roteiros antigos 2–12 do STATUS ficaram desatualizados; isso está avisado no bloco T8, sem reescrevê-los.

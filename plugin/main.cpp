@@ -26,6 +26,7 @@
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include "globals.hpp"
 #include "barInput.hpp"
+#include "passLife.hpp"
 
 extern "C" {
 #include <lua.h>
@@ -475,6 +476,8 @@ APICALL EXPORT void PLUGIN_EXIT() {
     // unload during a session is out of contract and cannot be vetoed, so it is only logged
     if (g_pHyprRenderer->context().active())
         Log::logger->log(Log::ERR, "kwinish-bars", "unload during an active render session (Q1 violated): queued bar passes may outlive the library");
+    if (KwPass::g_live != 0)
+        Log::logger->log(Log::ERR, "kwinish-bars", "unload with {} pass element(s) of this library alive (Q1 violated)", KwPass::g_live);
 
     // the event loop keeps its own reference to the tooltip timer, and its callback is code of this library
     tipHide(true);

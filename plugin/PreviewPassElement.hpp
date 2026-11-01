@@ -2,6 +2,7 @@
 // Part of kwinish (Copyright (c) 2026 lhen).
 #pragma once
 #include <hyprland/src/render/pass/PassElement.hpp>
+#include "passLife.hpp"
 
 // The translucent preview of the area a dragged window will take when the button is released.
 class CPreviewPassElement : public IPassElement {
@@ -35,5 +36,6 @@ class CPreviewPassElement : public IPassElement {
     }
 
   private:
-    SPreviewData data;
+    SPreviewData  data;
+    KwPass::SLife life;
 };

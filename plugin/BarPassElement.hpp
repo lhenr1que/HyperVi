@@ -2,6 +2,7 @@
 // Derived from hyprbars (hyprwm/hyprland-plugins, BSD-3-Clause, Copyright (c) 2023 Hypr Development); changes MIT. See NOTICE.
 #pragma once
 #include <hyprland/src/render/pass/PassElement.hpp>
+#include "passLife.hpp"
 
 class CHyprBar;
 
@@ -29,5 +30,6 @@ class CBarPassElement : public IPassElement {
     }
 
   private:
-    SBarData data;
+    SBarData      data;
+    KwPass::SLife life;
 };

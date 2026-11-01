@@ -49,6 +49,9 @@ namespace KwDrag {
         if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
             if (PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
                 return BEGIN_REFUSED_BY_DECO;
+            // H1 (T9): a decoration may start a drag itself and still return false; never replace it
+            if (g_layoutManager->dragController()->target())
+                return BEGIN_ALREADY_DRAGGING;
         }
 
         g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);

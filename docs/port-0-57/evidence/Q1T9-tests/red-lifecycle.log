@@ -1,0 +1,16 @@
+ok - no m_renderPass (gone in 0.57)
+ok - Q1: reads context().active()
+ok - Q1: logs an active session as a violation
+ok - Q1 is read before the tooltip and its timer are released
+ok - tooltip hidden, timer removed from the loop before the SP is dropped
+ok - the 3 rule effects are unregistered
+/tmp/tmp.h0o52zren1/plugin/test_passlife.cpp:4:10: fatal error: passLife.hpp: No such file or directory
+    4 | #include "passLife.hpp"
+      |          ^~~~~~~~~~~~~~
+compilation terminated.
+FALHOU - compilar plugin/test_passlife.cpp
+FALHOU - Q1: BarPassElement.hpp counts its elements (KwPass::SLife member)
+FALHOU - Q1: PreviewPassElement.hpp counts its elements (KwPass::SLife member)
+FALHOU - Q1: PLUGIN_EXIT logs passes still alive
+lifecycle: 4 falha(s)
+exit=1

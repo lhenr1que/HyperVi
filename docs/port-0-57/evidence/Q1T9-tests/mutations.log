@@ -1,0 +1,11 @@
+morta - Q1 ctor sem ++
+morta - Q1 cópia sem ++
+morta - Q1 dtor sem --
+morta - Q1 barra sem membro
+morta - Q1 preview sem membro
+morta - Q1 exit sem log
+morta - T9 sem recheck
+morta - T9 recheck inicia
+morta - T9 recheck depois
+morta - T9 API inexistente
+mutações: 10/10 mortas

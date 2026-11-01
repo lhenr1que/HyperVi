@@ -1,0 +1,7 @@
+ok - hostDrag.hpp compiles against the 0.57 headers (g++)
+ok - hostDrag.hpp compiles against the 0.57 headers (clang++)
+ok - begin() asks the decorations before starting
+ok - H1: begin() looks at the drag target again after the decorations
+ok - H1: a drag started meanwhile is left alone (BEGIN_ALREADY_DRAGGING)
+hostdrag: tudo passou
+exit=0
