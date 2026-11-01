@@ -1,0 +1,20 @@
+# /tmp/claude-1000/-home-lhen-Downloads/f2f7e36f-262d-4d09-b050-ea10f7f4a1cd/scratchpad/a1/kwinish-bars-gcc.so (1bb5be670ec45f05); host: Hyprland 0.57.0 built from branch v0.57.0 at commit 0aa6745f705f2c4b0a5004eb019ef76e5bbdb426 clean (VERSION: bump to 0.57.0).
+ok - sem NODELETE
+    NEEDED [librsvg-2.so.2]
+    NEEDED [libgdk_pixbuf-2.0.so.0]
+    NEEDED [libgio-2.0.so.0]
+    NEEDED [libcairo.so.2]
+    NEEDED [libgobject-2.0.so.0]
+    NEEDED [libglib-2.0.so.0]
+    NEEDED [libstdc++.so.6]
+    NEEDED [libm.so.6]
+    NEEDED [libgcc_s.so.1]
+    NEEDED [libc.so.6]
+ok - sem símbolos GNU_UNIQUE
+ok - exporta pluginAPIVersion
+ok - exporta pluginInit
+ok - exporta pluginExit
+ok - 310 símbolos indefinidos fortes, todos definidos no host ou nas libs carregadas (149 objetos)
+    info: vtable/typeinfo de CBarPassElement definidas no módulo (2)
+    info: vtable/typeinfo de CPreviewPassElement definidas no módulo (2)
+elf: tudo passou

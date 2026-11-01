@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Part of kwinish (Copyright (c) 2026 lhen).
 // The bar's click decisions, with no compositor: which press a bar takes, what it does with it, and which release goes
-// with it. barDeco.cpp feeds it the pointer test and runs the result. Alpha-0 (openspec disable-titlebar-drag-alpha0): no
-// press moves or resizes the window; every press a bar takes has its release taken too, wherever the pointer or focus
-// went. Tested by tools/test-plugin-input.sh.
+// with it, and the bar's drag. barDeco.cpp feeds it the pointer test and runs the result. Alpha-1 (openspec
+// enable-titlebar-drag-alpha1, end policy alt5-rc): every press a bar takes has its release taken too, wherever the pointer
+// or focus went, except the press that became a drag, whose release ends it in the compositor; the bar never asks the
+// compositor to end a drag and yields to any drag in progress. Tested by tools/test-plugin-input.sh.
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -24,6 +26,7 @@ namespace KwIn {
         bool     taken   = false; // a press another bar (overlapping) already took
         bool     valid   = false; // the bar takes input here (inputIsValid); only read for presses
         eHit     hit     = eHit::OUTSIDE;
+        bool     dragActive = false; // a drag (anyone's) is in progress: the bar yields
     };
 
     struct SResult {
@@ -43,6 +46,11 @@ namespace KwIn {
         static int slot(uint32_t button) {
             return button == BTN_LEFT ? 0 : button == BTN_RIGHT ? 1 : -1;
         }
+        // the title press became a drag: its release must reach the compositor, which ends the drag with it
+        void dragStarted(uint32_t button) {
+            if (const int S = slot(button); S >= 0)
+                held[S] = false;
+        }
         SResult onRelease(uint32_t button) {
             const int S = slot(button);
             if (S < 0 || !held[S])
@@ -59,7 +67,7 @@ namespace KwIn {
         SResult onPress(const SPress& e, SPairs& pairs, bool doubleClickOn, std::chrono::steady_clock::time_point now) {
             // middle, side and extra buttons are not ours (they used to count as a left click)
             const int SLOT = SPairs::slot(e.button);
-            if (SLOT < 0 || !e.pressed || e.taken || !e.valid || e.hit == eHit::OUTSIDE)
+            if (SLOT < 0 || !e.pressed || e.taken || !e.valid || e.hit == eHit::OUTSIDE || e.dragActive)
                 return {};
             pairs.held[SLOT] = true;
 
@@ -76,6 +84,98 @@ namespace KwIn {
         }
     };
 
+    // What the bar's drag does next (alt5-rc: the bar never asks the compositor to end a drag).
+    enum class eDragStep : uint8_t { NONE, WAIT, SNAP, CLEAR, KEEP, RESTART };
+
+    struct SDrag {
+        bool active   = false; // this bar started the drag and its button is still down
+        bool released = false; // its release went by: the compositor ends the drag with it
+        bool rearm    = false; // Shift changed mid-drag
+
+        void start(bool started) {
+            active   = started;
+            released = false;
+            rearm    = false;
+        }
+        // the bar's button went up: the compositor ends a drag still going with this release (SNAP comes from onEnded)
+        eDragStep onRelease(bool dragGoing) {
+            if (!active)
+                return eDragStep::NONE;
+            rearm = false;
+            if (dragGoing) {
+                released = true;
+                return eDragStep::WAIT;
+            }
+            active = false;
+            return eDragStep::CLEAR;
+        }
+        // the compositor ended a drag: snap if it was the bar's release, keep it for the rearm after Shift, else let go
+        eDragStep onEnded() {
+            if (!active)
+                return eDragStep::NONE;
+            if (released) {
+                active = released = false;
+                return eDragStep::SNAP;
+            }
+            if (rearm)
+                return eDragStep::KEEP;
+            active = false;
+            return eDragStep::CLEAR;
+        }
+        void onShift() {
+            if (active)
+                rearm = true;
+        }
+        // rearm only starts again: never while a drag goes on, never off the window or before an unsnap
+        eDragStep onMotion(bool dragGoing, bool overWindow, bool unsnapPending) {
+            if (!active || !rearm || dragGoing || !overWindow || unsnapPending)
+                return eDragStep::NONE;
+            rearm = false;
+            return eDragStep::RESTART;
+        }
+    };
+
+    // Leaving a snap by dragging (KWin): the size eases back to the one before the snap over 140 ms, the window kept under the
+    // pointer at the same fraction of its bar, before the compositor's drag starts (alt5-rc: nothing to pause or end).
+    struct SUnsnapStep {
+        double w = 0, h = 0, x = 0, y = 0; // size and top-left position to apply
+        bool   done = false;               // the ease is over: start the drag
+    };
+
+    struct SUnsnap {
+        inline static constexpr auto DURATION = std::chrono::milliseconds(140);
+        bool                                  active = false;
+        double                                fromW = 0, fromH = 0, toW = 0, toH = 0, ratio = 0, grabY = 0;
+        std::chrono::steady_clock::time_point t0;
+
+        void start(double fromW_, double fromH_, double toW_, double toH_, double ratio_, double grabY_, std::chrono::steady_clock::time_point now) {
+            fromW = fromW_, fromH = fromH_, toW = toW_, toH = toH_, ratio = ratio_, grabY = grabY_, t0 = now;
+            active = true;
+        }
+        SUnsnapStep step(double cx, double cy, std::chrono::steady_clock::time_point now) {
+            const double P = std::min(1.0, std::chrono::duration<double>(now - t0) / std::chrono::duration<double>(DURATION));
+            return at(cx, cy, P);
+        }
+        // released mid-ease: land on the final size, no drag
+        SUnsnapStep finish(double cx, double cy) {
+            return at(cx, cy, 1.0);
+        }
+
+      private:
+        SUnsnapStep at(double cx, double cy, double P) {
+            const double E = 1.0 - (1.0 - P) * (1.0 - P) * (1.0 - P); // ease-out cubic, as 0.56.2
+            SUnsnapStep  r;
+            r.w    = fromW + (toW - fromW) * E;
+            r.h    = fromH + (toH - fromH) * E;
+            r.x    = cx - ratio * r.w;
+            r.y    = cy - grabY;
+            r.done = P >= 1.0;
+            if (r.done)
+                active = false;
+            return r;
+        }
+    };
+
     // What onMouseButton does with a decision. H: cancel(), focus(), raiseIfFloating(), run(eAction).
     template <class H>
     void apply(const SResult& r, H& host) {
@@ -89,13 +189,17 @@ namespace KwIn {
         host.run(r.action);
     }
 
-    // hl.plugin.kwinish.grab(mode, address): the Lua error for this call. Bad arguments keep their messages; a valid
-    // request is refused too, since the window menu's Move/Resize is off in alpha-0.
+    // the Lua error when the compositor did not start the drag a valid grab asked for
+    inline std::string grabRefused() {
+        return "grab: the compositor did not start it (a drag is already going, or no window under the pointer)";
+    }
+
+    // hl.plugin.kwinish.grab(mode, address): the Lua error for bad arguments, or "" when the call may go ahead.
     inline std::string grabError(bool modeIsString, bool addressIsString, std::string_view mode) {
         if (!modeIsString || !addressIsString)
             return "grab: expected (\"move\"|\"resize\", address)";
         if (mode != "move" && mode != "resize")
             return "grab: mode must be move or resize";
-        return "grab: unavailable in this build (move/resize from the title bar and the window menu are off in alpha-0)";
+        return "";
     }
 }

@@ -58,6 +58,8 @@ class CHyprBar : public IHyprWindowDecoration {
     void                               onFocusChanged();
     void                               onConfigReloaded();
     void                               drawTip(Render::CRenderContext& ctx, PHLMONITOR);
+    void                               onShift();
+    bool                               holdAtSeam(IPointer::SMotionEvent& e);
 
     WP<CHyprBar>                       m_self;
 
@@ -82,6 +84,15 @@ class CHyprBar : public IHyprWindowDecoration {
 
     KwIn::SClicks              m_clicks;
 
+    // the bar's drag (alpha-1, alt5-rc): barInput.hpp decides, the compositor ends it
+    KwIn::SDrag                m_drag;
+    bool                       m_bDragPending = false; // tiled, maximized or snapped: the drag starts on the first real motion
+    KwIn::SUnsnap              m_unsnap;               // a snapped window easing back before its drag starts
+    Vector2D                   m_dragStart;            // window position when the drag started
+    Vector2D                   m_pressCursor;
+    double                     m_resistPush = 0;       // pixels pushed against the seam so far
+    double                     m_resistSeam = 0;       // x of that seam
+
     PHLANIMVAR<CHyprColor>     m_cRealBarColor;
 
     Vector2D                   cursorRelativeToBar();
@@ -95,6 +106,16 @@ class CHyprBar : public IHyprWindowDecoration {
 
     bool inputIsValid(bool underPointer = false);
     void onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e);
+    void onMouseMove();
+    void onTitlePress();
+    void handleMovement();
+    bool snappedHere(const PHLWINDOW& w);
+    bool startUnsnap(const PHLWINDOW& w, const Vector2D& cursor);
+    void applyUnsnap(const PHLWINDOW& w, const KwIn::SUnsnapStep& st);
+    void snapOnRelease();
+    void onDragEnded();
+    bool dragGoing();
+    bool pointerOverWindow();
     struct SBtnSlot {
         size_t idx;
         float  x;      // hit-test left edge, bar-local, unscaled
@@ -118,6 +139,7 @@ class CHyprBar : public IHyprWindowDecoration {
     CHyprSignalListener m_pMouseButtonCallback;
     CHyprSignalListener m_pMouseMoveCallback;
     CHyprSignalListener m_pMouseAxisCallback;
+    CHyprSignalListener m_pDragEndedCallback;
 
     std::string         m_szLastTitle;
     SP<Render::ITexture> m_pIconTex;

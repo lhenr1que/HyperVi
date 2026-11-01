@@ -101,6 +101,104 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
+**A1. Porta 0.57, alpha-1: arrasto pela barra de volta (01/11/2026; executado pelo dono: passou, menos C11)**
+OpenSpec `enable-titlebar-drag-alpha1`, política `alt5-rc`: o plugin nunca pede o fim de um arrasto, e o Hyprland o encerra na soltura. Mesmo ambiente da T8 (bash, um só terminal, Hyprland 0.57.0, um monitor DP-1). Os itens marcados *2 monitores* ficam para quando o HDMI-A-1 estiver ligado.
+
+*Fase A: preparar (nada muda no compositor).*
+```bash
+cd ~/Projects/ryoku-work/kwinish-port-0-57 && git log --oneline -1
+R=$PWD; T=/tmp/kwinish-a1; mkdir -p "$T"
+make -C plugin TARGET="$T/kwinish-bars.so"
+cargo build --locked --manifest-path ui/Cargo.toml
+bash tools/live-backup.sh save ~/.local/state/kwinish-backup/a1 ~/.local/bin/kwinish-ui
+ln -s "$R/ui/target/debug/kwinish-ui" ~/.local/bin/kwinish-ui
+CORE="package.path='$R/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+```
+Deve acontecer: o `make` termina sem `error` e cria `/tmp/kwinish-a1/kwinish-bars.so`; o `cargo` termina com `Finished`; o `live-backup` diz `1 caminho(s) guardado(s)`.
+
+*Fase B: Hyprland aninhado (se travar, cai só a janela). Não passe para a C se B falhar.*
+```bash
+cat > "$T/nested.lua" <<'EOF'
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "1" })
+hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true })
+hl.bind("ALT + Return", hl.dsp.exec_cmd("kitty --class kwt8"))
+EOF
+Hyprland -c "$T/nested.lua" > "$T/nested.log" 2>&1 & hp=$!
+sleep 3; nest=$(hyprctl instances -j | jq -r --argjson p "$hp" '.[] | select(.pid == $p) | .instance'); echo "instância: $nest"
+hyprctl -i "$nest" plugin load "$T/kwinish-bars.so"
+hyprctl -i "$nest" eval "$CORE"
+hyprctl -i "$nest" dispatch 'hl.dsp.exec_cmd("kitty --class kwt8")'
+```
+B1. O `kitty` do aninhado tem barra. Arraste-o pelo título: a janela acompanha o ponteiro e para quando você solta.
+B2. Descarregar **durante** um arrasto: rode a linha abaixo e, em até 3 s, aperte o título e continue arrastando até depois do unload. Esperado: nada trava, a barra some, e a janela para ao soltar o botão.
+```bash
+sleep 4; hyprctl -i "$nest" plugin unload "$T/kwinish-bars.so"; sleep 3; hyprctl -i "$nest" plugin load "$T/kwinish-bars.so"
+```
+B3. `grep -i kwinish "$T/nested.log" | tail -n 30` não mostra `Q1 violated` nem `error`. Encerre: `hyprctl -i "$nest" dispatch 'hl.dsp.exit()'`. Se o aninhado cair, guarde `tail -n 80 "$T/nested.log"` e pare aqui.
+
+*Fase C: sessão real (só se B passou). Carrega o plugin e depois o núcleo do repositório.*
+```bash
+hyprctl plugin load "$T/kwinish-bars.so"
+hyprctl eval "$CORE"
+kitty --class kwt8 & kitty --class kwt8 &
+```
+Deixe os dois `kwt8` flutuantes (SUPER+V).
+C1. **Arrastar:** aperte o título e arraste. A janela acompanha e para ao soltar. Um clique simples no título só foca e eleva; o duplo clique maximiza.
+C2. **Encaixe na borda:** arraste até a borda esquerda. A prévia aparece; ao soltar, a janela ocupa a metade esquerda. Faça o mesmo na direita, e no topo para maximizar.
+C3. **Shift para zona:** arraste segurando Shift. Aparecem as zonas do layout, com a zona sob o ponteiro preenchida; ao soltar, a janela vai para ela, e o Snap Assist pode abrir para a próxima zona vazia. Soltar e apertar Shift no meio do arrasto não pode deixar a janela parada nem largar o arrasto.
+C4. **Sair do encaixe:** arraste pelo título a janela encaixada do C2. Ela volta ao tamanho de antes sob o ponteiro (desde o A1b, com a animação de 140 ms antes de o arrasto começar).
+C5. **Maximizada e tiling:** maximize um `kwt8` e arraste pelo título: ele sai da maximização sob o ponteiro. Em tiling (SUPER+V), o arrasto só começa depois de uns pixels de movimento.
+C6. **Menu Mover/Redimensionar:** clique direito no título, escolha Mover e mova o ponteiro: a janela acompanha, e o próximo clique termina. Leve o ponteiro sobre o título do **outro** `kwt8` antes desse clique: o clique termina o Mover e não abre menu nem inicia arrasto na outra barra. Repita com Redimensionar.
+C7. **Arrasto de outro componente:** com SUPER + botão esquerdo, arraste um `kwt8` passando sobre a barra do outro e solte. A outra barra não reage, e o arrasto termina normal.
+C8. **Débito aceito (`floatWindow` do Lua):** rode a linha abaixo e, em até 3 s, comece um arrasto com SUPER + botão esquerdo num `kwt8` e continue segurando. Esperado: o arrasto termina sozinho quando o comando roda, e a janela troca entre flutuante e tiling. É o débito registrado, não regressão.
+```bash
+sleep 4; hyprctl eval "require('kwinish').window_action('$(hyprctl activewindow -j | jq -r .address)','float')"
+```
+C9. **Unload durante arrasto:** rode a linha abaixo e, em até 3 s, arraste um `kwt8` pelo título e continue segurando. Esperado: nada trava, as barras somem, e a janela para ao soltar. Depois as barras voltam.
+```bash
+sleep 4; hyprctl plugin unload /tmp/kwinish-a1/kwinish-bars.so; sleep 3; hyprctl plugin load /tmp/kwinish-a1/kwinish-bars.so
+```
+C10. **Log:** `grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30` não mostra `Q1 violated` nem `error`.
+C11. *2 monitores:* arrastar até a divisa resiste (`seam_resistance`, 200 px) e mostra a prévia da borda; soltar com Shift numa zona do outro monitor encaixa lá, sem Snap Assist.
+*Custo aceito, sem passo próprio (C1/C2 do contrato):* se outro programa capturar a entrada bem na hora de soltar, o arrasto continua até a próxima tecla ou clique. Se isso acontecer no uso, anote; é o gatilho para trocar à paridade 0.56.
+
+*Desfazer (tira o plugin e o núcleo, fecha as janelas de teste e o menu e apaga o link do `kwinish-ui`; nenhum outro arquivo seu é tocado).*
+```bash
+pkill -x kwinish-ui
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-a1/kwinish-bars.so
+hyprctl reload
+bash ~/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore ~/.local/state/kwinish-backup/a1
+```
+*Se a sessão real travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-a1/kwinish-bars.so`. Se nem assim responder, encerre a sessão.
+*O que me mandar:* para cada item (B1–B3, C1–C11), ok ou o que viu. Se algo falhar, mande também as saídas dos `grep` de log.
+*Resultado (dono, 01/11/2026):* B1–B3 e C1–C8, C10 passaram (relato geral). **C9 não chegou a testar o plugin:** rodado num terminal sem a variável `T`, virou `hyprctl plugin unload /kwinish-bars.so` ("plugin not loaded") e o `load` falhou ("cannot open shared object file"); o plugin da alpha-1 continuou carregado. O comando do C9 agora usa o caminho completo; **refeito pelo dono em 01/11: passou** (unload durante arrasto na sessão real). O unload durante arrasto passou no aninhado (B2). **C11 não feito** (um monitor). Desfazer ainda não executado em 01/11 (plugin carregado, link do `kwinish-ui` e backup `a1` presentes, conferido só com consultas).
+
+**A1b. Animação ao sair do encaixe (01/11/2026; executado pelo dono: passou)**
+Desde o A1, a janela encaixada volta ao tamanho de antes numa animação de 140 ms, **antes** de o arrasto começar (alt5-rc: nada é pausado nem encerrado). Só plugin e núcleo; o `kwinish-ui` não é necessário. Caminho novo, para não sobrescrever um `.so` carregado. Um só terminal.
+```bash
+cd ~/Projects/ryoku-work/kwinish-port-0-57 && git log --oneline -1
+R=$PWD; T=/tmp/kwinish-a1b; mkdir -p "$T"
+make -C plugin TARGET="$T/kwinish-bars.so"
+CORE="package.path='$R/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+hyprctl plugin load "$T/kwinish-bars.so"
+hyprctl eval "$CORE"
+kitty --class kwt8 &
+```
+Deixe o `kwt8` flutuante (SUPER+V).
+1. Arraste-o pelo título até a borda esquerda e solte: ele ocupa a metade esquerda.
+2. Arraste de novo pelo título, devagar: depois de uns pixels, ele cresce suavemente (cerca de 140 ms) até o tamanho de antes, sob o ponteiro, e então segue o arrasto normalmente.
+3. Encaixe de novo e repita com um puxão curto, soltando logo: ele fica no tamanho de antes, onde você soltou, e não continua preso ao ponteiro.
+4. Apertar Shift durante o arrasto do passo 2 não deixa a janela parada.
+Desfazer:
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-a1b/kwinish-bars.so
+hyprctl reload
+```
+*O que me mandar:* ok ou o que viu em cada passo (1–4).
+*Resultado (dono, 01/11/2026):* "o teste passou" (passos 1–4, relato geral). O dono carregou plugin e núcleo pelos comandos com caminho completo, sem variáveis.
+
 **T8. Porta 0.57, alpha-0: primeiro teste ao vivo (01/11/2026; executado pelo dono: tudo passou)**
 Estado conferido em 01/11, só com consultas: Hyprland 0.57.0 (`0aa6745`) em execução, nenhum plugin carregado, pacotes `kwinish-*` e `/usr/share/kwinish` ausentes, sem `~/.config/kwinish`, `kwinish-ui` fora do PATH. **Fish não está instalado** (shell de login: bash): por decisão do dono em 01/11, este roteiro é em **bash**. Os roteiros 2–12 abaixo citam `~/Downloads/ryoku-work/kwinish`, o plugin em `/usr/lib/hyprland/plugins` e fish: nada disso existe mais. O repositório está em `~/Projects/ryoku-work/`.
 Use **um só terminal** do começo ao fim (as variáveis `R`, `T`, `CORE` e `nest` valem só nele). As janelas de teste são `kitty --class kwt8`, para não confundir com o seu terminal.

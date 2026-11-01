@@ -9,6 +9,7 @@
 #include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
+#include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/shared/parserUtils/ParserUtils.hpp>
 #include <hyprland/src/render/Renderer.hpp>
@@ -26,6 +27,7 @@
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include "globals.hpp"
 #include "barInput.hpp"
+#include "hostDrag.hpp"
 #include "passLife.hpp"
 
 extern "C" {
@@ -301,10 +303,35 @@ int luaSetZone(lua_State* L) {
     return 0;
 }
 
-// hl.plugin.kwinish.grab(mode, address): Move/Resize from the window menu. Off in alpha-0 (openspec
-// disable-titlebar-drag-alpha0): the call stays registered and always answers with a Lua error (barInput.hpp).
+// hl.plugin.kwinish.grab(mode, address): Move/Resize from the window menu, as in KWin. Alpha-1 (openspec
+// enable-titlebar-drag-alpha1, alt5-rc): the compositor's drag starts here and the compositor ends it with the next click;
+// bad arguments and a start the compositor refused are Lua errors (barInput.hpp).
 int luaGrab(lua_State* L) {
-    return Config::Lua::Bindings::Internal::configError(L, KwIn::grabError(lua_isstring(L, 1), lua_isstring(L, 2), lua_isstring(L, 1) ? lua_tostring(L, 1) : ""));
+    if (const auto ERR = KwIn::grabError(lua_isstring(L, 1), lua_isstring(L, 2), lua_isstring(L, 1) ? lua_tostring(L, 1) : ""); !ERR.empty())
+        return Config::Lua::Bindings::Internal::configError(L, ERR);
+    const std::string mode = lua_tostring(L, 1);
+    const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+    for (auto& w : Desktop::windowState()->windows()) {
+        if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
+            continue;
+        Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+        if (Desktop::focusState()->window() != w)
+            break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
+        if (KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE) != KwDrag::BEGIN_STARTED)
+            return Config::Lua::Bindings::Internal::configError(L, KwIn::grabRefused());
+        break;
+    }
+    return 0;
+}
+
+// Pointer motion arrives here before the pointer moves: a dragged window's bar may hold back the part that would cross a seam.
+static CFunctionHook* g_pMotionHook = nullptr;
+using MotionFn                      = void (*)(CInputManager*, IPointer::SMotionEvent);
+static void hkOnMouseMoved(CInputManager* self, IPointer::SMotionEvent e) {
+    for (auto& b : g_pGlobalState->bars)
+        if (b && b->holdAtSeam(e))
+            break;
+    ((MotionFn)g_pMotionHook->m_original)(self, e);
 }
 
 // hl.plugin.kwinish.set_bar_hidden(address, hidden): the window menu's "no title bar and frame".
@@ -418,6 +445,23 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
     HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+    for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+        if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+            g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+            if (g_pMotionHook && !g_pMotionHook->hook())
+                g_pMotionHook = nullptr;
+            break;
+        }
+    if (!g_pMotionHook)
+        HyprlandAPI::addNotification(PHANDLE, "[kwinish] Could not hook pointer motion: seam resistance is off.", CHyprColor{1.0, 0.4, 0.2, 1.0}, 8000);
+    // Shift mid-drag may stop the compositor's move: the dragging bar starts it again on the next motion (alt5-rc: only a
+    // start; no deferred callback, which could outlive the plugin)
+    static auto PK = Event::bus()->m_events.input.keyboard.key.listen([&](IKeyboard::SKeyEvent e, Event::SCallbackInfo&) {
+        if (e.keycode == KEY_LEFTSHIFT || e.keycode == KEY_RIGHTSHIFT)
+            for (auto& b : g_pGlobalState->bars)
+                if (b)
+                    b->onShift();
+    });
     // window keys are pointers and get reused: forget what was kept for a window when it closes
     static auto PC = Event::bus()->m_events.window.close.listen([&](PHLWINDOW w) {
         const auto key = (uintptr_t)w.get();

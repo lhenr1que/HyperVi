@@ -16,7 +16,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 | Botões | `default_buttons` (true), `bar_buttons_alignment` ("right"), `bar_button_padding` (5), `icon_on_hover` (false), `show_icon` (true), `on_double_click` ("maximize"), `button` (palavra-chave, um por botão) |
 | Encaixe | `snap_top_edge` (true), `snap_preview` (true), `seam_resistance` (200 px, 0 desliga) |
 
-**Alpha-0 do porte 0.57** (OpenSpec `disable-titlebar-drag-alpha0`, código em `port-kwinish-bars-to-hyprland-0-57`, não validado ao vivo): arrastar pela barra e o toque na barra estão desligados. As três opções de Encaixe continuam aceitas com nomes, tipos e padrões iguais, mas sem efeito, porque só agem ao arrastar pela barra; mover a janela fica com o bind nativo do Hyprland. Encaixe pelo menu e pelo teclado continua.
+**Alpha-1 do porte 0.57** (OpenSpec `enable-titlebar-drag-alpha1`, código em `port-kwinish-bars-to-hyprland-0-57`, não validado ao vivo): arrastar pela barra voltou, e as três opções de Encaixe voltam a agir, com os mesmos nomes, tipos e padrões. Diferença da 0.56.2: a animação de 140 ms ao sair do encaixe acontece antes de o arrasto começar, e não com ele pausado (mesma aparência); se outro programa capturar a entrada bem na hora de soltar, o arrasto continua até a próxima tecla ou clique (custo aceito). O toque na barra continua desligado.
 
 ## 2. Arquivos do usuário (`~/.config/kwinish/`)
 | Arquivo | O que guarda | Quem edita hoje | Aplica |
@@ -38,7 +38,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 
 ## 4. Pelo menu da janela (botão direito na barra, ou Alt+F3)
 Mais ações > Configurações do Kwinish... abre `kwinish-ui settings`.
-Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das capturas, fixar em todas as workspaces, mover para workspace, encaixar (metades, quartos, eixos), layout de mosaico, modo e colunas da workspace, regras por app, mover/redimensionar, minimizar, maximizar, fechar. Na alpha-0 do porte 0.57, Mover e Redimensionar saem do menu (`ui/src/menu.rs`); o resto fica na mesma ordem.
+Manter acima/abaixo, tela cheia, flutuar/tilar, sem moldura, ocultar das capturas, fixar em todas as workspaces, mover para workspace, encaixar (metades, quartos, eixos), layout de mosaico, modo e colunas da workspace, regras por app, mover/redimensionar, minimizar, maximizar, fechar. Na alpha-1 do porte 0.57, Mover e Redimensionar voltaram ao menu, depois de Minimizar.
 
 ## 5. Lacunas e perguntas (o que a revisão achou)
 1. ~~Nenhuma opção do plugin tem interface.~~ Resolvido em 26/10: `kwinish-ui settings` (janela própria, não página do Hub; o Hub pode só abri-la). Ainda sem interface: auto-elevar, posição inicial, cantos ativos, teclas padrão (itens 4 e 5).

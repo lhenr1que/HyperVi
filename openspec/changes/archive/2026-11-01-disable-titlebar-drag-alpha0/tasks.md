@@ -31,5 +31,9 @@ Estado em 31/10/2026: T4 aplicada no working tree, sem commit (ver `docs/DEVELOP
 
 - [x] 4.1 Com autorização documental T4, registrar em `docs/API.md` a indisponibilidade temporária de `grab` sem mudança de assinatura, e em `docs/CONFIGURAVEL.md` o menu reduzido e opções de drag preservadas com efeitos inativos. Não reformatar contratos ou apagar dados/opções.
 - [x] 4.2 Registrar resultado e pendências em `docs/DEVELOPMENT_STATE.md`; explicitar débito de `floatWindow` Lua/C++ preservado, grupo R ainda separado e ausência de garantia O1 global.
-- [ ] 4.3 Entregar diff/evidências à revisão independente e ao dono, sem commit automático. Build integrado/check completo pertencem ao marco T7; roteiro ao vivo completo em fish, com plugin e núcleo, backup/restauração quando necessário, pertence a T8 com autorização para `docs/STATUS.md`. Não carregar candidato nem declarar alpha integrada validada em T4.
-- [ ] 4.4 Manter alpha-1 pendente de Q4/T10 e T9 com regressão H1/H1i antes de reativar drag; não aplicar essas etapas como continuação automática.
+- [x] 4.3 Entregar diff/evidências à revisão independente e ao dono, sem commit automático. Build integrado/check completo pertencem ao marco T7; roteiro ao vivo completo em fish, com plugin e núcleo, backup/restauração quando necessário, pertence a T8 com autorização para `docs/STATUS.md`. Não carregar candidato nem declarar alpha integrada validada em T4.
+- [x] 4.4 Manter alpha-1 pendente de Q4/T10 e T9 com regressão H1/H1i antes de reativar drag; não aplicar essas etapas como continuação automática.
+
+## Arquivamento (01/11/2026)
+
+Arquivada pelo dono para abrir caminho a `enable-titlebar-drag-alpha1` (aprovada em `fecf267`). Evidência de entrega: revisões Codex r1/r2 (`docs/port-0-57/evidence/T4-tests/review-*.json`), build e check da T7 (`01afebe`) e teste ao vivo do dono na T8 (`c9575b5`, "tudo passou"); 4.4 cumprida por T9 (`510d204`) e T10 (`dde3f03`). Itens que continuam parciais, aceitos como estão: 1.2/1.3/1.6/3.2/3.4 (parte provada só por inventário textual, sem executar SHost, hit test, PG e `luaGrab`) e 1.4/2.3 (par por botão, sem identidade do ponteiro; limite aceito pelo dono em 31/10/2026). Specs principais `title-bar` e `snap-assist` atualizadas com os deltas desta mudança, copiados como estão; sem `openspec validate` (CLI não instalada).

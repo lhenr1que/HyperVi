@@ -230,8 +230,95 @@ int main() {
     check(grabError(false, true, "") == "grab: expected (\"move\"|\"resize\", address)", "grab without a mode");
     check(grabError(true, false, "move") == "grab: expected (\"move\"|\"resize\", address)", "grab without an address");
     check(grabError(true, true, "spin") == "grab: mode must be move or resize", "grab with an unknown mode");
+#ifdef KW_BASELINE
     check(grabError(true, true, "move").find("unavailable") != std::string::npos, "grab move is refused as unavailable");
     check(grabError(true, true, "resize").find("unavailable") != std::string::npos, "grab resize is refused as unavailable");
+#else
+    // alpha-1 (openspec enable-titlebar-drag-alpha1, alt5-rc): a valid grab goes ahead; a start the compositor refused is reported
+    check(grabError(true, true, "move").empty(), "alpha-1: grab move is accepted");
+    check(grabError(true, true, "resize").empty(), "alpha-1: grab resize is accepted");
+    check(grabRefused().starts_with("grab: "), "alpha-1: a refused start is reported");
+
+    // the bar yields to any active drag: no press taken, no menu, its release passes
+    for (const auto& [hit, button, name] : {std::tuple{eHit::TITLE, BTN_LEFT, "title"}, {eHit::BUTTON, BTN_LEFT, "button"}, {eHit::ICON, BTN_LEFT, "icon"},
+                                            {eHit::TITLE, BTN_RIGHT, "right on the title"}}) {
+        SClicks c;
+        SPairs  g;
+        SPress  e    = down(hit, button);
+        e.dragActive = true;
+        check(same(press(c, g, e, true, T0), eAction::NONE, false), std::string("alpha-1: drag active, ") + name + " press is not taken");
+        check(same(release(&c, g, button), eAction::NONE, false), std::string("alpha-1: drag active, ") + name + " release passes");
+    }
+
+    // a title press that becomes a drag: its release reaches the compositor
+    {
+        SClicks c;
+        SPairs  g;
+        check(same(press(c, g, down(eHit::TITLE), true, T0), eAction::FOCUS, true), "alpha-1: title press is taken (it may become a drag)");
+        g.dragStarted(BTN_LEFT);
+        check(same(release(&c, g), eAction::NONE, false), "alpha-1: once the drag started, its release passes to the compositor");
+        check(same(press(c, g, down(eHit::TITLE), true, T0 + 1s), eAction::FOCUS, true), "alpha-1: a later title click is a click again");
+        check(same(release(&c, g), eAction::NONE, true), "alpha-1: and its release is taken");
+    }
+
+    // the bar's drag session (alt5-rc): started only when it really started, never ended by the bar
+    {
+        SDrag d;
+        d.start(false);
+        check(!d.active, "alpha-1: a refused start arms nothing");
+        d.start(true);
+        check(d.active, "alpha-1: a started drag is the bar's");
+        check(d.onRelease(true) == eDragStep::WAIT && d.active, "alpha-1: release with the drag going: wait for the compositor to end it");
+        check(d.onEnded() == eDragStep::SNAP && !d.active, "alpha-1: the compositor ended it after the release: snap, then clear");
+        check(d.onEnded() == eDragStep::NONE, "alpha-1: another drag ending is not the bar's");
+    }
+    {
+        SDrag d;
+        d.start(true);
+        check(d.onRelease(false) == eDragStep::CLEAR && !d.active, "alpha-1: release when the drag already ended: clear, no snap");
+    }
+    {
+        SDrag d;
+        d.start(true);
+        check(d.onEnded() == eDragStep::CLEAR && !d.active, "alpha-1: ended before the release (a key, another component): clear, no snap");
+    }
+    {
+        SDrag d;
+        d.onShift();
+        check(!d.rearm, "alpha-1: Shift with no bar drag arms nothing");
+        check(d.onMotion(false, true, false) == eDragStep::NONE, "alpha-1: and motion restarts nothing");
+        d.start(true);
+        d.onShift();
+        check(d.rearm, "alpha-1: Shift mid-drag arms the rearm");
+        check(d.onMotion(true, true, false) == eDragStep::NONE && d.rearm, "alpha-1: drag still going: no restart, nothing ended");
+        check(d.onEnded() == eDragStep::KEEP && d.active, "alpha-1: the compositor stopped it after Shift: kept for the rearm");
+        check(d.onMotion(false, false, false) == eDragStep::NONE, "alpha-1: pointer off the window: no restart");
+        check(d.onMotion(false, true, true) == eDragStep::NONE, "alpha-1: unsnap pending: no restart");
+        check(d.onMotion(false, true, false) == eDragStep::RESTART && !d.rearm, "alpha-1: rearm only starts again");
+        check(d.onMotion(false, true, false) == eDragStep::NONE, "alpha-1: once");
+        check(d.onRelease(false) == eDragStep::CLEAR && !d.active && !d.rearm, "alpha-1: release clears the rearm");
+    }
+
+    // unsnap ease before the drag starts: 300x200 back to 800x600, pointer at 25% of the bar, 10 px below its top
+    {
+        const auto near = [](double a, double b) { return a - b < 0.01 && b - a < 0.01; };
+        SUnsnap    u;
+        u.start(300, 200, 800, 600, 0.25, 10, T0);
+        check(u.active, "unsnap: the ease starts");
+        auto st = u.step(1000, 500, T0);
+        check(near(st.w, 300) && near(st.h, 200) && !st.done, "unsnap: at 0 ms the snapped size");
+        check(near(st.x, 1000 - 0.25 * 300) && near(st.y, 490), "unsnap: the pointer stays at the same fraction of the bar");
+        st = u.step(1000, 500, T0 + 70ms); // ease-out cubic: 1 - 0.5^3 = 0.875
+        check(near(st.w, 300 + 0.875 * 500) && near(st.h, 200 + 0.875 * 400) && !st.done && u.active, "unsnap: halfway in time, 87.5% of the way");
+        check(near(st.x, 1000 - 0.25 * st.w), "unsnap: the window follows the pointer while it eases");
+        st = u.step(1200, 300, T0 + 140ms);
+        check(near(st.w, 800) && near(st.h, 600) && st.done && !u.active, "unsnap: at 140 ms the earlier size, done (the drag may start)");
+        check(near(st.x, 1200 - 200) && near(st.y, 290), "unsnap: final position under the pointer");
+        u.start(300, 200, 800, 600, 0.25, 10, T0);
+        st = u.finish(1000, 500);
+        check(near(st.w, 800) && near(st.h, 600) && !u.active, "unsnap: released mid-ease, lands on the earlier size");
+    }
+#endif
 
     if (fails)
         std::printf("%d falha(s)\n", fails);

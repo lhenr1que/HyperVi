@@ -39,7 +39,7 @@ Durante o drag da barra, o sistema SHALL voltar a: encaixar ao soltar nas bordas
 - **THEN** nada é rearmado nem encerrado pela barra
 
 ### Requirement: Mover e Redimensionar pelo menu na alpha-1
-O menu da janela SHALL voltar a oferecer Mover e Redimensionar. A entrada Lua `grab` SHALL iniciar o drag pelo controlador do compositor e só armar o grab quando o início ocorreu; a recusa SHALL voltar a ser diagnosticada como na alpha-0, sem foco, aquisição ou retenção de clique. O grab SHALL terminar pelo fim nativo do compositor e ser limpo em qualquer tecla; um clique de grab sem drag ativo SHALL passar.
+O menu da janela SHALL voltar a oferecer Mover e Redimensionar. A entrada Lua `grab` SHALL iniciar o drag pelo controlador do compositor e só considerar o grab iniciado quando o início ocorreu; um início recusado pelo compositor SHALL ser diagnosticado como erro Lua, sem armar grab nem reter clique. O grab SHALL terminar pelo fim nativo do compositor e ser limpo em qualquer tecla; um clique de grab sem drag ativo SHALL passar.
 
 #### Scenario: Mover pelo menu
 - **WHEN** o usuário escolhe Mover no menu e move o ponteiro

@@ -35,6 +35,7 @@
 #include "globals.hpp"
 #include "hostActions.hpp"
 #include "barInput.hpp"
+#include "hostDrag.hpp"
 #include "BarPassElement.hpp"
 #include "icon.hpp"
 #include "PreviewPassElement.hpp"
@@ -54,10 +55,12 @@ CHyprBar::CHyprBar(PHLWINDOW pWindow) : IHyprWindowDecoration(pWindow) {
     const auto PMONITOR         = pWindow->m_monitor.lock();
     PMONITOR->m_scheduledRecalc = true;
 
-    // button and pointer events; touch is not handled by the bar in alpha-0 (it reaches the window as before the plugin)
+    // button and pointer events; touch is not handled by the bar (it reaches the window as before the plugin)
     m_pMouseButtonCallback = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) { onMouseButton(info, e); });
     m_pMouseAxisCallback = Event::bus()->m_events.input.mouse.axis.listen([&](IPointer::SAxisEvent e, Event::SCallbackInfo& info) { onMouseAxis(info, e); });
-    m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D, Event::SCallbackInfo&) { damageOnButtonHover(); });
+    m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D, Event::SCallbackInfo&) { onMouseMove(); });
+    // the compositor ends the bar's drag (alt5-rc): the bar learns it here, after the end, and snaps from here
+    m_pDragEndedCallback = g_layoutManager->dragController()->m_events.ended.listen([&] { onDragEnded(); });
 
     Animation::mgr()->createAnimation(configColor(g_pGlobalState->config.barColor->value()), m_cRealBarColor, Config::animationTree()->getAnimationPropertyConfig("border"),
                                       pWindow, AVARDAMAGE_NONE);
@@ -136,9 +139,21 @@ bool CHyprBar::inputIsValid(bool underPointer) {
 }
 
 // Presses on the bar: barInput.hpp decides and records the pair (main.cpp takes the release); this feeds it the pointer
-// test and runs the result. Alpha-0 (openspec disable-titlebar-drag-alpha0): a press on the title never moves the window.
+// test and runs the result. Alpha-1 (openspec enable-titlebar-drag-alpha1): a press on the title may start a drag; the
+// left release goes on to the compositor, which ends the drag with it (the bar never asks for the end).
 void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent e) {
+    if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button == BTN_LEFT) {
+        m_bDragPending = false;
+        if (const auto W = m_pWindow.lock(); W && m_unsnap.active) { // released mid-ease: land on the earlier size, no drag
+            const auto C = g_pInputManager->getMouseCoordsInternal();
+            applyUnsnap(W, m_unsnap.finish(C.x, C.y));
+        }
+        if (m_drag.onRelease(dragGoing()) == KwIn::eDragStep::CLEAR)
+            Log::logger->log(Log::DEBUG, "kwinish-bars", "drag over on {:x} (already ended)", (uintptr_t)m_pWindow.lock().get());
+        return;
+    }
     KwIn::SPress p{.button = e.button, .pressed = e.state == WL_POINTER_BUTTON_STATE_PRESSED, .taken = info.cancelled};
+    p.dragActive = g_layoutManager->dragController()->target() != nullptr;
     if (!p.pressed || p.taken || (e.button != BTN_LEFT && e.button != BTN_RIGHT))
         return;
     std::optional<size_t> button;
@@ -185,6 +200,7 @@ void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent 
                 }
                 case KwIn::eAction::BAR_MENU: bar.runAction("menu"); break; // right click on the bar
                 case KwIn::eAction::DOUBLE_CLICK: bar.runAction(doubleClick); break;
+                case KwIn::eAction::FOCUS: bar.onTitlePress(); break; // a plain press on the title: a drag may follow
                 default: break;
             }
         }
@@ -251,16 +267,202 @@ static std::string layoutZoneAt(const Vector2D& C, const std::unordered_map<std:
     return best;
 }
 
+// This bar's drag is what the compositor drags now.
+bool CHyprBar::dragGoing() {
+    const auto W = m_pWindow.lock();
+    const auto T = g_layoutManager->dragController()->target();
+    return m_drag.active && W && T && T == W->layoutTarget();
+}
+
+bool CHyprBar::pointerOverWindow() {
+    const auto W = m_pWindow.lock();
+    return W && Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(),
+                                                         Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING) == W;
+}
+
+// A snapped window still sitting where the snap put it: dragging it gives back its earlier size (KWin).
+bool CHyprBar::snappedHere(const PHLWINDOW& w) {
+    const auto IT = g_pGlobalState->restores.find((uintptr_t)w.get());
+    if (IT == g_pGlobalState->restores.end())
+        return false;
+    const auto POS = w->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), SIZE = w->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    const auto& R  = IT->second;
+    return std::abs(POS.x - R.snapPos.x) <= 4 && std::abs(POS.y - R.snapPos.y) <= 4 && std::abs(SIZE.x - R.snapSize.x) <= 4 && std::abs(SIZE.y - R.snapSize.y) <= 4;
+}
+
+// Before the drag starts (alt5-rc: never pause the compositor's move): ease back to the size before the snap over 140 ms,
+// the pointer at the same fraction of the bar (barInput.hpp SUnsnap); pointer motion drives the steps. False: not snapped.
+bool CHyprBar::startUnsnap(const PHLWINDOW& w, const Vector2D& C) {
+    if (!snappedHere(w))
+        return false;
+    const auto IT   = g_pGlobalState->restores.find((uintptr_t)w.get());
+    const auto R    = IT->second;
+    const auto SIZE = w->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    g_pGlobalState->restores.erase(IT);
+    m_unsnap.start(SIZE.x, SIZE.y, R.size.x, R.size.y, std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0), m_pressCursor.y - R.snapPos.y,
+                   Time::steadyNow());
+    applyUnsnap(w, m_unsnap.step(C.x, C.y, Time::steadyNow()));
+    return true;
+}
+
+void CHyprBar::applyUnsnap(const PHLWINDOW& w, const KwIn::SUnsnapStep& st) {
+    (void)Config::Actions::resize(Vector2D{st.w, st.h}, false, w);
+    (void)Config::Actions::move(Vector2D{st.x, st.y}, false, w);
+}
+
+// A plain press on the title. The compositor drags the window under the pointer, so a floating window's drag starts right
+// at the press, while the pointer is still on its bar; tiled, maximized and snapped windows wait for a real motion.
+void CHyprBar::onTitlePress() {
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+    m_pressCursor = g_pInputManager->getMouseCoordsInternal();
+    if (W->isFloating() && !Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED) && !snappedHere(W))
+        handleMovement();
+    else
+        m_bDragPending = true;
+}
+
+void CHyprBar::handleMovement() {
+    m_bDragPending = false;
+    m_resistPush   = 0;
+    const auto W   = m_pWindow.lock();
+    if (!W)
+        return;
+    m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    // with follow_mouse, a fast move off the bar can hand focus to another window first: keep it on this one
+    if (Desktop::focusState()->window() != W)
+        Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+    const bool STARTED = KwDrag::begin(MBIND_MOVE) == KwDrag::BEGIN_STARTED;
+    m_drag.start(STARTED);
+    if (STARTED)
+        g_pGlobalState->pairs.dragStarted(BTN_LEFT); // the compositor ends the drag with this release
+    Log::logger->log(Log::DEBUG, "kwinish-bars", "drag {} on {:x}", STARTED ? "started" : "refused", (uintptr_t)W.get());
+}
+
+void CHyprBar::onMouseMove() {
+    // ensure proper redraws of button icons on hover when using hardware cursors
+    damageOnButtonHover();
+
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+    // Shift mid-drag: if the compositor stopped the move, start it again (only a start, alt5-rc)
+    if (m_drag.onMotion(g_layoutManager->dragController()->target() != nullptr, pointerOverWindow(), m_bDragPending || m_unsnap.active) == KwIn::eDragStep::RESTART)
+        handleMovement();
+
+    const auto C = g_pInputManager->getMouseCoordsInternal();
+    if (m_unsnap.active) {
+        const auto ST = m_unsnap.step(C.x, C.y, Time::steadyNow());
+        applyUnsnap(W, ST);
+        if (ST.done)
+            handleMovement(); // the ease is over: now the compositor's drag
+        return;
+    }
+    if (!m_bDragPending || !validMapped(m_pWindow))
+        return;
+    if ((C - m_pressCursor).size() < 6)
+        return; // still a click
+    // a maximized window comes back under the pointer at its earlier size (KWin), not where the maximized rect was
+    if (Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED)) {
+        const auto OLDPOS  = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        const auto OLDSIZE = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        (void)Config::Actions::fullscreenWindow(Fullscreen::FSMODE_NONE, false, W);
+        const auto   SIZE  = W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        const double RATIO = std::clamp((m_pressCursor.x - OLDPOS.x) / std::max(1.0, OLDSIZE.x), 0.0, 1.0);
+        (void)Config::Actions::move(Vector2D{C.x - RATIO * SIZE.x, C.y - (m_pressCursor.y - OLDPOS.y)}, false, W);
+    } else if (startUnsnap(W, C)) {
+        m_bDragPending = false; // the drag starts when the ease is done
+        return;
+    }
+    handleMovement();
+}
+
+void CHyprBar::onShift() {
+    m_drag.onShift();
+}
+
+void CHyprBar::onDragEnded() {
+    switch (m_drag.onEnded()) {
+        case KwIn::eDragStep::SNAP: snapOnRelease(); break;
+        case KwIn::eDragStep::CLEAR: Log::logger->log(Log::DEBUG, "kwinish-bars", "drag ended by the compositor before the release"); break;
+        default: break;
+    }
+}
+
+// The compositor just ended the bar's drag with its release: on a screen edge the window snaps (left/right: half, top:
+// maximized), with Shift into the layout zone under the pointer. The window first goes back to where the drag began, so
+// "restore" returns there, then the Lua core places it on the monitor of the drop. Without the core this is a no-op.
+void CHyprBar::snapOnRelease() {
+    const auto W = m_pWindow.lock();
+    if (!W || !W->isFloating())
+        return;
+    const auto C = g_pInputManager->getMouseCoordsInternal();
+    const auto M = monitorAtPointer(C);
+    if (!M || (C - m_pressCursor).size() < 10) // a plain click on the bar must not snap
+        return;
+    std::string where;
+    if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
+        if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
+            if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())
+                where = "zone:" + Z.substr(2); // "z:3" is action "zone:3"
+    } else if (const char* zone = edgeZone(C, M))
+        where = std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
+    if (where.empty())
+        return;
+    (void)Config::Actions::move(m_dragStart, false, W);
+    Config::Supplementary::executor()->spawn(std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
+}
+
+// Dragging a window across the seam between two monitors takes an extra push (plugin:kwinish:seam_resistance pixels). Called
+// from the hook on the compositor's pointer motion (main.cpp), before the pointer moves: the part of the motion that would
+// cross is removed, so the pointer sits on the edge (which shows the edge snap preview). Returns true when it changed it.
+bool CHyprBar::holdAtSeam(IPointer::SMotionEvent& e) {
+    const double RES = g_pGlobalState->config.seamResistance->value();
+    if (RES <= 0 || !dragGoing())
+        return false;
+    const auto C = g_pInputManager->getMouseCoordsInternal();
+    // the compositor moves the pointer by delta, or by unaccel with input:force_no_accel: hold back whichever would cross
+    const auto A = monitorAtPointer(C);
+    auto       B = monitorAtPointer(C + e.delta);
+    if (A == B)
+        B = monitorAtPointer(C + e.unaccel);
+    if (!A || !B || A == B) {
+        if (std::abs(C.x - m_resistSeam) > 32)
+            m_resistPush = 0; // moved away from the seam: the next approach starts fresh
+        return false;
+    }
+    const bool RIGHT = std::abs(A->m_position.x + A->m_size.x - B->m_position.x) < 2;
+    const bool LEFT  = std::abs(B->m_position.x + B->m_size.x - A->m_position.x) < 2;
+    if (!RIGHT && !LEFT)
+        return false;
+    const double SEAM = RIGHT ? B->m_position.x : A->m_position.x;
+    if (SEAM != m_resistSeam) {
+        m_resistSeam = SEAM;
+        m_resistPush = 0;
+    }
+    m_resistPush += std::min(20.0, std::max(std::abs(e.delta.x), std::abs(e.unaccel.x))); // a single fast flick must not spend it all
+    if (m_resistPush >= RES) {
+        m_resistPush = 0;
+        return false; // spent: this motion crosses
+    }
+    const double EDGE = RIGHT ? SEAM - 1 : SEAM; // the last pixel of this monitor
+    const double KEEP = EDGE - C.x;              // horizontal motion that still fits (same sign as the motion, or 0)
+    const auto   fit  = [KEEP](double v) { return v * KEEP > 0 ? (std::abs(v) < std::abs(KEEP) ? v : KEEP) : 0.0; };
+    e.delta.x         = fit(e.delta.x);
+    e.unaccel.x       = fit(e.unaccel.x);
+    return true;
+}
+
 // While a floating window is dragged by its bar, shade where releasing it would put it: the screen-edge zone under
 // the pointer, or - with Shift held - every zone of the active layout, the one under the pointer filled.
-// Alpha-0 has no bar drag, so nothing calls this; it stays compiled because its render port belongs to group R, and
-// alpha-1 brings back the drag condition (bf2049a) with the drag.
 void CHyprBar::drawSnapPreview(Render::CRenderContext& ctx, PHLMONITOR pMonitor) {
     const auto MIT = g_pGlobalState->zones.find(pMonitor->m_name);
     std::string signature;
     std::vector<std::pair<const SZone*, bool>> shown; // zone, hovered
 
-    if (MIT != g_pGlobalState->zones.end() && g_pGlobalState->config.snapPreview->value()) {
+    if (MIT != g_pGlobalState->zones.end() && dragGoing() && g_pGlobalState->config.snapPreview->value() &&
+        (m_pressCursor - g_pInputManager->getMouseCoordsInternal()).size() >= 10) {
         const auto C = g_pInputManager->getMouseCoordsInternal();
         const auto M = monitorAtPointer(C);
         if (M && M == pMonitor) {
@@ -316,8 +518,10 @@ void CHyprBar::runAction(const std::string& action) {
 
     if (action == "close")
         (void)Config::Actions::closeWindow(W);
-    else if (action == "float")
-        (void)Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    else if (action == "float") {
+        if (!g_layoutManager->dragController()->target()) // floating ends any drag in progress, even another component's
+            (void)Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    }
     else if (action == "pin")
         (void)Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
     else if (action == "raise")
@@ -560,7 +764,7 @@ void CHyprBar::renderBarButtonsText(Render::CRenderContext& ctx, CBox* barBox, c
     }
 }
 
-void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR, const float& a, const Render::SWindowRenderPresentation&) {
+void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR pMonitor, const float& a, const Render::SWindowRenderPresentation&) {
     const auto ENABLED = g_pGlobalState->config.enabled->value();
 
     if (m_bLastEnabledState != ENABLED) {
@@ -577,6 +781,8 @@ void CHyprBar::draw(Render::CRenderContext& ctx, PHLMONITOR, const float& a, con
 
     if (!barActive() || !validMapped(m_pWindow) || !ENABLED)
         return;
+
+    drawSnapPreview(ctx, pMonitor);
 
     const auto PWINDOW = m_pWindow.lock();
 

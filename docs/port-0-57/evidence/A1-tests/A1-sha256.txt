@@ -1,0 +1,2 @@
+1bb5be670ec45f05dc479f1614d9e970b4f6398037b27acde30279ce11dc2989  kwinish-bars-gcc.so
+df2dccf2f7b179819ff345438a6f6c88b8b43e54c5a76c4138e1740953a7cf42  kwinish-bars-clang.so

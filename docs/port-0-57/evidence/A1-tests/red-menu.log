@@ -1,0 +1,22 @@
+
+running 1 test
+test menu::tests::move_and_resize_in_alpha1 ... FAILED
+
+failures:
+
+---- menu::tests::move_and_resize_in_alpha1 stdout ----
+
+thread 'menu::tests::move_and_resize_in_alpha1' (60151) panicked at src/menu.rs:513:13:
+assertion `left == right` failed: root rows for class "firefox"
+  left: ["sub:Workspaces", "maximize", "minimize", "spawn:shortcut", "above", "sub:More actions", "sep", "close"]
+ right: ["sub:Workspaces", "maximize", "minimize", "grab:move", "grab:resize", "spawn:shortcut", "above", "sub:More actions", "sep", "close"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    menu::tests::move_and_resize_in_alpha1
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--bin kwinish-ui`
+exit=101

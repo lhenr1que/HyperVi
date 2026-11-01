@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Alpha-0 title-bar input (openspec disable-titlebar-drag-alpha0), no Hyprland needed:
-#  1. builds and runs plugin/test_input.cpp against plugin/barInput.hpp (click decisions and pairs, grab refusal);
-#  2. checks the plugin sources for any route left that starts, ends or arms a window drag, touch on the bar, or the
-#     menu grab (the code that cannot be run without the compositor).
+# Alpha-1 title-bar input (openspec enable-titlebar-drag-alpha1, end policy alt5-rc), no Hyprland needed:
+#  1. builds and runs plugin/test_input.cpp against plugin/barInput.hpp (click decisions and pairs, yielding to a drag,
+#     the bar's drag session, grab messages);
+#  2. checks the plugin sources (the code that cannot run without the compositor): no route asks the compositor to end a
+#     drag, drags start through the helper, the bar learns the end from the compositor, no touch on the bar.
 # KWINISH_SRC=<dir> checks another copy of plugin/, KWINISH_CXXFLAGS adds compiler flags (both used to show the checks
 # fail on the baseline: docs/port-0-57/evidence/T4-tests/run-red.sh).
 set -u
@@ -36,22 +37,33 @@ present() {
 }
 
 for f in barDeco.cpp main.cpp; do
-  absent "$f" 'KwDrag::|hostDrag\.hpp' "no drag begin/end helper"
-  absent "$f" 'changeMouseBindMode|g_pKeybindManager|movewindow|MBIND_' "no mouse-bind start/end/rearm"
-  absent "$f" 'grabActive|grabSwallowPress' "no menu grab state"
-  absent "$f" 'holdAtSeam|createFunctionHook|onMouseMoved|m_rearmPending|KEY_LEFTSHIFT' "no seam-resistance hook or Shift rearm"
+  absent "$f" 'changeMouseBindMode|g_pKeybindManager|movewindow|MBIND_INVALID|endDragTarget|dragEnd\(' "alt5-rc: no route asks the compositor to end a drag"
+  absent "$f" 'grabActive|grabSwallowPress' "no menu grab state (the compositor ends the grab)"
 done
-absent barDeco.cpp 'm_bDraggingThis|m_bDragPending|m_bCancelledDown|m_bTouchEv|m_touchId|m_dragStart|m_pressCursor|m_unsnap|m_resist' "no drag/touch/unsnap state"
-absent barDeco.cpp 'snapOnRelease|maybeUnsnap|stepUnsnap|handleMovement|handleDownEvent|handleUpEvent' "no drag, unsnap or snap-on-release routes"
+absent barDeco.cpp 'm_bCancelledDown|m_bTouchEv|m_touchId|m_unsnapAnim|stepUnsnap' "no touch state, no unsnap that pauses the compositor's move"
 absent barDeco.cpp 'ITouch|input\.touch|onTouch' "no touch on the bar"
-absent barDeco.cpp 'hyprctl eval' "the bar sends no snap to the core"
-absent barDeco.hpp 'ITouch|onTouch|m_bDraggingThis|m_bDragPending|m_bCancelledDown|m_rearmPending|holdAtSeam|rearmDrag|snapOnRelease|maybeUnsnap|stepUnsnap' "header: no drag/touch members"
+absent barDeco.hpp 'ITouch|onTouch|m_bCancelledDown|stepUnsnap' "header: no touch members"
 absent globals.hpp 'grabActive|grabSwallowPress' "globals: no grab flags"
 present barDeco.cpp 'KwIn::apply\(m_clicks\.onPress\(p, g_pGlobalState->pairs' "onMouseButton decides and acts through barInput.hpp"
+present barDeco.cpp '\.dragActive += ' "presses tell barInput.hpp about an active drag (the bar yields)"
+present barDeco.cpp 'KwDrag::begin\(MBIND_MOVE\)' "K1: the bar starts its drag through the helper"
+present barDeco.cpp 'm_drag\.start\(' "the bar's drag is armed from the helper's result"
+present barDeco.cpp 'pairs\.dragStarted\(BTN_LEFT\)' "a started drag lets its release reach the compositor"
+present barDeco.cpp 'dragController\(\)->m_events\.ended\.listen' "the bar learns from the compositor that its drag ended"
+present barDeco.cpp 'hyprctl eval' "snap on release goes to the core"
+present barDeco.cpp 'm_unsnap\.start\(' "unsnap eases (barInput.hpp SUnsnap)"
+# the drag starts only once the ease is over (alt5-rc: no pause, so nothing may start it earlier)
+if grep -A3 -E 'm_unsnap\.step\(' "$src/barDeco.cpp" | grep -q 'handleMovement()' && grep -B1 -A3 -E 'm_unsnap\.step\(' "$src/barDeco.cpp" | grep -q '\.done'; then echo "ok - the drag starts when the unsnap ease is done"; else echo "FALHOU - the drag must start from m_unsnap.step(...).done"; fails=$((fails + 1)); fi
 present main.cpp 'g_pGlobalState->pairs\.onRelease\(e\.button\)\.cancel' "releases are taken by the listener that outlives the bars"
-present main.cpp 'KwIn::grabError\(' "luaGrab answers through barInput.hpp"
-# the preview stays compiled (its render port is group R), but nothing draws it in alpha-0
+present main.cpp 'KwIn::grabError\(' "luaGrab checks its arguments through barInput.hpp"
+present main.cpp 'KwDrag::begin\(mode == "move"' "K2: the menu grab starts through the helper"
+present main.cpp 'KwIn::grabRefused\(\)' "a refused grab is reported"
+present main.cpp 'createFunctionHook' "seam resistance: motion hook"
+present main.cpp 'KEY_LEFTSHIFT' "Shift rearm listener"
+# the C++ float action yields to an active drag (floating ends any drag in progress)
+if grep -A2 -E 'action == "float"' "$src/barDeco.cpp" | grep -q 'dragController()->target()'; then echo "ok - float action guarded by an active drag"; else echo "FALHOU - float action not guarded by dragController()->target()"; fails=$((fails + 1)); fi
+# the preview is drawn again while the bar drags
 n=$(grep -c 'drawSnapPreview(' "$src/barDeco.cpp")
-if [ "$n" = 1 ]; then echo "ok - drawSnapPreview defined, never called"; else echo "FALHOU - drawSnapPreview( appears $n times in barDeco.cpp (want 1: the definition)"; fails=$((fails + 1)); fi
+if [ "$n" -ge 2 ]; then echo "ok - drawSnapPreview is called"; else echo "FALHOU - drawSnapPreview( appears $n times in barDeco.cpp (want the definition and a call)"; fails=$((fails + 1)); fi
 
 [ "$fails" = 0 ] && echo "input: tudo passou" || { echo "input: $fails grupo(s) falharam"; exit 1; }
