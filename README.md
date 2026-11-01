@@ -66,7 +66,8 @@ on any failure. `--lua-only` runs just the Lua suites. The same command runs in 
 Changes go through [OpenSpec](openspec/) (proposals, designs, tasks and the accepted specs). `docs/STATUS.md`, `docs/DEVELOPMENT_STATE.md`, `docs/port-0-57/` and `docs/history/` are the author's working records: dated, kept as they were, and written for the author's machine (absolute paths in the live test scripts are deliberate). Most project documentation is in Portuguese.
 
 ## Known limits
-- Restore geometry and show-desktop origins live in Lua tables and are lost on a core/config reload. Keep-above and keep-below lists are rebuilt from window tags when the core is loaded; this does not make every state reload-safe.
+- Restore geometry lives in a Lua table and is lost on a core/config reload. Show-desktop origins, keep-above and keep-below are kept in window tags and survive it; this does not make every state reload-safe.
+- Title-bar drag ends through the compositor: if another client grabs input exactly on release, the drag continues until the next key or click (accepted for the alpha). Touch on the bar is off.
 - The fallback bars are layer-shell surfaces: not at window level, and they trail animated windows by up to 80 ms.
 - Recorded tests include two monitors, but cross-monitor drops, workspace modes on the second monitor and non-default scale/rotation still have pending scenarios. XWayland-only setups and a real Hyprland package upgrade are not established as validated.
 - The name Kwinish is provisional.

@@ -8,14 +8,18 @@ Arquitetura: [ARCHITECTURE](ARCHITECTURE.md); workflow: [CONTRIBUTING](CONTRIBUT
 
 ## Limites atuais e produto futuro
 
-- A cascata Floating continua com falha ao vivo registrada em 28/10; isso diverge do requisito em [workspace-modes](../openspec/specs/workspace-modes/spec.md). A causa sugerida no relato não foi confirmada por esta revisão.
-- Minimizar/ocultar pode perder `kwinish-mode-floated`; `show_desktop` guarda um único `stashed` local que se perde ao recarregar o núcleo. Hooks/timers e internals do plugin continuam riscos técnicos separados, conforme a auditoria de 28/10.
-- `harden-user-data-io` e `add-pin-and-icon-tooltips` permanecem mudanças ativas. Tarefas marcadas não equivalem a arquivamento ou cobertura ao vivo completa. Nada foi sincronizado no OpenSpec nesta reorganização.
+Atualizado em **01/11/2026** (branch do port para o Hyprland 0.57; o estado de cada etapa está em `docs/DEVELOPMENT_STATE.md`).
+- **Base: Hyprland 0.57.0.** A linha 0.56.2 fica no histórico do Git. O plugin é compilado para o Hyprland exato em que roda.
+- **Consertados, só em simulação, à espera do teste ao vivo do dono** (mudanças OpenSpec ativas, com roteiro no `tasks.md` de cada uma e abaixo, em "Testes pendentes"):
+  - `fix-core-lifecycle`: cascata do modo Floating (falha ao vivo de 28/10), procedência do modo ao minimizar e em "mostrar área de trabalho", origens de "mostrar área de trabalho" que se perdiam ao recarregar o núcleo, ajuste de colunas atrasado, ganchos de `setup()` duplicados na recarga, `zone` em tela cheia;
+  - `fix-input-ipc`: clique e roda numa barra coberta pela janela da frente, símbolos dos botões por escala de monitor, socket das barras sem prazo, escolha do Snap Assist sem revalidação.
+- **Entrega:** `Makefile` com os cabeçalhos, pacote do plugin com todos os fontes, recompilação que confere os `install` e CI (`.github/workflows/check.yml`); instalação, remoção e upgrade reais ainda não foram testados, e a CI ainda não rodou (sem remoto).
+- **Riscos aceitos** (tabela em `docs/DEVELOPMENT_STATE.md`): tiling centrado no cursor ao arrastar, `floatWindow` do núcleo encerra drag ativo, C1/C2, opção (b) do achado 6. O toque na barra continua desligado (spec `title-bar`).
+- **Ainda não testados ao vivo:** segundo monitor (Shift ao arrastar, modo floating, encaixe ao soltar noutro monitor), escalas diferentes de 1, monitor girado, hook do pacman num upgrade real do `hyprland`.
 - Barra/dock/launcher oficiais, Overview e Rice Store não fazem parte da implementação atual. D-43/D-44/D-45 e a API futura de restauração pertencem ao [produto](product/WORKSPACES.md), sem validação executada.
-- Hyprland 0.56.2 é a base documentada; 0.57 exige trabalho independente. O [parecer externo](history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md) é preliminar, não certificado de compatibilidade.
 
 ## O que é
-Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.56.2, em três peças:
+Uma camada de gerenciamento de janelas estilo KDE/KWin para o Hyprland 0.57 (a linha 0.56.2 fica no histórico do Git), em três peças:
 - **Plugin `kwinish-bars`** (C++, fork do hyprbars): barra de título com ícone, fixar, minimizar/maximizar/fechar, menu, encaixe nas bordas e zonas.
 - **Núcleo Lua** (`core/`): a lógica (encaixe, zonas, modos, regras, Alt+Tab, atalhos), carregada pela config do Hyprland. No ambiente dos testes registrados, o Hyprland 0.56.2 rodava a config em **Lua 5.5**.
 - **UI em Rust** (`ui/`, `kwinish-ui`): menu da janela, Alt+Tab, seletor e editor de layouts, Snap Assist, janela de configurações, diálogo de atalho, barras de reserva.
@@ -78,7 +82,7 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
    - Próximo: o teste ao vivo 11 do dono e, com ele aprovado, `/opsx:archive harden-user-data-io`.
 2. **Testes ao vivo do dono:** itens 2, 3, 10 e 11 abaixo.
 3. **Conferir a versão carregada antes de futuros testes** (dono): o relato anterior de pacotes r86/r85 dizia que `hyprctl reload` voltava ao núcleo e plugin antigos de `/usr/share` e `/usr/lib`. A auditoria posterior registra r172.5333087 instalado, sem resultado completo do teste 12. Um reload usa o código da configuração instalada, não garante o HEAD do repositório. Esse era o próximo passo antes da instalação registrada na auditoria de 28/10; não há autorização automática para reinstalar. Procedimento histórico: [HANDOFF](history/handoffs/HANDOFF.md), "Construir".
-4. **Achados da auditoria do Codex (27/10) ainda não corrigidos** (reproduzidos em isolamento, não vistos no desktop); correções futuras devem passar por mudanças próprias no OpenSpec:
+4. **Achados da auditoria do Codex (27/10)** (reproduzidos em isolamento, não vistos no desktop). **01/11/2026:** as etapas C, D e E abaixo foram consertadas em simulação (`fix-core-lifecycle`, `fix-input-ipc`, commit `91b9cc1` para a entrega), à espera dos testes ao vivo CL e II; o texto original segue para referência:
    - ciclo de vida (etapa C): minimizar apaga a procedência do modo floating (a janela pode não voltar ao mosaico); "mostrar área de trabalho" perde as origens depois de um reload; um ajuste de colunas atrasado sobrescreve a escolha mais nova; recarregar o módulo mantém callbacks antigos; `zone` não confere tela cheia como `tile` confere;
    - entrada e comunicação (etapa D): a barra da janela focada aceita o clique destinado à janela da frente; leitura sem tempo-limite no socket das barras; o Assist não revalida workspace, monitor e layout na escolha; cache de símbolos dos botões sem escala;
    - entrega (etapa E): o `Makefile` do plugin ignora os `.hpp`; `kwinish-bars-rebuild` anuncia sucesso sem conferir os `install`; CI.
@@ -100,6 +104,79 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
+
+**CL. Ciclo de vida do núcleo e cascata do modo Floating (OpenSpec `fix-core-lifecycle`; 01/11/2026; não executado)**
+Confere a cascata do modo Floating (falha ao vivo de 28/10), a procedência do modo ao minimizar e em "mostrar área de trabalho", as origens de "mostrar área de trabalho" depois de recarregar o núcleo e `zone` em tela cheia. Mexe em `workspace-modes.json` (guardado antes). Use um workspace vazio, por exemplo o 5. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish`:
+```bash
+hyprctl plugin list
+```
+```bash
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh save /home/lhen/.local/state/kwinish-backup/teste-cl /home/lhen/.config/kwinish/workspace-modes.json /home/lhen/.config/kwinish/workspace-modes.json.bak /home/lhen/.config/kwinish/workspace-columns.json /home/lhen/.config/kwinish/workspace-columns.json.bak
+mkdir -p /tmp/kwinish-cl
+make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-cl/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-cl/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+```
+Deve acontecer: `live-backup: 4 caminho(s) guardado(s)`; `make` sem `error`; `plugin load` sem erro. Vá ao workspace 5 (SUPER+5) e ponha-o no modo floating:
+```bash
+hyprctl eval "require('kwinish').set_workspace_mode(hl.get_active_workspace().id, 'floating')"
+```
+1. **Cascata:** abra três janelas, uma de cada vez: `kitty --class kwcl &` (três vezes, esperando cada uma aparecer). Todas nascem flutuantes, e cada nova fica deslocada da anterior, em escada, sem passar pelo mosaico.
+Os atalhos do Kwinish não estão na sua config (só o núcleo foi carregado), então os passos usam comandos. Para trazer de volta um `kwcl` minimizado ao workspace 5:
+```bash
+hyprctl eval "require('kwinish').window_action('$(hyprctl clients -j | jq -r 'first(.[] | select(.class == "kwcl" and .workspace.name == "special:minimized")) | .address')', 'workspace:5')"
+```
+2. **Minimizar:** minimize um `kwcl` pelo botão da barra e traga de volta com o comando acima. Depois ponha o workspace em tiling:
+```bash
+hyprctl eval "require('kwinish').set_workspace_mode(hl.get_active_workspace().id, 'tiling')"
+```
+   Os três `kwcl` vão para o mosaico, inclusive o que foi minimizado. Volte ao floating (comando de floating acima).
+3. **Minimizado quando o modo acaba:** minimize um `kwcl`, rode o comando de tiling e só então traga a janela de volta com o comando acima: ela volta já no mosaico. Volte ao floating.
+4. **"Mostrar área de trabalho" com recarga:** rode `hyprctl eval "require('kwinish').show_desktop()"` (as janelas somem). Recarregue o núcleo com o comando de carga do núcleo acima e rode o mesmo `show_desktop` de novo: as três voltam ao workspace 5.
+5. **Zona em tela cheia:** dentro de um `kwcl` (ele fica focado), rode `hyprctl eval "require('kwinish').window_action(hl.get_active_window().address, 'fullscreen')"` para pô-lo em tela cheia e, no mesmo terminal, `hyprctl eval "require('kwinish').window_action(hl.get_active_window().address, 'zone:1')"`: a janela continua em tela cheia, sem mudar de tamanho. Rode o comando de `fullscreen` de novo para sair.
+Desfazer (fecha as janelas de teste, devolve os arquivos, tira o plugin e o núcleo):
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwcl") | .pid') 2>/dev/null
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore /home/lhen/.local/state/kwinish-backup/teste-cl
+hyprctl plugin unload /tmp/kwinish-cl/kwinish-bars.so
+hyprctl reload
+```
+Se a pasta `/home/lhen/.config/kwinish` sobrar vazia, `rmdir /home/lhen/.config/kwinish` a remove. *Se a sessão travar:* Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-cl/kwinish-bars.so`.
+
+**II. Entrada e comunicação: barra coberta, símbolos por escala, Snap Assist (OpenSpec `fix-input-ipc`; 01/11/2026; não executado)**
+Só plugin e núcleo. Os passos 2 e 3 gravam o layout ativo em `/home/lhen/.config/kwinish/layout`, guardado antes e devolvido no desfazer. Antes de tudo, este comando não deve listar nenhum `kwinish`:
+```bash
+hyprctl plugin list
+```
+```bash
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh save /home/lhen/.local/state/kwinish-backup/teste-ii /home/lhen/.config/kwinish/layout
+mkdir -p /tmp/kwinish-ii
+make -C /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-ii/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-ii/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwii & kitty --class kwii &
+```
+Deixe os dois `kwii` flutuantes (SUPER+V em cada um).
+1. **Barra coberta:** ponha um `kwii` parcialmente por cima da barra do outro. Clique no de trás (para ele ficar focado) e depois clique na parte da barra dele que está coberta pelo da frente: quem recebe o clique é a janela da frente, e a barra de trás não reage (não foca, não abre menu, não arrasta). Gire a roda do mouse no mesmo ponto: a janela de trás não sobe nem desce.
+2. **Snap Assist com layout trocado:** escolha o layout `thirds` com `hyprctl eval "require('kwinish').set_layout('thirds')"`. Rode o comando abaixo e, em até 5 s, arraste um `kwii` pelo título com Shift segurado até a zona da esquerda e solte; o overlay do Assist abre na zona do meio com o outro `kwii`:
+```bash
+(sleep 5; hyprctl eval "require('kwinish').set_layout('halves')") &
+```
+   Espere passar os 5 s (o layout mudou por trás) e clique no `kwii` do overlay: ele **não** é encaixado.
+3. **Snap Assist normal:** volte ao `thirds` (comando do passo 2), solte de novo um `kwii` na zona da esquerda com Shift e clique no outro no overlay sem mudar nada: ele vai para a zona do meio.
+4. **Escala (só se houver dois monitores com escalas diferentes):** leve um `kwii` de um monitor ao outro: os símbolos de minimizar, maximizar e fechar continuam nítidos e no tamanho certo nos dois.
+5. **Log:** este comando não deve mostrar `Q1 violated` nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+Desfazer:
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwii") | .pid') 2>/dev/null
+bash /home/lhen/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore /home/lhen/.local/state/kwinish-backup/teste-ii
+hyprctl plugin unload /tmp/kwinish-ii/kwinish-bars.so
+hyprctl reload
+```
+Se a pasta `/home/lhen/.config/kwinish` sobrar vazia, `rmdir /home/lhen/.config/kwinish` a remove (só remove pasta vazia). *Se a sessão travar:* Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-ii/kwinish-bars.so`.
 
 **RP. A barra desenhada com a foto do quadro (`SWindowRenderPresentation`; 01/11/2026; executado pelo dono: passou)**
 Correção de render: a barra passa a usar os deslocamentos de workspace e de flutuação que o compositor entrega em cada quadro, como a borda nativa, em vez de ler o estado vivo da janela. No modo normal os dois são iguais; a diferença aparece em animações e cenas de workspace. Só plugin e núcleo; nenhum arquivo seu muda. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):

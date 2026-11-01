@@ -1,6 +1,6 @@
 # Kwinish: regras para agentes (Claude Code, Codex)
 
-Gerenciamento de janelas estilo KDE para o Hyprland 0.56.2, em três camadas: `plugin/` (C++), `core/` (Lua), `ui/` (Rust GTK4).
+Gerenciamento de janelas estilo KDE para o Hyprland 0.57 (a linha 0.56.2 fica no histórico do Git), em três camadas: `plugin/` (C++), `core/` (Lua), `ui/` (Rust GTK4).
 
 ## Ler antes de mexer
 1. [Mapa documental](docs/README.md), [arquitetura atual](docs/ARCHITECTURE.md) e `docs/STATUS.md`, seção "Para a próxima sessão": implementação, estado e próximos passos.

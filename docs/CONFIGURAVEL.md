@@ -16,7 +16,7 @@ Aplicam na hora, sem recarregar o plugin (verificado só para `seam_resistance`;
 | Botões | `default_buttons` (true), `bar_buttons_alignment` ("right"), `bar_button_padding` (5), `icon_on_hover` (false), `show_icon` (true), `on_double_click` ("maximize"), `button` (palavra-chave, um por botão) |
 | Encaixe | `snap_top_edge` (true), `snap_preview` (true), `seam_resistance` (200 px, 0 desliga) |
 
-**Alpha-1 do porte 0.57** (OpenSpec `enable-titlebar-drag-alpha1`, código em `port-kwinish-bars-to-hyprland-0-57`, não validado ao vivo): arrastar pela barra voltou, e as três opções de Encaixe voltam a agir, com os mesmos nomes, tipos e padrões. Diferença da 0.56.2: a animação de 140 ms ao sair do encaixe acontece antes de o arrasto começar, e não com ele pausado (mesma aparência); se outro programa capturar a entrada bem na hora de soltar, o arrasto continua até a próxima tecla ou clique (custo aceito). O toque na barra continua desligado.
+**Alpha-1 do porte 0.57** (OpenSpec `enable-titlebar-drag-alpha1`; testes ao vivo A1, A1b e A1c passaram em 01/11/2026): arrastar pela barra voltou, e as três opções de Encaixe voltam a agir, com os mesmos nomes, tipos e padrões. Diferença da 0.56.2: a animação de 140 ms ao sair do encaixe acontece antes de o arrasto começar, e não com ele pausado (mesma aparência); se outro programa capturar a entrada bem na hora de soltar, o arrasto continua até a próxima tecla ou clique (custo aceito). O toque na barra continua desligado.
 
 ## 2. Arquivos do usuário (`~/.config/kwinish/`)
 | Arquivo | O que guarda | Quem edita hoje | Aplica |

@@ -2,7 +2,25 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada em `874a9df`; ao vivo RP: passou)
+## Resultado mais recente — pronto para o GitHub: etapas C, D e E, CI e publicação (01/11/2026; o dono mandou fazer tudo; testes ao vivo CL e II pendentes)
+
+Pedido do dono (01/11/2026): fazer tudo o que faltava para o Kwinish estar pronto, usar o Codex onde possível, deixar os testes ao vivo para ele e deixar pronto para o GitHub. Decisões dele no chat: repositório **público**; juntar a branch do port na `master` no fim; consertos de comportamento direto pelo OpenSpec, sem parar a cada proposta.
+- **Etapa E (entrega), eu, `91b9cc1`:** `plugin/Makefile` com os cabeçalhos como pré-requisitos; `packaging/plugin/PKGBUILD` instala todos os fontes do plugin menos os testes (faltavam 5 cabeçalhos e a recompilação depois de um upgrade do Hyprland falharia); `kwinish-bars-rebuild` só anuncia sucesso se os `install` funcionarem; `.github/workflows/check.yml` roda `tools/check.sh` num contêiner Arch como usuário comum. Teste novo `tools/test-packaging.sh` (3 falhas antes, verde depois; controle com módulo novo do núcleo fora do pacote). A CI ainda não rodou (sem remoto).
+- **Etapa C e cascata, Codex + revisão, `92d1b2a` (OpenSpec `fix-core-lifecycle`, ativa):** cascata posta pelo núcleo depois de abrir; procedência do modo floating preservada ao minimizar e em "mostrar área de trabalho" (`kwinish-mode-hidden`); origens de "mostrar área de trabalho" em etiquetas (`kwinish-desktop-N`); colunas com a escolha mais nova; `zone` confere tela cheia. A recarga com ganchos duplicados o Codex deixou pendente; feito na revisão com a trava global `KWINISH_SETUP_HOOKS`. Vermelho e verde em `docs/port-0-57/evidence/fix-core-lifecycle-tests/`.
+- **Etapa D, Codex + revisão, `60d897b` e `3d28f18` (OpenSpec `fix-input-ipc`, ativa):** press e roda só na barra sob o ponteiro (`inputIsValid(true)`; a função "pura" do Codex ignorava o próprio argumento e foi trocada); símbolos dos botões com uma textura por escala (a versão do Codex refaria a textura a cada quadro com monitores de escalas diferentes); socket das barras com prazo de 500 ms e 1 MiB; Snap Assist revalidado no núcleo (`assist:<geração>`, `assist.json` com `workspace` e `layout`), feito por mim depois de juntar as branches. Vermelho e verde em `docs/port-0-57/evidence/fix-input-ipc-tests/`.
+- **Codex:** a primeira tentativa pelo agente falhou porque o sandbox só deixava escrever na pasta da sessão; rodado direto com `codex exec -s workspace-write -C <worktree>`, sem commit (eu revisei e commitei). Worktrees `kwinish-wt-core` e `kwinish-wt-input` (branches `fix-core-lifecycle`, `fix-input-ipc`), juntadas na branch do port.
+- **Publicação (`b278311` e este commit):** README em 0.57, alpha, pacotes, CI e registros de desenvolvimento; `.codex/config.toml` fora do Git (gerado, com caminhos da máquina; continua no disco); `AGENTS.md`, `ARCHITECTURE.md`, `CONFIGURAVEL.md` e "Limites atuais" do `STATUS.md` atualizados. Nenhum segredo (varredura por chaves e tokens). Ficam de propósito: o e-mail nos `PKGBUILD` (mantenedor) e nos commits; caminhos `/home/lhen` nos registros de desenvolvimento e nos roteiros ao vivo (regra do dono: caminho completo), dito no README.
+- **Revisão independente (Codex, `codex exec -s read-only`, sobre `e4b6907..3d28f18`): approve with fixes**, texto em `docs/port-0-57/evidence/review-fixes/codex-review.md`. A primeira tentativa travou esperando a entrada padrão; rodada de novo com `< /dev/null`. Os 4 achados confirmados e a suspeita foram consertados, cada um com teste vermelho antes:
+  1. Assist: a escolha valia mesmo depois de trocar o workspace mostrado no monitor; agora o `active_workspace` do monitor tem de ser o publicado;
+  2. recarga: os ganchos de `setup()` rodavam o código do módulo antigo; agora só repassam a `on_setup_active`/`on_setup_open` do módulo atual;
+  3. `test-packaging.sh`: `make -q` com erro (saída 2) passava; agora exige 1;
+  4. `test-packaging.sh`: a falha de `install` só exigia a ausência de "sucesso"; agora exige a mensagem de falha e cobre a falha na instalação da ABI;
+  5. (suspeita, confirmada por teste) a cascata mexia numa janela que entrara em tela cheia nos 30 ms.
+  O revisor não rodou o `check.sh` (sandbox só leitura); rodado depois por mim.
+- **Validação:** `check.sh` exit 0 com tudo junto, depois dos consertos da revisão; build GCC/Clang 0 erros, avisos 7/2. Tudo simulado. Roteiros **CL** e **II** no `docs/STATUS.md` (não executados).
+- **Pendências:** testes ao vivo CL e II (dono); depois arquivar `fix-core-lifecycle` e `fix-input-ipc`; criar o repositório no GitHub e o primeiro push (dono; trocar `url` dos `PKGBUILD` de `example.invalid` para o endereço real); instalação real pelos pacotes; testes com dois monitores. Riscos aceitos na tabela abaixo.
+
+## Anterior — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada em `874a9df`; ao vivo RP: passou)
 
 Decisões do dono (01/11/2026), uma por pendência:
 - **`SWindowRenderPresentation`: corrigir agora.** Feito, ver RP abaixo.

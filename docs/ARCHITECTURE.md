@@ -77,7 +77,7 @@ O plugin deriva do hyprbars, com licença/atribuição preservadas em [NOTICE](.
 
 As barras de reserva são superfícies layer-shell: não participam do empilhamento como decoração de janela, precisam de acompanhamento/recorte e possuem limitações visuais. Um ensaio de emergência com `.so` vazio e recibo incompatível foi registrado em 24/10; não é um teste completo de atualização real de pacote. Receitas, comandos e demais limites estão em [PLUGIN](PLUGIN.md).
 
-Hyprland 0.56.2 é a base documentada. A [análise externa de 0.57](history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md) é preliminar. Mudanças Lua/eventos e ABI C++ exigem validações distintas, em tarefa independente; nenhum upgrade ou rebuild foi realizado aqui.
+Este documento descreve o código de 29/10/2026, quando a base era o Hyprland 0.56.2. **Desde 01/11/2026 a base é o Hyprland 0.57.0** (port registrado em `docs/port-0-57/`, nas mudanças OpenSpec arquivadas e em `docs/DEVELOPMENT_STATE.md`); as seções acima não cobrem as mudanças do port. A [análise externa de 0.57](history/product-import/2026-10-28/external-originals/docs/product/engineering/HYPRLAND_0_57_COMPATIBILITY.md) de 28/10 era preliminar.
 
 ## Estado de implementação e de validação
 
