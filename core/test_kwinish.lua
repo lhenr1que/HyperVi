@@ -32,7 +32,8 @@ local function run()
   local mon = { name = "TEST", x = 0, y = 0, width = 1600, height = 1000, scale = 1, reserved = {} }
   local side = { name = "SIDE", x = 1600, y = 0, width = 1000, height = 800, scale = 1, reserved = {} }
   local workspaces = { { id = 1, name = "1", tiled_layout = "dwindle", monitor = mon }, { id = 2, name = "2", tiled_layout = "dwindle", monitor = mon },
-    { id = -99, name = "special:minimized" }, { id = 4, name = "4", tiled_layout = "dwindle", monitor = side } }
+    { id = -99, name = "special:minimized" }, { id = 4, name = "4", tiled_layout = "dwindle", monitor = side },
+    { id = -98, name = "special:kwinish_desktop" } }
   local wins, events, timers, calls, execs, rules = {}, {}, {}, {}, {}, {}
   local clock, serial, active, home, refused = 0, 0, nil, workspaces[1], nil
   local tops = {}
@@ -185,6 +186,19 @@ local function run()
   local other = window("other", 2)
   active = a
   local kw = reload()
+  -- Regression: zone actions must reject fullscreen and unmapped windows, like tile.
+  manual.fullscreen = 1
+  calls = {}; kw.window_action(manual.address, "zone:1")
+  assert(count("resize") == 0 and count("move") == 0, "zone ignores fullscreen")
+  manual.fullscreen, manual.mapped = 0, false
+  calls = {}; kw.window_action(manual.address, "zone:1")
+  assert(count("resize") == 0 and count("move") == 0, "zone ignores unmapped")
+  manual.mapped = true
+  -- show desktop retains each window's origin when the core is reloaded.
+  kw.show_desktop({ filter = function(w) return w == a end })
+  assert(a.workspace.name == "special:kwinish_desktop")
+  kw = reload(); kw.show_desktop()
+  assert(a.workspace.id == 1, "show desktop restores after core reload")
   -- Keyboard snapping uses the active floating window without options.
   active = manual
   kw.tile("left")
@@ -200,6 +214,15 @@ local function run()
   assert(home.tiled_layout == "dwindle" and a.floating and b.floating and tag(a, "kwinish-mode-floated"))
   rect(a, 240, 112, 1024, 680); rect(b, 264, 136, 1024, 680)
   assert(manual.floating and not tag(manual, "kwinish-mode-floated") and not full.floating and not pinned.floating and not other.floating, "mode exclusions")
+  -- A temporary trip to minimized must not erase the mode's claim.
+  a.workspace = workspaces[3]; emit("window.move_to_workspace", a)
+  a.workspace = workspaces[1]; emit("window.move_to_workspace", a)
+  assert(tag(a, "kwinish-mode-floated"), "minimize preserves floating-mode provenance")
+  a.workspace = workspaces[3]; emit("window.move_to_workspace", a)
+  kw.set_workspace_mode(1, "tiling")
+  a.workspace = workspaces[1]; emit("window.move_to_workspace", a)
+  assert(not a.floating and not tag(a, "kwinish-mode-floated"), "restoring after mode ends tiles the window")
+  kw.set_workspace_mode(1, "floating")
   a.at, a.size = { -120, 230 }, { 510, 420 }
   b.at, b.size = { 700, -80 }, { 620, 330 }
   kw.set_workspace_mode(1, "tiling")
@@ -222,12 +245,17 @@ local function run()
   -- its tiled size first. `other` takes cascade step 0, so the rule waits at step 1.
   kw.set_workspace_mode(2, "floating")
   rect(other, 240, 112, 1024, 680)
+  local stale_rule = rules["kwinish-mode-floating-2"]
   local n1 = open("n1", 2)
   local f1 = n1.first
   assert(f1.floating and f1.x == 264 and f1.y == 136 and f1.w == 1024 and f1.h == 680, "born floating at the mode rectangle")
   assert(tag(n1, "kwinish-mode-floated"), "claimed by the mode")
+  -- Model a compositor that does not apply a rule redeclared during window.open.
+  rules["kwinish-mode-floating-2"] = stale_rule
   local n2 = open("n2", 2)
-  assert(n2.first.floating and n2.first.x == 288 and n2.first.y == 160, "the next window cascades from its first frame")
+  assert(n2.first.floating, "the next window is born floating")
+  advance(30)
+  assert(n2.at[1] == 288 and n2.at[2] == 160, "cascade advances even with a stale opening rule")
   local dlg = open("dlg", 2, true)
   assert(dlg.size[1] == 300 and dlg.at[1] == 650 and not tag(dlg, "kwinish-mode-floated"), "a window that floats on its own is left alone")
   calls = {}
@@ -281,6 +309,16 @@ local function run()
   calls = {}; kw.refresh_columns(1); advance(500); assert(count("layout") == 0)
   kw.set_scrolling_columns(1, 3)
   assert(a.column == "colresize 0.332", "already scrolling resizes immediately")
+  -- A queued refresh must use the latest choice, including clearing it.
+  kw.refresh_columns(1)
+  kw.set_scrolling_columns(1, 1)
+  calls = {}; advance(250)
+  assert(a.column == "colresize 1.000", "refresh uses latest column choice")
+  kw.refresh_columns(1)
+  kw.set_scrolling_columns(1, 1)
+  calls = {}; advance(250)
+  assert(count("layout") == 0, "cleared columns cancel refresh")
+  kw.set_scrolling_columns(1, 3)
   calls = {}; refused = b
   kw.set_scrolling_columns(1, 1)
   assert(count("layout") == 2 and a.column == "colresize 1.000", "refused focus skips the column")
@@ -465,6 +503,12 @@ local function run()
   kw.window_action(a.address, "rule:below")
   failing_write, io.stderr = nil, stderr
   assert(state("rules.json") == "not json", "no copy, no replacement")
+  -- Known failing regression, opt in until reload lifecycle is corrected.
+  -- reloading the core (package.loaded.kwinish = nil; require) must not register setup's hooks again
+  kw = reload(); kw.setup({ autoraise_ms = 50, placement = "center" })
+  local active_hooks, open_hooks = #events["window.active"], #events["window.open"]
+  kw = reload(); kw.setup({ autoraise_ms = 50, placement = "center" })
+  assert(#events["window.active"] == active_hooks and #events["window.open"] == open_hooks, "setup hooks duplicated on reload")
 end
 
 local ok, err = xpcall(run, debug.traceback)

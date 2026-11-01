@@ -1,0 +1,11 @@
+lua5.5: core/test_kwinish.lua:497: core/test_kwinish.lua:201: show desktop restores after core reload
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:201: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:494: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:497: in main chunk
+	[C]: in ?

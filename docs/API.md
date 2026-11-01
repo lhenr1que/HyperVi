@@ -54,7 +54,7 @@ Writing (the core through `kwjson.write`: `rules.json`, `workspace-modes.json`, 
 Reading JSON (the core through `core/kwjson.lua`, `kwinish-ui` through `zones::read_json`, with the same verdicts on `core/testdata/json-cases.txt`): the `.json` files above, runtime ones included, are read as data, never run as Lua. RFC 8259: UTF-8, no comments, no trailing commas, finite numbers. At most 1 MiB (the core reads 1 MiB + 1 byte and refuses a larger file) and 32 levels of arrays and objects. A JSON file with a syntax error, over a limit, or whose root is not the shape in the table is ignored whole: no entries, the defaults apply, and the core writes one line `kwinish: <file> ignored: <reason>` to Hyprland's stderr per file and reason. In a valid file only the top-level members of the shape count; an entry of the wrong type or out of range is dropped alone, unknown members are ignored, and a repeated member takes its last value. `kwinish-ui` treats a refused file as absent, copies it to `<name>.bak` before saving over it, and its window menu marks only the rules and modes the core applies. The plain-text `layout` has its own reader described in the table; the JSON limits do not describe `load_layout()`. Until 27/10 the core ran `rules.json` and `layouts.json` as Lua and picked the other files' entries out of the text: Lua expressions, entries of truncated files, of a wrong root or nested in another object no longer count.
 
 ## 5. Window tags (set by the core, readable by a dock)
-`kwinish-above`, `kwinish-below`, `kwinish-noframe`, `kwinish-nocapture`, `kwinish-mode-floated`, `kwinish-rect-X-Y-W-H` (geometry before a mode change).
+`kwinish-above`, `kwinish-below`, `kwinish-noframe`, `kwinish-nocapture`, `kwinish-mode-floated`, `kwinish-mode-hidden`, `kwinish-desktop-N` (workspace de origem), `kwinish-rect-X-Y-W-H` (geometry before a mode change).
 
 ## 6. Minimized windows (what a dock needs)
 `minimize` moves the window to workspace `special:minimized` without following it. A dock lists windows there as minimized
@@ -63,7 +63,7 @@ event that marks "minimized" without relying on the workspace name.
 
 ### Show desktop is a separate mechanism
 
-[`show_desktop()`](../core/kwinish.lua) moves eligible windows from the active workspace to `special:kwinish_desktop` and records their origins in one module-local `stashed` table. The next invocation restores that table. Reloading the core forgets it. This is separate from `special:minimized`; the focus hook described above restores minimized windows, not the full future show-desktop contract.
+[`show_desktop()`](../core/kwinish.lua) moves eligible windows from the active workspace to `special:kwinish_desktop` and records their workspace origins in window tags. The next invocation restores tagged windows still in that special workspace, including after reloading the core. This is separate from `special:minimized`; the focus hook described above restores minimized windows, not the full future show-desktop contract.
 
 No current command here implements D-43/D-44/D-45 restoration on workspace departure, eligible window creation or dock selection. `request_restore`, generation/journal proposals and a public snapshot/event service belong to [product proposals](product/PROPOSALS.md), not this v0 API. Current state read from `core/kwinish.lua`, `show_desktop`, `window_action`, and the `KWINISH_RULES_HOOK` focus hook.
 
