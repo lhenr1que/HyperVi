@@ -26,23 +26,26 @@ local function esc(s)
   return (tostring(s or ""):gsub('[%c"\\]', function(c) return string.format("\\u%04x", c:byte()) end))
 end
 
--- The JSON kwinish-ui assist reads: {"generation":N,"monitor":..,"zone":N,"rect":[x,y,w,h],"items":[{"address","class","title"}]}
-function M.json(monitor, plan, generation)
+-- The JSON kwinish-ui assist reads: {"generation":N,"monitor":..,"zone":N,"rect":[x,y,w,h],"workspace":N,"layout":..,
+-- "items":[{"address","class","title"}]}. workspace and layout (ctx) let the core refuse a pick made after they changed.
+function M.json(monitor, plan, generation, ctx)
   local items = {}
   for _, w in ipairs(plan.candidates) do
     items[#items + 1] = string.format('{"address":"%s","class":"%s","title":"%s"}', esc(w.address), esc(w.class), esc(w.title))
   end
   local r = plan.rect
-  return string.format('{"generation":%d,"monitor":"%s","zone":%d,"rect":[%d,%d,%d,%d],"items":[%s]}', generation, esc(monitor), plan.zone,
-    math.floor(r.x + 0.5), math.floor(r.y + 0.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5), table.concat(items, ","))
+  ctx = ctx or {}
+  return string.format('{"generation":%d,"monitor":"%s","zone":%d,"rect":[%d,%d,%d,%d],"workspace":%d,"layout":"%s","items":[%s]}', generation,
+    esc(monitor), plan.zone, math.floor(r.x + 0.5), math.floor(r.y + 0.5), math.floor(r.w + 0.5), math.floor(r.h + 0.5),
+    math.tointeger(ctx.workspace) or 0, esc(ctx.layout), table.concat(items, ","))
 end
 
 -- Preserve the last published generation across core reloads; never expose partial JSON (kwjson.write: temporary file + rename;
 -- runtime state is disposable, so no backup).
-function M.write(path, monitor, plan)
+function M.write(path, monitor, plan, ctx)
   local old = kwjson.decode(kwjson.read(path))
   local generation = (kwjson.is_object(old) and math.type(old.generation) == "integer" and old.generation or 0) + 1
-  if kwjson.write(path, M.json(monitor, plan, generation)) then return generation end
+  if kwjson.write(path, M.json(monitor, plan, generation, ctx)) then return generation end
 end
 
 return M

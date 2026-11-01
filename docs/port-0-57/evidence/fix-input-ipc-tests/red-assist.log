@@ -1,0 +1,11 @@
+lua: core/test_kwinish.lua:532: core/test_kwinish.lua:441: assist state carries workspace and layout: {"generation":3,"monitor":"TEST","zone":2,"rect":[533,0,533,1000],"items":[{"address":"c","class":"Test","title":"c"},{"address":"d","class":"Test","title":"d"},{"address":"e","class":"Test","title":"e"},{"address":"f","class":"Test","title":"f"},{"address":"g","class":"Test","title":"g"},{"address":"h","class":"Test","title":"h"},{"address":"k","class":"Test","title":"k"},{"address":"candidate","class":"Test","title":"candidate"}]}
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:441: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:529: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:532: in main chunk
+	[C]: in ?

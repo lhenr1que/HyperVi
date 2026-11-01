@@ -1,6 +1,7 @@
 // Snap Assist: after a window fills a layout zone the core writes $XDG_RUNTIME_DIR/kwinish/assist.json (the next empty zone and the loose
 // windows) and starts this one-shot overlay. It covers that zone with a card per window; a choice goes back to the core as
-// window_action(addr, "zone:N"), which offers the next empty zone. Esc, a click outside or 20 s end it.
+// window_action(addr, "assist:<generation>"): the core puts the window in the zone only if the workspace, monitor and layout the
+// overlay showed still hold, then offers the next empty zone. Esc, a click outside or 20 s end it.
 use gtk4::prelude::*;
 use gtk4::{glib, Application, ApplicationWindow, Box as GtkBox, Button, CssProvider, Fixed, GestureClick, Image, Label, Orientation};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -35,6 +36,11 @@ fn state_path() -> std::path::PathBuf {
 fn same_generation(path: &std::path::Path, generation: u64) -> bool {
     crate::zones::read_text(path).and_then(|s| parse(&s))
         .is_some_and(|a| a.generation == generation)
+}
+
+// the action a pick sends: the core revalidates the published state of this generation before placing the window
+fn pick_action(generation: u64) -> String {
+    format!("assist:{generation}")
 }
 
 fn valid_choice(path: &std::path::Path, generation: u64, addr: &str, clients: &str) -> bool {
@@ -86,13 +92,13 @@ pub fn run() -> glib::ExitCode {
             row.append(&text);
             let b = Button::builder().child(&row).build();
             b.add_css_class("card");
-            let (app2, addr, zone, generation) = (app.clone(), addr.clone(), a.zone, a.generation);
+            let (app2, addr, generation) = (app.clone(), addr.clone(), a.generation);
             b.connect_clicked(move |_| {
                 let clients = std::process::Command::new("hyprctl").args(["clients", "-j"]).output()
                     .ok().filter(|o| o.status.success())
                     .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
                 if valid_choice(&state_path(), generation, &addr, &clients) {
-                    crate::menu::run_action(&addr, &format!("zone:{zone}"));
+                    crate::menu::run_action(&addr, &pick_action(generation));
                 }
                 app2.quit();
             });
@@ -165,6 +171,11 @@ mod tests {
 #[cfg(test)]
 mod choice_tests {
     use super::*;
+    #[test]
+    fn pick_is_revalidated_by_the_core() {
+        assert_eq!(super::pick_action(7), "assist:7");
+    }
+
     #[test]
     fn rejects_replaced_generation_and_missing_window() {
         let path = std::env::temp_dir().join(format!("kwinish-assist-{}.json", std::process::id()));

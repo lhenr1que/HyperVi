@@ -2,7 +2,7 @@
 
 - [x] Testar e corrigir o press na janela superior.
 - [x] Testar e limitar leitura do socket das barras.
-- [ ] Testar e revalidar o contexto do Assist na escolha (pendente de coordenação em `core/kwinish.lua`).
+- [x] Testar e revalidar o contexto do Assist na escolha (orquestrador, depois de juntar `fix-core-lifecycle`): `assist.json` passa a trazer `workspace` e `layout`; o overlay manda `assist:<geração>`; o núcleo só põe a janela se geração, janela, workspace, monitor, layout e retângulo da zona ainda conferirem. Vermelho em `red-assist.log`, verde em `green-assist.log`; teste Rust `pick_is_revalidated_by_the_core`.
 - [x] Testar e corrigir a escala da textura de símbolo.
 - [x] Executar `tools/check.sh` e compilar o plugin com GCC e Clang, registrando as saídas.
 - [ ] O dono executa o roteiro ao vivo abaixo.
@@ -20,7 +20,7 @@ hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/cor
 kitty --class kwt8 & kitty --class kwt8 &
 ```
 
-As duas janelas devem aparecer com barras. Sobreponha-as, deixando a de trás focada, e aperte onde sua barra está coberta: somente a janela superior deve receber o clique; repita em título, ícone e botões. Em monitores com escalas diferentes, mova as janelas entre eles e confira que os símbolos permanecem nítidos e com o tamanho correto. O Assist ainda não foi corrigido e não deve ser considerado validado. O teste automatizado cobre o socket; o roteiro não simula um compositor travado.
+As duas janelas devem aparecer com barras. Sobreponha-as, deixando a de trás focada, e aperte onde sua barra está coberta: somente a janela superior deve receber o clique; repita em título, ícone e botões. Em monitores com escalas diferentes, mova as janelas entre eles e confira que os símbolos permanecem nítidos e com o tamanho correto. Assist: com o layout `thirds` (SUPER+T), encaixe um `kwt8` flutuante na zona 1 arrastando-o pelo título até a borda esquerda com Shift; com o overlay do Assist aberto, troque de layout (SUPER+T, escolha outro) e só então clique no outro `kwt8` no overlay: ele não deve ser encaixado. Repita sem trocar nada: ele vai para a zona mostrada. O teste automatizado cobre o socket; o roteiro não simula um compositor travado.
 
 Para desfazer, feche as janelas de teste, descarregue o plugin e recarregue a configuração:
 

@@ -434,6 +434,21 @@ local function run()
   kw.window_action(drop.address, "zone:1@TEST")
   assert(#execs == before_drop + 1 and execs[#execs]:find("kwinish-ui assist", 1, true),
     "same-monitor drop must open Snap Assist")
+  -- fix-input-ipc: a pick from the overlay ("assist:<generation>") applies only while what the overlay showed still holds
+  local shown = assist_json()
+  local gen = tonumber(shown:match('"generation":(%d+)'))
+  local zx = tonumber(shown:match('"rect":%[(%-?%d+),'))
+  assert(gen and zx and shown:find('"workspace":2,"layout":"thirds"', 1, true), "assist state carries workspace and layout: " .. shown)
+  local function unmoved(why) assert(candidate.at[1] == 1100, why .. ": " .. candidate.at[1]) end
+  kw.window_action(candidate.address, "assist:" .. (gen - 1)); unmoved("stale generation refused")
+  local home_ws, home_mon = candidate.workspace, candidate.monitor
+  candidate.workspace = workspaces[3]; kw.window_action(candidate.address, "assist:" .. gen); unmoved("other workspace refused")
+  candidate.workspace, candidate.monitor = home_ws, hl.get_monitors()[2]
+  kw.window_action(candidate.address, "assist:" .. gen); unmoved("other monitor refused")
+  candidate.monitor = home_mon
+  kw.set_layout("halves"); kw.window_action(candidate.address, "assist:" .. gen); unmoved("other layout refused")
+  kw.set_layout("thirds"); kw.window_action(candidate.address, "assist:" .. gen)
+  assert(candidate.at[1] == zx, "valid pick placed in the zone shown: " .. candidate.at[1] .. " ~= " .. zx)
 
   -- settings.json: plugin options go to hl.config only while the plugin is loaded; snap_assist stays in the core
   local f = assert(io.open(tmp .. "/XDG_CONFIG_HOME/kwinish/settings.json", "w"))

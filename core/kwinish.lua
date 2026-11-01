@@ -117,7 +117,7 @@ local function snap_assist(w, i, rects)
   local plan = assist.plan(rects, wins, i)
   if not plan then return end
   local dir = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish"
-  local generation = assist.write(dir .. "/assist.json", w.monitor.name, plan) -- creates dir
+  local generation = assist.write(dir .. "/assist.json", w.monitor.name, plan, { workspace = w.workspace.id, layout = M.layout }) -- creates dir
   if not generation then return end
   -- Serialize UI lifetimes; queued launches for superseded generations exit without showing.
   hl.exec_cmd("flock " .. kwjson.quote(dir .. "/assist.lock") .. " env KWINISH_ASSIST_GENERATION=" .. generation .. " kwinish-ui assist")
@@ -419,6 +419,20 @@ function M.window_action(addr, action)
     if r and place(w, r, "zone:" .. arg) and (not mon or (w.monitor and mon.name == w.monitor.name)) then
       snap_assist(w, tonumber(arg), rects)
     end
+  elseif kind == "assist" then
+    -- a Snap Assist pick (kwinish-ui assist): applied only while the generation, window, workspace, monitor, layout and zone
+    -- the overlay showed still hold; the overlay checks before sending, but they may change before this runs
+    local st = kwjson.decode(kwjson.read((os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/kwinish/assist.json"))
+    if not (kwjson.is_object(st) and tostring(st.generation) == arg and kwjson.is_array(st.items) and kwjson.is_array(st.rect)) then return end
+    local listed = false
+    for _, it in ipairs(st.items) do if kwjson.is_object(it) and it.address == addr then listed = true end end
+    if not (listed and target({ window = w }) and w.workspace and w.workspace.id == st.workspace and w.monitor
+      and w.monitor.name == st.monitor and st.layout == M.layout) then return end
+    local rects = layout_rects(w.monitor)
+    local r = rects[st.zone]
+    if not (r and math.floor(r.x + 0.5) == st.rect[1] and math.floor(r.y + 0.5) == st.rect[2]
+      and math.floor(r.w + 0.5) == st.rect[3] and math.floor(r.h + 0.5) == st.rect[4]) then return end
+    if place(w, r, "zone:" .. st.zone) then snap_assist(w, st.zone, rects) end
   elseif kind == "grab" then
     -- "grab:move" / "grab:resize", needs the plugin. The window menu holds the keyboard until it quits and the compositor will not move
     -- focus meanwhile, so the grab started at once took whatever window was focused or under the pointer (the one in front, when
