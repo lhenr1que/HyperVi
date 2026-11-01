@@ -101,7 +101,7 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
-**RP. A barra desenhada com a foto do quadro (`SWindowRenderPresentation`; 01/11/2026; não executado)**
+**RP. A barra desenhada com a foto do quadro (`SWindowRenderPresentation`; 01/11/2026; executado pelo dono: passou)**
 Correção de render: a barra passa a usar os deslocamentos de workspace e de flutuação que o compositor entrega em cada quadro, como a borda nativa, em vez de ler o estado vivo da janela. No modo normal os dois são iguais; a diferença aparece em animações e cenas de workspace. Só plugin e núcleo; nenhum arquivo seu muda. Comandos com caminho completo; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
 ```bash
 hyprctl plugin list

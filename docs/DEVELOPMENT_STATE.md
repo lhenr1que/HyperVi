@@ -2,7 +2,7 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada com aprovação do dono antes do teste ao vivo)
+## Resultado mais recente — pendências resolvidas (01/11/2026; decisões do dono no chat; RP commitada em `874a9df`; ao vivo RP: passou)
 
 Decisões do dono (01/11/2026), uma por pendência:
 - **`SWindowRenderPresentation`: corrigir agora.** Feito, ver RP abaixo.
@@ -14,7 +14,7 @@ Decisões do dono (01/11/2026), uma por pendência:
 - **Defeito latente:** `CHyprBar::draw` ignorava o `SWindowRenderPresentation` do quadro, e `renderPass` somava o deslocamento vivo do workspace (`m_renderOffset`) e o `floatingOffset` vivo da janela. A borda nativa usa a foto (`CHyprBorderDecoration::assignedBoxGlobal(presentation)` + `presentation.floatingOffset`). Fora da cena de monitor o compositor zera ou troca esses valores (`WindowRenderPresentation.cpp`), e a barra ficaria fora do lugar.
 - **Correção:** `SBarData` guarda uma cópia da foto; `draw` a entrega ao passe; `renderPass` e `CBarPassElement::boundingBox` usam `assignedBoxGlobal(presentation)` (novo) e `presentation.floatingOffset`/`workspaceOffset`. O `assignedBoxGlobal()` vivo continua para entrada e dica (G2). Arquivos: `plugin/BarPassElement.{hpp,cpp}`, `plugin/barDeco.{hpp,cpp}`.
 - **Vermelho → verde:** 5 checagens novas em `tools/test-plugin-lifecycle.sh` (textuais, comentários ignorados; essas rotas não rodam sem compositor): 5 falhas contra o `plugin/` de `94a6f0e` (igual ao de `06390bb`, que só traz logs), verde depois. Mutações com controle: 6/6 mortas (uma sobreviveu na primeira rodada, caixa voltando ao `assignedBoxGlobal()` vivo; a checagem foi ampliada). Build isolado GCC/Clang 0 erros, avisos 7/2 (iguais); ELF passa nos dois; `check.sh` exit 0. Evidências em `docs/port-0-57/evidence/RP-tests/`. Simulado; nada carregado.
-- **Pendente:** roteiro **RP** no `docs/STATUS.md` (dono). Commit aprovado pelo dono em 01/11/2026, antes do teste ao vivo.
+- **RP ao vivo (dono, 01/11/2026): passou** (passos 1–6 e log; relato geral "tudo passou"). Conferido depois só lendo: plugin descarregado, sem janelas `kwrp`, log sem `Q1 violated`. Commit `874a9df` aprovado antes do teste.
 
 **Riscos aceitos** (não são pendências; cada um volta só pelo seu gatilho, com nova proposta OpenSpec quando mudar comportamento):
 | Risco | Decisão | Gatilho |
