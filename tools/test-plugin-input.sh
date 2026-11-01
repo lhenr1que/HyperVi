@@ -4,11 +4,12 @@
 #     the bar's drag session, grab messages);
 #  2. checks the plugin sources (the code that cannot run without the compositor): no route asks the compositor to end a
 #     drag, drags start through the helper, the bar learns the end from the compositor, no touch on the bar.
-# KWINISH_SRC=<dir> checks another copy of plugin/, KWINISH_CXXFLAGS adds compiler flags (both used to show the checks
+# KWINISH_SRC=<dir> checks another copy of plugin/ (KWINISH_CORE=<dir> of core/), KWINISH_CXXFLAGS adds compiler flags (both used to show the checks
 # fail on the baseline: docs/port-0-57/evidence/T4-tests/run-red.sh).
 set -u
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
 src=${KWINISH_SRC:-$root/plugin}
+core=${KWINISH_CORE:-$root/core}
 t=$(mktemp -d "${TMPDIR:-/tmp}/kwinish-test-input.XXXXXXXX") || exit 1
 trap 'rm -rf -- "$t"' EXIT
 cxx=${CXX:-g++}
@@ -31,15 +32,23 @@ absent() {
     echo "ok - $what"
   fi
 }
-present() {
+present() { # comments ignored: a call commented out is not there
   local file=$1 pat=$2 what=$3
-  if grep -qE -- "$pat" "$src/$file"; then echo "ok - $what"; else echo "FALHOU - $what ($file)"; fails=$((fails + 1)); fi
+  if sed 's|//.*||' "$src/$file" | grep -qE -- "$pat"; then echo "ok - $what"; else echo "FALHOU - $what ($file)"; fails=$((fails + 1)); fi
 }
 
 for f in barDeco.cpp main.cpp; do
   absent "$f" 'changeMouseBindMode|g_pKeybindManager|movewindow|MBIND_INVALID|endDragTarget|dragEnd\(' "alt5-rc: no route asks the compositor to end a drag"
   absent "$f" 'grabActive|grabSwallowPress' "no menu grab state (the compositor ends the grab)"
 done
+# the same inventory over every plugin source and the Lua core, comments ignored (they name the old calls)
+end_pat='changeMouseBindMode|g_pKeybindManager|movewindow|MBIND_INVALID|endDragTarget|dragEnd\('
+hits=$( { for f in "$src"/*.cpp "$src"/*.hpp; do case ${f##*/} in test_*) continue ;; esac; sed 's|//.*||' "$f" | grep -nE -- "$end_pat" | sed "s|^|${f##*/}:|"; done
+          for f in "$core"/*.lua; do case ${f##*/} in test_*) continue ;; esac; sed 's|--.*||' "$f" | grep -nE -- "$end_pat" | sed "s|^|${f##*/}:|"; done; } )
+n=$(ls "$src"/*.cpp "$src"/*.hpp "$core"/*.lua 2>/dev/null | grep -vc '/test_')
+if [ "$n" -lt 10 ]; then echo "FALHOU - alt5-rc inventory: only $n source files found"; fails=$((fails + 1))
+elif [ -n "$hits" ]; then echo "FALHOU - alt5-rc: no end request anywhere in plugin/ or core/:"; sed 's/^/    /' <<<"$hits"; fails=$((fails + 1))
+else echo "ok - alt5-rc: no end request anywhere in plugin/ or core/ ($n files)"; fi
 absent barDeco.cpp 'm_bCancelledDown|m_bTouchEv|m_touchId|m_unsnapAnim|stepUnsnap' "no touch state, no unsnap that pauses the compositor's move"
 absent barDeco.cpp 'ITouch|input\.touch|onTouch' "no touch on the bar"
 absent barDeco.hpp 'ITouch|onTouch|m_bCancelledDown|stepUnsnap' "header: no touch members"
@@ -85,6 +94,11 @@ before main.cpp 'int luaGrab(' 'grabStartError(' 'return 0' "grab: every way out
 # or the pointer ends off the bar (live test GS, 01/11/2026)
 s=$(body barDeco.cpp 'void CHyprBar::onMouseMove()' | awk '/fullscreenWindow\(/ {f = 1; next} f && /->size\(/ {print; exit}')
 if grep -q 'GEOMETRIC_GOAL' <<<"$s"; then echo "ok - leaving maximized reads the restored size (goal)"; else echo "FALHOU - leaving maximized reads the size mid-animation: ${s:-none}"; fails=$((fails + 1)); fi
+# accept-floating-press-drag: a floating, unmaximized, unsnapped window starts the drag on the press; the others wait
+s=$(body barDeco.cpp 'void CHyprBar::onTitlePress()' | tr -s ' \n' ' ')
+if grep -qE 'if \(W->isFloating\(\) && !Fullscreen::controller\(\)->isFullscreen\(W, Fullscreen::FSMODE_MAXIMIZED\) && !snappedHere\(W\)\) handleMovement\(\); else m_bDragPending = true;' <<<"$s"; then
+  echo "ok - floating title press starts the drag; tiled, maximized and snapped wait for the threshold"
+else echo "FALHOU - onTitlePress: floating must start on the press, the rest set m_bDragPending: ${s:-none}"; fails=$((fails + 1)); fi
 n=$(body main.cpp 'int luaGrab(' | grep -c 'return 0')
 if [ "$n" = 1 ]; then echo "ok - grab: one success return"; else echo "FALHOU - grab: 'return 0' appears $n times in luaGrab (want 1, after grabStartError)"; fails=$((fails + 1)); fi
 

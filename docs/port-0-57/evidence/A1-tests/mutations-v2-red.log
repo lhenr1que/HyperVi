@@ -1,0 +1,22 @@
+saídas em a1-red
+controles: ok
+morta - barra toma press com drag ativo :: FALHOU - alpha-1: drag active, title press is not taken
+morta - soltura do drag tomada :: FALHOU - alpha-1: once the drag started, its release passes to the compositor
+morta - soltura limpa sem esperar o fim :: FALHOU - alpha-1: release with the drag going: wait for the compositor to end it
+morta - encaixa sem soltura :: FALHOU - alpha-1: ended before the release (a key, another component): clear, no snap
+SÓ COMPILAÇÃO - rearm com drag ativo (a1-red/6.log)
+morta - grab válido recusado :: FALHOU - alpha-1: grab move is accepted
+morta - pedido de fim reintroduzido :: FALHOU - alt5-rc: no route asks the compositor to end a drag (barDeco.cpp):
+morta - float sem guarda :: FALHOU - float action not guarded by dragController()->target()
+morta - par não liberado no início :: FALHOU - a started drag lets its release reach the compositor (barDeco.cpp)
+morta - prévia não desenhada :: FALHOU - drawSnapPreview( appears 1 times in barDeco.cpp (want the definition and a call)
+morta - fim não observado :: FALHOU - the bar learns from the compositor that its drag ended (barDeco.cpp)
+morta - easing linear :: FALHOU - unsnap: halfway in time, 87.5% of the way
+morta - arrasto antes do fim da animação :: FALHOU - the drag must start from m_unsnap.step(...).done
+SÓ COMPILAÇÃO - soltura sem tamanho final (a1-red/15.log)
+VIVA - par só em comentário
+VIVA - pedido de fim no hostDrag
+VIVA - pedido de fim no núcleo
+VIVA - flutuante espera o limiar
+morta - menu sem Mover :: thread 'menu::tests::move_and_resize_in_alpha1' (48789) panicked at src/menu.rs:513:13:
+mutações: 13/19 mortas por assertiva

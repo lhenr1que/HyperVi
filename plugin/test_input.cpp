@@ -18,16 +18,13 @@ static void check(bool okay, const std::string& what) {
     fails += okay ? 0 : 1;
 }
 
-// The drag the baseline started or ended; the alpha-0 header has no drag state at all (plugin sources are checked for
-// begin/end calls by tools/test-plugin-input.sh).
-static int drags(const SClicks& c) {
 #ifdef KW_BASELINE
+// The drag the baseline started or ended. Since alpha-1 SClicks has no drag state, so this would always be 0 (achado 5):
+// whether a press starts a drag is barDeco.cpp's (onTitlePress), checked by tools/test-plugin-input.sh.
+static int drags(const SClicks& c) {
     return c.dragStarts + c.dragEnds + c.snaps + c.dragging + c.pending;
-#else
-    (void)c;
-    return 0;
-#endif
 }
+#endif
 static void motion(SClicks& c) {
 #ifdef KW_BASELINE
     c.motion();
@@ -89,7 +86,7 @@ static std::string applied(SResult r, bool floating = true) {
 int main() {
     using namespace std::chrono_literals;
 
-    // D1: a press on the title never starts a drag: floating, tiled, maximized, with or without motion
+    // a press on the title is a FOCUS decision taken in pairs, floating, tiled or maximized (the baseline also: no drag)
     for (const auto& [floating, maximized, name] : {std::tuple{true, false, "floating"}, {false, false, "tiled"}, {true, true, "maximized"}}) {
         facts(true, floating, maximized);
         SClicks c;
@@ -99,7 +96,9 @@ int main() {
         const auto R = release(&c, g);
         check(same(P, eAction::FOCUS, true), std::string(name) + ": title press focuses and is taken");
         check(same(R, eAction::NONE, true), std::string(name) + ": its release is taken too");
+#ifdef KW_BASELINE
         check(drags(c) == 0, std::string(name) + ": no drag started, ended or snapped");
+#endif
     }
     facts(true, true, false);
 
@@ -126,7 +125,9 @@ int main() {
         SPairs  g;
         check(same(press(c, g, down(eHit::ICON), true, T0), eAction::ICON_MENU, true), "icon press opens the menu under the icon");
         check(same(release(&c, g, BTN_LEFT, false), eAction::NONE, true), "icon release (pointer now on the menu) is taken");
+#ifdef KW_BASELINE
         check(drags(c) == 0, "icon: no drag");
+#endif
     }
 
     // presses the bar does not take pass in pairs
@@ -216,7 +217,9 @@ int main() {
         release(&c, g);
         check(same(press(c, g, down(eHit::TITLE), false, T0 + 1100ms), eAction::FOCUS, true), "on_double_click empty: never a double click");
         release(&c, g);
+#ifdef KW_BASELINE
         check(drags(c) == 0, "double click: no drag");
+#endif
     }
     {
         SClicks c;
