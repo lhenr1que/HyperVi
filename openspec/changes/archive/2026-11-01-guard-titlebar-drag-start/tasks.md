@@ -45,3 +45,8 @@ Estado em 01/11/2026: proposta **aprovada pelo dono**, com os padrões das Open 
 - 4.2: `run-mutations.sh` com controle; **10/10 mortas por assertiva** (7 por assertiva executada, 3 pela checagem de ordem), `mutations.log`. **Limite conhecido, não contado:** neutralizar a porta em `barDeco.cpp` mantendo o texto (`if (false && ...)`) sobrevive, porque essas rotas não rodam sem o compositor. Cobertura só ao vivo.
 - 4.3: build isolado GCC/Clang com 0 erros, avisos 7/2 (iguais à alpha-1); ELF passa nos dois (`elf-*.log`, `GS-sha256.txt`); `check.sh` exit 0 (`check.log`).
 - 5.2: roteiro **GS** no `docs/STATUS.md`. A mensagem de erro do `hyprctl eval` no passo 4 é a esperada pelo código, ainda não vista ao vivo.
+
+## Arquivamento (01/11/2026)
+
+Arquivada à mão (CLI `openspec` não instalada) com aprovação do dono, depois do teste ao vivo: roteiros GS e MX do `docs/STATUS.md` passaram em 01/11/2026. Implementação em `5944fe1`; correção do cursor ao sair da maximização (achado no GS) em `849bf16`. Os 3 requisitos MODIFIED do delta substituíram os do spec principal `title-bar`, com o texto copiado como está; `snap-assist` não muda. Conferência estrutural: `tools/test-openspec-specs.sh`, que passou a conferir também esta mudança. A observação do GS passo 1 (janela em tiling centrada no cursor) é comportamento do Hyprland (`binds:drag_center_window`) e ficou como está.
+

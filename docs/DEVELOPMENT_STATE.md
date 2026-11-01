@@ -2,7 +2,19 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — GS ao vivo e correção MX (01/11/2026; commitada com aprovação do dono; MX ao vivo: passou)
+## Resultado mais recente — `guard-titlebar-drag-start` arquivada (01/11/2026; commitada com aprovação do dono)
+
+- **Arquivamento (à mão; CLI `openspec` ausente):** `git mv` para `openspec/changes/archive/2026-11-01-guard-titlebar-drag-start/`; os 3 requisitos MODIFIED substituíram os do spec principal `title-bar` (texto copiado como está; `snap-assist` intocado); nota de arquivamento no `tasks.md`. `tools/test-openspec-specs.sh` passou a conferir as duas mudanças arquivadas (a alpha-1 e esta): vermelho antes de arquivar (3 falhas), verde depois; o controle negativo ganhou uma quebra num texto MODIFIED e a pega. `check.sh` exit 0.
+- **Estado da linha do arrasto (alpha-1):** implementada (`38cc338`), revisada (Codex + conferência), endurecida (`5944fe1`) e corrigida (`849bf16`); ao vivo A1, A1b, A1c, GS e MX passaram.
+- **Pendências (nenhuma iniciada):**
+  1. **achado 6 da revisão** — clique simples em janela flutuante inicia drag já no press (herança da 0.56.2), contra o cenário "Clique simples no título" do spec. Decisão do dono: (a) ajustar o spec ao comportamento, ou (b) aplicar o limiar também à flutuante. Qualquer das duas pede proposta OpenSpec;
+  2. **achados 4 e 5** — testes antigos da alpha-1: `A1-tests/run-mutations.sh` sem controle e as assertivas `drags(c) == 0`, que são tautologias; inventário de "nenhum pedido de fim" só em 2 arquivos. O método novo está em `GS-tests/run-mutations.sh`;
+  3. GS passo 1: janela em tiling centrada no cursor ao começar o arrasto (nativo do Hyprland, `binds:drag_center_window`). Manter o cursor na barra exigiria a barra flutuar a janela antes do arrasto (OpenSpec). Só se o dono quiser;
+  4. antigas: contador Q1 só por log; `SWindowRenderPresentation` na barra; 73 logs brutos de P5–T6 sem versionar; débito do `floatWindow` do núcleo Lua; custo C1/C2 (arrasto preso no uso é o gatilho para a paridade 0.56, com nova proposta).
+- **Próxima ação recomendada (outra sessão, com autorização própria):** o dono decide o achado 6 (a ou b); depois, proposta OpenSpec pequena para ele. Em paralelo, se autorizado, endurecer os testes da alpha-1 (achados 4 e 5), que não muda comportamento.
+- **Limites da próxima sessão:** reconfirmar Git e escopo; implementar, commitar e arquivar só com aprovação; carga do plugin e testes ao vivo são do dono; sem `sudo`, sem `~/.config`, sem push.
+
+## Anterior — GS ao vivo e correção MX (01/11/2026; commitada em `849bf16`; MX ao vivo: passou)
 
 - **GS ao vivo (dono, 01/11/2026): passou.** Passos 2, 4 e 5 ok; no 1, a vizinha nunca foi arrastada. Observações:
   - passo 1: janela em tiling pula para ficar centrada no cursor ao começar o arrasto. **Nativo do Hyprland 0.57** (`DragController.cpp:87–158`, `binds:drag_center_window`, padrão `true`, não definida na config do dono; `hyprctl getoption` conferido). Desligar a opção não põe o cursor na barra (o host mede pela área do conteúdo). Mantido; manter o cursor na barra em tiling exigiria a barra flutuar a janela antes do arrasto, mudança de comportamento que pede OpenSpec;
