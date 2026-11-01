@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Structural check of the main OpenSpec specs after archiving enable-titlebar-drag-alpha1 and then
-# guard-titlebar-drag-start, which MODIFIED three of alpha-1's requirements (no openspec CLI here).
+# Structural check of the main OpenSpec specs after archiving enable-titlebar-drag-alpha1 and then the
+# later changes that MODIFIED alpha-1's requirements, oldest first (no openspec CLI here).
 # Also proves the checker itself: a broken copy of the specs must be rejected (negative control).
 set -u
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
@@ -9,7 +9,7 @@ import glob, os, re, shutil, sys, tempfile
 
 root = sys.argv[1]
 ID = "enable-titlebar-drag-alpha1"
-LATER = "guard-titlebar-drag-start" # archived after ID; its MODIFIED texts replace ID's
+LATER = ["guard-titlebar-drag-start", "accept-floating-press-drag"] # archived after ID, in order; the newest text wins
 REMOVED = ["Drag da decoração indisponível na alpha-0", "Menu sem comandos de grab mudos na alpha-0",
            "Reativação do drag após alpha-0"]
 RENAMED = ["Toque na decoração indisponível", "Cliques de mouse pareados"]
@@ -25,7 +25,7 @@ def reqs(text):
 def blocks_of(path):
     return reqs(open(path, encoding="utf-8").read())
 
-def check(specs, deltas, later):
+def check(specs, deltas, laters):
     errs = []
     got = {c: blocks_of(f"{specs}/{c}/spec.md") for c in ("title-bar", "snap-assist")}
     for cap, rs in got.items():
@@ -43,28 +43,33 @@ def check(specs, deltas, later):
     for n in RENAMED + ADDED:
         if n not in tb: errs.append(f"title-bar: falta: {n}")
     # the delta's texts are copied as they are; a requirement the later change modified carries the later text
-    newer = {c: (blocks_of(f"{later}/{c}/spec.md") if os.path.exists(f"{later}/{c}/spec.md") else {}) for c in got}
-    if not newer["title-bar"]: errs.append(f"{LATER}: sem delta de title-bar")
+    newer = {c: {} for c in got} # requirement -> (change, text) of the newest delta that has it
+    for cid, later in laters:
+        if not os.path.exists(f"{later}/title-bar/spec.md"): errs.append(f"{cid}: sem delta de title-bar")
+        for c in got:
+            if os.path.exists(f"{later}/{c}/spec.md"):
+                newer[c].update({n: (cid, b) for n, b in blocks_of(f"{later}/{c}/spec.md").items()})
     for cap, rs in got.items():
         for n, body in blocks_of(f"{deltas}/{cap}/spec.md").items():
             if n in REMOVED or n in newer[cap]: continue
             if rs.get(n, "").strip() != body.strip(): errs.append(f"{cap}/{n}: diferente do delta")
-        for n, body in newer[cap].items():
-            if rs.get(n, "").strip() != body.strip(): errs.append(f"{cap}/{n}: diferente do delta de {LATER}")
+        for n, (cid, body) in newer[cap].items():
+            if rs.get(n, "").strip() != body.strip(): errs.append(f"{cap}/{n}: diferente do delta de {cid}")
     return errs
 
 errs = []
 dirs = {}
-for cid in (ID, LATER):
+for cid in [ID] + LATER:
     found = glob.glob(f"{root}/openspec/changes/archive/*-{cid}")
     if len(found) != 1: errs.append(f"pasta arquivada de {cid}: {len(found)} encontrada(s)")
     if os.path.exists(f"{root}/openspec/changes/{cid}"): errs.append(f"{cid} ainda está em changes/")
     if found:
         dirs[cid] = found[0]
         if "## Arquivamento" not in open(f"{found[0]}/tasks.md", encoding="utf-8").read(): errs.append(f"{cid}: tasks.md sem nota de arquivamento")
-archived = [dirs[ID]] if len(dirs) == 2 else []
+archived = [dirs[ID]] if len(dirs) == 1 + len(LATER) else []
+laters = [(c, f"{dirs[c]}/specs") for c in LATER if c in dirs]
 if archived:
-    errs += check(f"{root}/openspec/specs", f"{archived[0]}/specs", f"{dirs[LATER]}/specs")
+    errs += check(f"{root}/openspec/specs", f"{archived[0]}/specs", laters)
 
 # negative control: break a copy of the specs; every break must be reported
 tmp = tempfile.mkdtemp()
@@ -74,11 +79,12 @@ try:
         p = f"{tmp}/s/title-bar/spec.md"
         t = open(p, encoding="utf-8").read()
         t = t.replace("o próximo clique termina o movimento pelo compositor", "o próximo clique termina o movimento", 1)
+        t = t.replace("sem esperar o limiar", "depois do limiar", 1)
         t = t.replace("SHALL", "deve", 1).replace("### Requirement: Cliques de mouse pareados",
               "### Requirement: Drag da decoração indisponível na alpha-0\nO sistema SHALL x.\n\n#### Scenario: a\n- **WHEN** a\n- **THEN** b\n\n### Requirement: Cliques de mouse preservados e pareados na alpha-0")
         open(p, "w", encoding="utf-8").write(t)
-        bad = check(f"{tmp}/s", f"{archived[0]}/specs", f"{dirs[LATER]}/specs")
-        for needle in ("sem SHALL/MUST", "deveria ter sumido", "falta: Cliques de mouse pareados", f"diferente do delta de {LATER}"):
+        bad = check(f"{tmp}/s", f"{archived[0]}/specs", laters)
+        for needle in ("sem SHALL/MUST", "deveria ter sumido", "falta: Cliques de mouse pareados") + tuple(f"diferente do delta de {c}" for c in LATER):
             if not any(needle in e for e in bad): errs.append(f"controle negativo não pegou: {needle}")
     else:
         errs.append("controle negativo não rodou (sem pasta arquivada)")

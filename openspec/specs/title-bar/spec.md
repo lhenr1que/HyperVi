@@ -63,7 +63,7 @@ Na alpha-0 e na alpha-1, o sistema MUST NOT interpretar down/move/up de toque na
 - **THEN** a decoração não muda geometria, floating, pin ou snap e não cancela eventos por essa sequência
 
 ### Requirement: Cliques de mouse pareados
-O sistema SHALL preservar botões, ícone, menu, roda, hover/tooltip, foco/elevação e duplo clique configurado. Cliques consumidos nos botões, ícone ou menu SHALL consumir press e release do mesmo botão, executando a ação uma única vez. O press no título que inicia drag é a exceção: sua soltura SHALL chegar ao compositor. Cliques não consumidos SHALL passar sem retenção. Mudança de foco ou ponteiro entre press e release MUST NOT produzir par órfão por intervenção da barra.
+O sistema SHALL preservar botões, ícone, menu, roda, hover/tooltip, foco/elevação e duplo clique configurado. Cliques consumidos nos botões, ícone ou menu SHALL consumir press e release do mesmo botão, executando a ação uma única vez. O press no título que inicia drag é a exceção: sua soltura SHALL chegar ao compositor. Cliques não consumidos SHALL passar sem retenção. Mudança de foco ou ponteiro entre press e release MUST NOT produzir par órfão por intervenção da barra. Numa janela flutuante, não maximizada e não encaixada, o press no título SHALL iniciar o drag do compositor já no press, sem esperar o limiar; um clique sem movimento MUST NOT mover nem encaixar a janela. Numa janela lado a lado, maximizada ou encaixada, o drag SHALL começar só quando o ponteiro passa do limiar.
 
 #### Scenario: Minimizar muda foco antes da soltura
 - **WHEN** o botão minimizar consome press e o foco muda antes do release
@@ -78,8 +78,13 @@ O sistema SHALL preservar botões, ícone, menu, roda, hover/tooltip, foco/eleva
 - **THEN** a barra não toma a soltura e o compositor encerra o drag com ela
 
 #### Scenario: Clique simples no título
-- **WHEN** o usuário aperta e solta o título sem passar do limiar
+- **WHEN** o usuário aperta e solta o título de uma janela lado a lado, maximizada ou encaixada sem passar do limiar
 - **THEN** a janela é focada (e elevada, se flutuante) e nenhum drag é iniciado
+
+#### Scenario: Clique simples no título de janela flutuante
+- **WHEN** o usuário aperta e solta, sem mover o ponteiro, o título de uma janela flutuante, não maximizada e não encaixada
+- **THEN** a janela é focada e elevada, e o drag do compositor começa no press e termina na soltura
+- **AND** a janela não muda de posição e não é encaixada
 
 ### Requirement: Arrasto pela barra com fim pelo compositor
 Na alpha-1 para Hyprland 0.57, o sistema SHALL mover a janela quando o usuário aperta o título e move o ponteiro além do limiar, iniciando o drag pelo controlador do compositor. As rotas da barra e do menu MUST NOT pedir fim, substituir ou reiniciar com fim um drag: o drag SHALL terminar pelo fim nativo do compositor, que recebe a soltura do botão sem cancelamento. A barra MUST NOT tomar press do botão esquerdo nem do direito enquanto houver drag ativo de qualquer origem. O estado de drag da barra SHALL ser armado só quando o início realmente ocorreu. A barra SHALL iniciar o drag só com a própria janela sob o ponteiro, pelo mesmo teste de janela que o início usa; com outra janela sob o ponteiro, a barra MUST NOT focar nem iniciar, e o press SHALL seguir como clique.

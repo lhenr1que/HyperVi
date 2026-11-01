@@ -2,7 +2,15 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — proposta `accept-floating-press-drag` (achado 6; 01/11/2026; só planejamento; aprovada e commitada com aprovação do dono)
+## Resultado mais recente — `accept-floating-press-drag` arquivada (01/11/2026; o dono mandou prosseguir; commitada com aprovação do dono)
+
+- **Arquivamento (à mão; CLI `openspec` ausente):** `git mv` para `openspec/changes/archive/2026-11-01-accept-floating-press-drag/`; o requisito MODIFIED "Cliques de mouse pareados" substituiu o do spec principal `title-bar` (texto copiado como está; nada mais muda); nota de arquivamento no `tasks.md`.
+- **`tools/test-openspec-specs.sh`:** `LATER` virou lista ordenada (`guard-titlebar-drag-start`, `accept-floating-press-drag`); vale o texto do delta mais recente de cada requisito. Vermelho antes de mover (3 falhas) e depois de mover sem copiar o texto (2 falhas: nota ausente, texto diferente do delta); verde depois. O controle negativo ganhou uma quebra no texto novo e exige achar as duas mudanças posteriores. `check.sh` exit 0. Simulado; nada ao vivo (não há mudança de comportamento).
+- **Pendências (nenhuma iniciada):** achados 4 e 5 (testes antigos da alpha-1; método novo em `GS-tests/run-mutations.sh`); janela em tiling centrada no cursor (nativo, mantido); contador Q1 só por log; `SWindowRenderPresentation`; 73 logs brutos de P5–T6; `floatWindow` do núcleo Lua; custo C1/C2 (arrasto preso no uso é o gatilho para a paridade 0.56, com nova proposta). Alternativa (b) do achado 6 só volta pelo gatilho registrado (seção abaixo).
+- **Próxima ação recomendada (outra sessão, com autorização própria):** endurecer os testes antigos da alpha-1 (achados 4 e 5); não muda comportamento.
+- **Limites da próxima sessão:** reconfirmar Git e escopo; commitar só com aprovação; sem build/carga do plugin, `sudo`, `~/.config` ou push.
+
+## Anterior — proposta `accept-floating-press-drag` (achado 6; 01/11/2026; só planejamento; aprovada e commitada em `4abcb1e`)
 
 - **Decisão do dono (01/11/2026): opção (a)**, ajustar o spec ao código. Numa janela flutuante, não maximizada e não encaixada, o drag do compositor começa no press (`CHyprBar::onTitlePress` → `handleMovement`, herança da 0.56.2: o Hyprland arrasta a janela sob o ponteiro); clique parado não move nem encaixa (encaixe barrado por < 10 px). Lado a lado, maximizada e encaixada: limiar de 6 px. Custo aceito: com `binds:drag_threshold` = 0 (padrão, não definido na config do dono), tremida de 2–3 px move a flutuante.
 - **Proposta `openspec/changes/accept-floating-press-drag/`:** delta MODIFIED em "Cliques de mouse pareados" (`title-bar`), texto atual como base: uma frase nova no corpo, WHEN de "Clique simples no título" restrito a lado a lado/maximizada/encaixada (THEN igual), cenário novo "Clique simples no título de janela flutuante". Nenhuma mudança de código.
