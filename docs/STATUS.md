@@ -101,6 +101,87 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
+**T8. Porta 0.57, alpha-0: primeiro teste ao vivo (01/11/2026; executado pelo dono: tudo passou)**
+Estado conferido em 01/11, só com consultas: Hyprland 0.57.0 (`0aa6745`) em execução, nenhum plugin carregado, pacotes `kwinish-*` e `/usr/share/kwinish` ausentes, sem `~/.config/kwinish`, `kwinish-ui` fora do PATH. **Fish não está instalado** (shell de login: bash): por decisão do dono em 01/11, este roteiro é em **bash**. Os roteiros 2–12 abaixo citam `~/Downloads/ryoku-work/kwinish`, o plugin em `/usr/lib/hyprland/plugins` e fish: nada disso existe mais. O repositório está em `~/Projects/ryoku-work/`.
+Use **um só terminal** do começo ao fim (as variáveis `R`, `T`, `CORE` e `nest` valem só nele). As janelas de teste são `kitty --class kwt8`, para não confundir com o seu terminal.
+
+*Fase A: preparar (nada muda no compositor).*
+```bash
+cd ~/Projects/ryoku-work/kwinish-port-0-57 && git log --oneline -1
+R=$PWD; T=/tmp/kwinish-t8; mkdir -p "$T"
+make -C plugin TARGET="$T/kwinish-bars.so"
+cargo build --locked --manifest-path ui/Cargo.toml
+bash tools/live-backup.sh save ~/.local/state/kwinish-backup/t8 ~/.local/bin/kwinish-ui
+ln -s "$R/ui/target/debug/kwinish-ui" ~/.local/bin/kwinish-ui
+CORE="package.path='$R/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+```
+Deve acontecer: o `git log` mostra o commit atual da branch `port-kwinish-bars-to-hyprland-0-57`; o `make` termina sem `error` e cria `/tmp/kwinish-t8/kwinish-bars.so`; o `cargo` termina com `Finished`; o `live-backup` diz `1 caminho(s) guardado(s)`. O `.so` fica fora do repositório, para nunca sobrescrever um `.so` carregado.
+
+*Fase B: Hyprland aninhado (uma janela; se o plugin derrubar alguma coisa, cai só ela). Não passe para a fase C se B falhar.*
+```bash
+cat > "$T/nested.lua" <<'EOF'
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "1" })
+hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true })
+hl.bind("ALT + Return", hl.dsp.exec_cmd("kitty --class kwt8"))
+EOF
+Hyprland -c "$T/nested.lua" > "$T/nested.log" 2>&1 & hp=$!
+sleep 3; nest=$(hyprctl instances -j | jq -r --argjson p "$hp" '.[] | select(.pid == $p) | .instance'); echo "instância: $nest"
+hyprctl -i "$nest" plugin load "$T/kwinish-bars.so"
+hyprctl -i "$nest" eval "$CORE"
+hyprctl -i "$nest" dispatch 'hl.dsp.exec_cmd("kitty --class kwt8")'
+```
+B1. Abre uma janela com o Hyprland aninhado; `instância:` mostra uma assinatura (não vazia); o `plugin load` não dá erro; o `kitty` lá dentro tem a barra do Kwinish (ícone, título, botões de fixar, minimizar, maximizar e fechar).
+B2. Descarregar e recarregar 3 vezes: as barras somem e voltam a cada volta, e a janela aninhada continua viva.
+```bash
+for i in 1 2 3; do hyprctl -i "$nest" plugin unload "$T/kwinish-bars.so"; sleep 1; hyprctl -i "$nest" plugin load "$T/kwinish-bars.so"; sleep 1; done
+```
+B3. Descarregar com a dica na tela: rode a linha abaixo e, em até 3 s, pare o ponteiro sobre um botão da barra no aninhado até a dica aparecer. Esperado: barra e dica somem, nada trava; depois recarregue.
+```bash
+sleep 4; hyprctl -i "$nest" plugin unload "$T/kwinish-bars.so"; sleep 1; hyprctl -i "$nest" plugin load "$T/kwinish-bars.so"
+```
+B4. Log: `grep -i kwinish "$T/nested.log" | tail -n 30` não mostra `Q1 violated` nem `error`.
+B5. Encerrar o aninhado: `hyprctl -i "$nest" dispatch 'hl.dsp.exit()'`. Se ele tiver caído antes, guarde `tail -n 80 "$T/nested.log"` e o relatório em `~/.cache/hyprland/` (se existir) e pare aqui.
+
+*Fase C: sessão real (só se B passou). Carrega o plugin e depois o núcleo do repositório.*
+```bash
+hyprctl plugin load "$T/kwinish-bars.so"
+hyprctl eval "$CORE"
+kitty --class kwt8 & kitty --class kwt8 &
+```
+C1. Desenho (sintomas visíveis de D9–D11; o estado interno de GL não dá para ver a olho). Ponha um `kwt8` flutuante (SUPER+V).
+1. Barra com ícone, título e 4 botões; cantos de cima arredondados junto com a janela (`rounding = 10`), sem quadradinhos escuros nas pontas; borda contínua.
+2. Fora da barra nada muda: janelas vizinhas, a barra do shell e o papel de parede perto dos cantos não ganham recortes, buracos nem faixas (stencil vazando, D9).
+3. Blur (D11): `hyprctl eval "hl.config({plugin={kwinish={bar_blur=true, bar_color='rgba(26262e80)'}}})"`. A barra fica translúcida com o fundo desfocado, sem vazar pelos cantos arredondados. Volte: `hyprctl eval "hl.config({plugin={kwinish={bar_blur=false, bar_color='rgba(26262ef7)'}}})"`.
+4. Animação de workspace: com um `kwt8` no workspace 1, SUPER+2 e SUPER+1. A barra desliza junto com a janela, sem ficar parada nem deslocada (risco conhecido da T5: a barra ignora o parâmetro de apresentação novo). Anote o que vir no abrir e no fechar de uma janela (`popin`), porque a barra pode não acompanhar a escala.
+5. SUPER+V de volta para tiling: a barra continua desenhada.
+C2. Entrada (alpha-0: barra sem arrasto).
+1. Clique no título: foca e eleva a janela flutuante. Apertar no título e arrastar: a janela **não** se move.
+2. SUPER + botão esquerdo arrastando: move (bind nativo).
+3. Duplo clique no título: maximiza; outro duplo clique: restaura.
+4. Fixar: clique, depois SUPER+2: a janela continua visível; SUPER+1 e clique de novo para desfixar.
+5. Minimizar num `kwt8`: a janela some (vai para `special:minimized`). Fechar no outro `kwt8`: fecha. Depois, clicar em qualquer outra janela funciona normal (o soltar do botão não fica preso).
+6. Clique direito no título e clique no ícone: abre o menu da janela (`kwinish-ui`), **sem** Mover nem Redimensionar; Esc fecha.
+C3. Dicas (em inglês, porque `LANG=en_US.UTF-8`). Pare 1 s sobre cada parte: fixar "On all workspaces" (fixada: "Only on this workspace"), minimizar "Minimize", maximizar "Maximize" (maximizada: "Restore"), fechar "Close", ícone "Window menu" (abaixo do ícone, dentro da tela). A dica fica por cima das outras janelas e some ao clicar.
+C4. Descarregar e recarregar (abra um `kwt8` antes, se não houver nenhum: `kitty --class kwt8 &`).
+1. Rode a linha abaixo e, em até 3 s, pare sobre um botão até a dica aparecer: barras e dica somem, nada trava. Depois as barras voltam, nas 3 voltas.
+```bash
+sleep 4; for i in 1 2 3; do hyprctl plugin unload "$T/kwinish-bars.so"; sleep 1; hyprctl plugin load "$T/kwinish-bars.so"; sleep 1; done
+```
+2. `grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30` não mostra `Q1 violated` nem `error`.
+
+*Desfazer (tira o plugin e o núcleo do repositório, fecha as janelas de teste e o menu e apaga o link do `kwinish-ui`; nenhum outro arquivo seu é tocado).*
+```bash
+pkill -x kwinish-ui
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-t8/kwinish-bars.so
+hyprctl reload
+bash ~/Projects/ryoku-work/kwinish-port-0-57/tools/live-backup.sh restore ~/.local/state/kwinish-backup/t8
+```
+O `reload` relê a sua config, que não carrega o núcleo: ele sai junto com os ajustes de blur e cor. Se a fase B ainda estiver aberta: `hyprctl -i "$nest" dispatch 'hl.dsp.exit()'`.
+*Se a sessão real travar:* Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-t8/kwinish-bars.so`. Se nem assim responder, encerre a sessão (as janelas abertas se perdem).
+*O que me mandar:* para cada item (B1–B5, C1–C4), ok ou o que viu. Se algo falhar, mande também as saídas dos `grep` de log.
+*Resultado (dono, 01/11/2026):* "Rodei os testes e tudo passou" (B1–B5 e C1–C4, relato geral, sem detalhe por item nem trechos de log). Conferido depois, só com consultas: nenhum plugin carregado, só a instância principal, sem `~/.local/bin/kwinish-ui`, backup `t8` restaurado e sem janelas `kwt8`. D9/D10 continuam sem instrumentação de GL (só sintomas visíveis).
+
 **2. Plugin com as correções das revisões (barras sobrepostas, arrasto preso, Esc no Mover/Redimensionar, maximizada que fugia)**
 ```fish
 cd ~/Downloads/ryoku-work/kwinish

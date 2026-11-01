@@ -2,7 +2,21 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — T7, build final + check + ELF (01/11/2026; sem código alterado; commitada com aprovação do dono)
+## Resultado mais recente — T8, roteiro ao vivo para o dono (01/11/2026; executado pelo dono: tudo passou; commitada com aprovação do dono)
+
+- **Escopo (autorizado pelo dono em 01/11/2026):** só o roteiro "T8" em `docs/STATUS.md` (Testes pendentes para o dono) e esta seção. Nenhum código mudou. Nada foi carregado nem executado no compositor.
+- **Estado do sistema conferido** só com consultas (`hyprctl version`, `plugin list`, `instances`, `pacman -Q`, ambiente do processo): Hyprland 0.57.0 (`0aa6745`) em execução, nenhum plugin carregado, pacotes `kwinish-*` ausentes, sem `~/.config/kwinish` e sem `kwinish-ui` no PATH; config `~/.config/hypr/hyprland.lua` sem Kwinish e sem `enforce_permissions`; `LANG=en_US.UTF-8`, por isso as dicas aparecem em inglês. **Fish não está instalado** e o repositório saiu de `~/Downloads/ryoku-work`. Por decisão do dono em 01/11, o roteiro é em **bash** (exceção à regra "fish" do AGENTS). Os roteiros antigos 2–12 do STATUS ficaram desatualizados; isso está avisado no bloco T8, sem reescrevê-los.
+- **Roteiro:**
+  - A: build do `.so` em `/tmp/kwinish-t8`, `cargo build` da UI e link `~/.local/bin/kwinish-ui` (com `live-backup` antes);
+  - B: Hyprland aninhado (`-c` com config mínima), carga do plugin e do núcleo, 3 ciclos unload/load, unload com a dica na tela e log;
+  - C: sessão real, com sintomas visíveis de D9–D11 (cantos, vazamento fora da caixa, blur, animação de workspace), entrada D1, dicas e unload ×3 com conferência de `Q1 violated` no log;
+  - desfazer e plano de emergência.
+- **Validação estática:** os 7 blocos do STATUS passam em `bash -n`; os 5 textos Lua de `eval`/`dispatch` passam em `luac -p`; a config aninhada extraída do STATUS dá `config ok` no `Hyprland --verify-config`, que reprova um controle com erro plantado; a seleção `jq` por PID acha a instância real.
+- **Limites:** D9/D10 exigem instrumentação de GL e não são cobertos pelo roteiro, que só vê sintomas. O comportamento do núcleo quando o plugin é descarregado com o núcleo carregado não foi verificado no 0.57.
+- **Resultado ao vivo (dono, 01/11/2026):** "tudo passou" (B1–B5 aninhado; C1–C4 na sessão real), relato geral sem detalhe por item nem log. Desfazer conferido só com consultas: nenhum plugin carregado, link do `kwinish-ui` removido, backup restaurado. **Marco 2 (alpha-0 visual) atingido** pelo relato do dono, com os limites acima (D9/D10 só pelos sintomas).
+- **Próxima ação:** decidir o contador Q1/Q2, o uso de `SWindowRenderPresentation` (a animação de workspace passou a olho) e quando fazer T9/T10 (só antes de reativar o drag).
+
+## Anterior — T7, build final + check + ELF (01/11/2026; sem código alterado; commitada com aprovação do dono)
 
 - **Escopo (autorizado pelo dono em 01/11/2026):** só verificação sobre `6d8416d`; nenhum arquivo de `plugin/`, `core/`, `ui/` ou `tools/` mudou. Evidências em `docs/port-0-57/evidence/T7-tests/`. Hyprland instalado = headers = **0.57.0**, commit `0aa6745`.
 - **Build isolado** (`build.sh`, `env -i`, HOME/XDG temporários): GCC e Clang **0 erros, `.so` gerado**; avisos GCC 7 e Clang 2, iguais aos da T5/T6. Os `.so` ficaram fora do repositório; sha256 em `T7-sha256.txt`.
