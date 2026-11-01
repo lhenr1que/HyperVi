@@ -333,51 +333,49 @@ end
 -- opts.filter(w) limits both features to matching windows (tests use it).
 -- opts: placement = "smart"|"cascade"|"center"|"cursor" (new floating windows), autoraise_ms = delay before a focused floating window is raised.
 -- The hooks are registered once per compositor Lua state, behind a global guard like the other KWINISH_* hooks, so reloading
--- the core module does not add them again; they read the options of the latest setup() call.
+-- the core module does not add them again. They only forward to the current module (package.loaded.kwinish), so a reloaded
+-- core is the one acting, with the options of the latest setup() call.
 function M.setup(opts)
   KWINISH_SETUP_OPTS = opts or {}
   if KWINISH_SETUP_HOOKS then return end
   KWINISH_SETUP_HOOKS = true
-  local function raise(addr)
-    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
-  end
-  do
-    hl.on("window.active", function()
-      local opts = KWINISH_SETUP_OPTS
-      if not opts.autoraise_ms then return end
-      local cur = hl.get_active_window()
-      local cur_addr = cur and cur.address
-      if not cur_addr then return end
-      hl.timer(function()
-        local now = hl.get_active_window()
-        if now and now.address == cur_addr and now.floating and (not opts.filter or opts.filter(now)) then
-          raise(cur_addr)
-          local kw = package.loaded.kwinish; if kw then kw.restack() end -- never over a window kept above
-        end
-      end, { timeout = opts.autoraise_ms, type = "oneshot" })
-    end)
-  end
-  do
-    hl.on("window.open", function(w)
-      local opts = KWINISH_SETUP_OPTS
-      if not opts.placement then return end
-      local addr = w.address -- re-fetched below: the window may be gone when the timer fires
-      hl.timer(function()
-        local win = hl.get_window("address:" .. addr)
-        if not win or not win.mapped or not win.floating or not win.monitor or not win.workspace then return end
-        if opts.filter and not opts.filter(win) then return end
-        if win.xwayland and win.class == "" and win.title == "" then return end -- popups position themselves
-        local size, others = rect_of(win), {}
-        for _, o in ipairs(hl.get_workspace_windows(win.workspace.id)) do
-          if o.address ~= addr and o.mapped and not o.hidden then others[#others + 1] = rect_of(o) end
-        end
-        local pos = hl.get_cursor_pos()
-        local x, y = geometry.place(work_area(win.monitor), size, opts.placement,
-          { others = others, n = #others, pos = pos and { x = pos.x or pos[1], y = pos.y or pos[2] } })
-        if x then hl.dispatch(hl.dsp.window.move({ x = math.floor(x + 0.5), y = math.floor(y + 0.5), window = "address:" .. addr })) end
-      end, { timeout = 30, type = "oneshot" })
-    end)
-  end
+  hl.on("window.active", function() local kw = package.loaded.kwinish; if kw and kw.on_setup_active then kw.on_setup_active() end end)
+  hl.on("window.open", function(w) local kw = package.loaded.kwinish; if kw and kw.on_setup_open then kw.on_setup_open(w) end end)
+end
+
+function M.on_setup_active()
+  local opts = KWINISH_SETUP_OPTS or {}
+  if not opts.autoraise_ms then return end
+  local cur = hl.get_active_window()
+  local cur_addr = cur and cur.address
+  if not cur_addr then return end
+  hl.timer(function()
+    local now = hl.get_active_window()
+    if now and now.address == cur_addr and now.floating and (not opts.filter or opts.filter(now)) then
+      hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. cur_addr }))
+      local kw = package.loaded.kwinish; if kw then kw.restack() end -- never over a window kept above
+    end
+  end, { timeout = opts.autoraise_ms, type = "oneshot" })
+end
+
+function M.on_setup_open(w)
+  local opts = KWINISH_SETUP_OPTS or {}
+  if not (opts.placement and w and w.address) then return end
+  local addr = w.address -- re-fetched below: the window may be gone when the timer fires
+  hl.timer(function()
+    local win = hl.get_window("address:" .. addr)
+    if not win or not win.mapped or not win.floating or not win.monitor or not win.workspace then return end
+    if opts.filter and not opts.filter(win) then return end
+    if win.xwayland and win.class == "" and win.title == "" then return end -- popups position themselves
+    local size, others = rect_of(win), {}
+    for _, o in ipairs(hl.get_workspace_windows(win.workspace.id)) do
+      if o.address ~= addr and o.mapped and not o.hidden then others[#others + 1] = rect_of(o) end
+    end
+    local pos = hl.get_cursor_pos()
+    local x, y = geometry.place(work_area(win.monitor), size, opts.placement,
+      { others = others, n = #others, pos = pos and { x = pos.x or pos[1], y = pos.y or pos[2] } })
+    if x then hl.dispatch(hl.dsp.window.move({ x = math.floor(x + 0.5), y = math.floor(y + 0.5), window = "address:" .. addr })) end
+  end, { timeout = 30, type = "oneshot" })
 end
 
 local layout_rects -- defined below, with the layout state
@@ -426,8 +424,9 @@ function M.window_action(addr, action)
     if not (kwjson.is_object(st) and tostring(st.generation) == arg and kwjson.is_array(st.items) and kwjson.is_array(st.rect)) then return end
     local listed = false
     for _, it in ipairs(st.items) do if kwjson.is_object(it) and it.address == addr then listed = true end end
+    local shown = w.monitor and w.monitor.active_workspace -- the workspace the overlay was shown on must still be on screen
     if not (listed and target({ window = w }) and w.workspace and w.workspace.id == st.workspace and w.monitor
-      and w.monitor.name == st.monitor and st.layout == M.layout) then return end
+      and w.monitor.name == st.monitor and shown and shown.id == st.workspace and st.layout == M.layout) then return end
     local rects = layout_rects(w.monitor)
     local r = rects[st.zone]
     if not (r and math.floor(r.x + 0.5) == st.rect[1] and math.floor(r.y + 0.5) == st.rect[2]
@@ -764,7 +763,7 @@ function M.mode_window_opened(w)
   hl.timer(function()
     if package.loaded.kwinish ~= M then return end
     local current = hl.get_window("address:" .. addr)
-    if current and current.mapped and current.floating and current.monitor and current.workspace
+    if current and current.mapped and current.floating and (current.fullscreen or 0) == 0 and current.monitor and current.workspace
       and current.workspace.id == ws and has_tag(current, "kwinish-mode-floated")
       and load_modes()[tostring(ws)] == "floating" then
       put(current, modes.open_rect(work_area(current.monitor), step))

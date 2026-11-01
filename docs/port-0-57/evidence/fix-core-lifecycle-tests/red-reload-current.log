@@ -1,0 +1,11 @@
+lua: core/test_kwinish.lua:543: core/test_kwinish.lua:537: setup hooks reach the reloaded module
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:537: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:540: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:543: in main chunk
+	[C]: in ?

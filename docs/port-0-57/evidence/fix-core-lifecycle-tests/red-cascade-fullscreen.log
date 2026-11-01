@@ -1,0 +1,11 @@
+lua: core/test_kwinish.lua:555: core/test_kwinish.lua:538: cascade leaves a fullscreen window alone
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:538: in function <core/test_kwinish.lua:31>
+	[C]: in global 'xpcall'
+	core/test_kwinish.lua:552: in main chunk
+	[C]: in ?
+stack traceback:
+	[C]: in global 'assert'
+	core/test_kwinish.lua:555: in main chunk
+	[C]: in ?

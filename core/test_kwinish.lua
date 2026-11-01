@@ -447,7 +447,12 @@ local function run()
   kw.window_action(candidate.address, "assist:" .. gen); unmoved("other monitor refused")
   candidate.monitor = home_mon
   kw.set_layout("halves"); kw.window_action(candidate.address, "assist:" .. gen); unmoved("other layout refused")
-  kw.set_layout("thirds"); kw.window_action(candidate.address, "assist:" .. gen)
+  kw.set_layout("thirds")
+  local shown_mon = hl.get_monitors()[1]
+  shown_mon.active_workspace = workspaces[3] -- the user switched the workspace the overlay was shown on
+  kw.window_action(candidate.address, "assist:" .. gen); unmoved("displayed workspace changed refused")
+  shown_mon.active_workspace = home_ws
+  kw.window_action(candidate.address, "assist:" .. gen)
   assert(candidate.at[1] == zx, "valid pick placed in the zone shown: " .. candidate.at[1] .. " ~= " .. zx)
 
   -- settings.json: plugin options go to hl.config only while the plugin is loaded; snap_assist stays in the core
@@ -519,11 +524,29 @@ local function run()
   failing_write, io.stderr = nil, stderr
   assert(state("rules.json") == "not json", "no copy, no replacement")
   -- Known failing regression, opt in until reload lifecycle is corrected.
+  -- the cascade step that places a new floating-mode window leaves it alone if it went fullscreen first (kept last: the
+  -- cascade counter is shared by every workspace)
+  kw.set_workspace_mode(4, "tiling"); kw.set_workspace_mode(4, "floating") -- declares the opening rule again
+  local stale4 = rules["kwinish-mode-floating-4"]
+  open("nf0", 4); advance(30) -- advances the cascade; the compositor keeps the old rule (as above)
+  rules["kwinish-mode-floating-4"] = stale4
+  local nf = open("nf", 4) -- born at the old step: the cascade step would move it
+  assert(tag(nf, "kwinish-mode-floated"), "nf is claimed by the mode (the cascade step runs for it)")
+  local before = { nf.at[1], nf.at[2], nf.size[1], nf.size[2] }
+  nf.fullscreen = 1
+  advance(30)
+  assert(nf.at[1] == before[1] and nf.at[2] == before[2] and nf.size[1] == before[3] and nf.size[2] == before[4], "cascade leaves a fullscreen window alone")
   -- reloading the core (package.loaded.kwinish = nil; require) must not register setup's hooks again
   kw = reload(); kw.setup({ autoraise_ms = 50, placement = "center" })
   local active_hooks, open_hooks = #events["window.active"], #events["window.open"]
   kw = reload(); kw.setup({ autoraise_ms = 50, placement = "center" })
   assert(#events["window.active"] == active_hooks and #events["window.open"] == open_hooks, "setup hooks duplicated on reload")
+  -- and the hooks registered once run the reloaded module's code, not the first module's
+  local reached_open, reached_active
+  kw.on_setup_open = function() reached_open = true end
+  kw.on_setup_active = function() reached_active = true end
+  emit("window.open", { address = "gone" }); emit("window.active", { address = "gone" })
+  assert(reached_open and reached_active, "setup hooks reach the reloaded module")
 end
 
 local ok, err = xpcall(run, debug.traceback)

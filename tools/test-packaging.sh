@@ -22,7 +22,8 @@ stale=()
 for h in "$t"/mk/*.hpp; do
   case ${h##*/} in test_*) continue ;; esac
   touch -d '2000-01-01' "$t/mk/kwinish-bars.so"; touch -d '2001-01-01' "$h"
-  make -q -C "$t/mk" kwinish-bars.so >/dev/null 2>&1 && stale+=("${h##*/}")
+  make -q -C "$t/mk" kwinish-bars.so >/dev/null 2>&1; rc=$? # 1: out of date, as it must be; 0: not rebuilt; 2: make error
+  [ "$rc" = 1 ] || stale+=("${h##*/}(make -q exit $rc)")
   touch -d '2000-01-01' "$h"; touch "$t/mk/kwinish-bars.so"
 done
 [ ${#stale[@]} = 0 ] && ok "Makefile: a changed header rebuilds the plugin" || bad "Makefile: changing these headers does not rebuild: ${stale[*]}"
@@ -66,8 +67,13 @@ printf 'abi:\n\t@: > kwinish-bars.so; : > kwinish-bars.abi\n' > "$t/fake/Makefil
 printf '#!/bin/sh\n[ "$1" = --modversion ] && echo 0.57.0; exit 0\n' > "$t/bin/pkg-config"; chmod +x "$t/bin/pkg-config"
 : > "$t/notadir" # dest under a regular file: install cannot create it
 out=$(PATH="$t/bin:$PATH" KWINISH_PLUGIN_SRC="$t/fake" KWINISH_PLUGIN_DEST="$t/notadir/plugins" sh "$root/packaging/plugin/kwinish-bars-rebuild" 2>&1); rc=$?
-if grep -q 'rebuilt for' <<<"$out"; then bad "rebuild: claims success when install failed: $out"; else ok "rebuild: no success message when install failed"; fi
+if ! grep -q 'rebuilt for' <<<"$out" && grep -q 'installing it into .* failed' <<<"$out"; then ok "rebuild: a failed install of the plugin is reported as a failure"; else bad "rebuild: plugin install failed but no failure reported: $out"; fi
 [ "$rc" = 0 ] && ok "rebuild: never fails the pacman transaction" || bad "rebuild: exit $rc (must be 0)"
+# the second install (the ABI file) fails: a read-only directory where the file should go
+mkdir -p "$t/dest2/kwinish-bars.abi"; chmod 555 "$t/dest2/kwinish-bars.abi"
+out=$(PATH="$t/bin:$PATH" KWINISH_PLUGIN_SRC="$t/fake" KWINISH_PLUGIN_DEST="$t/dest2" sh "$root/packaging/plugin/kwinish-bars-rebuild" 2>&1)
+chmod 755 "$t/dest2/kwinish-bars.abi"
+if ! grep -q 'rebuilt for' <<<"$out" && grep -q 'installing it into .* failed' <<<"$out"; then ok "rebuild: a failed install of the ABI file is reported as a failure"; else bad "rebuild: ABI install failed but no failure reported: $out"; fi
 out=$(PATH="$t/bin:$PATH" KWINISH_PLUGIN_SRC="$t/fake" KWINISH_PLUGIN_DEST="$t/dest" sh "$root/packaging/plugin/kwinish-bars-rebuild" 2>&1)
 [ -f "$t/dest/kwinish-bars.so" ] && grep -q 'rebuilt for' <<<"$out" && ok "rebuild: success when install works" || bad "rebuild: did not install or report: $out"
 
