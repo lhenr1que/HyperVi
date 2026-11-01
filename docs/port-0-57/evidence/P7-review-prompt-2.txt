@@ -1,0 +1,1489 @@
+You are an independent reviewer (review round 2) of a PREPARATION step for porting the Hyprland plugin "kwinish-bars" from Hyprland 0.56.2 to 0.57.0. You have NO tools; judge only the material below. Be adversarial and concrete, but do NOT demand identity of host-internal details that are not part of Kwinish's observable requirements.
+
+## Scope of this step (owner authorization)
+Only investigation, compile-time probes and documentation of the 0.57 alternatives for the keybind / mouse-bind / dispatcher APIs. NO keybind, hook or lifecycle code was changed. Nothing is integrated. (Separately, the owner approved and closed the earlier Log API step; re-verification results are in section "P6 closure".)
+
+## Owner's classification (use it)
+- BC = contractual blocker: violates a written Kwinish requirement (OpenSpec specs, docs/API.md, docs/CONFIGURAVEL.md) or prevents equivalence without a decision.
+- RD/"risk accepted and documented": observable difference outside written requirements; needs a test and owner acceptance.
+- DI = internal difference, not relevant to the contract.
+Written requirements consulted by the implementer: openspec/specs/(title-bar, window-snapping, snap-assist, workspace-modes) and docs/API.md; the implementer states none of them fixes drag start position, unsnap, focus after minimize, or cursor during drag; docs/API.md §6 fixes "minimize moves the window to workspace special:minimized without following it"; §3 lists grab:<move|resize>.
+
+## Questions
+1. For each row K1–K13 of the matrix: is the candidate API correct, are arguments/returns right, are the listed behaviour changes real and complete (cite the material), and is the BC/RD/DI classification right? Name missed differences.
+2. changeMouseBindMode / dragBegin / dragEnd / exclusiveDeviceGrab: is section 2 accurate? Anything about exclusiveDeviceGrab or the new bool return of dragEnd that matters for Kwinish?
+3. Q4 proposal (section 5): is it sound? Can it end a user-bind drag, miss a plugin drag, or call back into the module after unload? Is comparing the stored WP<ITarget> with dragController()->target() reliable (pointer reuse, dragBegin rejecting)?
+4. Is probe K non-vacuous? Any assertion that does not test what it claims?
+5. Is "no BC found" justified?
+
+Answer as JSON: {"verdict":"approve"|"reject","findings":[{"severity":"blocker|major|minor","class":"BC|RD|DI|doc","where":"row/section/probe","claim":"...","evidence":"quote from the material"}],"notes":"..."}. "reject" only for findings that make the preparation wrong or unsafe to build on; mark speculation as such.
+
+## Round 1 verdict (another session)
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "class": "RD",
+      "where": "Section 5, Q4 steps 1–3",
+      "claim": "Target identity is not drag-session ownership. A plugin drag on target T can end through the host, followed by a user-bind drag on the same still-live T. ownedDrag.lock() will still equal the controller target, so the proposed unload handler ends the user's drag. This counterexample does not require pointer reuse. The proposal needs an ownership mechanism that distinguishes successive drag sessions and invalidates ownership when the host ends the plugin session. Merely retaining a weak target is unsafe to build on.",
+      "evidence": "\"WP<Layout::ITarget> ownedDrag = g_layoutManager->dragController()->target()\"; \"T && T == ownedDrag.lock()\"; \"o host encerra drags sozinho a cada tecla/botão\"; \"um arrastar iniciado por atalho do usuário não é nosso\"."
+    },
+    {
+      "severity": "major",
+      "class": "doc",
+      "where": "Section 5, Q4 step 4",
+      "claim": "The stated no-reentry argument is false: absence of a plugin listener on ended does not mean endDragTarget cannot call plugin code. The supplied dragEnd path dispatches decoration input, and its focus changes can reach the plugin's window.active listener. Running this before removing decorations leaves that callback route present. This proves possible synchronous reentry during unload, not a callback after the library has been unmapped. The latter remains unproved either way. The proposal must account for these callback routes and quiescence ordering rather than certify safety from the ended-listener grep.",
+      "evidence": "\"nenhum ouvinte do plugin existe em ended → nenhum retorno ao módulo\"; \"Deve rodar antes de remover decorações e timers\"; host dragEnd calls \"pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)\"; that implementation calls \"decoration->onInputOnDeco(type, coordinates, data)\"; the plugin registers \"Event::bus()->m_events.window.active.listen\"."
+    },
+    {
+      "severity": "minor",
+      "class": "doc",
+      "where": "Sections 2–3, drag state and grouping differences",
+      "claim": "The inventory omits the new resets of m_draggingTiled at drag begin and end. This state participates in the drag-into-group decision, so the blanket account of grouping as unchanged is incomplete. A changed outcome for a particular sequence is not proved by the excerpts, but a tiled drag followed by a floating drag onto a group is a concrete regression-test candidate. Document this as an investigated state-reset change or a potential observable difference, not as an established BC.",
+      "evidence": "The DragController diff adds \"m_draggingTiled = false\" at both begin and end; dragEnd computes \"FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled\" and conditions group insertion on \"!FLOATEDINTOTILED\"."
+    },
+    {
+      "severity": "minor",
+      "class": "RD",
+      "where": "Section 2, orphan-release difference and associated tests",
+      "claim": "The orphan-release account omits the changed definition of a held button. In 0.57 it is tracked per button and pointer, whereas the old code tracks the button alone. A release from pointer B can therefore take the new orphan-release path even while the same button is held on pointer A. This belongs under the already identified release-handling RD; it does not establish a contractual blocker. Add a multi-pointer case if this behavior is in the supported test environment.",
+      "evidence": "Old code uses \"m_currentlyHeldButtons.push_back(e.button)\" and compares \"other == e.button\"; new code uses \"m_currentlyHeldButtons.emplace_back(e.button, mouse)\" and compares \"held.button == e.button && held.pointer.lock() == mouse\" before calling \"Keybinds::mgr()->onMouseEvent(e, mouse)\" for an unmatched release."
+    },
+    {
+      "severity": "minor",
+      "class": "doc",
+      "where": "Probe K, BeginWithDefaults and Actions assertions",
+      "claim": "The probe is non-vacuous, but several descriptions exceed what their assertions establish. BeginWithDefaults proves that a two-argument call is well-formed, not that the omitted values are nullopt and false. The m_passPressed assertion proves the member's type, not that Actions::mouse reads it. The Actions checks establish return types for the supplied explicit-argument expressions, not exact formal parameter types or the availability of every abbreviated call proposed in the matrix. The supplied header and mouse body independently support the default-value and state-read claims; the mutation results do not turn these into compile-time semantic tests.",
+      "evidence": "\"requires(CLayoutManager& m, SP<Layout::ITarget> t) { m.beginDragTarget(t, MBIND_MOVE); }\"; \"static_assert(std::is_same_v<decltype(A::state()->m_passPressed), int>, \\\"Actions::mouse reads this global bind state\\\")\"; the floatWindow assertion supplies \"std::optional<PHLWINDOW>{}\", while K4 proposes \"Config::Actions::floatWindow(TOGGLE_ACTION_ENABLE)\"."
+    },
+    {
+      "severity": "minor",
+      "class": "doc",
+      "where": "K13",
+      "claim": "The claimed error-behavior transition conflates missing dispatcher names with errors returned by existing dispatchers. Existing legacy dispatchers already wrap ActionResult errors into SDispatchResult errors, and dispatchIfKnown discards that result. Direct typed calls eliminate the missing-name lookup; ignoring their results does not itself introduce new error handling. Also, exec's replacement returns optional<uint64_t>, not ActionResult. State the result-discarding/logging policy separately for Actions and spawn.",
+      "evidence": "K13 says \"Falha vira ActionResult com erro em vez de no-op silencioso\"; the old wrapper returns \"{.success = false, .error = res.error().message}\"; dispatchIfKnown invokes \"g_pKeybindManager->m_dispatchers[name](arg)\" without inspecting the result; K12 specifies \"optional<uint64_t>\"."
+    },
+    {
+      "severity": "minor",
+      "class": "doc",
+      "where": "Contract review statement and section 6, no-BC conclusion",
+      "claim": "The supplied evidence supports 'no BC identified in the requirements reviewed,' not a completed review of every named contractual source. docs/CONFIGURAVEL.md is part of the owner's contractual set but is absent from the list of consulted documents. Record its review or qualify the coverage. This omission is not evidence that a BC actually exists.",
+      "evidence": "The classification names \"OpenSpec, docs/API.md, docs/CONFIGURAVEL.md\", but \"Contrato escrito consultado\" lists only \"openspec/specs/{title-bar,window-snapping,snap-assist,workspace-modes}, docs/API.md\"."
+    }
+  ],
+  "notes": "The rejection concerns the unsafe Q4 proposal and its incorrect reentry justification, not unauthorized implementation: the material consistently states that nothing was integrated. No demonstrated violation of the owner's enumerated written functional requirements follows from the supplied migration evidence. The major ownership issue is classified RD because the quoted non-interference rule is in QUIESCENCE.md rather than the owner's enumerated functional contract; its classification does not make the proposed cleanup safe.\n\nRow-by-row assessment:\nK1: The replacement composition is correct for the old call sites with ignored results: existing-target guard, cursor hit-test, fullscreen/decorations check, and beginDragTarget with the documented defaults. The candidate bool is not an equivalent SDispatchResult, but that is immaterial while every caller ignores it. The proportional hotspot change is supported by MAPDRAGHOTSPOT and is RD, including fullscreen as section 2 and the summary acknowledge. The floating movement equivalence follows from the stated hotspot algebra. Focusing the bar window does not determine the hit-test result; the row correctly retains cursor selection. Strict equivalence remains conditional on the documented threshold/release differences and owner acceptance.\nK2: The resize candidate and ignored return are appropriate. Selecting the cursor window rather than the addressed/focused window is inherited behavior, not a new port regression. RD is defensible as an existing observable hazard requiring acceptance if it is being reconsidered; it should not be presented as a newly introduced API difference. Switching to the addressed layoutTarget would require an explicit behavior decision. The backend resizing call is a real implementation change, but the supplied backend implementation is insufficient to establish a new client-visible effect; do not assert one from its name alone.\nK3: The guarded endDragTarget replacement is correct, and ignoring bool preserves these call sites. Ending any active drag is inherited behavior and DI as a replacement comparison. This does not justify using the same unconditional behavior for the new unload ownership requirement. Grouping, decoration dispatch, focus and geometry effects remain relevant and are acknowledged, subject to the omitted state-reset issue above.\nK4: Enabling floating on the focused window matches the documented legacy translation, provided the stated activewindow selector equivalence holds. ActionResult is the right result type. The floatWindow diff supports the direct replacement; the safer internally guarded end call does not require matching old host internals.\nK5: The parser, GOAL size, explicit absolute resize, and invalid-size guard reproduce the supplied translator. Preserve its focused-window selection and no-window guard as well; W must not silently become the bar's window. The document already calls for reproducing selection and the guard. DI is appropriate.\nK6: Toggle pin on the focused window is the supplied legacy mapping, with ActionResult. The state-storage/scheduling changes alone do not demonstrate a contract difference. DI is reasonable, with the proposed workspace-during-touch-drag test.\nK7: Parsing against GOAL position and calling move(POS, false, W) matches the translator. A direct Vector2D is equivalent here only if it preserves the explicit integer casts in the actual call site; retaining fractional COORDS would change placement. The row's integer qualification is important. DI is otherwise supported.\nK8: Disabling floating is the correct settiled mapping and has the same result considerations as K4. DI is appropriate.\nK9: The deterministic guarded end matches the documented outside-bind state of -1; the leading character was indeed removed by mouseDispatcher rather than serving as a direct release flag. If reentrant execution under m_passPressed == 1 is possible, equivalence fails, but the supplied material identifies no such path. That remains a hypothesis, not an established blocker. The DI mapping is conditional on the stated outside-bind execution premise.\nK10: The supplied translator explicitly maps argument 1 to MAXIMIZED, everything else here to FULLSCREEN, and supplies true for toggle. The proposed calls and ActionResult are correct; DI is supported.\nK11: The proposed string overload and silent=true have the documented shape. Workspace-name resolution and readiness remain semantic matters that a return-type probe cannot establish. The planned special:minimized/no-follow test addresses the actual contract. Changed fallback focus is RD, not BC under the owner's stated requirements. Pointer-constraint suspension is also acknowledged; its observable consequences are not established by the excerpt. No failure of the required workspace name or silent movement has been demonstrated.\nK12: Direct spawn(cmd) preserves the supplied wrapper's execution operation, and optional<uint64_t> is correct. The wrapper converted failure into SDispatchResult, but the old callers ignored it, so discarding spawn's result is equivalent at these call sites. DI is supported.\nK13: Direct typed dispatch is appropriate for this fixed known operation set, but its error account needs the correction in the finding. Choosing to log previously discarded errors is a separate diagnostic-policy change, not something demanded by the replacement API.\n\nSection 2 is broadly accurate. exclusiveDeviceGrab was already a parameter, and retaining false is the appropriate equivalence choice. Nothing supplied requires enabling it for Kwinish or using it as an ownership marker. Its accessor does not identify who started a drag. The new dragEnd bool means that an initial target existed, not that a particular plugin session was ended or that execution reached the final geometry/focus path: the diff has multiple early returns of true. Ignoring it is valid for K1–K3/K9. The ended scope guard is created only after the no-target return, so an empty end does not emit ended. The host's DRAG_WAS_ACTIVE use is consistent with its old ensureMouseBindState role in the excerpts; there is no demonstrated additional Kwinish requirement caused merely by the return-type change.\n\nFor Q4, ordinary weak-pointer expiration protects against confusing a destroyed object with a newly allocated object at the same address; the supplied WP implementation itself is not shown. Regardless, the decisive bug uses the same live target and needs no allocator assumption. A rejected begin with a null resulting target is not a missed active plugin drag. However, recording after a K1/K2 helper that returned early because another drag already existed could adopt that drag; the text must distinguish an actual accepted begin from a helper invocation. Recording must also cover every accepted rearm/unsnap restart and luaGrab start. Under that premise, the material does not independently demonstrate an accepted plugin drag that target recording necessarily misses. Calling end while the module is still mapped can synchronously reenter it; whether callbacks can run after unload requires the separate lifecycle proof, not an ended-listener grep.\n\nProbe K genuinely checks compilability, several exact manager/controller member signatures, return types, enum values, callable old-member absence, and the candidate composition. Its negative cases and mutation results are meaningful within that scope. They do not prove runtime behavior, default argument values, successful drag acquisition, ownership, workspace naming, or unload quiescence. Most of those limits are already honestly documented. The supplied P6 closure does not warrant reopening the separately approved logging step."
+}
+
+
+## Implementer response to round 1
+All round-1 findings accepted; the document and probe were changed (current versions are below).
+
+- Major 1 (Q4 ownership): target identity was replaced by session ownership. It is invalidated by the 0.57 `dragController()->m_events.ended` signal; probe K now asserts its type and the `listen` return type. Ownership is acquired only when the helper really called `beginDragTarget` AND `target()` is non-null afterwards. Your counterexample (plugin drag ended by the host, then a user bind drag on the same T) is now listed as test (d). New fact checked in host source: every host caller of `beginDragTarget` refuses when a target exists, so a new session always follows an `ended`. Callers: `Actions::mouse` (ConfigActions.cpp:1703), `CWindow::onMoveRequest`/`onResizeRequest` (Window.cpp:1861,1871, both with `exclusiveDeviceGrab=true`) and border resize (InputManager.cpp:876). Excerpt:
+```
+void CWindow::onMoveRequest() {
+    if (!m_isMapped || isHidden() || g_layoutManager->dragController()->target())
+        return;
+    ...
+    g_layoutManager->beginDragTarget(layoutTarget(), MBIND_MOVE, std::nullopt, true);
+}
+// InputManager.cpp:875-877
+                if (!g_layoutManager->dragController()->target())
+                    g_layoutManager->beginDragTarget(w->layoutTarget(), MBIND_RESIZE);
+```
+- Major 2 (reentry): the false claim was removed. Section 5 item 4 now lists the synchronous reentry routes and their requirements: `onInputOnDeco` via the CHyprBar vtable, `window.active` → `onFocusChanged`, decoration virtuals, and the `ended` listener. Requirements: no deferred work while unloading; step 2 runs before listener, decoration and timer removal. Proof that nothing runs after unmap is left to Q3.
+- Minor: added the `m_draggingTiled` reset row (RD, with a group-drop test candidate) and the per-(button, pointer) orphan release.
+- Minor (probe): description now matches what is proven. Added exact formal parameter types (function-pointer types and `static_cast` for overloads), the shortened calls used in the matrix, the `ended` type, and 3 new mutations: 36 OK, 26/26 mutants. Default values and the `m_passPressed` read are stated as coming from source text, not from the probe.
+- Minor (K13): rewritten. Only the name lookup disappears; errors were already wrapped and discarded. Logging them is a separate policy change. `spawn` returns `optional<uint64_t>`.
+- Minor (contract coverage): `docs/CONFIGURAVEL.md` reviewed (no drag, threshold, grab or minimize option). Conclusion reworded to "no BC identified in the reviewed sources".
+- Also from the notes: K2 is now marked as inherited behaviour, and its backend resizing is DI with no client-visible effect demonstrated. K5 now keeps the focused-window selection and the no-window guard. K7 now requires keeping the `(int)` casts.
+
+
+## Document under review: docs/port-0-57/P7-KEYBINDS.md
+# P7 — Preparação da migração de keybinds para Hyprland 0.57 (30/10/2026)
+
+Escopo autorizado: **somente** investigação, sondas de compilação e documentação das alternativas 0.57 para as APIs de keybinds/mouse-bind/dispatchers usadas pelo plugin. **Nenhum código de keybinds, hooks ou lifecycle foi alterado**; nada integrado; nenhum plugin carregado, nenhum teste gráfico, nada instalado, nenhum commit. Legenda: `O:` = fonte 0.56.2 (tarball `v0.56.2`, `evidence/P5-provenance.json`), `U:` = 0.57.0 fixada `0aa6745f` (= headers instalados), `H:` = header instalado, linhas do plugin = estado atual da worktree (P5+P6).
+
+Classificação das diferenças (pedido do dono):
+- **BC — bloqueio contratual:** viola requisito observável do Kwinish (OpenSpec, `docs/API.md`, `docs/CONFIGURAVEL.md`) ou impede a equivalência sem decisão.
+- **RD — risco documentado:** diferença observável fora dos requisitos escritos; precisa de teste e de **aceite do dono** antes de ser tratada como "risco aceito".
+- **DI — diferença interna:** muda o host, mas não é observável no contrato do Kwinish.
+
+Contrato escrito consultado: `openspec/specs/{title-bar,window-snapping,snap-assist,workspace-modes}`, `docs/API.md` e `docs/CONFIGURAVEL.md` (este não tem opção sobre arrasto, limiar, grab ou minimizar; só cita `binds.install` de teclas, fora deste escopo). Nenhum requisito fixa: posição da janela ao iniciar o arrasto, unsnap, foco após minimizar, cursor durante o arrasto. `docs/API.md` §6 fixa: `minimize` move para `special:minimized` sem seguir; §3 lista `grab:<move|resize>`.
+
+## 1. O que sumiu e o que existe (sonda K, §4)
+
+| 0.56.2 | 0.57.0 |
+|---|---|
+| `g_pKeybindManager` (`CKeybindManager`, global) | `Keybinds::mgr()` → `UP<Keybinds::CKeybindManager>&`, **sem** `changeMouseBindMode` e **sem** `m_dispatchers` |
+| `static SDispatchResult CKeybindManager::changeMouseBindMode(eMouseBindMode)` (`O:KeybindManager.cpp:949–975`) | **não existe**; primitivas: `g_layoutManager->beginDragTarget(SP<ITarget>, eMouseBindMode, optional<eRectCorner> = nullopt, bool exclusiveDeviceGrab = false)`, `bool endDragTarget()`, `dragController()->target()/mode()/exclusiveDeviceGrab()` (`H:layout/LayoutManager.hpp:78–111`, `H:layout/supplementary/DragController.hpp`) |
+| `m_dispatchers` (mapa preenchido pelo tradutor legado, `O:KeybindManager.cpp:113`, `O:config/legacy/DispatcherTranslator.cpp`) | **não existe**, nem `config/legacy`; os dispatchers usados eram embrulhos de `Config::Actions::*`, que existem na 0.57 (`H:config/shared/actions/ConfigActions.hpp`) |
+| `CWindow::checkInputOnDecos` | `presentation().checkInputOnDecorations(type, coords, any)` |
+| `eMouseBindMode` | inalterado (`H:managers/input/InputManager.hpp:38–43`; `INVALID=-1, MOVE=0, RESIZE=1`, `int8_t`) |
+| `dragBegin(target, mode, forcedEdge, exclusiveDeviceGrab)` | **mesma assinatura** (o parâmetro já existia na 0.56.2) |
+| `void dragEnd()` / `void endDragTarget()` | `bool dragEnd()` / `bool endDragTarget()`: `false` se não havia alvo (guarda interna nova); emite `m_events.ended` por scope guard |
+
+## 2. `changeMouseBindMode`, `dragBegin`, `dragEnd`, `exclusiveDeviceGrab`
+
+**Corpo antigo** (`O:KeybindManager.cpp:949–975`): `MODE != INVALID` → retorna se já há alvo; `windowAt(cursor, RESERVED_EXTENTS|INPUT_EXTENTS|ALLOW_FLOATING)`; sem janela → `passEvent`; se não-fullscreen e `MOVE`, `checkInputOnDecos(DRAG_START)` pode recusar; `beginDragTarget(PWINDOW->layoutTarget(), MODE)`. `MODE == INVALID` → `endDragTarget()` se há alvo. O valor de retorno é ignorado em **todas** as chamadas do plugin.
+
+**Candidato 0.57** (compila na sonda K como função **não integrada** `candidateChangeMouseBindMode`): o mesmo corpo sobre `Desktop::viewState()->hitTest().windowAt(...)`, `Fullscreen::controller()->isFullscreen`, `presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, …)`, `g_layoutManager->beginDragTarget(…, MODE)` (defaults: `forcedEdge = nullopt`, `exclusiveDeviceGrab = false`, como antes) e `endDragTarget()` com a mesma guarda. `U:ConfigActions.cpp:1695–1738` (`Actions::mouse`) tem o mesmo corpo, mas decide início/fim por `Config::Actions::state()->m_passPressed` (estado global de bind) → **não usar** fora de um bind.
+
+**Diferenças do host entre versões (mesmo chamando "o mesmo" código):**
+
+| Ponto | 0.56.2 | 0.57.0 | Classe |
+|---|---|---|---|
+| Guarda de `dragEnd` sem alvo | só no chamador (`changeMouseBindMode`) | interna, devolve `false` | DI |
+| Sinal `m_events.ended`/`motion` | — | emitido por `dragEnd`/movimento; **nenhum ouvinte** em `U:` (grep) | DI |
+| `dragBegin` em janela inválida | `changeMouseBindMode(INVALID)` | `dragEnd()` | DI (mesmo efeito) |
+| `shadowKeybinds` / `setXDGResizingState` | — | `shadowBinds()` / `setClientResizingState` (backend) | DI |
+| **Posição ao pegar janela ladrilhada/fullscreen** (`updateDragWindow`) | centraliza a janela sob o cursor (`MOUSE - size/2`) | `MAPDRAGHOTSPOT`: mantém o ponto de pega proporcional, ou centro se `binds:drag_center_window` | **RD** (observável; sem requisito escrito) |
+| Movimento (`mouseMove`) | `newPos = beginPos + Δ` | `newPos = mouse - hotspot`, `hotspot = beginMouse - beginPos` no fim de `updateDragWindow` → **mesmo resultado** para janela flutuante | DI |
+| Limiar de arrasto (`binds:drag_threshold`) | distância em coordenadas lógicas | distância em coordenadas **não transformadas** do ponteiro | RD (monitor com escala/transformação) |
+| `exclusiveDeviceGrab` | consumido em `O:InputManager.cpp:448` | consumido em `U:InputManager.cpp:430` (tira foco do ponteiro durante o drag) | DI — o plugin nunca o liga; o candidato mantém `false`. Ligá-lo mudaria o foco do ponteiro: **não fazer** sem decisão |
+| Botão solto sem ter sido registrado como pressionado | retorna sem keybinds; "pressionado" = só o código do botão | chama `Keybinds::mgr()->onMouseEvent` → `endDragTarget()`; "pressionado" = par (botão, **ponteiro**) | RD (um release "órfão" agora encerra o drag; com dois ponteiros, soltar o botão no ponteiro B pode encerrar o drag mantido no ponteiro A) |
+| `m_draggingTiled` | não zerado no início nem no fim | zerado em `dragBegin` e no fim de `dragEnd` | RD (participa de `FLOATEDINTOTILED`, que decide soltar em grupo; mudança de resultado não demonstrada, sequência candidata: arrasto de janela ladrilhada seguido de arrasto de flutuante sobre um grupo) |
+| Fim de drag por qualquer tecla/botão | `ensureMouseBindState()` (`O:KeybindManager.cpp:336–346,389,486`) | `endDragTarget()` em `U:keybinds/Manager.cpp:223` (tecla) e `:353` (botão, salvo `captured`) | DI (mesmo efeito) |
+| Ordem do evento de botão | bus `input.mouse.button` antes do host; `cancelled` interrompe | igual (`U:InputManager.cpp:720–724`) | DI |
+
+`dragEnd` (ambas as versões) também faz: `checkInputOnDecorations(DRAG_END)` (chama `onInputOnDeco` das decorações, inclusive pela vtable do `CHyprBar`), soltar em grupo (`group:drag_into_group`), `setTargetGeom`, `fullWindowFocus` (dispara `window.active`, que o plugin escuta em `main.cpp:490`), devolver janela "ladrilhada arrastada" ao mosaico. É isso que roda no meio do unsnap (`INVALID` → `MOVE`) — igual nas duas versões salvo o reset de `m_draggingTiled`; RD porque nunca foi testado sob 0.57.
+
+`bool` de `dragEnd`/`endDragTarget` significa só "havia alvo": há vários retornos antecipados `true` (janela não mapeada, recusa pela decoração). Não identifica sessão nem quem iniciou; `exclusiveDeviceGrab()` também não. Sem alvo, `dragEnd` retorna antes do scope guard e **não** emite `ended`.
+
+## 3. Matriz por operação
+
+Linhas: estado atual. "Teste" = o que precisa existir antes/depois de implementar (H = host-free/sonda; A = aninhado; V = ao vivo pelo dono).
+
+| # | Operação antiga (linhas) | API candidata 0.57 | Argumentos / retorno | Mudanças de comportamento | Dependências input / lifecycle | Testes | Impede equivalência | Classe |
+|---|---|---|---|---|---|---|---|---|
+| K1 | `changeMouseBindMode(MBIND_MOVE)` — `barDeco:674` (`handleMovement`), `:277` (`rearmDrag`), `:585` (fim do unsnap), `main:314` (`luaGrab` move) | corpo antigo reproduzido (§2), privado ao plugin | `eMouseBindMode` → resultado ignorado (hoje também). `beginDragTarget(...)` → `void` | Janela **ladrilhada**: posição inicial proporcional em vez de centrada (RD). Floating (rearm/unsnap): igual | Precisa do foco já na janela da barra (o plugin faz `fullWindowFocus` antes); hit-test pelo cursor, não pela janela da barra; `binds:drag_threshold`; sem lifecycle | H: sonda de tipos (feito); A/V: arrastar janela flutuante e ladrilhada pela barra, unsnap com rearm, `drag_threshold` 0 e >0, monitor com escala | Se o dono exigir centralização ao pegar janela ladrilhada: só com `binds:drag_center_window` (config global do usuário) ou reposicionamento próprio | RD |
+| K2 | `changeMouseBindMode(MBIND_RESIZE)` — `main:314` (`luaGrab` resize) | idem, `MODE = MBIND_RESIZE` | idem | `setXDGResizingState` → `setClientResizingState` via backend: troca de implementação, efeito visível ao cliente não demonstrado (DI); canto escolhido pela posição do cursor (igual) | `luaGrab` foca `w` mas o host redimensiona a janela **sob o cursor** — comportamento **herdado** da 0.56.2, não regressão do port; depende do cursor estar sobre `w` | A/V: menu → Redimensionar, com cursor sobre e fora da janela; Escape | Usar `w->layoutTarget()` em vez do hit-test **mudaria** a semântica (corrigiria o caso cursor-fora); decisão do dono | RD (herdado) |
+| K3 | `changeMouseBindMode(MBIND_INVALID)` — `barDeco:276, 564, 584, 628, 647`; `main:483` | `if (g_layoutManager->dragController()->target()) g_layoutManager->endDragTarget();` | `bool` (ignorável) | Nenhuma além de §2; encerra **qualquer** drag ativo, inclusive um iniciado por bind do usuário (igual à 0.56.2) | Release do botão chega pelo listener do plugin antes do host; se o plugin cancela o evento, só ele encerra o drag; `dragEnd` foca e pode agrupar | H: sonda; A/V: soltar sobre barra de grupo (`drag_into_group`), soltar em borda (snap), release órfão | — | DI |
+| K4 | `m_dispatchers["setfloating"]("activewindow")` — `barDeco:335` (toque) | `Config::Actions::floatWindow(TOGGLE_ACTION_ENABLE)` (janela ativa = `std::nullopt`) | → `ActionResult` (`std::expected`), descartar com `(void)` como já se faz em `barDeco:650`/`:697` | Corpo igual; 0.57 encerra drag via `endDragTarget()` em vez de `changeMouseBindMode(INVALID)` (DI). `"activewindow"` resolvia para a janela focada (`O:ViewQuery.cpp:100`) = `xtract(nullopt)` (`U:ConfigActions.cpp:57`) | Toque; foco atual | A: arrasto por toque (não testável sem dispositivo de toque → V) | — | DI |
+| K5 | `["resizewindowpixel"]("exact 50% 50%,activewindow")` — `:336` | `W = Desktop::focusState()->window()` (janela **focada**, com a guarda "sem janela" do tradutor; não trocar pela janela da barra) + `g_pCompositor->parseWindowVectorArgsRelative("exact 50% 50%", W->size(GOAL))` + `Actions::resize(SIZ, false, W)` com a guarda `SIZ.x<1\|\|SIZ.y<1` do tradutor | `Vector2D`; `ActionResult` | Nenhuma: parser idêntico (diff só no log), `resize` idêntico | idem K4 | H: sonda de tipos; V: toque | O plugin precisa reproduzir o pequeno embrulho do tradutor (seleção + guarda) | DI |
+| K6 | `["pin"]("activewindow")` — `:338` | `Actions::pinWindow(TOGGLE_ACTION_TOGGLE)` | `ActionResult` | Estado em `m_state` + `stateTracker().scheduleUpdate()` (DI) | idem | V: toque, trocar de workspace durante o arrasto | — | DI |
+| K7 | `["movewindowpixel"]("exact X Y,activewindow")` — `:340` | `parseWindowVectorArgsRelative("exact X Y", W->position(GOAL))` + `Actions::move(POS, false, W)` | idem | Nenhuma (`move` idêntico) | idem; a formatação `std::format("exact {} {}", …)` pode ser trocada por `Vector2D` direto **somente** mantendo os casts `(int)` atuais (coordenadas fracionárias mudariam a posição) | H; V | — | DI |
+| K8 | `["settiled"]("activewindow")` — `:378` | `Actions::floatWindow(TOGGLE_ACTION_DISABLE)` (já usado em `:650`) | idem | DI (como K4) | idem | V | — | DI |
+| K9 | `["mouse"]("0movewindow")` — `:379` | K3 (`endDragTarget` guardado) | — | 0.56.2: o `0` era descartado (`args.substr(1)`) e o efeito dependia de `m_passPressed`, que fora de um bind vale `-1` (`O:KeybindManager.cpp:804–814`) → encerrava o drag. O candidato faz isso de forma determinística | idem | V: toque saindo da barra | Se `onMouseMove` fosse chamado **durante** um bind (`m_passPressed==1`), o antigo **iniciaria** um drag; o candidato não. Não há caminho conhecido para isso (hipótese) | DI |
+| K10 | `dispatchIfKnown("fullscreen","1"/"0")` — `:705/:707` | `Actions::fullscreenWindow(FSMODE_MAXIMIZED / FSMODE_FULLSCREEN, true)` | `ActionResult` | Corpo idêntico (12 linhas, diff vazio) | Janela focada pelo clique | V: maximizar/tela cheia pelos botões | — | DI |
+| K11 | `dispatchIfKnown("movetoworkspacesilent","special:minimized")` — `:709` | `Actions::moveToWorkspace("special:minimized", true)` (sobrecarga `string` nova) | `ActionResult` | Resolução do workspace mudou (`resolveWorkspace` → `findOrCreateWorkspace` + `ready()`); no modo silencioso, se a janela estava focada, as duas versões focam a janela sob o antigo centro dela; **sem janela ali**, a 0.57 foca a primeira janela do workspace antigo (ou nenhuma) em vez de `g_pInputManager->refocus()`; suspende *pointer constraints* durante a ação | `docs/API.md` §6 (nome `special:minimized`, sem seguir) e o núcleo Lua (`core/kwinish.lua:432,775`) dependem do **nome** do workspace | V: minimizar pelo botão → janela em `special:minimized` (`hyprctl clients`), sem seguir; dock/núcleo continuam reconhecendo; ver qual janela recebe foco | Foco pós-minimizar diferente: fora do contrato escrito (RD). Nome do workspace: contrato — precisa ser verificado | RD |
+| K12 | `dispatchIfKnown("exec", cmd)` — `:713`, `:817` | `Config::Supplementary::executor()->spawn(cmd)` | `optional<uint64_t>` | `spawn` idêntico (diff vazio) | — | V: botão `exec:` e menu da janela | — | DI |
+| K13 | `dispatchIfKnown` (no-op se o nome não existe; resultado do dispatcher descartado) | chamadas diretas tipadas | Actions → `ActionResult`; `spawn` → `optional<uint64_t>` | Some só a busca por nome (o conjunto é fixo e conhecido). Os erros já existiam (o tradutor convertia `ActionResult` em `SDispatchResult{.success=false}`) e já eram descartados: descartar com `(void)` mantém o comportamento | — | H | Logar erros antes descartados é **mudança de política de diagnóstico**, separada da troca de API (se adotada: com limitação de frequência, como a decisão `nullopt`) | DI |
+
+## 4. Sonda K (`evidence/P7-probe-k.txt`, log `P7-probe-k-run.log`)
+
+TU independente, flags do Makefile, GCC 16.2.1 e Clang 23.1.4, HOME/XDG temporários. Positivo: `static_assert` sobre os tipos exatos de §1, os **tipos formais** de `floatWindow`/`pinWindow`/`move`/`resize` e das sobrecargas usadas de `fullscreenWindow`/`moveToWorkspace` (por `static_cast`), as **chamadas abreviadas** escritas na matriz, executor/parser, e o sinal `m_events.ended` (`CSignalT<>`, `listen` → `CHyprSignalListener`); conceitos (dependentes) provando a ausência de `changeMouseBindMode`/`m_dispatchers` no gerente novo e de `checkInputOnDecos`; composição não integrada do candidato K1/K3. **Não provado pela sonda** (só pelo texto do header/fonte): os **valores** default de `beginDragTarget` (`LayoutManager.hpp:78`) e que `Actions::mouse` lê `m_passPressed` (`U:ConfigActions.cpp:1696`). NEG1–4 (`g_pKeybindManager->changeMouseBindMode`, `g_pKeybindManager->m_dispatchers`, `Keybinds::mgr()->changeMouseBindMode`, `CKeybindManager::changeMouseBindMode`) falham com o diagnóstico esperado e **somente** ele. Mutações: 13 assertivas invertidas/trocadas × 2 compiladores = **26/26** mortas só por `static_assert`. Runner: **36 OK, exit 0** (revisão 1 pediu as assertivas de parâmetros e chamadas abreviadas; a primeira versão tinha 30 OK).
+
+Limite: a sonda prova formas e tipos; não executa drag, foco, grupos, eventos, nomes de workspace nem quiescência do unload.
+
+## 5. Q4 — restauração de estado no descarregamento (proposta revisada, não implementada)
+
+Hoje `PLUGIN_EXIT` (`main.cpp:526–542`) **não** encerra drag/grab iniciado pelo plugin (L17, `LEDGER.md:45`; `QUIESCENCE.md:30`). A regra do protocolo: o passo 2 só encerra o que é do plugin; "um arrastar iniciado por atalho do usuário (bind do host) não é nosso".
+
+**Por que identidade do alvo não basta (revisão 1):** o host encerra drags sozinho a cada tecla/botão (§2), e as flags do plugin ficam velhas (ex.: hoje `grabActive` só é limpo por Escape, `main.cpp:457–459`, mas qualquer tecla encerra o drag no host). Contraexemplo: drag do plugin na janela T encerrado pelo host; o usuário inicia por bind um drag na **mesma** T; `WP<ITarget>` ainda casa com `target()` → o unload encerraria o drag do usuário. Não depende de reuso de ponteiro.
+
+**Proposta: posse por sessão, invalidada pelo sinal do host.**
+1. Estado do plugin: `bool ownsDrag` + `WP<Layout::ITarget> ownedTarget`, e um `CHyprSignalListener` em `g_layoutManager->dragController()->m_events.ended` (0.57; tipo provado na sonda K) que faz `ownsDrag = false; ownedTarget.reset()`. Como todo fim de sessão com alvo passa por `dragEnd` e emite `ended` (scope guard), qualquer fim — tecla, botão, Escape, recusa — invalida a posse.
+2. Adquirir posse **só** quando o helper K1/K2 realmente chamou `beginDragTarget` (não nos retornos antecipados "já há alvo", "sem janela" e "recusado pela decoração", para não adotar o drag de outro) **e** `target()` não é nulo depois da chamada (`dragBegin` pode recusar e já emitir `ended` dentro dela). Vale para toda partida: `handleMovement`, `rearmDrag`, fim do unsnap, `luaGrab`.
+3. Passo 2 do unload: marcar `unloading = true`; `if (ownsDrag && ownedTarget.lock() == target()) endDragTarget();` (o `ended` limpa a posse); depois zerar as flags de interação (`m_bDraggingThis`, `m_bDragPending`, `grabActive`, `grabSwallowPress`, `m_unsnapAnim`, `m_rearmPending`, …).
+4. **Reentrada síncrona é possível e precisa ser tratada (correção da revisão 1):** `endDragTarget()` chama `checkInputOnDecorations(DRAG_END)` → `onInputOnDeco` pela vtable do `CHyprBar` (corpo padrão do host, vtable no módulo), `fullWindowFocus` → listener `window.active` do plugin (`main.cpp:490`, `onFocusChanged` nas barras), `setTargetGeom`/damage → métodos virtuais das decorações; e o listener de `ended` do item 1. Tudo isso roda **com o módulo mapeado**, durante o passo 2. Requisitos: esses callbacks não podem agendar trabalho diferido (timer do tooltip, rearm, preview) quando `unloading`; o passo 2 deve vir **antes** da remoção de listeners/decorações/timers (passos posteriores) e o listener de `ended` deve ser removido junto dos demais. A prova de que **nenhum** callback roda **depois** do unmap é do protocolo de lifecycle (Q3), não desta análise.
+5. **Sessão substituída sem `ended`:** verificado que não ocorre pelos chamadores do host — todos os `beginDragTarget` do host exigem ausência de alvo antes: `Actions::mouse` (`U:ConfigActions.cpp:1703`), pedidos do cliente `onMoveRequest`/`onResizeRequest` (`U:Window.cpp:1861,1871`, que usam `exclusiveDeviceGrab=true`) e redimensionar pela borda (`U:InputManager.cpp:876`). Logo, uma nova sessão só começa depois de um `ended`, que invalida a posse. Os helpers do plugin (K1/K2) mantêm a mesma guarda. A comparação `ownedTarget.lock() == target()` fica como defesa adicional, não como mecanismo principal.
+
+Testes Q4 (B1-D3 aninhado): unload com (a) drag pela barra ativo; (b) grab do menu ativo; (c) unsnap em animação; (d) drag por bind do usuário ativo, com e sem drag anterior do plugin na mesma janela já encerrado por tecla; (e) flag velha (`grabActive` após tecla não-Escape); (f) pedido de move do cliente durante drag do plugin (deve ser recusado pelo host). Critério: alvo vazio em (a)–(c); intacto em (d)–(e); em (f) o drag do plugin continua e o pedido é ignorado; nenhum timer/callback agendado pelo passo 2; nenhuma chamada ao módulo após o passo 8.
+
+## 6. Condições que impedem equivalência estrita (resumo)
+
+1. **Posição inicial ao pegar janela ladrilhada/fullscreen** (K1): o host 0.57 mudou o algoritmo; a centralização antiga só volta com `binds:drag_center_window` (config do usuário) ou código próprio. RD.
+2. **Limiar de arrasto em coordenadas não transformadas** e **release órfão encerra o drag**: mudanças do host. RD.
+3. **Foco após minimizar** (K11): mudança do `moveToWorkspace` silencioso. RD. O nome `special:minimized` é contrato e precisa de verificação.
+4. Nenhum **BC identificado nas fontes revisadas** (OpenSpec `title-bar`, `window-snapping`, `snap-assist`, `workspace-modes`; `docs/API.md`; `docs/CONFIGURAVEL.md`): nenhuma operação viola requisito escrito. Isso não é prova de ausência de BC fora dessas fontes; o nome `special:minimized` (API §6) e `grab:<move|resize>` (API §3) precisam do teste ao vivo. Os itens RD precisam de aceite explícito do dono e de teste ao vivo; até lá, **não** são "riscos aceitos".
+
+## 7. Ordem recomendada da implementação (próxima autorização)
+
+1. Helpers privados (`beginBarDrag(mode)`, `endBarDrag()`) com o corpo de §2, sem mudar chamadores além da troca 1:1 (K1–K3, K9); `exclusiveDeviceGrab=false`.
+2. Troca dos dispatchers por Actions (K4–K8, K10–K12), com `(void)`/log do `ActionResult`.
+3. **Separado:** Q4 (§5: posse por sessão via `m_events.ended`, tratamento de reentrada), junto do protocolo de unload — é hook + lifecycle, exige autorização própria.
+4. Antes de cada passo: sonda (já existente) + comparação de erros; depois: roteiro ao vivo do dono (§3 coluna "Testes").
+
+
+## Probe K source and runner
+```cpp
+// P7 probe K — keybind / mouse-bind / dispatcher APIs, Hyprland 0.57.0 (installed headers, Makefile flags).
+// Positive mode: exact 0.57 shapes of every candidate replacement; the 0.56.2 members are gone.
+// -DPROBE_NEG=1: g_pKeybindManager->changeMouseBindMode(MBIND_MOVE)      (barDeco.cpp:674 shape)
+// -DPROBE_NEG=2: g_pKeybindManager->m_dispatchers["pin"]("activewindow") (barDeco.cpp:338 shape)
+// -DPROBE_NEG=3: Keybinds::mgr()->changeMouseBindMode(MBIND_INVALID)     (no such member on the 0.57 manager)
+// -DPROBE_NEG=4: CKeybindManager::changeMouseBindMode(MBIND_INVALID)     (0.56.2 static, global class gone)
+// Nothing here is linked into the plugin; candidateChangeMouseBindMode() only proves the
+// composition compiles. It is NOT integrated.
+#include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+#include <hyprland/src/config/supplementary/executor/Executor.hpp>
+#include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/state/ViewHitTester.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/keybinds/Manager.hpp>
+#include <hyprland/src/layout/LayoutManager.hpp>
+#include <hyprland/src/layout/supplementary/DragController.hpp>
+#include <hyprland/src/layout/target/Target.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+#include <hyprland/src/managers/input/InputManager.hpp>
+
+#include <optional>
+#include <string>
+#include <type_traits>
+
+namespace A = Config::Actions;
+using Layout::CLayoutManager;
+using Layout::Supplementary::CDragStateController;
+
+// ---- eMouseBindMode: same enumerators/values as 0.56.2 ---------------------------------
+static_assert(std::is_same_v<std::underlying_type_t<eMouseBindMode>, int8_t>);
+static_assert(MBIND_INVALID == -1 && MBIND_MOVE == 0 && MBIND_RESIZE == 1);
+
+// ---- layout drag API ---------------------------------------------------------------------
+static_assert(std::is_same_v<decltype(g_layoutManager), UP<CLayoutManager>>);
+static_assert(std::is_same_v<decltype(&CLayoutManager::beginDragTarget),
+                             void (CLayoutManager::*)(SP<Layout::ITarget>, eMouseBindMode, std::optional<Layout::eRectCorner>, bool)>);
+static_assert(std::is_same_v<decltype(&CLayoutManager::endDragTarget), bool (CLayoutManager::*)()>, "0.57: endDragTarget returns bool");
+static_assert(std::is_same_v<decltype(&CLayoutManager::dragController), const UP<CDragStateController>& (CLayoutManager::*)()>);
+static_assert(std::is_same_v<decltype(&CDragStateController::target), SP<Layout::ITarget> (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::mode), eMouseBindMode (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::exclusiveDeviceGrab), bool (CDragStateController::*)() const>);
+static_assert(std::is_same_v<decltype(&CDragStateController::dragEnd), bool (CDragStateController::*)()>);
+// beginDragTarget(target, mode) is well-formed with two arguments. The default VALUES
+// (forcedEdge = nullopt, exclusiveDeviceGrab = false) are read from the header text
+// (LayoutManager.hpp:78), not proven here.
+template <typename = void>
+concept BeginWithDefaults = requires(CLayoutManager& m, SP<Layout::ITarget> t) { m.beginDragTarget(t, MBIND_MOVE); };
+static_assert(BeginWithDefaults<>);
+
+// drag-session end signal (0.57): public, CSignalT<>; listen() returns an owning listener
+static_assert(std::is_same_v<decltype(std::declval<CDragStateController&>().m_events.ended), Hyprutils::Signal::CSignalT<>>);
+static_assert(std::is_same_v<decltype(std::declval<CDragStateController&>().m_events.ended.listen(std::function<void()>{})), Hyprutils::Signal::CHyprSignalListener>);
+
+// ---- window side --------------------------------------------------------------------------
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().layoutTarget()), SP<Layout::ITarget>>);
+static_assert(std::is_same_v<decltype(&Desktop::View::CWindowPresentation::checkInputOnDecorations), bool (Desktop::View::CWindowPresentation::*)(eInputType, const Vector2D&, std::any)>);
+template <typename W = Desktop::View::CWindow>
+concept OldCheckInputOnDecos = requires(W& w) { w.checkInputOnDecos(INPUT_TYPE_DRAG_START, Vector2D{}); };
+static_assert(!OldCheckInputOnDecos<>, "0.56.2 CWindow::checkInputOnDecos is gone");
+static_assert(std::is_same_v<decltype(std::declval<const Desktop::CViewHitTester&>().windowAt(Vector2D{}, uint16_t{}, PHLWINDOW{})), PHLWINDOW>);
+
+// ---- keybind manager: no mouse-bind mode, no dispatcher map ------------------------------
+static_assert(std::is_same_v<decltype(Keybinds::mgr()), UP<Keybinds::CKeybindManager>&>);
+template <typename M = Keybinds::CKeybindManager>
+concept MgrHasChangeMouseBindMode = requires(M& m) { m.changeMouseBindMode(MBIND_MOVE); };
+template <typename M = Keybinds::CKeybindManager>
+concept MgrHasDispatchers = requires(M& m) { m.m_dispatchers; };
+static_assert(!MgrHasChangeMouseBindMode<>);
+static_assert(!MgrHasDispatchers<>);
+
+// ---- Config::Actions replacements for the legacy dispatchers ------------------------------
+static_assert(std::is_same_v<A::ActionResult, std::expected<A::SActionResult, A::SActionError>>);
+static_assert(std::is_same_v<decltype(A::floatWindow(A::TOGGLE_ACTION_ENABLE, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::pinWindow(A::TOGGLE_ACTION_TOGGLE, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::move(Vector2D{}, false, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::resize(Vector2D{}, false, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::moveToWorkspace(std::string{}, true, std::optional<PHLWINDOW>{})), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::mouse(std::string{})), A::ActionResult>);
+// type only; that Actions::mouse reads it is shown by the source (U:ConfigActions.cpp:1696), not by this assertion
+static_assert(std::is_same_v<decltype(A::state()->m_passPressed), int>);
+static_assert(std::is_same_v<decltype(Config::Supplementary::executor()->spawn(std::string{})), std::optional<uint64_t>>);
+static_assert(std::is_same_v<decltype(g_pCompositor->parseWindowVectorArgsRelative(std::string{}, Vector2D{})), Vector2D>);
+static_assert(std::is_same_v<decltype(Fullscreen::controller()->isFullscreen(PHLWINDOW{})), bool>);
+// exact formal parameter types (non-overloaded: function-pointer type; overloaded: static_cast selects one)
+static_assert(std::is_same_v<decltype(&A::floatWindow), A::ActionResult (*)(A::eTogglableAction, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::pinWindow), A::ActionResult (*)(A::eTogglableAction, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::move), A::ActionResult (*)(const Vector2D&, bool, std::optional<PHLWINDOW>)>);
+static_assert(std::is_same_v<decltype(&A::resize), A::ActionResult (*)(const Vector2D&, bool, std::optional<PHLWINDOW>)>);
+[[maybe_unused]] static constexpr auto FS_SIG = static_cast<A::ActionResult (*)(Fullscreen::eFullscreenMode, bool, std::optional<PHLWINDOW>)>(&A::fullscreenWindow);
+[[maybe_unused]] static constexpr auto MTW_SIG = static_cast<A::ActionResult (*)(const std::string&, bool, std::optional<PHLWINDOW>)>(&A::moveToWorkspace);
+// the abbreviated calls written in the matrix (defaulted window = focused) are well-formed
+static_assert(requires {
+    A::floatWindow(A::TOGGLE_ACTION_ENABLE);
+    A::floatWindow(A::TOGGLE_ACTION_DISABLE);
+    A::pinWindow(A::TOGGLE_ACTION_TOGGLE);
+    A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true);
+    A::fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true);
+    A::moveToWorkspace(std::string{"special:minimized"}, true);
+});
+
+// ---- composition proof (not integrated): 0.56.2 changeMouseBindMode body on 0.57 primitives --
+[[maybe_unused]] static bool candidateChangeMouseBindMode(eMouseBindMode MODE) {
+    if (MODE != MBIND_INVALID) {
+        if (g_layoutManager->dragController()->target())
+            return true;
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+        if (!PWINDOW)
+            return true; // passEvent
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+            return false;
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+    } else {
+        if (!g_layoutManager->dragController()->target())
+            return true;
+        (void)g_layoutManager->endDragTarget();
+    }
+    return true;
+}
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1() { g_pKeybindManager->changeMouseBindMode(MBIND_MOVE); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2() { g_pKeybindManager->m_dispatchers["pin"]("activewindow"); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 3
+void neg3() { Keybinds::mgr()->changeMouseBindMode(MBIND_INVALID); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 4
+void neg4() { CKeybindManager::changeMouseBindMode(MBIND_INVALID); }
+#endif
+
+int main() {}
+
+```
+```bash
+#!/usr/bin/env bash
+# P7 keybind probe runner: positive (GCC+Clang), 4 NEG with expected diagnostics (every error
+# line must match the allowed set), and assertion mutations (killed only by static_assert).
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+O=$P/out; mkdir -p "$O/mut"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"; unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+F="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+ERR='^[^ ].*: (fatal )?error:'
+# expected (allowed) diagnostics per NEG, GCC|Clang wording
+declare -A RX=(
+  [1]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .changeMouseBindMode. in .CHyprXWaylandManager."
+  [2]="g_pKeybindManager.{0,3} was not declared|undeclared identifier .g_pKeybindManager.|no member named .m_dispatchers. in .CHyprXWaylandManager."
+  [3]="has no member named .changeMouseBindMode.|no member named .changeMouseBindMode. in .Keybinds::CKeybindManager."
+  [4]=".CKeybindManager. has not been declared|undeclared identifier .CKeybindManager.|no type named .changeMouseBindMode. in .Keybinds::CKeybindManager."
+)
+for CXX in g++ clang++; do
+    if $CXX $F -fsyntax-only "$P/probe_k_keybinds.cpp" >"$O/K-$CXX.log" 2>&1; then ok "$CXX K positive exit 0"; else bad "$CXX K positive"; fi
+    for N in 1 2 3 4; do
+        $CXX $F -fsyntax-only -DPROBE_NEG=$N "$P/probe_k_keybinds.cpp" >"$O/K-neg$N-$CXX.log" 2>&1; RC=$?
+        NE=$(grep -cE "$ERR" "$O/K-neg$N-$CXX.log"); NB=$(grep -E "$ERR" "$O/K-neg$N-$CXX.log" | grep -vcE "${RX[$N]}")
+        if [ $RC -ne 0 ] && [ "$NE" -gt 0 ] && [ "$NB" = 0 ]; then ok "$CXX K NEG$N exit $RC ($NE expected error lines)"; else bad "$CXX K NEG$N rc=$RC errors=$NE unexpected=$NB"; fi
+    done
+done
+N=0
+while IFS='|' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_k_keybinds.cpp" "$O/mut/$NAME.cpp"
+    FF="$FIND" RR="$REPL" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$O/mut/$NAME.cpp"
+    cmp -s "$P/probe_k_keybinds.cpp" "$O/mut/$NAME.cpp" && { bad "$NAME unchanged"; continue; }
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $F -fsyntax-only "$O/mut/$NAME.cpp" >"$O/mut/$NAME.$CXX.log" 2>&1; RC=$?
+        T=$(grep -cE "$ERR" "$O/mut/$NAME.$CXX.log"); SA=$(grep -E "$ERR" "$O/mut/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$T" -gt 0 ] && [ "$T" = "$SA" ]; then ok "mut $NAME $CXX killed by static_assert"; else bad "mut $NAME $CXX rc=$RC errors=$T static=$SA"; fi
+    done
+done <<'EOF'
+m1|MBIND_INVALID == -1 && MBIND_MOVE == 0|MBIND_INVALID == 0 && MBIND_MOVE == 0
+m2|bool (CLayoutManager::*)()>, "0.57|void (CLayoutManager::*)()>, "0.57
+m3|static_assert(!MgrHasChangeMouseBindMode<>);|static_assert(MgrHasChangeMouseBindMode<>);
+m4|static_assert(!MgrHasDispatchers<>);|static_assert(MgrHasDispatchers<>);
+m5|static_assert(!OldCheckInputOnDecos<>|static_assert(OldCheckInputOnDecos<>
+m6|static_assert(BeginWithDefaults<>);|static_assert(!BeginWithDefaults<>);
+m7|spawn(std::string{})), std::optional<uint64_t>>|spawn(std::string{})), std::optional<int>>
+m8|exclusiveDeviceGrab), bool (CDragStateController|exclusiveDeviceGrab), int (CDragStateController
+m9|m_passPressed), int>|m_passPressed), bool>
+m10|decltype(&CDragStateController::dragEnd), bool|decltype(&CDragStateController::dragEnd), void
+m11|decltype(&A::floatWindow), A::ActionResult (*)(A::eTogglableAction|decltype(&A::floatWindow), A::ActionResult (*)(bool
+m12|m_events.ended), Hyprutils::Signal::CSignalT<>>|m_events.ended), Hyprutils::Signal::CSignalT<int>>
+m13|decltype(&A::move), A::ActionResult (*)(const Vector2D&, bool|decltype(&A::move), A::ActionResult (*)(const Vector2D&, int
+EOF
+echo "mutants run: $N"
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL
+
+```
+Run log:
+```
+OK   - g++ K positive exit 0
+OK   - g++ K NEG1 exit 1 (1 expected error lines)
+OK   - g++ K NEG2 exit 1 (1 expected error lines)
+OK   - g++ K NEG3 exit 1 (1 expected error lines)
+OK   - g++ K NEG4 exit 1 (1 expected error lines)
+OK   - clang++ K positive exit 0
+OK   - clang++ K NEG1 exit 1 (2 expected error lines)
+OK   - clang++ K NEG2 exit 1 (2 expected error lines)
+OK   - clang++ K NEG3 exit 1 (1 expected error lines)
+OK   - clang++ K NEG4 exit 1 (2 expected error lines)
+OK   - mut m1 g++ killed by static_assert
+OK   - mut m1 clang++ killed by static_assert
+OK   - mut m2 g++ killed by static_assert
+OK   - mut m2 clang++ killed by static_assert
+OK   - mut m3 g++ killed by static_assert
+OK   - mut m3 clang++ killed by static_assert
+OK   - mut m4 g++ killed by static_assert
+OK   - mut m4 clang++ killed by static_assert
+OK   - mut m5 g++ killed by static_assert
+OK   - mut m5 clang++ killed by static_assert
+OK   - mut m6 g++ killed by static_assert
+OK   - mut m6 clang++ killed by static_assert
+OK   - mut m7 g++ killed by static_assert
+OK   - mut m7 clang++ killed by static_assert
+OK   - mut m8 g++ killed by static_assert
+OK   - mut m8 clang++ killed by static_assert
+OK   - mut m9 g++ killed by static_assert
+OK   - mut m9 clang++ killed by static_assert
+OK   - mut m10 g++ killed by static_assert
+OK   - mut m10 clang++ killed by static_assert
+OK   - mut m11 g++ killed by static_assert
+OK   - mut m11 clang++ killed by static_assert
+OK   - mut m12 g++ killed by static_assert
+OK   - mut m12 clang++ killed by static_assert
+OK   - mut m13 g++ killed by static_assert
+OK   - mut m13 clang++ killed by static_assert
+mutants run: 26
+result: PASS
+
+```
+
+## Plugin call sites (current worktree)
+```
+plugin/barDeco.cpp:276:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+plugin/barDeco.cpp:277:    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+plugin/barDeco.cpp:335:        g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");
+plugin/barDeco.cpp:336:        g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");
+plugin/barDeco.cpp:338:        g_pKeybindManager->m_dispatchers["pin"]("activewindow");
+plugin/barDeco.cpp:340:    g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+plugin/barDeco.cpp:378:                g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
+plugin/barDeco.cpp:379:            g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+plugin/barDeco.cpp:564:    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+plugin/barDeco.cpp:584:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+plugin/barDeco.cpp:585:        g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+plugin/barDeco.cpp:628:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+plugin/barDeco.cpp:647:        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+plugin/barDeco.cpp:674:    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+plugin/barDeco.cpp:684:static void dispatchIfKnown(const std::string& name, const std::string& arg) {
+plugin/barDeco.cpp:685:    if (g_pKeybindManager->m_dispatchers.contains(name))
+plugin/barDeco.cpp:686:        g_pKeybindManager->m_dispatchers[name](arg);
+plugin/barDeco.cpp:705:        dispatchIfKnown("fullscreen", "1"); // the window was just focused by the click
+plugin/barDeco.cpp:707:        dispatchIfKnown("fullscreen", "0");
+plugin/barDeco.cpp:709:        dispatchIfKnown("movetoworkspacesilent", "special:minimized");
+plugin/barDeco.cpp:713:        dispatchIfKnown("exec", action.substr(5));
+plugin/barDeco.cpp:817:    dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
+plugin/main.cpp:314:        g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+plugin/main.cpp:483:            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+
+```
+```cpp
+    return true;
+}
+
+void CHyprBar::rearmDrag() {
+    const auto W = m_pWindow.lock();
+    if (!W || !m_bDraggingThis || m_bTouchEv)
+        return;
+    m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+}
+
+void CHyprBar::onMouseMove(Vector2D coords) {
+...
+void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+    if (!m_bDragPending || !m_bTouchEv || !validMapped(m_pWindow) || e.touchID != m_touchId)
+        return;
+
+    auto PMONITOR     = m_pWindow->m_monitor.lock();
+    PMONITOR          = PMONITOR ? PMONITOR : Desktop::focusState()->monitor();
+    const auto COORDS = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y);
+
+    if (!m_bDraggingThis) {
+        // Initial setup for dragging a window.
+        g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");
+        g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");
+        // pin it so you can change workspaces while dragging a window
+        g_pKeybindManager->m_dispatchers["pin"]("activewindow");
+    }
+    g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+    m_bDraggingThis = true;
+    warnIfNoCore();
+...
+    const auto ON_DOUBLE_CLICK  = g_pGlobalState->config.onDoubleClick->value();
+
+    const bool BUTTONSRIGHT = ALIGNBUTTONS != "left";
+
+    if (!VECINRECT(COORDS, 0, 0, assignedBoxGlobal().w, HEIGHT - 1)) {
+
+        if (m_bDraggingThis) {
+            if (m_bTouchEv)
+                g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
+            g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+            Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+        }
+
+...
+    m_unsnapRatio = std::clamp((m_pressCursor.x - R.snapPos.x) / std::max(1.0, R.snapSize.x), 0.0, 1.0);
+    m_unsnapGrabY = m_pressCursor.y - R.snapPos.y;
+    m_unsnapFrom  = SIZE;
+    m_unsnapTo    = R.size;
+    m_unsnapT0    = Time::steadyNow();
+    m_unsnapAnim  = true;
+
+    // The size eases back over 140 ms, the window kept under the pointer at the same fraction of its bar; the compositor's
+    // move is paused meanwhile and restarted from the final geometry. Pointer motion drives the steps.
+    g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+    stepUnsnap();
+}
+
+void CHyprBar::stepUnsnap() {
+    const auto W = m_pWindow.lock();
+    if (!m_unsnapAnim || !W || !m_bDraggingThis) {
+        m_unsnapAnim = false;
+        return;
+    }
+    const double   P   = std::min(1.0, std::chrono::duration<double, std::milli>(Time::steadyNow() - m_unsnapT0).count() / 140.0);
+    const double   E   = 1.0 - std::pow(1.0 - P, 3.0);
+    const Vector2D SZ  = m_unsnapFrom + (m_unsnapTo - m_unsnapFrom) * E;
+    const auto     C   = g_pInputManager->getMouseCoordsInternal();
+    const Vector2D POS = {C.x - m_unsnapRatio * SZ.x, C.y - m_unsnapGrabY};
+    (void)Config::Actions::resize(SZ, false, W);
+    (void)Config::Actions::move(POS, false, W);
+    if (P >= 1.0) {
+        m_unsnapAnim = false;
+        m_dragStart  = POS;
+        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+        g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    }
+}
+
+// Releasing a drag with the pointer on a screen edge snaps the window (left/right: half, top: maximized), like KWin's
+// edge tiling. The window first goes back to where the drag began so "restore" returns there, then the Lua core
+...
+        std::format("hyprctl eval \"require('kwinish').window_action('0x{:x}','{}@{}')\"", (uintptr_t)W.get(), where, M->m_name));
+}
+
+void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+    if (m_pWindow.lock() != Desktop::focusState()->window()) {
+        // focus moved between the press and the release (e.g. the minimize button): clear the drag state instead of leaving it
+        // stuck, which swallowed the next release and could start a drag with no button down
+        if (m_bDraggingThis)
+            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+        m_bDraggingThis  = false;
+        m_bCancelledDown = false;
+        m_bDragPending   = false;
+        m_bTouchEv       = false;
+        m_touchId        = 0;
+        return;
+    }
+
+    if (m_bCancelledDown)
+        info.cancelled = true;
+
+    m_bCancelledDown = false;
+
+    if (m_bDraggingThis) {
+        if (m_unsnapAnim) {
+            m_unsnapT0 = Time::steadyNow() - std::chrono::seconds(1); // released mid-ease: land on the final size
+            stepUnsnap();
+        }
+        g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+        m_bDraggingThis = false;
+        if (m_bTouchEv)
+            (void)Config::Actions::floatWindow(Config::Actions::eTogglableAction::TOGGLE_ACTION_DISABLE);
+        else
+            snapOnRelease();
+
+        Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+    }
+
+    m_bDragPending = false;
+    m_bTouchEv     = false;
+    m_touchId      = 0;
+}
+
+void CHyprBar::handleMovement() {
+    m_bUnsnapChecked = false;
+    m_unsnapAnim     = false;
+    m_resistPush     = 0;
+    if (const auto W = m_pWindow.lock()) {
+        m_dragStart = W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+        // The compositor drags the focused window. With follow_mouse, a fast move off the bar onto another window
+        // can hand focus to that window before this runs, and the drag would grab it instead (a tiled window then
+        // floats and follows the pointer). Pin the focus on this bar's window.
+        if (Desktop::focusState()->window() != W)
+            Desktop::focusState()->fullWindowFocus(W, Desktop::FOCUS_REASON_CLICK);
+    }
+    g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+    m_bDraggingThis = true;
+    warnIfNoCore();
+    Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+    return;
+}
+
+// Built-in actions run inside the compositor, so they cannot go stale when Hyprland's dispatcher syntax changes
+// (upstream hyprbars shells out, which broke the Ryoku buttons on the Lua-era Hyprland).
+// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>.
+static void dispatchIfKnown(const std::string& name, const std::string& arg) {
+    if (g_pKeybindManager->m_dispatchers.contains(name))
+        g_pKeybindManager->m_dispatchers[name](arg);
+}
+
+void CHyprBar::runAction(const std::string& action) {
+    const auto W = m_pWindow.lock();
+    if (!W)
+        return;
+
+    if (action == "close")
+        (void)Config::Actions::closeWindow(W);
+    else if (action == "float")
+        (void)Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    else if (action == "pin")
+        (void)Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE, W);
+    else if (action == "raise")
+        (void)Config::Actions::alterZOrder("top", W);
+    else if (action == "lower")
+        (void)Config::Actions::alterZOrder("bottom", W);
+    else if (action == "maximize")
+        dispatchIfKnown("fullscreen", "1"); // the window was just focused by the click
+    else if (action == "fullscreen")
+        dispatchIfKnown("fullscreen", "0");
+    else if (action == "minimize")
+        dispatchIfKnown("movetoworkspacesilent", "special:minimized");
+    else if (action == "menu")
+        openMenu(g_pInputManager->getMouseCoordsInternal().x, assignedBoxGlobal().y + assignedBoxGlobal().h);
+    else if (action.starts_with("exec:"))
+        dispatchIfKnown("exec", action.substr(5));
+}
+
+// One layout for hit tests, hover, drawing and the title: left items (app icon, then left buttons) from the left edge,
+...
+// hl.plugin.kwinish.grab(mode, address): "move" or "resize" the window with the pointer, as in KWin's menu entries; the
+// next button press ends it (Escape also cancels, handled by the compositor).
+int luaGrab(lua_State* L) {
+    if (!lua_isstring(L, 1) || !lua_isstring(L, 2))
+        return Config::Lua::Bindings::Internal::configError(L, "grab: expected (\"move\"|\"resize\", address)");
+    const std::string mode = lua_tostring(L, 1);
+    const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+    if (mode != "move" && mode != "resize")
+        return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
+    for (auto& w : Desktop::windowState()->windows()) {
+        if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
+            continue;
+        Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+        if (Desktop::focusState()->window() != w)
+            break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
+        g_pKeybindManager->changeMouseBindMode(mode == "move" ? MBIND_MOVE : MBIND_RESIZE);
+        g_pGlobalState->grabActive = true;
+        break;
+    }
+    return 0;
+}
+
+...
+    static auto PG = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) {
+        auto& g = *g_pGlobalState;
+        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+            tipHide(false); // any click puts the button tooltip away until the pointer leaves the button (KDE)
+            g.tip.pressed = true;
+        }
+        if (e.state == WL_POINTER_BUTTON_STATE_PRESSED && g.grabActive) {
+            g.grabActive       = false;
+            g.grabSwallowPress = true;
+            g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+            info.cancelled = true;
+        } else if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && g.grabSwallowPress) {
+            g.grabSwallowPress = false;
+            info.cancelled     = true;
+        }
+    });
+    static auto P7 = Event::bus()->m_events.window.active.listen([&](PHLWINDOW, Desktop::eFocusReason) {
+        // active/inactive colours: every bar repaints and re-renders its title when focus moves
+        for (auto& b : g_pGlobalState->bars)
+...
+APICALL EXPORT void PLUGIN_EXIT() {
+    for (auto& m : State::monitorState()->monitors())
+        m->m_scheduledRecalc = true;
+
+    g_pHyprRenderer->m_renderPass.removeAllOfType("CBarPassElement");
+    g_pHyprRenderer->m_renderPass.removeAllOfType("CPreviewPassElement"); // queued by the drag preview: it would outlive the library
+
+    // the event loop keeps its own reference to the tooltip timer, and its callback is code of this library
+    tipHide(true);
+    if (g_pGlobalState->tip.timer)
+        g_pEventLoopManager->removeTimer(g_pGlobalState->tip.timer);
+    g_pGlobalState->tip.timer.reset();
+
+    Desktop::Rule::windowEffects()->unregisterEffect(g_pGlobalState->barColorRuleIdx);
+    Desktop::Rule::windowEffects()->unregisterEffect(g_pGlobalState->titleColorRuleIdx);
+    Desktop::Rule::windowEffects()->unregisterEffect(g_pGlobalState->nobarRuleIdx);
+}
+
+```
+
+## Host sources (O = v0.56.2 tarball, U = 0.57.0 pinned 0aa6745f; installed headers identical to U)
+```cpp
+// O:managers/KeybindManager.cpp:949
+SDispatchResult CKeybindManager::changeMouseBindMode(const eMouseBindMode MODE) {
+    if (MODE != MBIND_INVALID) {
+        if (g_layoutManager->dragController()->target())
+            return {};
+
+        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+        const PHLWINDOW PWINDOW =
+            Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+        if (!PWINDOW)
+            return SDispatchResult{.passEvent = true};
+
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW) && MODE == MBIND_MOVE) {
+            if (PWINDOW->checkInputOnDecos(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+                return SDispatchResult{.passEvent = false};
+        }
+
+        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+    } else {
+        if (!g_layoutManager->dragController()->target())
+            return {};
+
+        g_layoutManager->endDragTarget();
+    }
+
+    return {};
+}
+
+// O:managers/KeybindManager.cpp:336
+bool CKeybindManager::ensureMouseBindState() {
+    if (!g_layoutManager->dragController()->target())
+        return false;
+
+    if (g_layoutManager->dragController()->target()) {
+        changeMouseBindMode(MBIND_INVALID);
+        return true;
+    }
+
+    return false;
+}
+
+            m_pressedSpecialBinds.emplace_back(k);
+
+        // Should never happen, as we check in the ConfigManager, but oh well
+        if (DISPATCHER == m_dispatchers.end()) {
+            Log::logger->log(Log::ERR, "Invalid handler in a keybind! (handler {} does not exist)", k->handler);
+        } else {
+            // call the dispatcher
+            Log::logger->log(Log::DEBUG, "Keybind triggered, calling dispatcher ({}, {}, {}, {})", modmask, key.keyName, key.keysym, DISPATCHER->first);
+
+            Config::Actions::state()->m_passPressed = sc<int>(pressed);
+
+            auto submapBefore = Config::Actions::state()->m_currentSubmap;
+
+            // if the dispatchers says to pass event then we will
+            if (k->handler == "mouse")
+                res = DISPATCHER->second((pressed ? "1" : "0") + k->arg);
+            else
+                res = DISPATCHER->second(k->arg);
+
+            Config::Actions::state()->m_passPressed = -1;
+
+            if (k->handler == "submap") {
+
+
+// U:config/shared/actions/ConfigActions.cpp:1695
+ActionResult Actions::mouse(const std::string& action) {
+    const bool PRESSED = Config::Actions::state()->m_passPressed == 1;
+
+    if (!PRESSED) {
+        if (g_layoutManager->dragController()->target())
+            g_layoutManager->endDragTarget();
+        return {};
+    }
+
+    if (g_layoutManager->dragController()->target())
+        return {};
+
+    eMouseBindMode mode = MBIND_RESIZE;
+
+    if (action == "movewindow")
+        mode = MBIND_MOVE;
+
+    // resizewindow with optional ratio mode
+    else {
+        try {
+            const auto SPACEPOS = action.find(' ');
+            if (SPACEPOS != std::string::npos) {
+                switch (std::stoi(action.substr(SPACEPOS + 1))) {
+                    case 1: mode = MBIND_RESIZE_FORCE_RATIO; break;
+                    case 2: mode = MBIND_RESIZE_BLOCK_RATIO; break;
+                    default: break;
+                }
+            }
+        } catch (...) { /* stoi failed, fall through to default resize */
+        }
+    }
+
+    const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+    const PHLWINDOW PWINDOW = Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+    if (!PWINDOW)
+        return SActionResult{.passEvent = true};
+
+    if (!Fullscreen::controller()->isFullscreen(PWINDOW) && mode == MBIND_MOVE && PWINDOW->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+        return {};
+
+    g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), mode);
+    return {};
+}
+
+        return {.success = false, .error = res.error().message};
+    return {.passEvent = res->passEvent};
+}
+
+// helper: resolve window from regex string, or focused if empty/active
+static std::optional<PHLWINDOW> windowFromArg(const std::string& arg) {
+    if (arg.empty() || arg == "active")
+        return std::nullopt; // will use xtract(nullopt) -> focused window
+    return Desktop::viewState()->query().selector(arg).runWindow();
+}
+
+// helper: resolve workspace from string and optionally create it
+static PHLWORKSPACE resolveWorkspace(const std::string& args) {
+    const auto& [id, name, isAutoID] = getWorkspaceIDNameFromString(args);
+    if (id == WORKSPACE_INVALID)
+        return nullptr;
+    auto ws = State::workspaceState()->query().id(id).run();
+    if (!ws) {
+        const auto PMONITOR = Desktop::focusState()->monitor();
+        if (PMONITOR)
+            ws = State::workspaceState()->create(id, PMONITOR->m_id, name, false);
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_TOGGLE, w));
+}
+
+static SDispatchResult setfloating(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_ENABLE, w));
+}
+
+static SDispatchResult settiled(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_DISABLE, w));
+}
+
+static SDispatchResult fullscreen(const std::string& args) {
+
+    CVarList2                         ARGS(args, 2, ' ');
+
+    const Fullscreen::eFullscreenMode MODE = ARGS.size() > 0 && ARGS[0] == "1" ? Fullscreen::FSMODE_MAXIMIZED : Fullscreen::FSMODE_FULLSCREEN;
+
+    if (ARGS.size() <= 1 || ARGS[1] == "toggle")
+        return wrap(Actions::fullscreenWindow(MODE, true));
+
+    // "set" means enable, "unset" means disable - but the Action toggles.
+    // We need to check current state ourselves.
+    const auto PWINDOW = Desktop::focusState()->window();
+    if (!PWINDOW)
+        return {.success = false, .error = "Window not found"};
+
+    if (ARGS[1] == "set") {
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    } else if (ARGS[1] == "unset") {
+        if (Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    }
+
+    return {};
+static SDispatchResult movetoworkspacesilent(const std::string& args) {
+    PHLWINDOW   PWINDOW = Desktop::focusState()->window();
+    std::string wsArgs  = args;
+
+    if (args.contains(',')) {
+        PWINDOW = Desktop::viewState()->query().selector(args.substr(args.find_last_of(',') + 1)).runWindow();
+        wsArgs  = args.substr(0, args.find_last_of(','));
+    }
+
+    auto ws = resolveWorkspace(wsArgs);
+    if (!ws)
+        return {.success = false, .error = "Invalid workspace"};
+
+    return wrap(Actions::moveToWorkspace(ws, true, PWINDOW));
+}
+    return wrap(Actions::move(POS));
+}
+
+static SDispatchResult movewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "moveWindow: no window"};
+
+    const auto POS = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    return wrap(Actions::move(POS, false, PWINDOW));
+}
+
+static SDispatchResult resizewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "resizeWindow: no window"};
+
+    const auto SIZ = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    if (SIZ.x < 1 || SIZ.y < 1)
+        return {.success = false, .error = "Invalid size"};
+
+    return wrap(Actions::resize(SIZ, false, PWINDOW));
+}
+
+        return {.success = false, .error = "Monitor not found"};
+
+    return wrap(Actions::swapActiveWorkspaces(PMON1, PMON2));
+}
+
+static SDispatchResult pin(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::pinWindow(TOGGLE_ACTION_TOGGLE, w));
+}
+
+static SDispatchResult mouseDispatcher(const std::string& args) {
+    return wrap(Actions::mouse(args.substr(1)));
+}
+
+    return ws;
+}
+
+static SDispatchResult exec(const std::string& args) {
+    const auto PROC = Config::Supplementary::executor()->spawn(args);
+    if (!PROC.has_value())
+        return {.success = false, .error = std::format("Failed to start process. No closing bracket in exec rule. {}", args)};
+    return {.success = PROC.value() > 0, .error = std::format("Failed to start process {}", args)};
+}
+
+
+
+// U:keybinds/Manager.cpp:220-226 and 345-356
+    Config::Actions::state()->m_lastCode      = KEYCODE;
+    Config::Actions::state()->m_lastMouseCode = 0;
+
+    const bool DRAG_WAS_ACTIVE = g_layoutManager->endDragTarget();
+    cancelTimedBinds();
+
+    const auto KEY_AS_MOD = modifierFromXkb(KEYSYM);
+...
+bool CKeybindManager::onMouseEvent(const IPointer::SButtonEvent& event, SP<IPointer> pointer, bool captured) {
+    const auto MODIFIERS = g_pInputManager->getModsFromAllKBs();
+    const auto KEY       = SResolvedKey{.event = "mouse:" + std::to_string(event.button)};
+
+    Config::Actions::state()->m_lastMouseCode = event.button;
+    Config::Actions::state()->m_lastCode      = 0;
+    Config::Actions::state()->m_timeLastMs    = event.timeMs;
+
+    const bool DRAG_WAS_ACTIVE = captured ? false : g_layoutManager->endDragTarget();
+    cancelTimedBinds();
+
+    if (event.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+
+
+// U:managers/input/InputManager.cpp:719-756 (0.57) then O: onMouseButton (0.56.2)
+
+void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) {
+    Event::SCallbackInfo info;
+    Event::bus()->m_events.input.mouse.button.emit(e, info);
+    if (info.cancelled)
+        return;
+
+    if (e.mouse)
+        recheckMouseWarpOnMouseInput();
+
+    PROTO::inputCapture->button(e.button, e.state);
+
+    if (Hotkeys::mgr()->onButton(e, mouse)) {
+        Keybinds::mgr()->onMouseEvent(e, mouse, PROTO::inputCapture->isCaptured());
+        return;
+    }
+
+    if (PROTO::inputCapture->isCaptured()) {
+        Keybinds::mgr()->onMouseEvent(e, mouse, true);
+        if (e.state == WL_POINTER_BUTTON_STATE_RELEASED)
+            std::erase_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; });
+        return;
+    }
+
+    m_lastCursorMovement.reset();
+
+    if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        m_currentlyHeldButtons.emplace_back(e.button, mouse);
+    } else {
+        if (std::ranges::find_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; }) ==
+            m_currentlyHeldButtons.end()) {
+            Keybinds::mgr()->onMouseEvent(e, mouse);
+            return;
+        }
+        std::erase_if(m_currentlyHeldButtons, [&](const auto& held) { return held.button == e.button && held.pointer.lock() == mouse; });
+    }
+
+    switch (m_clickBehavior) {
+=== O
+void CInputManager::onMouseButton(IPointer::SButtonEvent e, SP<IPointer> mouse) {
+    Event::SCallbackInfo info;
+    Event::bus()->m_events.input.mouse.button.emit(e, info);
+    if (info.cancelled)
+        return;
+
+    if (e.mouse)
+        recheckMouseWarpOnMouseInput();
+
+    PROTO::inputCapture->button(e.button, e.state);
+
+    if (PROTO::inputCapture->isCaptured())
+        return;
+
+    m_lastCursorMovement.reset();
+
+    if (e.state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        m_currentlyHeldButtons.push_back(e.button);
+    } else {
+        if (std::ranges::find_if(m_currentlyHeldButtons, [&](const auto& other) { return other == e.button; }) == m_currentlyHeldButtons.end())
+            return;
+        std::erase_if(m_currentlyHeldButtons, [&](const auto& other) { return other == e.button; });
+    }
+
+    switch (m_clickBehavior) {
+
+
+// U:desktop/view/window/WindowPresentation.cpp:161-178
+bool CWindowPresentation::checkInputOnDecorations(eInputType type, const Vector2D& coordinates, std::any data) {
+    if (type != INPUT_TYPE_DRAG_END && m_window.hasPopupAt(coordinates))
+        return false;
+
+    const CDecorationSnapshot SNAPSHOT{m_windowDecorations};
+    for (const auto& decoration : SNAPSHOT.decorations()) {
+        if (!containsDecoration(decoration.get()))
+            continue;
+        if (!(decoration->getDecorationFlags() & DECORATION_ALLOWS_MOUSE_INPUT))
+            continue;
+        if (!g_pDecorationPositioner->getWindowDecorationBox(decoration.get()).containsPoint(coordinates))
+            continue;
+        if (decoration->onInputOnDeco(type, coordinates, data))
+            return true;
+    }
+
+    return false;
+}
+
+
+// LayoutManager.hpp (installed)
+            RECALCULATE_MONITOR_REASON_TOGGLE_FULLSCREEN,
+        };
+
+        void                    newTarget(SP<ITarget> target, SP<CSpace> space);
+        void                    removeTarget(SP<ITarget> target);
+
+        void                    changeFloatingMode(SP<ITarget> target);
+
+        void                    beginDragTarget(SP<ITarget> target, eMouseBindMode mode, std::optional<eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+        void                    moveMouse(const Vector2D& mousePos);
+        void                    resizeTarget(const Vector2D& Δ, SP<ITarget> target, eRectCorner corner = CORNER_NONE);
+        void                    moveTarget(const Vector2D& Δ, SP<ITarget> target);
+        void                    setTargetGeom(const CBox& box, SP<ITarget> target); // floats only
+        bool                    endDragTarget();
+
+        Config::ErrorResult     layoutMsg(const std::string_view& sv);
+
+        void                    switchTargets(SP<ITarget> a, SP<ITarget> b, bool preserveFocus = true);
+
+        void                    moveInDirection(SP<ITarget> target, const std::string& direction, bool silent = false);
+
+        SP<ITarget>             getNextCandidate(SP<CSpace> space, SP<ITarget> from);
+
+        bool                    isReachable(SP<ITarget> target);
+
+        void                    bringTargetToTop(SP<ITarget> target);
+
+        std::optional<Vector2D> predictSizeForNewTiledTarget();
+
+        void                    performSnap(Vector2D& sourcePos, Vector2D& sourceSize, SP<ITarget> target, eMouseBindMode mode, int corner, const Vector2D& beginSize);
+
+        void                    invalidateMonitorGeometries(PHLMONITOR);
+        void                    recalculateMonitor(PHLMONITOR, eRecalculateMonitorReason reason = RECALCULATE_MONITOR_REASON_UNKNOWN);
+
+        const UP<Supplementary::CDragStateController>& dragController();
+
+      private:
+        UP<Supplementary::CDragStateController> m_dragStateController = makeUnique<Supplementary::CDragStateController>();
+    };
+}
+
+inline UP<Layout::CLayoutManager> g_layoutManager;
+
+
+// DragController.hpp (installed)
+#pragma once
+
+#include "../target/Target.hpp"
+#include "../../managers/input/InputManager.hpp"
+#include "../../helpers/signal/Signal.hpp"
+
+#include <optional>
+
+namespace Layout {
+    enum eRectCorner : uint8_t;
+}
+
+namespace Layout::Supplementary {
+
+    // DragStateController contains logic to begin and end a drag, which shouldn't be part of the layout's job. It's stuff like
+    // toggling float when dragging tiled, remembering sizes, checking deltas, etc.
+    class CDragStateController {
+      public:
+        CDragStateController()  = default;
+        ~CDragStateController() = default;
+
+        void           dragBegin(SP<ITarget> target, eMouseBindMode mode, std::optional<Layout::eRectCorner> forcedEdge = std::nullopt, bool exclusiveDeviceGrab = false);
+        bool           dragEnd();
+
+        void           mouseMove(const Vector2D& mousePos);
+        eMouseBindMode mode() const;
+        bool           wasDraggingWindow() const;
+        bool           dragThresholdReached() const;
+        void           resetDragThresholdReached();
+        bool           draggingTiled() const;
+        bool           exclusiveDeviceGrab() const;
+
+        /*
+            Called to try to pick up window for dragging.
+            Updates drag related variables and floats window if threshold reached.
+            Return true to reject
+        */
+        bool        updateDragWindow();
+
+        SP<ITarget> target() const;
+
+        struct {
+            CSignalT<> motion;
+            CSignalT<> ended;
+        } m_events;
+
+      private:
+        WP<ITarget>                        m_target;
+
+        eMouseBindMode                     m_dragMode             = MBIND_INVALID;
+        bool                               m_wasDraggingWindow    = false;
+        bool                               m_dragThresholdReached = false;
+        bool                               m_draggingTiled        = false;
+        bool                               m_exclusiveDeviceGrab  = false;
+
+        int                                m_mouseMoveEventCount = 0;
+        Vector2D                           m_dragHotspot;
+        Vector2D                           m_beginDragXY;
+        Vector2D                           m_beginDragUntransformedXY;
+        Vector2D                           m_lastDragXY;
+        Vector2D                           m_beginDragPositionXY;
+        Vector2D                           m_beginDragSizeXY;
+        Vector2D                           m_draggingWindowOriginalFloatSize;
+        Layout::eRectCorner                m_grabbedCorner = sc<Layout::eRectCorner>(0) /* CORNER_NONE */;
+        std::optional<Layout::eRectCorner> m_forcedGrabbedCorner;
+    };
+};
+
+```
+### diff O->U: layout/supplementary/DragController.cpp, then ConfigActions bodies
+```diff
+1a2,4
+> #include "../../desktop/view/window/WindowEffectsController.hpp"
+> #include "../../desktop/view/window/WindowGroupMembership.hpp"
+> #include "../../desktop/view/window/WindowPresentation.hpp"
+4a8
+> #include "../target/WindowTarget.hpp"
+7a12
+> #include "../../pointer/PointerManager.hpp"
+13d17
+< #include "../../protocols/XDGShell.hpp"
+16a21
+> #include <hyprutils/utils/ScopeGuard.hpp>
+47,48c52,53
+< static void setXDGResizingState(SP<ITarget> target, bool resizing) {
+<     if (!target || !target->window() || target->window()->m_isX11 || !target->window()->m_xdgSurface || !target->window()->m_xdgSurface->m_toplevel)
+---
+> static void setClientResizingState(SP<ITarget> target, bool resizing) {
+>     if (!target || !target->window())
+51c56
+<     target->window()->m_xdgSurface->m_toplevel->setResizing(resizing);
+---
+>     target->window()->backend().setResizing(resizing);
+83,84c88,112
+<     const auto DRAGGINGTARGET = m_target.lock();
+<     const bool WAS_FULLSCREEN = DRAGGINGTARGET->window() ? Fullscreen::controller()->isFullscreen(DRAGGINGTARGET->window()) : false;
+---
+>     const auto  DRAGGINGTARGET = m_target.lock();
+>     const bool  WAS_FULLSCREEN = DRAGGINGTARGET->window() ? Fullscreen::controller()->isFullscreen(DRAGGINGTARGET->window()) : false;
+>     static auto PDRAGCENTER    = CConfigValue<Config::BOOL>("binds:drag_center_window");
+> 
+>     // geometry before we un-fullscreen / untile, needed to map the grab point onto the new window
+>     const CBox PRE_DRAG_BOX = DRAGGINGTARGET->position();
+> 
+>     // places the window under the cursor after its geometry changed. Without drag_center_window, the
+>     // grab point keeps its relative position: grabbing 80% across the fullscreen surface leaves the
+>     // cursor 80% across the restored window
+>     const auto MAPDRAGHOTSPOT = [this](const SP<ITarget>& target, const CBox& oldBox) {
+>         const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+>         const auto NEWSIZE     = target->position().size();
+>         const auto OLDSIZE     = oldBox.size();
+> 
+>         if (*PDRAGCENTER)
+>             m_dragHotspot = NEWSIZE / 2.F;
+>         else {
+>             const Vector2D REL = {OLDSIZE.x > 0 ? (MOUSECOORDS.x - oldBox.pos().x) / OLDSIZE.x : 0.5, OLDSIZE.y > 0 ? (MOUSECOORDS.y - oldBox.pos().y) / OLDSIZE.y : 0.5};
+> 
+>             m_dragHotspot = REL.clamp(Vector2D{0.F, 0.F}, Vector2D{1.F, 1.F}) * NEWSIZE;
+>         }
+> 
+>         target->setPositionGlobal(CBox{MOUSECOORDS - m_dragHotspot, NEWSIZE});
+>     };
+88c116
+<             Log::logger->log(Log::DEBUG, "Dragging a fullscreen window");
+---
+>             LOG(Log::DEBUG, "Dragging a fullscreen window");
+96,97c124,125
+<             Log::logger->log(Log::DEBUG, "Rejecting drag on a fullscreen workspace. (window under fullscreen)");
+<             CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>             LOG(Log::DEBUG, "Rejecting drag on a fullscreen workspace. (window under fullscreen)");
+>             dragEnd();
+106,107c134
+<         const auto MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+<         DRAGGINGTARGET->setPositionGlobal(CBox{MOUSECOORDS - DRAGGINGTARGET->position().size() / 2.F, DRAGGINGTARGET->position().size()});
+---
+>         MAPDRAGHOTSPOT(DRAGGINGTARGET, PRE_DRAG_BOX);
+113d139
+<             DRAGGINGTARGET->setPositionGlobal(CBox{g_pInputManager->getMouseCoordsInternal() - DRAGGINGTARGET->position().size() / 2.F, DRAGGINGTARGET->position().size()});
+115a142,143
+> 
+>             MAPDRAGHOTSPOT(DRAGGINGTARGET, PRE_DRAG_BOX);
+121,124c149,154
+<     m_beginDragXY         = g_pInputManager->getMouseCoordsInternal();
+<     m_beginDragPositionXY = DRAG_ORIGINAL_BOX.pos();
+<     m_beginDragSizeXY     = DRAG_ORIGINAL_BOX.size();
+<     m_lastDragXY          = m_beginDragXY;
+---
+>     m_beginDragXY              = g_pInputManager->getMouseCoordsInternal();
+>     m_beginDragUntransformedXY = Pointer::mgr()->untransformedPosition();
+>     m_beginDragPositionXY      = DRAG_ORIGINAL_BOX.pos();
+>     m_beginDragSizeXY          = DRAG_ORIGINAL_BOX.size();
+>     m_lastDragXY               = m_beginDragXY;
+>     m_dragHotspot              = m_beginDragXY - m_beginDragPositionXY;
+131a162
+>     m_draggingTiled       = false;
+144,145c175,176
+<         Log::logger->log(Log::ERR, "Dragging attempted on an invalid window (not mapped)");
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         LOG(Log::ERR, "Dragging attempted on an invalid window (not mapped)");
+>         dragEnd();
+150,151c181,182
+<         Log::logger->log(Log::ERR, "Dragging attempted on an invalid window (no workspace)");
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         LOG(Log::ERR, "Dragging attempted on an invalid window (no workspace)");
+>         dragEnd();
+211c242
+<     g_pKeybindManager->shadowKeybinds();
+---
+>     Keybinds::mgr()->shadowBinds();
+219c250
+<         setXDGResizingState(DRAGGINGTARGET, true);
+---
+>         setClientResizingState(DRAGGINGTARGET, true);
+221c252
+< void CDragStateController::dragEnd() {
+---
+> bool CDragStateController::dragEnd() {
+223a255,259
+>     if (!draggingTarget)
+>         return false;
+> 
+>     Hyprutils::Utils::CScopeGuard notifyEnded([this] { m_events.ended.emit(); });
+> 
+234c270
+<         return;
+---
+>         return true;
+251c287
+<             if (pWindow->checkInputOnDecos(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+---
+>             if (pWindow->presentation().checkInputOnDecorations(INPUT_TYPE_DRAG_END, MOUSECOORDS, DRAGGING_WINDOW)) {
+256c292
+<                 return;
+---
+>                 return true;
+259c295
+<             const bool  FLOATEDINTOTILED = !pWindow->m_isFloating && !m_draggingTiled;
+---
+>             const bool  FLOATEDINTOTILED = !pWindow->isFloating() && !m_draggingTiled;
+262,263c298,299
+<             if (pWindow->m_group && DRAGGING_WINDOW->canBeGroupedInto(pWindow->m_group) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+<                 pWindow->m_group->add(DRAGGING_WINDOW);
+---
+>             if (pWindow->grouping().group() && DRAGGING_WINDOW->grouping().canBeGroupedInto(pWindow->grouping().group()) && *PDRAGINTOGROUP == 1 && !FLOATEDINTOTILED) {
+>                 pWindow->grouping().group()->add(DRAGGING_WINDOW);
+265c301
+<                 draggingTarget = DRAGGING_WINDOW->m_target;
+---
+>                 draggingTarget = DRAGGING_WINDOW->windowTarget();
+271,272c307,308
+<         W->resetMotionBlur();
+<         W->m_floatingOffset = {};
+---
+>         W->effects().resetMotionBlur();
+>         W->presentation().clearFloatingOffset();
+291c327
+<         setXDGResizingState(draggingTarget, false);
+---
+>         setClientResizingState(draggingTarget, false);
+294a331
+>     m_draggingTiled       = false;
+295a333
+>     return true;
+307c345
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         dragEnd();
+313c351
+<         if ((m_beginDragXY.distanceSq(mousePos) <= std::pow(*PDRAGTHRESHOLD, 2) && m_beginDragXY == m_lastDragXY))
+---
+>         if ((m_beginDragUntransformedXY.distanceSq(Pointer::mgr()->untransformedPosition()) <= std::pow(*PDRAGTHRESHOLD, 2) && m_beginDragXY == m_lastDragXY))
+317a356
+>         m_events.motion.emit();
+364c403
+<         Vector2D newPos  = m_beginDragPositionXY + DELTA;
+---
+>         Vector2D newPos  = mousePos - m_dragHotspot;
+441c480
+<         MOTIONWINDOW->recordMotionBlur(previousFull, MOTIONWINDOW->getFullWindowBoundingBox());
+---
+>         MOTIONWINDOW->effects().onPositionUpdate(previousFull, MOTIONWINDOW->getFullWindowBoundingBox(), Desktop::View::WINDOW_UPDATE_MOUSE);
+451c490
+<         DRAGGINGTARGET->assignToSpace(WS->m_space);
+---
+>         DRAGGINGTARGET->assignToSpace(WS->space());
+454a494
+>     m_events.motion.emit();
+=== ConfigActions.cpp diffs (floatWindow, pinWindow, moveToWorkspace(PHLWORKSPACE))
+8c8
+<         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->m_isFloating; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->isFloating(); break;
+13c13
+<     if (wantFloat == window->m_isFloating)
+---
+>     if (wantFloat == window->isFloating())
+17c17
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         g_layoutManager->endDragTarget();
+21c21
+<     if (window->m_isFloating)
+---
+>     if (window->isFloating())
+6c6
+<     if (!window->m_isFloating || Fullscreen::controller()->isFullscreen(window))
+---
+>     if (!window->isFloating() || Fullscreen::controller()->isFullscreen(window))
+9c9,10
+<     bool wantPin = false;
+---
+>     const bool PINNED  = sc<bool>(window->m_state & Desktop::View::WINDOW_STATE_PINNED);
+>     bool       wantPin = false;
+11c12
+<         case TOGGLE_ACTION_TOGGLE: wantPin = !window->m_pinned; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantPin = !PINNED; break;
+16c17
+<     if (wantPin == window->m_pinned)
+---
+>     if (wantPin == PINNED)
+23c24
+<     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->m_space)
+---
+>     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->space())
+30c31,35
+<     window->m_pinned = wantPin;
+---
+>     if (wantPin)
+>         window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+>     else
+>         window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+>     window->stateTracker().scheduleUpdate();
+32c37
+<     *window->alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+---
+>     *window->presentation().alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+34c39
+<     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->m_space);
+---
+>     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->space());
+38,39c43,44
+<     PWORKSPACE->m_lastFocusedWindow =
+<         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS);
+---
+>     PWORKSPACE->rememberFocusedWindow(
+>         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS));
+41c46
+<     g_pEventManager->postEvent(SHyprIPCEvent{.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(window->m_pinned))});
+---
+>     IPC::Socket2::sock()->postEvent({.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(wantPin))});
+9c9
+<     if (ws->m_id == window->workspaceID())
+---
+>     if (ws == window->m_workspace)
+11a12,13
+>     auto       constraintGuard = g_pInputManager->pointerConstraints().suspend();
+> 
+21c23
+<         if (window == Desktop::focusState()->window()) {
+---
+>         if (window->m_workspace != POLDWS && window == Desktop::focusState()->window()) {
+26,27c28,32
+<             else
+<                 g_pInputManager->refocus();
+---
+>             else {
+>                 // try to focus anything. If there isn't anything, this will unfocus (nullptr)
+>                 const auto PATWS = POLDWS->getFirstWindow();
+>                 Desktop::focusState()->fullWindowFocus(PATWS, Desktop::FOCUS_REASON_KEYBIND);
+>             }
+38c43
+<         POLDWS->m_lastFocusedWindow = POLDWS->getFirstWindow();
+---
+>         POLDWS->rememberFocusedWindow(POLDWS->getFirstWindow());
+40c45
+<         if (ws->m_isSpecialWorkspace)
+---
+>         if (ws->type() == Workspace::eWorkspaceType::SPECIAL)
+42c47
+<         else if (POLDWS->m_isSpecialWorkspace)
+---
+>         else if (POLDWS->type() == Workspace::eWorkspaceType::SPECIAL)
+
+```
+
+## P6 closure (re-verification this session)
+Diff of barDeco.cpp vs P5 state: exactly the 5 log lines (5-/5+); main.cpp identical to P5 state. Log probes GCC+Clang exit 0 (30 OK, 0 FAIL), mutations 16/16; geometry GCC/Clang exit 0; tooltip exit 0; isolated make exit 2 (expected), 67 GCC error lines, 0 logging-related, no .so; vs P5 baseline GCC 73->67, Clang 92->87, 0 new.
+```
+== g++: base=73 cand=67 eliminated=6 persistent=67 new=0 base==P5-C:True
+-- eliminated:
+   barDeco.cpp:380 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   barDeco.cpp:611 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [92], uintptr_t, uintptr_t, const double&, const double&, std::string&, std::string)’
+   barDeco.cpp:654 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   barDeco.cpp:677 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [42], uintptr_t)’
+   barDeco.cpp:807 x1: call to consteval function ‘std::basic_format_string<char, const char*>((* &(& W.Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow>::operator->()->Desktop::View::CWindow::metadata())->Desktop::View::CWindowMetadat
+   barDeco.cpp:807 x1: call to non-‘constexpr’ function ‘const std::string& Desktop::View::CWindowMetadata::appID() const’
+-- new:
+-- persistent by file:line (Log-related lines 380/611/654/677/807 only):
+
+```

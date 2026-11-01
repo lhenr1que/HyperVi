@@ -1,0 +1,11 @@
+Second and final review round (read-only; do not modify files). Same repository, branch and base as round 1: /home/lhen/Projects/ryoku-work/kwinish-port-0-57, base bf2049a, T4 of openspec/changes/disable-titlebar-drag-alpha0 uncommitted in the working tree. Your round-1 verdict is in docs/port-0-57/evidence/T4-tests/review-1.json (reject, 2 majors).
+
+Changes made for your findings:
+1. Pairing lifetime: pair ownership moved from the bar to one global KwIn::SPairs (plugin/globals.hpp `pairs`). Bars only decide presses (SClicks::onPress records the pair); the release is taken by main.cpp's button listener PG (registered once at init, outlives every bar) via pairs.onRelease(e.button).cancel. New tests: release after the bar is destroyed (left and right).
+2. Production handler coverage: what onMouseButton does after the decision is now KwIn::apply(result, host) in plugin/barInput.hpp (cancel, focus, raise only for non-menu presses on floating windows, run action once). onMouseButton builds a local SHost whose methods call the real host functions and calls KwIn::apply(m_clicks.onPress(...)). test_input.cpp executes apply with a spy (order and counts). Mutations A1–A5 on apply and H13 die by executed assertion; S* (source routes) are now reported as textual-inventory detections, separately. absent() in tools/test-plugin-input.sh now fails on a missing file. luaGrab stays a one-line call of grabError (unit-tested) checked structurally; no Lua host was faked.
+
+Your sandbox could not run the tests (/tmp read-only). Logs from the author's runs: docs/port-0-57/evidence/T4-tests/{green-g++.log,green-clang++.log,red-baseline.log,mutations.log,check.log,build-compare-gcc.txt,build-compare-clang.txt}; full diff T4.diff.
+
+Re-check both findings and look for regressions introduced by the fix (e.g. ordering between PG and bar listeners, stale `held` after unload/reload, a release taken that the plugin never took, access of a local class to CHyprBar private members, the release no longer being seen by bars). Keep remaining limits honest: what is still only proven textually.
+
+Answer in JSON only: {"verdict": "approve" | "conditional" | "reject", "findings": [{"severity": "blocker"|"major"|"minor", "file": "...", "line": N, "issue": "...", "evidence": "...", "fix": "..."}], "notes": "..."}

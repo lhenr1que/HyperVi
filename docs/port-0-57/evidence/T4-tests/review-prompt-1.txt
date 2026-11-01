@@ -1,0 +1,25 @@
+You are an independent reviewer (different model family from the author). Read-only: do not modify any file.
+
+Repository: /home/lhen/Projects/ryoku-work/kwinish-port-0-57, branch port-kwinish-bars-to-hyprland-0-57, base commit bf2049a (HEAD; the change is uncommitted in the working tree). Hyprland 0.57 headers are in /usr/include/hyprland.
+
+Task under review: T4 of the OpenSpec change openspec/changes/disable-titlebar-drag-alpha0/ (read proposal.md, design.md, tasks.md, specs/). It removes, at compile time, every title-bar drag route of the plugin (drag begin/end, rearm, unsnap, snap-on-release, preview activation, seam-resistance hook, touch on the bar, the window-menu grab) while keeping buttons, icon menu, right-click menu, double click, wheel, hover/tooltip, and making each press the bar takes have its release taken too (paired by bar and button).
+
+Changed files (see `git diff bf2049a -- plugin ui docs/API.md docs/CONFIGURAVEL.md` and the new untracked files):
+- plugin/barInput.hpp (new: click decision + grabError), plugin/barDeco.cpp, plugin/barDeco.hpp, plugin/globals.hpp, plugin/main.cpp
+- ui/src/menu.rs (Move/Resize removed, shortcut index 5 -> 3, new Rust test)
+- plugin/test_input.cpp, tools/test-plugin-input.sh (new tests: behaviour of barInput.hpp + structural inventory of the sources)
+- docs/API.md, docs/CONFIGURAVEL.md
+- evidence: docs/port-0-57/evidence/T4-tests/ (baseline-barInput.hpp = hand extraction of bf2049a decisions used for the red run; run-red.sh, red-baseline.log, red-menu.log, green-*.log, run-mutations.sh, mutations.log, build.sh, build-compare-{gcc,clang}.txt, check.log)
+
+Check in particular:
+1. Correctness of the new onMouseButton in plugin/barDeco.cpp against barInput.hpp and against the bf2049a behaviour that must be preserved (focus, raise only for floating on left press, right click focus without raise, buttons, icon menu, double click semantics, overlapping bars via info.cancelled). Any press/release orphan the plugin itself creates? Any use of the optional `button` index when it is empty?
+2. Completeness of D1 against the closed inventory in design.md (K1, K2, K3, K9, rearm, unsnap, snap-on-release, preview/resistance, touch, flags, drag-only cancellations). Anything left compiled that can still start/end/arm a drag, or a leftover consumer of removed state?
+3. Whether drawSnapPreview being kept compiled but uncalled (condition reduced) is consistent with design.md ("do not port or delete group R render code to get green").
+4. luaGrab: registration/signature kept, invalid-argument messages kept, valid call returns a Lua error before any focus/drag.
+5. Test quality: is the red run honest (baseline model faithfulness to bf2049a, angle-bracket include so the baseline header is really used), are the structural greps prone to false greens/false reds, do the mutations die by assertion and not by build errors, is anything vacuous.
+6. Build: compare docs/port-0-57/evidence/T2-build-*-after.log with T4-tests/T4-build-*-after.log (claim: 0 new errors; only D-group g_pKeybindManager errors removed; R errors kept).
+7. Docs accuracy (API.md, CONFIGURAVEL.md) and anything the change silently breaks (core/kwinish.lua still handles grab:* and calls plugin_call("grab") under pcall; that is intended to stay).
+
+You may run read-only commands and host-free tests (bash tools/test-plugin-input.sh, cargo test --locked --manifest-path ui/Cargo.toml with HOME/XDG in a temp dir, the scripts in T4-tests). Do not load plugins or touch ~/.config.
+
+Answer in JSON only: {"verdict": "approve" | "conditional" | "reject", "findings": [{"severity": "blocker"|"major"|"minor", "file": "...", "line": N, "issue": "...", "evidence": "...", "fix": "..."}], "notes": "..."}

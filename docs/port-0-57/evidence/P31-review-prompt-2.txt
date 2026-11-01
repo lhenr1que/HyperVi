@@ -1,0 +1,671 @@
+Segunda rodada. Voce e um revisor independente de codigo C++ numerico. Nao ha ferramentas; revise somente o material abaixo. Responda em JSON: {"verdict":"approve|reject","findings":[{"severity":"blocker|major|minor","where":"...","claim":"...","counterexample":"valores concretos se houver"}],"notes":"..."}. Seja adversarial: tente construir uma entrada DENTRO do dominio declarado em que a cobertura (P3) ou outra propriedade falhe, ou uma entrada FORA do dominio que seja aceita.
+
+CONTEXTO. Modulo host-free de geometria para um plugin de compositor Wayland (Hyprland). Propriedade P3: ceilOut(logicalBBox * s) contem physicalLocal (caixa fisica em pixels inteiros, arredondada como Hyprutils CBox::round: origem = round(x*s), extensao = round(x*s + w*s - rx)). ceilOut = floor das origens e ceil das bordas direita/inferior, calculado em double. Contraexemplo de revisao anterior: D={2^53,0,1,1}, escala 1.5: bbox fisico largura 0, desenho largura 2 (ulp de 2^53 e 2, a borda logica x+w perde a extensao).
+DECISAO NESTA RODADA (a revisar): em vez de construir limites conservadores com transformacoes livres de erro, limitar explicitamente o dominio e rejeitar (std::nullopt) o que estiver fora. Justificativa: (1) coordenadas Wayland (wl_output/xdg_output/xdg_surface) sao int32, logo |v|<=2^31; escala de monitor e float; (2) em pixel > 2^53 a posicao inteira nem e representavel, entao nao ha resposta correta a devolver; (3) medicao empirica com a implementacao ANTERIOR (200000 amostras por magnitude, larguras 0.1..100): 0 falhas de cobertura ate |coord|~2^49, 1883 falhas em 2^50, 7062 em 2^51, 12195 em 2^52; o maior pixel do dominio escolhido e 2^44 (kMaxBox*kMaxScale), 6 bits abaixo do inicio medido. (4) Alternativa descartada por complexidade/nao-provabilidade: TwoSum/nextafter em toda soma e escala.
+Dominio: kMaxLogical=2^31 (todo componente bruto logico D,E,W,F,M, extBottom, aaMargin; D.w,D.h em (0,2^31]); escala em [2^-4, 2^4]; kMaxPhysical=2^35 (preview); kMaxBox=2^40 (entrada de unionDamage). static_asserts no teste relacionam as constantes.
+O corpo aritmetico de physicalLocal/logicalBBox/unionDamage/previewBBox e IDENTICO ao anterior (so foram adicionados guardas e std::optional). O contraexemplo original foi mantido como teste: deve ser REJEITADO por physicalLocal, logicalBBox, unionDamage e previewBBox.
+
+RESULTADOS REAIS (GCC 16.2 e Clang 23.1, -std=c++2b -Wall -Wextra -Werror): suite 260732 verificacoes, exit 0; 13 negativos (variantes no executavel de teste) cada um detectado pela assertiva ESPERADA; 38 mutacoes reais do header (cada uma altera o arquivo, compila e e rejeitada pela assertiva prevista, ou falha em static_assert) em ambos os compiladores; UBSan (undefined,float-divide-by-zero,float-cast-overflow) limpo. Vermelhos registrados antes: (a) teste novo contra header antigo nao compila; (b) header com API optional sem guardas: FALHOU - P3 original counterexample 2^53 rejected by physicalLocal. Verificacao independente por fuzz de 3.000.000 amostras no dominio com long double (x87): 0 casos onde physicalLocal escapa de ceilOut exato, 0 onde escapa do ceilOut do bbox em double. Uma mutacao inicialmente sobrevivente (remover o alargamento nextafter da origem em previewBBox) levou a um teste novo (origens/bordas a 1 ulp de inteiros).
+LIMITES: teste 'covered' ignora (retorna true) o caso em que D.h+ext > kMaxLogical (a caixa desenhada sai do dominio e physicalLocal a rejeita - testado separadamente por campo). aaMargin nao entra no desenho fisico.
+
+Avalie: perda de extensao; arredondamento conservador; dominio numerico (ha entrada fora do contrato fisico do Hyprland que deveria ser aceita, ou dentro que quebra?); escala; mistura logico/fisico; comportamento nos limites (fechados); complexidade desnecessaria; se os testes negativos/mutantes realmente provam sensibilidade; lacunas do teste.
+
+ATUALIZACAO APOS SUA PRIMEIRA REVISAO (reject, 3 major + 1 minor). Reproduzimos os tres contraexemplos e mudamos o codigo; contraexemplos agora estao no teste:
+- Achado 3 (physicalLocal({0.5,0,2^-54,1}) -> largura -1): confirmado. Correcao: novo guarda detail::resolved(x,w) = (x + w > x), aplicado a origem ESCALADA e w*scale em physicalLocal, ao bbox resultante em logicalBBox, as duas entradas de unionDamage e a caixa fisica de previewBBox; rejeita com nullopt. Prova (para revisar): se x+ws>x em double, entao t=fl(x+ws)>=nextafter(x)>x e t-rx > x-rx >= -0.5, logo round(t-rx) >= 0.
+- Achado 2 (unionDamage de extensao 2^-54 em x=1 devolve largura 0): confirmado; agora a entrada e rejeitada pelo mesmo guarda; a saida da uniao de entradas validas passa a ser reaceita como entrada (checado no fuzz).
+- Achado 1 (preview {1,0,1+2^-52,1}, s=1: borda exata 2+2^-52 nao representavel) e Achado 4 (oraculo repete a soma): DECISAO EXPLICITA, questione-a: borda de uma caixa := o double fl(x+w), que e exatamente o que o host calcula (CBox x+w em double); uma lasca abaixo de 1 ulp alem dessa borda nao e observavel por nenhum consumidor em double e foi declarada fora de contrato (as entradas do host vem de int32/float). Sob essa definicao a borda 2+2^-52 e 2. Alem disso, verificacao independente com long double (x87, 64 bits de mantissa): 3.000.000 amostras no dominio, 0 casos de physicalLocal fora do ceilOut exato (calculado em long double a partir das entradas double) e 0 fora do ceilOut do bbox em double.
+- Observacao: `resolved` sozinho NAO substitui o limite de magnitude (a perda de cobertura medida a partir de 2^50 ocorre com larguras 0.1..100, que sao resolviveis); os dois guardas sao independentes e cada um tem mutantes proprios.
+Resultados atuais: GCC 16.2 e Clang 23.1: suite 260758 verificacoes exit 0; 13 negativos e 44 mutacoes reais do header (incl. 6 do guarda resolved) cada um rejeitado pela assertiva prevista; UBSan limpo. Duas mutacoes antes sobreviventes (alargamentos nextafter em previewBBox) geraram testes novos; uma mutacao agora equivalente (v>0 redundante com resolved em physicalLocal) foi coberta por teste de logicalBBox com AA/extensao.
+Reavalie com os mesmos criterios e procure NOVOS contraexemplos: entradas dentro do dominio que violem cobertura, extensao nao negativa, ou re-aceitacao da saida; entradas fora do dominio aceitas; a decisao de borda-como-double; mutantes equivalentes ou testes que passam por acidente.
+
+=== plugin/geometry.hpp ===
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <optional>
+
+namespace KwGeometry {
+    struct LogicalPoint {
+        double x = 0, y = 0;
+    };
+    struct LogicalBox {
+        double x = 0, y = 0, w = 0, h = 0;
+    };
+    struct PhysicalBox {
+        double x = 0, y = 0, w = 0, h = 0;
+    };
+
+    // Supported numeric domain (closed bounds). Every function returns
+    // std::nullopt, never a wrong box, for NaN/inf, a bound violation or a
+    // non-positive length/scale. Rationale, margins and measurements:
+    // docs/port-0-57/GEOMETRY.md section 4.
+    //  - kMaxLogical: |component| of every raw logical input (D, E, W, F, M,
+    //    extBottom, aaMargin) and the limit of D.w/D.h: Wayland positions and
+    //    sizes are int32, so 2^31 covers every value the compositor receives.
+    //  - kMin/kMaxScale: monitor scale is a float; 1/16..16 is far wider than
+    //    any real output and keeps pixel magnitudes <= 2^44.
+    //  - kMaxPhysical: |component| of a preview box (kMaxLogical * kMaxScale).
+    //  - kMaxBox: |component| of a derived logical box fed to unionDamage; it
+    //    also bounds previewBBox's result (checked by static_assert in the test).
+    // Coverage was measured to fail only from ~2^50 pixels, where one ulp of the
+    // logical coordinate reaches a quarter pixel; the largest magnitude here is
+    // 2^44, so no coverage depends on rounding slack of the representation.
+    // Edges are the double values x+w / y+h, exactly what the host computes for
+    // a CBox; an extent too small to move its own origin in double arithmetic
+    // (x+w == x) is degenerate and rejected as well (see detail::resolved).
+    inline constexpr double kMaxLogical = 0x1p31, kMaxPhysical = 0x1p35, kMaxBox = 0x1p40;
+    inline constexpr double kMinScale = 0x1p-4, kMaxScale = 0x1p4;
+
+    namespace detail {
+        // All predicates are false for NaN.
+        inline bool within(double v, double limit) { return std::fabs(v) <= limit; }
+        inline bool length(double v, double limit) { return v > 0 && v <= limit; }
+        inline bool nonneg(double v, double limit) { return v >= 0 && v <= limit; }
+        inline bool scaleOk(double s) { return s >= kMinScale && s <= kMaxScale; }
+        // The extent survives addition to its origin; false would let the edge
+        // collapse onto the origin (and, in physicalLocal, a residual of -1).
+        inline bool resolved(double x, double w) { return x + w > x; }
+        inline bool pointOk(LogicalPoint p) { return within(p.x, kMaxLogical) && within(p.y, kMaxLogical); }
+        inline bool logicalOk(LogicalBox d, LogicalPoint e, LogicalPoint w, LogicalPoint f, LogicalPoint m) {
+            return within(d.x, kMaxLogical) && within(d.y, kMaxLogical) && length(d.w, kMaxLogical) &&
+                length(d.h, kMaxLogical) && pointOk(e) && pointOk(w) && pointOk(f) && pointOk(m);
+        }
+        inline bool boxOk(LogicalBox b) {
+            return within(b.x, kMaxBox) && within(b.y, kMaxBox) && length(b.w, kMaxBox) && length(b.h, kMaxBox) &&
+                resolved(b.x, b.w) && resolved(b.y, b.h);
+        }
+    }
+
+    // D is relative logical geometry; E is the global logical anchor; W/F are
+    // presentation offsets; M is the render monitor's global logical origin.
+    // Domain: see the constants above. No host projection/rotation/renderModif
+    // is applied. Match Hyprutils CBox::round: origin first, then residual
+    // extent, including std::round's ties away from zero. Rounding w/h
+    // independently is incorrect.
+    inline std::optional<PhysicalBox> physicalLocal(LogicalBox d, LogicalPoint e, LogicalPoint w,
+                                                    LogicalPoint f, LogicalPoint m, double scale) {
+        if (!detail::logicalOk(d, e, w, f, m) || !detail::scaleOk(scale)) return std::nullopt;
+        const double x = (d.x + e.x + w.x + f.x - m.x) * scale;
+        const double y = (d.y + e.y + w.y + f.y - m.y) * scale;
+        if (!detail::resolved(x, d.w * scale) || !detail::resolved(y, d.h * scale)) return std::nullopt;
+        const double rx = std::round(x), ry = std::round(y);
+        return PhysicalBox{rx, ry, std::round(x + d.w * scale - rx), std::round(y + d.h * scale - ry)};
+    }
+
+    // Logical monitor-local bounds. extBottom (e.g. ROUNDING*3) and aaMargin
+    // are logical lengths in [0, kMaxLogical]; do not pass physical pixels.
+    inline std::optional<LogicalBox> logicalBBox(LogicalBox d, LogicalPoint e, LogicalPoint w,
+                                                 LogicalPoint f, LogicalPoint m, double extBottom, double aaMargin) {
+        if (!detail::logicalOk(d, e, w, f, m) || !detail::nonneg(extBottom, kMaxLogical) ||
+            !detail::nonneg(aaMargin, kMaxLogical))
+            return std::nullopt;
+        const LogicalBox b{d.x + e.x + w.x + f.x - m.x - aaMargin,
+                           d.y + e.y + w.y + f.y - m.y - aaMargin,
+                           d.w + 2 * aaMargin, d.h + extBottom + 2 * aaMargin};
+        if (!detail::resolved(b.x, b.w) || !detail::resolved(b.y, b.h)) return std::nullopt;
+        return b;
+    }
+
+    // Both boxes must be in the domain (|x|,|y| <= kMaxBox, 0 < w,h <= kMaxBox,
+    // x+w > x and y+h > y),
+    // logical and in the SAME monitor-local coordinate system. This returns a
+    // conservative enclosing rectangle, not a region. The caller owns
+    // conversion if the monitor changes.
+    inline std::optional<LogicalBox> unionDamage(LogicalBox prev, LogicalBox next) {
+        if (!detail::boxOk(prev) || !detail::boxOk(next)) return std::nullopt;
+        const double x = std::min(prev.x, next.x), y = std::min(prev.y, next.y);
+        const double right = std::max(prev.x + prev.w, next.x + next.w);
+        const double bottom = std::max(prev.y + prev.h, next.y + next.h);
+        double w = right - x, h = bottom - y;
+        // Subtraction followed by addition can lose a fractional boundary.
+        if (x + w < right) w = std::nextafter(w, INFINITY);
+        if (y + h < bottom) h = std::nextafter(h, INFINITY);
+        return LogicalBox{x, y, w, h};
+    }
+
+    // Preview is already screen-space physical monitor-local geometry
+    // (|x|,|y| <= kMaxPhysical, 0 < w,h <= kMaxPhysical, resolvable extents). Do not add W/F/M
+    // again. Divide once, preserving fractions. If floating point cancellation
+    // would lose coverage on floor/ceil after rescaling, widen only the
+    // affected boundary by directed representable rounding. Use ordinary IEEE
+    // arithmetic (not -ffast-math).
+    inline std::optional<LogicalBox> previewBBox(PhysicalBox physical, double scale) {
+        if (!detail::within(physical.x, kMaxPhysical) || !detail::within(physical.y, kMaxPhysical) ||
+            !detail::length(physical.w, kMaxPhysical) || !detail::length(physical.h, kMaxPhysical) ||
+            !detail::resolved(physical.x, physical.w) || !detail::resolved(physical.y, physical.h) ||
+            !detail::scaleOk(scale))
+            return std::nullopt;
+        LogicalBox b{physical.x / scale, physical.y / scale, physical.w / scale, physical.h / scale};
+        const auto coverAxis = [scale](double start, double size, double& origin, double& extent) {
+            if (std::floor(origin * scale) > start)
+                origin = std::nextafter(origin, -INFINITY);
+            const double end = start + size;
+            if (std::ceil((origin + extent) * scale) < end) {
+                const double boundary = std::nextafter(end / scale, INFINITY);
+                extent = std::nextafter(boundary - origin, INFINITY);
+            }
+        };
+        coverAxis(physical.x, physical.w, b.x, b.w);
+        coverAxis(physical.y, physical.h, b.y, b.h);
+        return b;
+    }
+}
+
+=== plugin/test_geometry.cpp ===
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+#include "geometry.hpp"
+#include <cfloat>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <initializer_list>
+#include <optional>
+#include <type_traits>
+
+using namespace KwGeometry;
+static_assert(!std::is_convertible_v<PhysicalBox, LogicalBox>);
+static_assert(!std::is_convertible_v<LogicalBox, PhysicalBox>);
+// Relations the numeric contract depends on (see GEOMETRY.md section 4).
+static_assert(kMaxPhysical == kMaxLogical * kMaxScale);
+static_assert(8 * kMaxLogical <= kMaxBox);          // bbox of the widest valid input
+static_assert(kMaxPhysical / kMinScale <= kMaxBox); // widest valid preview result
+// Measured loss of coverage starts near 2^50 pixels; stay >= 4 bits below it.
+static_assert(kMaxBox * kMaxScale <= 0x1p46);
+
+namespace {
+    int checks = 0, negative = 0;
+    void check(bool ok, const char* name) {
+        ++checks;
+        if (!ok) {
+            std::printf("FALHOU - %s (variante %d)\n", name, negative);
+            std::exit(1);
+        }
+    }
+    bool near(double a, double b) { return std::isfinite(a) && std::isfinite(b) && std::abs(a - b) < 1e-9; }
+    template <typename A, typename B> bool same(A a, B b) {
+        return near(a.x, b.x) && near(a.y, b.y) && near(a.w, b.w) && near(a.h, b.h);
+    }
+    template <typename A, typename B> bool covers(A a, B b) {
+        return a.x <= b.x && a.y <= b.y && a.x + a.w >= b.x + b.w && a.y + a.h >= b.y + b.h;
+    }
+    template <typename A> bool finite(A a) {
+        return std::isfinite(a.x) && std::isfinite(a.y) && std::isfinite(a.w) && std::isfinite(a.h);
+    }
+    PhysicalBox outward(LogicalBox b, double s) {
+        const double x = std::floor(b.x * s), y = std::floor(b.y * s);
+        return {x, y, std::ceil((b.x + b.w) * s) - x, std::ceil((b.y + b.h) * s) - y};
+    }
+    struct Fixture {
+        LogicalBox d;
+        LogicalPoint e, w, f, m;
+        PhysicalBox expected[4];
+    };
+    constexpr double scales[]{1, 1.25, 1.5, 2};
+    const Fixture fixtures[]{
+        {{.25, -.5, 100.5, 23.25}, {100, 200}, {13, -17}, {-4, 6}, {-1920, -1080},
+         {{2029,1269,101,23}, {2537,1586,125,29}, {3044,1903,151,35}, {4059,2537,201,47}}},
+        {{-.5, -.5, 1, 1}, {}, {}, {}, {},
+         {{-1,-1,2,2}, {-1,-1,2,2}, {-1,-1,2,2}, {-1,-1,2,2}}},
+        {{2.3, 7.1, 80.2, 18.7}, {-90.5, -30.2}, {41.2, 12.3}, {-5.1, 9.7}, {1280, -720},
+         {{-1332,719,80,19}, {-1665,899,100,23}, {-1998,1078,120,28}, {-2664,1438,160,37}}}
+    };
+    // Fault injection is confined to this test executable. Each variant runs
+    // the SAME assertions as production and must exit 1, not merely differ.
+    PhysicalBox physical(Fixture q, double s) {
+        if (negative == 1) { q.w.x *= 2; q.w.y *= 2; }
+        if (negative == 2) { q.f.x *= 2; q.f.y *= 2; }
+        if (negative == 3) q.m = {};
+        if (negative == 4) s *= s;
+        if (negative == 5) { q.m.x = -q.m.x; q.m.y = -q.m.y; }
+        const auto r = physicalLocal(q.d, q.e, q.w, q.f, q.m, s);
+        check(r.has_value(), "P1 in-domain physicalLocal must be accepted");
+        auto p = *r;
+        if (negative == 11) { p.w = std::round(q.d.w * s); p.h = std::round(q.d.h * s); }
+        if (negative == 12) p.w = p.h; // inconsistent dimensions
+        return p;
+    }
+    LogicalBox bbox(Fixture q, double ext, double aa, double s) {
+        if (negative == 6) q.f = {};
+        if (negative == 8) { ext = 0; aa = 10; }
+        const auto r = logicalBBox(q.d, q.e, q.w, q.f, q.m, ext, aa);
+        check(r.has_value(), "P2 in-domain logicalBBox must be accepted");
+        auto b = *r;
+        if (negative == 7) { b.x *= s; b.y *= s; b.w *= s; b.h *= s; }
+        return b;
+    }
+    LogicalBox damage(LogicalBox prev, LogicalBox next) {
+        if (negative == 9) return next;
+        const auto r = unionDamage(prev, next);
+        check(r.has_value(), "P4 in-domain unionDamage must be accepted");
+        return *r;
+    }
+    LogicalBox preview(PhysicalBox p, double s) {
+        if (negative == 10) return {p.x, p.y, p.w, p.h};
+        if (negative == 13) return {p.x / s, p.y / s, p.w, p.h};
+        const auto r = previewBBox(p, s);
+        check(r.has_value(), "P5 in-domain previewBBox must be accepted");
+        return *r;
+    }
+    void p1() {
+        for (const auto& q : fixtures)
+            for (int i = 0; i < 4; ++i)
+                check(same(physical(q, scales[i]), q.expected[i]), "P1 literal numeric oracle / residual rounding");
+    }
+
+    // ---- P3 numeric domain -------------------------------------------------
+    struct Args {
+        LogicalBox d;
+        LogicalPoint e, w, f, m;
+        double s;
+    };
+    constexpr int kFields = 13; // 12 logical components + scale
+    double& field(Args& a, int i) {
+        double* p[]{&a.d.x, &a.d.y, &a.d.w, &a.d.h, &a.e.x, &a.e.y, &a.w.x, &a.w.y, &a.f.x, &a.f.y, &a.m.x, &a.m.y, &a.s};
+        return *p[i];
+    }
+    bool isLength(int i) { return i == 2 || i == 3; }
+    const Args base{fixtures[0].d, fixtures[0].e, fixtures[0].w, fixtures[0].f, fixtures[0].m, 1.5};
+    bool physicalOk(const Args& a) { return physicalLocal(a.d, a.e, a.w, a.f, a.m, a.s).has_value(); }
+    bool bboxOk(const Args& a, double ext = 0, double aa = 0) {
+        return logicalBBox(a.d, a.e, a.w, a.f, a.m, ext, aa).has_value();
+    }
+    // Coverage of one drawn bottom-extended box by the bbox of the same box.
+    bool covered(const Args& a, double ext, double aa) {
+        auto draw = a.d;
+        draw.h += ext;
+        if (draw.h > kMaxLogical) return true; // the drawn box itself is outside the domain; physicalLocal rejects it (tested separately)
+        const auto p = physicalLocal(draw, a.e, a.w, a.f, a.m, a.s);
+        const auto b = logicalBBox(a.d, a.e, a.w, a.f, a.m, ext, aa);
+        return p && b && finite(*p) && finite(*b) && p->w >= 0 && p->h >= 0 && covers(outward(*b, a.s), *p);
+    }
+    std::uint64_t rng = 0x9E3779B97F4A7C15ull;
+    double uni() { // deterministic xorshift64*, [0, 1)
+        rng ^= rng >> 12; rng ^= rng << 25; rng ^= rng >> 27;
+        return double((rng * 0x2545F4914F6CDD1Dull) >> 11) * 0x1p-53;
+    }
+    double pick(double lim) { // near the limit half the time, small otherwise
+        const double sign = uni() < .5 ? -1 : 1;
+        return sign * (uni() < .5 ? lim * (.5 + .5 * uni()) : 200 * uni());
+    }
+    double pickScale() { return kMinScale * std::pow(kMaxScale / kMinScale, uni()); }
+
+    void domain() {
+        // The ORIGINAL review counterexample (origin 2^53, width 1, scale 1.5):
+        // it is outside the supported domain and must be rejected EXPLICITLY by
+        // every entry point that would silently lose the extent.
+        const LogicalBox big{0x1p53, 0, 1, 1};
+        check(!physicalLocal(big, {}, {}, {}, {}, 1.5).has_value(), "P3 original counterexample 2^53 rejected by physicalLocal");
+        check(!logicalBBox(big, {}, {}, {}, {}, 0, 0).has_value(), "P3 original counterexample 2^53 rejected by logicalBBox");
+        check(!unionDamage(big, big).has_value(), "P3 original counterexample 2^53 rejected by unionDamage");
+        check(!previewBBox({0x1p53, 0, 1, 1}, 1.5).has_value(), "P3 original counterexample 2^53 rejected by previewBBox");
+        // Largest in-domain analogue is accepted and covered.
+        Args edge = base;
+        edge.d = {kMaxLogical, 0, 1, 1}; edge.e = edge.w = edge.f = edge.m = {};
+        check(physicalOk(edge) && covered(edge, 0, 0), "P3 largest in-domain analogue of the counterexample covered");
+
+        // Extents too small to move their own origin (x+w == x) are degenerate:
+        // before this guard physicalLocal({0.5,0,2^-54,1}) returned width -1, and
+        // unionDamage of such a box returned width 0 that it then refused as input.
+        // Edges are the double values x+w, as in the host's CBox.
+        for (bool vertical : {false, true}) {
+            const auto box = [vertical](double origin, double extent) {
+                return vertical ? LogicalBox{0, origin, 1, extent} : LogicalBox{origin, 0, extent, 1};
+            };
+            const auto phys = [vertical](double origin, double extent) {
+                return vertical ? PhysicalBox{0, origin, 1, extent} : PhysicalBox{origin, 0, extent, 1};
+            };
+            check(!physicalLocal(box(.5, 0x1p-54), {}, {}, {}, {}, 1).has_value(), "P1 physicalLocal rejects an extent absorbed by the origin (was width -1)");
+            check(!logicalBBox(box(1, 0x1p-54), {}, {}, {}, {}, 0, 0).has_value(), "P2 logicalBBox rejects an extent absorbed by the origin");
+            check(!unionDamage(box(1, 0x1p-54), box(1, 0x1p-54)).has_value(), "P4 unionDamage rejects an extent absorbed by the origin");
+            check(!unionDamage(box(0, 1), box(1, 0x1p-54)).has_value(), "P4 unionDamage rejects an absorbed extent in the second operand");
+            check(!previewBBox(phys(1, 0x1p-54), 1).has_value(), "P5 previewBBox rejects an extent absorbed by the origin");
+            check(!previewBBox(phys(-3, 0x1p-52), 1.5).has_value(), "P5 previewBBox rejects an extent absorbed by a negative origin");
+            // Smallest resolvable extents are accepted, never negative, and stay valid inputs.
+            const auto pl = physicalLocal(box(.5, 0x1p-53), {}, {}, {}, {}, 1);
+            check(pl && pl->w >= 0 && pl->h >= 0, "P1 smallest resolvable extent at a rounding tie gives a nonnegative width");
+            const auto un = unionDamage(box(1, 0x1p-52), box(1, 0x1p-52));
+            check(un && covers(*un, box(1, 0x1p-52)) && unionDamage(*un, *un).has_value(), "P4 union of the smallest resolvable extent is itself a valid input");
+            const auto pv = previewBBox(phys(1, 0x1p-52), 1);
+            check(pv && covers(outward(*pv, 1), phys(1, 0x1p-52)), "P5 preview of the smallest resolvable extent keeps coverage");
+        }
+
+        // Every field: every non-finite / overflow / just-outside value is rejected.
+        for (int i = 0; i < kFields; ++i) {
+            const double lim = i == 12 ? kMaxScale : kMaxLogical;
+            for (double bad : {double(NAN), double(INFINITY), -double(INFINITY), DBL_MAX, -DBL_MAX, 0x1p53, -0x1p53,
+                               std::nextafter(lim, INFINITY), -std::nextafter(lim, INFINITY)}) {
+                if (i != 12 && !isLength(i) && std::abs(bad) <= lim) continue;
+                Args a = base;
+                field(a, i) = bad;
+                check(!physicalOk(a), "P3 physicalLocal rejects non-finite/overflow/out-of-domain field");
+                if (i != 12) check(!bboxOk(a), "P3 logicalBBox rejects non-finite/overflow/out-of-domain field");
+            }
+            // Lower edge of the positive quantities.
+            if (isLength(i) || i == 12) {
+                std::initializer_list<double> badLow = i == 12
+                    ? std::initializer_list<double>{0, -1, -0., std::nextafter(kMinScale, 0), 0x1p-1074}
+                    : std::initializer_list<double>{0, -0., -1, -0x1p-1074};
+                for (double bad : badLow) {
+                    Args a = base;
+                    field(a, i) = bad;
+                    check(!physicalOk(a), "P3 physicalLocal rejects zero/negative length or scale below minimum");
+                    if (i != 12) check(!bboxOk(a), "P3 logicalBBox rejects zero/negative length");
+                    // AA and extension must not make a nonpositive D length acceptable.
+                    if (i != 12) check(!bboxOk(a, 5, 5), "P3 logicalBBox rejects zero/negative length even when AA/extension would widen it");
+                }
+            }
+            // Exactly at the limit: accepted (the bound is closed).
+            for (double good : {lim, i == 12 || isLength(i) ? kMinScale : -lim}) {
+                Args a = base;
+                field(a, i) = good;
+                check(physicalOk(a), "P3 physicalLocal accepts the closed domain limit");
+                if (i != 12) check(bboxOk(a), "P3 logicalBBox accepts the closed domain limit");
+            }
+        }
+        // extBottom / aaMargin: finite, nonnegative, <= kMaxLogical.
+        for (double bad : {double(NAN), double(INFINITY), DBL_MAX, -1., -0x1p-1074, std::nextafter(kMaxLogical, INFINITY)}) {
+            check(!bboxOk(base, bad, 0), "P3 logicalBBox rejects bad extBottom");
+            check(!bboxOk(base, 0, bad), "P3 logicalBBox rejects bad aaMargin");
+        }
+        check(bboxOk(base, kMaxLogical, kMaxLogical) && bboxOk(base, 0, 0), "P3 logicalBBox accepts extBottom/aaMargin at 0 and at the limit");
+        check(!bboxOk(base, -0.0 - 1e-300, 0), "P3 logicalBBox rejects tiny negative extBottom");
+
+        // Scale bounds for the other two scale-bearing functions.
+        const PhysicalBox ph{10, 20, 30, 40};
+        for (double bad : {double(NAN), double(INFINITY), DBL_MAX, 0., -1., 0x1p-1074, std::nextafter(kMinScale, 0), std::nextafter(kMaxScale, INFINITY)})
+            check(!previewBBox(ph, bad).has_value(), "P5 previewBBox rejects bad scale");
+        for (double good : {kMinScale, kMaxScale, 1.5})
+            check(previewBBox(ph, good).has_value(), "P5 previewBBox accepts closed scale limits");
+        // Preview physical box bounds.
+        const double lim[]{kMaxPhysical, kMaxPhysical, kMaxPhysical, kMaxPhysical};
+        for (int i = 0; i < 4; ++i)
+            for (double bad : {double(NAN), double(INFINITY), -double(INFINITY), DBL_MAX, 0x1p53, std::nextafter(lim[i], INFINITY),
+                               -std::nextafter(lim[i], INFINITY), (i >= 2 ? 0. : 1e300), (i >= 2 ? -1. : 1e300)}) {
+                if (i < 2 && std::abs(bad) <= lim[i]) continue;
+                double v[]{10, 20, 30, 40};
+                v[i] = bad;
+                check(!previewBBox({v[0], v[1], v[2], v[3]}, 1.5).has_value(), "P5 previewBBox rejects bad physical component");
+            }
+        // unionDamage components: |x|,|y| <= kMaxBox, 0 < w,h <= kMaxBox.
+        for (int i = 0; i < 4; ++i)
+            for (double bad : {double(NAN), double(INFINITY), -double(INFINITY), DBL_MAX, 0x1p53, std::nextafter(kMaxBox, INFINITY),
+                               -std::nextafter(kMaxBox, INFINITY), 0., -1.}) {
+                if (i < 2 && (std::abs(bad) <= kMaxBox)) continue;
+                double v[]{1, 2, 3, 4};
+                v[i] = bad;
+                const LogicalBox odd{v[0], v[1], v[2], v[3]}, ok{1, 2, 3, 4};
+                check(!unionDamage(odd, ok).has_value() && !unionDamage(ok, odd).has_value(), "P4 unionDamage rejects bad component in either operand");
+            }
+        check(unionDamage({-kMaxBox, -kMaxBox, kMaxBox, kMaxBox}, {kMaxBox, kMaxBox, kMaxBox, kMaxBox}).has_value(), "P4 unionDamage accepts the closed limit");
+
+        // Boundary coverage: signed corners of the closed domain, every scale
+        // that matters, with and without extension and AA.
+        const double ss[]{kMinScale, 0.1, 1, 1.25, 1.5, 2, 3.7, 10, kMaxScale, std::nextafter(kMaxScale, 0), std::nextafter(kMinScale, 1)};
+        for (int mask = 0; mask < 32; ++mask) {
+            Args a = base;
+            const double sg[]{mask & 1 ? 1. : -1., mask & 2 ? 1. : -1., mask & 4 ? 1. : -1., mask & 8 ? 1. : -1., mask & 16 ? 1. : -1.};
+            a.d.x = sg[0] * kMaxLogical; a.d.y = -sg[0] * kMaxLogical;
+            a.e = {sg[1] * kMaxLogical, -sg[1] * kMaxLogical};
+            a.w = {sg[2] * kMaxLogical, sg[2] * kMaxLogical};
+            a.f = {sg[3] * kMaxLogical, -sg[3] * kMaxLogical};
+            a.m = {sg[4] * kMaxLogical, sg[4] * kMaxLogical};
+            for (double dw : {1., .3, 1234.5, kMaxLogical}) {
+                a.d.w = dw; a.d.h = dw == 1. ? 1 : dw * .7;
+                for (double s : ss)
+                    for (double ext : {0., 96., kMaxLogical})
+                        for (double aa : {0., 1.25, kMaxLogical}) {
+                            a.s = s;
+                            check(covered(a, ext, aa), "P3 coverage at the signed corners of the closed domain");
+                        }
+            }
+        }
+        // Deterministic fuzz inside the domain, concentrated near its limits.
+        for (int n = 0; n < 60000; ++n) {
+            Args a{{pick(kMaxLogical), pick(kMaxLogical), 0, 0}, {pick(kMaxLogical), pick(kMaxLogical)}, {pick(kMaxLogical), pick(kMaxLogical)},
+                   {pick(kMaxLogical), pick(kMaxLogical)}, {pick(kMaxLogical), pick(kMaxLogical)}, pickScale()};
+            a.d.w = .01 + std::abs(pick(kMaxLogical)); a.d.h = .01 + std::abs(pick(kMaxLogical));
+            a.d.w = std::min(a.d.w, kMaxLogical); a.d.h = std::min(a.d.h, kMaxLogical);
+            const double ext = uni() < .5 ? 0 : 200 * uni(), aa = uni() < .5 ? 0 : 3 * uni();
+            check(covered(a, ext, aa), "P3 fuzz coverage over the closed domain");
+            // P4: damage of two independent in-domain frames covers both drawings.
+            Args b = a;
+            b.d.x = pick(kMaxLogical); b.d.y = pick(kMaxLogical); b.f = {pick(kMaxLogical), pick(kMaxLogical)};
+            const auto ba = logicalBBox(a.d, a.e, a.w, a.f, a.m, ext, aa), bb = logicalBBox(b.d, b.e, b.w, b.f, b.m, ext, aa);
+            const auto u = ba && bb ? unionDamage(*ba, *bb) : std::nullopt;
+            check(u.has_value() && unionDamage(*u, *u).has_value(), "P4 fuzz: union of two in-domain bboxes accepted and re-acceptable");
+            check(covers(outward(*u, a.s), outward(*ba, a.s)) && covers(outward(*u, a.s), outward(*bb, a.s)), "P4 fuzz: union covers both frames");
+            // P5: any in-domain preview round-trips with coverage.
+            const PhysicalBox p{pick(kMaxPhysical), pick(kMaxPhysical), .01 + std::abs(pick(kMaxPhysical)), .01 + std::abs(pick(kMaxPhysical))};
+            const PhysicalBox pc{p.x, p.y, std::min(p.w, kMaxPhysical), std::min(p.h, kMaxPhysical)};
+            const auto pv = previewBBox(pc, a.s);
+            check(pv.has_value() && finite(*pv) && covers(outward(*pv, a.s), pc), "P5 fuzz: preview coverage over the closed domain");
+        }
+    }
+
+    void p2p3() {
+        if (negative == 8) {
+            auto draw = fixtures[0];
+            draw.d.h += 96;
+            check(covers(outward(bbox(fixtures[0], 96, 0, 1.25), 1.25), physical(draw, 1.25)),
+                  "P3 fixed expand(10) cannot cover large bottom extension");
+        }
+        const LogicalBox expected{2028, 1267.25, 103, 121.75};
+        check(same(bbox(fixtures[0], 96, 1.25, 1.5), expected), "P2 logical F / bottom extension / AA");
+        // Zero and large rounding; AA is logical and not a substitute for ext.
+        for (const auto& q : fixtures)
+            for (double s : scales)
+                for (double ext : {0., 3., 96., 240.})
+                    for (double aa : {0., .5, 1.25}) {
+                        auto draw = q;
+                        draw.d.h += ext;
+                        const auto b = bbox(q, ext, aa, s);
+                        const auto p = physical(draw, s);
+                        check(covers(outward(b, s), p), "P3 outward bbox covers every drawn pixel");
+                        check(near(b.w, q.d.w + 2*aa) && near(b.h, q.d.h + ext + 2*aa), "P2 dimensions stay logical");
+                    }
+        // Dense fractional origins near rounding boundaries, both signs.
+        for (int i = -32; i <= 32; ++i)
+            for (double s : scales)
+                for (int base : {0, 1}) {
+                    auto q = fixtures[base];
+                    q.d.x = i / 16.; q.d.y = -i / 16.; q.d.w = .3; q.d.h = .7;
+                    check(covers(outward(bbox(q, 0, 0, s), s), physical(q, s)), "P3 fractional boundary sweep");
+                }
+    }
+    void p4() {
+        for (bool vertical : {false, true}) {
+            const LogicalBox a = vertical ? LogicalBox{0,-1,1,1} : LogicalBox{-1,0,1,1};
+            const LogicalBox b = vertical ? LogicalBox{0,.5,1,0x1.0000000000002p-1} : LogicalBox{.5,0,0x1.0000000000002p-1,1};
+            const auto both = damage(a, b);
+            check(covers(both, a) && covers(both, b), "P4 fractional union preserves logical edges (review regression)");
+            check(covers(outward(both, 1), b), "P4 fractional union preserves pixel coverage");
+        }
+        const LogicalBox prev{-200, -90, 40, 30}, next{70, 80, 100, 60};
+        check(same(damage(prev, next), LogicalBox{-200,-90,370,230}), "P4 literal union of disjoint frames");
+        check(same(damage(next, prev), damage(prev, next)), "P4 commutativity");
+        check(same(damage(prev, prev), prev), "P4 idempotence");
+        const LogicalBox inside{-190,-85,2,3};
+        check(same(damage(prev, inside), prev), "P4 nested frame");
+        for (double s : scales) {
+            const auto& q = fixtures[0];
+            auto moved = q;
+            moved.w = {-300, 150}; moved.f = {50,-20}; moved.d.w = 280;
+            const auto both = damage(bbox(q, 96, 1, s), bbox(moved, 96, 1, s));
+            auto a = q, b = moved; a.d.h += 96; b.d.h += 96;
+            check(covers(outward(both, s), physical(a, s)) && covers(outward(both, s), physical(b, s)), "P4 damage covers old and new drawings");
+        }
+    }
+    void p5() {
+        const PhysicalBox edge{1, 0, 0x1.0000000000002p0, 1};
+        check(covers(outward(preview(edge, 1.5), 1.5), edge), "P5 fractional right edge above integer (review regression)");
+        for (double s : scales)
+            for (const PhysicalBox p : {PhysicalBox{251,-37,123,49}, PhysicalBox{-17,21,1,1}, PhysicalBox{0,0,120,40}}) {
+                const auto b = preview(p, s);
+                check(same(PhysicalBox{b.x*s,b.y*s,b.w*s,b.h*s}, p), "P5 all components divide by scale exactly once");
+                check(covers(outward(b, s), p), "P5 no one-pixel gap on round trip");
+            }
+        for (double s : {1., 1.1, 1.25, 1.3, 1.5, 2., 2.3, 3.})
+            for (int i = -8; i <= 8; ++i)
+                for (int width = 1; width <= 4; ++width)
+                    for (double direction : {-INFINITY, INFINITY}) {
+                        const PhysicalBox p{i / 3., -i / 3., std::nextafter(double(width), direction),
+                                            std::nextafter(double(width), -direction)};
+                        const auto b = preview(p, s);
+                        check(same(PhysicalBox{b.x*s,b.y*s,b.w*s,b.h*s}, p), "P5 fractional components preserved within numeric error");
+                        check(covers(outward(b, s), p), "P5 fractional edges preserve strict coverage");
+                    }
+        // Origins and edges one ulp either side of an integer: the division can round
+        // across the integer, which is when the directed widening is needed.
+        for (int k = 1; k <= 30; ++k) {
+            const double s = 1 + k / 10.; // 1.1 .. 4.0, mostly inexact in binary
+            for (int i = -4; i <= 4; ++i)
+                for (double dx : {-INFINITY, INFINITY})
+                    for (double dw : {-INFINITY, INFINITY}) {
+                        const PhysicalBox p{std::nextafter(double(i), dx), std::nextafter(double(-i), -dx),
+                                            std::nextafter(double(3), dw), std::nextafter(double(5), -dw)};
+                        const auto b = preview(p, s);
+                        check(covers(outward(b, s), p), "P5 ulp-adjacent origins and edges preserve strict coverage");
+                    }
+        }
+        check(same(preview({251,-37,123,49}, 1.25), LogicalBox{200.8,-29.6,98.4,39.2}), "P5 literal fractional oracle");
+    }
+}
+int main(int argc, char** argv) {
+    if (argc != 1) {
+        if (argc != 3 || std::strcmp(argv[1], "--negative") != 0) return 2;
+        char* end = nullptr;
+        const long mode = std::strtol(argv[2], &end, 10);
+        if (*end || mode < 1 || mode > 13) return 2;
+        negative = static_cast<int>(mode);
+    }
+    p1(); p2p3(); p4(); p5();
+    domain(); // last: earlier properties keep their own first-failure messages
+    std::printf("OK - P1-P5: %d verificacoes (variante %d)\n", checks, negative);
+}
+
+=== tools/test-plugin-geometry.sh ===
+#!/usr/bin/env bash
+# Host-free geometry contract; no Hyprland, GL, plugin loading or installation.
+# CXX selects the compiler (default g++); run once per compiler.
+set -u
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
+t=$(mktemp -d "${TMPDIR:-${XDG_CACHE_HOME:-$HOME/.cache}}/kwinish-test-geometry.XXXXXXXX") || exit 1
+trap 'rm -rf -- "$t"' EXIT
+cxx=${CXX:-g++}
+command -v "$cxx" >/dev/null || { echo "FALHOU - falta o compilador $cxx"; exit 1; }
+command -v perl >/dev/null || { echo "FALHOU - falta perl (mutacoes do header)"; exit 1; }
+flags=(-std=c++2b -Wall -Wextra -Werror)
+"$cxx" "${flags[@]}" -I "$root/plugin" "$root/plugin/test_geometry.cpp" -o "$t/test_geometry" || { echo "FALHOU - compilar plugin/test_geometry.cpp"; exit 1; }
+"$t/test_geometry" || exit 1
+
+# Fault injection inside the TEST executable. Each variant runs the SAME
+# assertions and must exit 1 with its OWN expected assertion; a signal, a
+# compile error, a CLI error or a different assertion is not evidence.
+negative() { # mode expected-substring
+    "$t/test_geometry" --negative "$1" >"$t/negative.log" 2>&1
+    local status=$? message
+    IFS= read -r message <"$t/negative.log" || message=''
+    if [[ $status -ne 1 || $message != "FALHOU - $2"* ]]; then
+        printf 'FALHOU - negativo %s nao detectado pela assertiva esperada "%s" (exit %s): %s\n' "$1" "$2" "$status" "$message"
+        exit 1
+    fi
+    printf 'OK - negativo %s detectado: %s\n' "$1" "$message"
+}
+negative 1 'P1 literal numeric oracle'
+negative 2 'P1 literal numeric oracle'
+negative 3 'P1 literal numeric oracle'
+negative 4 'P1 literal numeric oracle'
+negative 5 'P1 literal numeric oracle'
+negative 6 'P2 logical F / bottom extension / AA'
+negative 7 'P2 logical F / bottom extension / AA'
+negative 8 'P3 fixed expand(10) cannot cover large bottom extension'
+negative 9 'P4 fractional union preserves logical edges'
+negative 10 'P5 all components divide by scale exactly once'
+negative 11 'P1 literal numeric oracle'
+negative 12 'P1 literal numeric oracle'
+negative 13 'P5 all components divide by scale exactly once'
+
+# Real mutations of geometry.hpp, applied to a scratch copy only. Each one must
+# change the file, compile (or, for COMPILE, fail with a static_assert) and be
+# rejected by its OWN assertion, never by an unrelated failure.
+mutant() { # name find replace expected|COMPILE
+    local dir="$t/mut" out
+    rm -rf "$dir"; mkdir "$dir"
+    cp "$root/plugin/test_geometry.cpp" "$dir/"
+    A=$2 B=$3 perl -0777 -pe 'BEGIN { $a = $ENV{A}; $b = $ENV{B} } s/\Q$a\E/$b/' "$root/plugin/geometry.hpp" >"$dir/geometry.hpp"
+    if cmp -s "$root/plugin/geometry.hpp" "$dir/geometry.hpp"; then
+        printf 'FALHOU - mutacao "%s" nao alterou o header (padrao desatualizado)\n' "$1"; exit 1
+    fi
+    if [[ $4 == COMPILE ]]; then
+        out=$("$cxx" "${flags[@]}" -I "$dir" "$dir/test_geometry.cpp" -o "$dir/t" 2>&1) && {
+            printf 'FALHOU - mutacao "%s" compilou; esperava static_assert\n' "$1"; exit 1; }
+        [[ $out == *'static assertion failed'* ]] || { printf 'FALHOU - mutacao "%s" falhou sem static_assert\n' "$1"; exit 1; }
+        printf 'OK - mutacao "%s" rejeitada por static_assert\n' "$1"
+        return
+    fi
+    "$cxx" "${flags[@]}" -I "$dir" "$dir/test_geometry.cpp" -o "$dir/t" >"$dir/cc.log" 2>&1 || {
+        printf 'FALHOU - mutacao "%s" nao compilou (erro de compilacao nao e deteccao)\n' "$1"; exit 1; }
+    out=$("$dir/t" 2>&1); local status=$?
+    if [[ $status -ne 1 || $out != "FALHOU - $4"* ]]; then
+        printf 'FALHOU - mutacao "%s" nao detectada pela assertiva esperada "%s" (exit %s): %s\n' "$1" "$4" "$status" "$out"
+        exit 1
+    fi
+    printf 'OK - mutacao "%s" detectada: %s\n' "$1" "$out"
+}
+X='+ w.x + f.x - m.x) * scale;'
+mutant 'W duas vezes'            "$X" '+ w.x + w.x + f.x - m.x) * scale;' 'P1 literal numeric oracle'
+mutant 'F duas vezes'            "$X" '+ w.x + f.x + f.x - m.x) * scale;' 'P1 literal numeric oracle'
+mutant 'M omitido'               "$X" '+ w.x + f.x) * scale;' 'P1 literal numeric oracle'
+mutant 'M com sinal errado'      "$X" '+ w.x + f.x + m.x) * scale;' 'P1 literal numeric oracle'
+mutant 'escala dupla'            "$X" '+ w.x + f.x - m.x) * scale * scale;' 'P1 literal numeric oracle'
+mutant 'arredonda w/h isolados'  'std::round(x + d.w * scale - rx), std::round(y + d.h * scale - ry)}' 'std::round(d.w * scale), std::round(d.h * scale)}' 'P1 literal numeric oracle'
+mutant 'largura = altura'        'std::round(x + d.w * scale - rx), std::round(y + d.h * scale - ry)}' 'std::round(y + d.h * scale - ry), std::round(y + d.h * scale - ry)}' 'P1 literal numeric oracle'
+mutant 'bbox sem F'              'const LogicalBox b{d.x + e.x + w.x + f.x - m.x - aaMargin,' 'const LogicalBox b{d.x + e.x + w.x - m.x - aaMargin,' 'P2 logical F / bottom extension / AA'
+mutant 'bbox sem extensao'       'd.h + extBottom + 2 * aaMargin}' 'd.h + 2 * aaMargin}' 'P2 logical F / bottom extension / AA'
+mutant 'bbox em unidade fisica'  'd.w + 2 * aaMargin, d.h' '(d.w + 2 * aaMargin) * 1.5, d.h' 'P2 logical F / bottom extension / AA'
+mutant 'damage so do novo'       'const double x = std::min(prev.x, next.x), y = std::min(prev.y, next.y);' 'const double x = next.x, y = next.y;' 'P4 fractional union preserves logical edges'
+mutant 'damage sem nextafter'    'if (x + w < right) w = std::nextafter(w, INFINITY);' '' 'P4 fractional union preserves logical edges'
+mutant 'preview fisico como logico' 'LogicalBox b{physical.x / scale, physical.y / scale, physical.w / scale, physical.h / scale};' 'LogicalBox b{physical.x, physical.y, physical.w, physical.h};' 'P5 all components divide by scale exactly once'
+mutant 'preview dimensoes sem escala' 'physical.w / scale, physical.h / scale};' 'physical.w, physical.h};' 'P5 all components divide by scale exactly once'
+mutant 'preview sem alargar origem'  'origin = std::nextafter(origin, -INFINITY);' 'origin += 0;' 'P5 ulp-adjacent origins and edges preserve strict coverage'
+mutant 'preview sem alargar extensao' 'extent = std::nextafter(boundary - origin, INFINITY);' '(void)boundary;' 'P5 fractional right edge above integer (review regression)'
+mutant 'preview borda sem nextafter' 'const double boundary = std::nextafter(end / scale, INFINITY);' 'const double boundary = end / scale;' 'P5 ulp-adjacent origins and edges preserve strict coverage'
+mutant 'resolvido: physicalLocal sem teste' 'if (!detail::resolved(x, d.w * scale) || !detail::resolved(y, d.h * scale)) return std::nullopt;' '' 'P1 physicalLocal rejects an extent absorbed by the origin (was width -1)'
+mutant 'resolvido: bbox sem teste'  'if (!detail::resolved(b.x, b.w) || !detail::resolved(b.y, b.h)) return std::nullopt;' '' 'P2 logicalBBox rejects an extent absorbed by the origin'
+mutant 'resolvido: union sem teste' 'resolved(b.x, b.w) && resolved(b.y, b.h);' 'true;' 'P4 unionDamage rejects an extent absorbed by the origin'
+mutant 'resolvido: preview sem teste' '!detail::resolved(physical.x, physical.w) || !detail::resolved(physical.y, physical.h) ||' '' 'P5 previewBBox rejects an extent absorbed by the origin'
+mutant 'resolvido: so eixo x'       'resolved(b.x, b.w) && resolved(b.y, b.h);' 'resolved(b.x, b.w);' 'P4 unionDamage rejects an extent absorbed by the origin'
+mutant 'resolvido: aceita igualdade' 'return x + w > x; }' 'return x + w >= x; }' 'P1 physicalLocal rejects an extent absorbed by the origin (was width -1)'
+# Domain (P3): each guard removed or weakened on its own.
+mutant 'dominio: within sem limite'        'return std::fabs(v) <= limit; }' 'return std::fabs(v) <= limit || limit > 0; }' 'P3 original counterexample 2^53 rejected by physicalLocal'
+mutant 'dominio: limite aberto'            'return std::fabs(v) <= limit; }' 'return std::fabs(v) < limit; }' 'P3 largest in-domain analogue of the counterexample covered'
+mutant 'dominio: sem fabs (so positivo)'   'return std::fabs(v) <= limit; }' 'return v <= limit; }' 'P3 physicalLocal rejects non-finite/overflow/out-of-domain field'
+mutant 'dominio: comprimento aceita zero'  'return v > 0 && v <= limit; }' 'return v >= 0 && v <= limit; }' 'P3 logicalBBox rejects zero/negative length even when AA/extension would widen it'
+mutant 'dominio: comprimento aceita negativo' 'return v > 0 && v <= limit; }' 'return v <= limit; }' 'P3 logicalBBox rejects zero/negative length even when AA/extension would widen it'
+mutant 'dominio: comprimento sem teto'    'return v > 0 && v <= limit; }' 'return v > 0 && limit > 0; }' 'P3 physicalLocal rejects non-finite/overflow/out-of-domain field'
+mutant 'dominio: escala sem minimo'        's >= kMinScale && s <= kMaxScale' 's <= kMaxScale' 'P3 physicalLocal rejects zero/negative length or scale below minimum'
+mutant 'dominio: escala sem maximo'        's >= kMinScale && s <= kMaxScale' 's >= kMinScale' 'P3 physicalLocal rejects non-finite/overflow/out-of-domain field'
+mutant 'dominio: escala minimo aberto'     's >= kMinScale && s <= kMaxScale' 's > kMinScale && s <= kMaxScale' 'P3 physicalLocal accepts the closed domain limit'
+mutant 'dominio: y do ponto sem teste'     'within(p.x, kMaxLogical) && within(p.y, kMaxLogical)' 'within(p.x, kMaxLogical)' 'P3 physicalLocal rejects non-finite/overflow/out-of-domain field'
+mutant 'dominio: D.h sem teste'            '&&
+                length(d.h, kMaxLogical)' '&&
+                true' 'P3 physicalLocal rejects non-finite/overflow/out-of-domain field'
+mutant 'dominio: extBottom aceita negativo' 'return v >= 0 && v <= limit; }' 'return v <= limit; }' 'P3 logicalBBox rejects bad extBottom'
+mutant 'dominio: extBottom sem teto'       'return v >= 0 && v <= limit; }' 'return v >= 0 && limit > 0; }' 'P3 logicalBBox rejects bad extBottom'
+mutant 'dominio: aaMargin sem teste'       '!detail::nonneg(aaMargin, kMaxLogical))' 'false)' 'P3 logicalBBox rejects bad aaMargin'
+mutant 'dominio: unionDamage sem teste'    'if (!detail::boxOk(prev) || !detail::boxOk(next)) return std::nullopt;' '' 'P3 original counterexample 2^53 rejected by unionDamage'
+mutant 'dominio: unionDamage so prev'      '!detail::boxOk(prev) || !detail::boxOk(next)' '!detail::boxOk(prev)' 'P4 unionDamage rejects an absorbed extent in the second operand'
+mutant 'dominio: previewBBox sem teto fisico' '!detail::within(physical.x, kMaxPhysical) || !detail::within(physical.y, kMaxPhysical) ||
+            !detail::length(physical.w, kMaxPhysical) || !detail::length(physical.h, kMaxPhysical) ||
+            ' '' 'P5 previewBBox rejects bad physical component'
+mutant 'dominio: previewBBox sem escala'   '||
+            !detail::scaleOk(scale))' ')' 'P5 previewBBox rejects bad scale'
+mutant 'dominio: kMaxLogical = 2^53'       'kMaxLogical = 0x1p31' 'kMaxLogical = 0x1p53' COMPILE
+mutant 'dominio: kMaxBox = 2^53'           'kMaxBox = 0x1p40' 'kMaxBox = 0x1p53' COMPILE
+mutant 'dominio: kMaxScale = 2^20'         'kMaxScale = 0x1p4' 'kMaxScale = 0x1p20' COMPILE
+echo "OK - $cxx: suite, 13 negativos e todas as mutacoes rejeitados pela assertiva esperada"

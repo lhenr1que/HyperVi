@@ -1,0 +1,1162 @@
+You are an independent C++ reviewer (review round 2). You have NO tools; judge only the material below. Be adversarial and concrete.
+
+## Context
+Plugin "kwinish-bars" (Hyprland window-decoration plugin) is being ported from Hyprland 0.56.2 to 0.57.0. This step (P5, step 2) is authorised to change ONLY:
+- the window header include path, and
+- window accessors whose equivalence with the 0.56.2 API was demonstrated.
+It must NOT change render-pass interfaces, OpenGL state or GL wrapper calls (renderRect/renderTexture/scissor), hooks, timers, lifecycle/teardown, decoration ownership/registration, nor integrate the separate geometry module. A full plugin build is still expected to fail (other API families). Compiling successfully is NOT proof of functional equivalence.
+
+Deliberately deferred by the implementer (they claim): `roundingPower()` inside renderRect calls (GL wrapper lines); `m_isMapped` at main.cpp:515 (inside pluginInit = lifecycle); `onNewWindow` (m_X11DoesntWantBorders, m_windowDecorations, UP->SP addWindowDecoration = ownership/lifecycle); `updateWindowDecos()` in onUpdateWindowRules (the 0.57 replacement processes pending removals before the mapped/hidden check = semantic change touching teardown); Log API (`log(level, loc, fmt, ...)`).
+
+## Questions
+1. For each substitution in the diff, is the 0.57 accessor equivalent to the 0.56.2 member for THIS call site? Name any semantic difference the implementer missed (types, references/lifetimes, explicit-bool masks, cache invalidation, null targets, evaluation order, value vs snapshot).
+2. Does the diff touch anything out of scope (render pass interface, GL calls/state, hooks, lifecycle, ownership)? Is any deferral wrong (should have been applied, or applied item should have been deferred)?
+3. Is the classification of the barDeco.cpp:806 "new" error (Log API, unmasked once m_class was fixed) correct?
+4. Are the probes non-vacuous? Any probe assertion that does not test what it claims?
+
+Answer as JSON: {"verdict":"approve"|"reject","findings":[{"severity":"blocker|major|minor","where":"file:line or probe","claim":"...","evidence":"quote from the material"}],"notes":"..."}. Only cite what is in the material; mark speculation as such.
+
+## Real diff (git diff plugin/)
+```diff
+diff --git a/plugin/barDeco.cpp b/plugin/barDeco.cpp
+index 1af8671..06c6ae1 100644
+--- a/plugin/barDeco.cpp
++++ b/plugin/barDeco.cpp
+@@ -7,7 +7,8 @@
+ #include <hyprland/src/desktop/state/WindowState.hpp>
+ #include <hyprland/src/desktop/state/LayerState.hpp>
+ #include <hyprland/src/desktop/state/ViewHitTester.hpp>
+-#include <hyprland/src/desktop/view/Window.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
++#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+ #include <hyprland/src/desktop/view/LayerSurface.hpp>
+ #include <hyprland/src/helpers/MiscFunctions.hpp>
+ #include <hyprland/src/managers/SeatManager.hpp>
+@@ -388,7 +389,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
+     if (Desktop::focusState()->window() != PWINDOW)
+         Desktop::focusState()->fullWindowFocus(PWINDOW, Desktop::FOCUS_REASON_CLICK);
+ 
+-    if (PWINDOW->m_isFloating)
++    if (PWINDOW->isFloating())
+         Desktop::windowState()->raise(PWINDOW);
+ 
+     info.cancelled   = true;
+@@ -415,7 +416,7 @@ void CHyprBar::handleDownEvent(Event::SCallbackInfo& info, std::optional<ITouch:
+         // The compositor grabs the window under the pointer when the move starts. Waiting for the first motion (as
+         // upstream does) lets a fast move leave the bar and grab whatever is below, so a floating window's drag
+         // starts right at the press, while the pointer is still on its bar. Tiled windows keep the lazy start.
+-        if (PWINDOW->m_isFloating && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
++        if (PWINDOW->isFloating() && !m_bTouchEv && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED)) {
+             m_bDragPending = false;
+             handleMovement();
+         } else
+@@ -512,7 +513,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
+ 
+         CPreviewPassElement::SPreviewData data;
+         data.box    = CBox{zone->pos.x - pMonitor->m_position.x, zone->pos.y - pMonitor->m_position.y, zone->size.x, zone->size.y}.scale(SCALE).round();
+-        data.round  = W ? std::round(W->rounding() * SCALE) : 0;
++        data.round  = W ? std::round(W->presentation().rounding() * SCALE) : 0;
+         data.border = std::max(1, (int)std::round(2 * SCALE));
+         data.fill   = fill;
+         data.line   = line;
+@@ -590,7 +591,7 @@ void CHyprBar::stepUnsnap() {
+ // (kwinish.lua, loaded by the user's config) does the placement. Without the core this is a no-op.
+ void CHyprBar::snapOnRelease() {
+     const auto W = m_pWindow.lock();
+-    if (!W || !W->m_isFloating)
++    if (!W || !W->isFloating())
+         return;
+ 
+     const auto C = g_pInputManager->getMouseCoordsInternal();
+@@ -718,10 +719,10 @@ float CHyprBar::iconSlot() {
+     if (!g_pGlobalState->config.showIcon->value())
+         return 0;
+     const auto W = m_pWindow.lock();
+-    if (!W || W->m_class.empty())
++    if (!W || W->metadata().appID().empty())
+         return 0;
+     // an icon lookup that already failed for this class must not leave a gap before the title
+-    if (m_szIconClass == W->m_class && !m_pIconTex)
++    if (m_szIconClass == W->metadata().appID() && !m_pIconTex)
+         return 0;
+     return std::max(12, (int)g_pGlobalState->config.barHeight->value() - 12);
+ }
+@@ -766,7 +767,7 @@ bool CHyprBar::barActive() {
+     const auto W = m_pWindow.lock();
+     if (W && g_pGlobalState->hiddenBars.contains((uintptr_t)W.get()))
+         return false;
+-    return W && (!g_pGlobalState->config.floatingOnly->value() || W->m_isFloating);
++    return W && (!g_pGlobalState->config.floatingOnly->value() || W->isFloating());
+ }
+ 
+ void CHyprBar::onFocusChanged() {
+@@ -788,22 +789,22 @@ void CHyprBar::updateIcon(float scale) {
+         m_pIconTex = nullptr;
+         return;
+     }
+-    if (W->m_class == m_szIconClass && PX == m_iIconPx)
++    if (W->metadata().appID() == m_szIconClass && PX == m_iIconPx)
+         return;
+ 
+-    m_szIconClass = W->m_class;
++    m_szIconClass = W->metadata().appID();
+     m_iIconPx     = PX;
+     m_pIconTex    = nullptr;
+ 
+     // this runs in the render pass: a filesystem error while searching the icon themes must not escape into the compositor
+     try {
+-        const auto path = KwIcon::findIconPath(W->m_class, PX);
++        const auto path = KwIcon::findIconPath(W->metadata().appID(), PX);
+         if (auto* surface = KwIcon::load(path, PX)) {
+             m_pIconTex = g_pHyprRenderer->createTexture(surface);
+             cairo_surface_destroy(surface);
+         }
+     } catch (const std::exception& e) {
+-        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->m_class, e.what());
++        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->metadata().appID(), e.what());
+     }
+ }
+ 
+@@ -863,7 +864,7 @@ size_t CHyprBar::getVisibleButtonCount(Config::INTEGER barButtonPadding, Config:
+ void CHyprBar::renderBarButtons(CBox* barBox, const float scale, const float a) {
+     const auto INACTIVECOLOR = g_pGlobalState->config.inactiveButtonColor->value();
+     const auto HEIGHT        = g_pGlobalState->config.barHeight->value();
+-    const auto PINNED        = m_pWindow.lock() && m_pWindow.lock()->m_pinned;
++    const auto PINNED        = m_pWindow.lock() && static_cast<bool>(m_pWindow.lock()->m_state & Desktop::View::WINDOW_STATE_PINNED);
+     const auto COORDS        = cursorRelativeToBar();
+     const bool INVALIDATEICONS = m_bButtonsDirty || m_bWindowSizeChanged;
+ 
+@@ -1001,9 +1002,9 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+     }
+ 
+     const auto PWORKSPACE      = PWINDOW->m_workspace;
+-    const auto WORKSPACEOFFSET = PWORKSPACE && !PWINDOW->m_pinned ? PWORKSPACE->m_renderOffset->value() : Vector2D();
++    const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(PWINDOW->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
+ 
+-    const auto ROUNDING = PWINDOW->rounding() + (PRECEDENCE ? 0 : PWINDOW->getRealBorderSize());
++    const auto ROUNDING = PWINDOW->presentation().rounding() + (PRECEDENCE ? 0 : PWINDOW->presentation().borderSize());
+ 
+     const auto scaledRounding = ROUNDING > 0 ? ROUNDING * pMonitor->m_scale - 2 /* idk why but otherwise it looks bad due to the gaps */ : 0;
+ 
+@@ -1016,7 +1017,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+     CBox       titleBarBox = {DECOBOX.x - pMonitor->m_position.x, DECOBOX.y - pMonitor->m_position.y, DECOBOX.w,
+                               DECOBOX.h + ROUNDING * 3 /* to fill the bottom cuz we can't disable rounding there */};
+ 
+-    titleBarBox.translate(PWINDOW->m_floatingOffset).scale(pMonitor->m_scale).round();
++    titleBarBox.translate(PWINDOW->presentation().floatingOffset()).scale(pMonitor->m_scale).round();
+ 
+     if (titleBarBox.w < 1 || titleBarBox.h < 1)
+         return;
+@@ -1025,8 +1026,8 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+ 
+     if (ROUNDING) {
+         // the +1 is a shit garbage temp fix until renderRect supports an alpha matte
+-        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->m_floatingOffset.x - pMonitor->m_position.x + 1,
+-                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->m_floatingOffset.y - pMonitor->m_position.y + 1,
++        CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->presentation().floatingOffset().x - pMonitor->m_position.x + 1,
++                          PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->presentation().floatingOffset().y - pMonitor->m_position.y + 1,
+                           PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
+ 
+         if (windowBox.w < 1 || windowBox.h < 1) {
+@@ -1058,8 +1059,8 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+ 
+     // render title
+-    if (ENABLETITLE && (m_szLastTitle != PWINDOW->m_title || m_bWindowSizeChanged || !m_pTextTex || m_pTextTex->m_texID == 0 || m_bTitleColorChanged)) {
+-        m_szLastTitle = PWINDOW->m_title;
++    if (ENABLETITLE && (m_szLastTitle != PWINDOW->metadata().title() || m_bWindowSizeChanged || !m_pTextTex || m_pTextTex->m_texID == 0 || m_bTitleColorChanged)) {
++        m_szLastTitle = PWINDOW->metadata().title();
+         renderBarTitle(BARBUF, pMonitor->m_scale);
+     }
+ 
+@@ -1089,7 +1090,7 @@ void CHyprBar::renderPass(PHLMONITOR pMonitor, const float& a) {
+         float leftEnd = 0, rightStart = 0;
+         layoutButtons(BARBUF.x / pMonitor->m_scale, leftEnd, rightStart);
+ 
+-        const auto scaledBorderSize = PWINDOW->getRealBorderSize() * pMonitor->m_scale;
++        const auto scaledBorderSize = PWINDOW->presentation().borderSize() * pMonitor->m_scale;
+         const auto xOffset          = ALIGN == "left" ? std::round(leftEnd * pMonitor->m_scale) : std::round(((BARBUF.x - scaledBorderSize) / 2.0 - m_pTextTex->m_size.x / 2.0));
+         const auto yOffset           = std::round((BARBUF.y - m_pTextTex->m_size.y) / 2.0);
+         CBox       titleBox          = {textBox.x + xOffset, textBox.y + yOffset, m_pTextTex->m_size.x, m_pTextTex->m_size.y};
+@@ -1156,7 +1157,7 @@ CBox CHyprBar::assignedBoxGlobal() {
+     box.translate(g_pDecorationPositioner->getEdgeDefinedPoint(DECORATION_EDGE_TOP, m_pWindow.lock()));
+ 
+     const auto PWORKSPACE      = m_pWindow->m_workspace;
+-    const auto WORKSPACEOFFSET = PWORKSPACE && !m_pWindow->m_pinned ? PWORKSPACE->m_renderOffset->value() : Vector2D();
++    const auto WORKSPACEOFFSET = PWORKSPACE && !static_cast<bool>(m_pWindow->m_state & Desktop::View::WINDOW_STATE_PINNED) ? PWORKSPACE->m_renderOffset->value() : Vector2D();
+ 
+     return box.translate(WORKSPACEOFFSET);
+ }
+@@ -1243,7 +1244,7 @@ void CHyprBar::updateTip(size_t hovered) {
+         static const bool PT = KwTip::portuguese(getenv("LC_ALL"), getenv("LC_MESSAGES"), getenv("LANG"));
+         const auto        W      = m_pWindow.lock();
+         const std::string ACTION = hovered == TIP_ICON ? "menu" : g_pGlobalState->buttons[hovered].cmd;
+-        const bool        CHECKED = W && (ACTION == "pin" ? W->m_pinned : Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED));
++        const bool        CHECKED = W && (ACTION == "pin" ? static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED) : Fullscreen::controller()->isFullscreen(W, Fullscreen::FSMODE_MAXIMIZED));
+         text = KwTip::text(ACTION, CHECKED, PT);
+     }
+ 
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index b550c1d..f6e35a5 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -6,7 +6,7 @@
+ 
+ #include <any>
+ #include <hyprland/src/Compositor.hpp>
+-#include <hyprland/src/desktop/view/Window.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
+ #include <hyprland/src/desktop/state/WindowState.hpp>
+ #include <hyprland/src/config/ConfigManager.hpp>
+ #include <hyprland/src/config/shared/parserUtils/ParserUtils.hpp>
+@@ -306,7 +306,7 @@ int luaGrab(lua_State* L) {
+     if (mode != "move" && mode != "resize")
+         return Config::Lua::Bindings::Internal::configError(L, "grab: mode must be move or resize");
+     for (auto& w : Desktop::windowState()->windows()) {
+-        if ((uintptr_t)w.get() != key || !w->m_isMapped || w->isHidden())
++        if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
+             continue;
+         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
+         if (Desktop::focusState()->window() != w)
+
+```
+
+## Probes (scratch, not in repo)
+===== probe_a_include.cpp
+// Probe A: window header family.
+// Old (0.56.2): <hyprland/src/desktop/view/Window.hpp>
+// Candidate (0.57.0): <hyprland/src/desktop/view/window/Window.hpp>
+#include "probe_common.hpp"
+
+#if __has_include(<hyprland/src/desktop/view/Window.hpp>)
+#error "old header path still present"
+#endif
+#if !__has_include(<hyprland/src/desktop/view/window/Window.hpp>)
+#error "candidate header missing"
+#endif
+
+#ifdef PROBE_NEG
+#include <hyprland/src/desktop/view/Window.hpp>
+#else
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#endif
+
+// The class the plugin names (PHLWINDOW, Desktop::View::CWindow, IGeometric) must be the same entity.
+PROBE_SAME(std::declval<PHLWINDOW>().get(), Desktop::View::CWindow*);
+static_assert(std::is_base_of_v<Desktop::View::IGeometric, Desktop::View::CWindow>);
+// Accessors the plugin already uses and that compiled unchanged in the scan (position/size).
+PROBE_SAME(std::declval<Desktop::View::CWindow&>().position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D);
+PROBE_SAME(std::declval<Desktop::View::CWindow&>().size(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D);
+
+int main() {}
+
+===== probe_b_metadata.cpp
+// Probe B: window metadata accessors.
+// Old: CWindow::m_title, CWindow::m_class (std::string fields)
+// Candidate: CWindow::metadata().title(), .appID() (const std::string&)
+#include "probe_common.hpp"
+#include <hyprland/src/desktop/view/window/Window.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept OldTitle = requires(W& w) { w.m_title; };
+template <class W> concept OldClass = requires(W& w) { w.m_class; };
+static_assert(!OldTitle<CWindow>, "m_title still public");
+static_assert(!OldClass<CWindow>, "m_class still public");
+
+PROBE_SAME(std::declval<const CWindow&>().metadata(), const Desktop::View::CWindowMetadata&);
+PROBE_SAME(std::declval<const CWindow&>().metadata().title(), const std::string&);
+PROBE_SAME(std::declval<const CWindow&>().metadata().appID(), const std::string&);
+
+// Plugin call-site shapes (barDeco.cpp:721,724,791,794,800,806,1061,1062).
+[[maybe_unused]] static void shapes(PHLWINDOW W, std::string& last) {
+#ifdef PROBE_NEG
+    last = W->m_title;
+    (void)W->m_class.empty();
+#else
+    if (last != W->metadata().title())
+        last = W->metadata().title(); // copy, as the baseline did
+    (void)W->metadata().appID().empty();
+    (void)(W->metadata().appID() == last);
+#endif
+}
+
+int main() {}
+
+===== probe_c_presentation.cpp
+// Probe C: presentation / geometry / state accessors.
+// Old -> candidate:
+//   m_isMapped (public bool)          -> mapped() const
+//   m_isFloating (bool)               -> isFloating() const
+//   m_pinned (bool)                   -> static_cast<bool>(m_state & WINDOW_STATE_PINNED)
+//   rounding(), roundingPower()       -> presentation().rounding(), .roundingPower()
+//   getRealBorderSize() const         -> presentation().borderSize() const
+//   m_floatingOffset (Vector2D)       -> presentation().floatingOffset() (const Vector2D&)
+#include "probe_common.hpp"
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept PubMapped   = requires(W& w) { w.m_isMapped; };
+template <class W> concept OldFloating = requires(W& w) { w.m_isFloating; };
+template <class W> concept OldPinned   = requires(W& w) { w.m_pinned; };
+template <class W> concept OldFloatOff = requires(W& w) { w.m_floatingOffset; };
+template <class W> concept OldRounding = requires(W& w) { w.rounding(); };
+template <class W> concept OldRoundPow = requires(W& w) { w.roundingPower(); };
+static_assert(!OldRoundPow<CWindow>);
+template <class W> concept OldBorder   = requires(W& w) { w.getRealBorderSize(); };
+static_assert(!PubMapped<CWindow>, "m_isMapped became public again");
+static_assert(!OldFloating<CWindow>);
+static_assert(!OldPinned<CWindow>);
+static_assert(!OldFloatOff<CWindow>);
+static_assert(!OldRounding<CWindow>);
+static_assert(!OldBorder<CWindow>);
+
+PROBE_SAME(std::declval<const CWindow&>().mapped(), bool);
+PROBE_SAME(std::declval<const CWindow&>().isHidden(), bool);
+PROBE_SAME(std::declval<const CWindow&>().isFloating(), bool);
+PROBE_SAME(std::declval<CWindow&>().presentation().rounding(), float);
+PROBE_SAME(std::declval<CWindow&>().presentation().roundingPower(), float);
+PROBE_SAME(std::declval<const CWindow&>().presentation().borderSize(), int);
+PROBE_SAME(std::declval<const CWindow&>().presentation().floatingOffset(), const Vector2D&);
+static_assert(std::is_constructible_v<bool, decltype(std::declval<const CWindow&>().m_state & Desktop::View::WINDOW_STATE_PINNED)>);
+static_assert(!std::is_convertible_v<decltype(std::declval<const CWindow&>().m_state & Desktop::View::WINDOW_STATE_PINNED), bool>,
+              "mask is only explicitly convertible: call sites need static_cast<bool> or a boolean context");
+
+// Plugin call-site shapes (barDeco.cpp:391,418,515,593,769,866,1004,1006,1019,1028-1029,1092,1159,1246; main.cpp:309).
+[[maybe_unused]] static float shapes(PHLWINDOW W, bool action) {
+#ifdef PROBE_NEG
+    return W->m_isFloating + W->m_pinned + W->rounding() + W->getRealBorderSize() + W->m_floatingOffset.x + W->m_isMapped;
+#else
+    const bool pinned  = static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED);
+    const bool checked = W && (action ? static_cast<bool>(W->m_state & Desktop::View::WINDOW_STATE_PINNED) : false);
+    const bool both    = W && (W->m_state & Desktop::View::WINDOW_STATE_PINNED); // boolean context, as barDeco.cpp:866
+    // separate live component reads, as barDeco.cpp:1028-1029
+    const double offx  = W->presentation().floatingOffset().x;
+    const double offy  = W->presentation().floatingOffset().y;
+    return (W->isFloating() + pinned + checked + both + !W->mapped()) + W->presentation().rounding() + W->presentation().borderSize() + offx + offy;
+#endif
+}
+
+int main() {}
+
+===== probe_common.hpp
+// P5 compatibility probes (temporary, scratch-only). Not part of the plugin.
+// Each probe compiles standalone against the installed Hyprland 0.57.0 headers.
+// Positive mode: static_asserts on the 0.57 candidate API must hold.
+// -DPROBE_NEG: uses the 0.56.2 API and MUST fail to compile (non-vacuity control).
+#pragma once
+#include <string>
+#include <type_traits>
+#include <utility>
+
+#define PROBE_SAME(expr, type) static_assert(std::is_same_v<decltype(expr), type>, #expr " is not " #type)
+
+===== probe_d_decorations.cpp
+// Probe D: decoration container types and ownership.
+// Old: CWindow::m_windowDecorations : std::vector<UP<IHyprWindowDecoration>>
+//      CWindow::updateWindowDecos()
+//      HyprlandAPI::addWindowDecoration(HANDLE, PHLWINDOW, UP<IHyprWindowDecoration>)
+//      IHyprWindowDecoration::draw(PHLMONITOR, float const&)
+//      CWindow::m_X11DoesntWantBorders
+// Candidate:
+//      CWindow::presentation().decorations() : std::span<const SP<IHyprWindowDecoration>>
+//      CWindow::presentation().updateDecorations()
+//      HyprlandAPI::addWindowDecoration(HANDLE, PHLWINDOW, SP<IHyprWindowDecoration>&&)
+//      IHyprWindowDecoration::draw(Render::CRenderContext&, PHLMONITOR, float const&, const SWindowRenderPresentation&)
+//      CWindow::backend().traits().suggestsNoBorder
+#include "probe_common.hpp"
+#include <span>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/render/decorations/IHyprWindowDecoration.hpp>
+#include <hyprland/src/plugins/PluginAPI.hpp>
+
+using Desktop::View::CWindow;
+
+template <class W> concept OldDecos     = requires(W& w) { w.m_windowDecorations; };
+template <class W> concept OldUpdate    = requires(W& w) { w.updateWindowDecos(); };
+template <class W> concept OldX11Border = requires(W& w) { w.m_X11DoesntWantBorders; };
+static_assert(!OldDecos<CWindow>);
+static_assert(!OldUpdate<CWindow>);
+static_assert(!OldX11Border<CWindow>);
+
+PROBE_SAME(std::declval<const CWindow&>().presentation().decorations(), std::span<const SP<IHyprWindowDecoration>>);
+PROBE_SAME(std::declval<CWindow&>().presentation().updateDecorations(), void);
+// Ownership: the API now takes a shared pointer by rvalue; a UP<Derived> no longer binds.
+static_assert(std::is_same_v<decltype(&HyprlandAPI::addWindowDecoration), bool (*)(HANDLE, PHLWINDOW, SP<IHyprWindowDecoration>&&)>);
+static_assert(!std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<IHyprWindowDecoration>&&>);
+struct ProbeDeco : IHyprWindowDecoration {}; // stands in for CHyprBar (derived, abstract is fine for type traits)
+static_assert(!std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>&&>, "UP<Derived> must not bind");
+static_assert(std::is_invocable_v<decltype(&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, SP<ProbeDeco>&&>, "SP<Derived> must bind");
+// Decoration interface: draw() now takes a render context and a presentation snapshot (render-pass family, NOT migrated in P5).
+static_assert(std::is_same_v<decltype(&IHyprWindowDecoration::draw),
+                             void (IHyprWindowDecoration::*)(Render::CRenderContext&, PHLMONITOR, float const&, const Render::SWindowRenderPresentation&)>);
+// X11 "no border" hint moved to backend traits (bitfield bool).
+static_assert(std::is_constructible_v<bool, decltype(std::declval<const CWindow&>().backend().traits().suggestsNoBorder)>);
+
+[[maybe_unused]] static bool shapes(PHLWINDOW w) {
+#ifdef PROBE_NEG
+    w->updateWindowDecos();
+    return !w->m_X11DoesntWantBorders && w->m_windowDecorations.empty();
+#else
+    bool found = false;
+    for (const auto& d : w->presentation().decorations())
+        found = found || d->getDisplayName() == "KwinishBar";
+    return !w->backend().traits().suggestsNoBorder && found;
+#endif
+}
+
+int main() {}
+
+
+
+## Probe runs (real output)
+```
+OK   pos g++ probe_a_include (exit 0)
+OK   neg g++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos g++ probe_b_metadata (exit 0)
+OK   neg g++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos g++ probe_c_presentation (exit 0)
+OK   neg g++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos g++ probe_d_decorations (exit 0)
+OK   neg g++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+OK   pos clang++ probe_a_include (exit 0)
+OK   neg clang++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos clang++ probe_b_metadata (exit 0)
+OK   neg clang++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos clang++ probe_c_presentation (exit 0)
+OK   neg clang++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos clang++ probe_d_decorations (exit 0)
+OK   neg clang++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+OK   m1 probe_a_include killed (exit 1, static assertion)
+OK   m2 probe_b_metadata killed (exit 1, static assertion)
+OK   m3 probe_c_presentation killed (exit 1, static assertion)
+OK   m4 probe_c_presentation killed (exit 1, static assertion)
+OK   m5 probe_c_presentation killed (exit 1, static assertion)
+OK   m6 probe_d_decorations killed (exit 1, static assertion)
+OK   m7 probe_d_decorations killed (exit 1, static assertion)
+OK   m8 probe_c_presentation killed (exit 1, static assertion)
+OK   m9 probe_d_decorations killed (exit 1, static assertion)
+
+```
+
+## Upstream source excerpts (0.56.2 tag tarball; 0.57.0 pinned 0aa6745f, equal to installed headers)
+```
+--- 0.56.2:src/desktop/view/Window.cpp:1101-1115
+float CWindow::rounding() {
+    static auto PROUNDING      = CConfigValue<Config::INTEGER>("decoration:rounding");
+    static auto PROUNDINGPOWER = CConfigValue<Config::FLOAT>("decoration:rounding_power");
+
+    float       roundingPower = m_ruleApplicator->roundingPower().valueOr(*PROUNDINGPOWER);
+    float       rounding      = m_ruleApplicator->rounding().valueOr(*PROUNDING) * (roundingPower / 2.0); /* Make perceived roundness consistent. */
+
+    return rounding;
+}
+
+float CWindow::roundingPower() {
+    static auto PROUNDINGPOWER = CConfigValue<Config::FLOAT>("decoration:rounding_power");
+
+    return m_ruleApplicator->roundingPower().valueOr(std::clamp(*PROUNDINGPOWER, 1.F, 10.F));
+}
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:285-299
+float CWindowPresentation::rounding() {
+    static auto PROUNDING      = CConfigValue<Config::INTEGER>("decoration:rounding");
+    static auto PROUNDINGPOWER = CConfigValue<Config::FLOAT>("decoration:rounding_power");
+
+    float       roundingPower = m_window.m_ruleApplicator->roundingPower().valueOr(*PROUNDINGPOWER);
+    float       rounding      = m_window.m_ruleApplicator->rounding().valueOr(*PROUNDING) * (roundingPower / 2.0); /* Make perceived roundness consistent. */
+
+    return rounding;
+}
+
+float CWindowPresentation::roundingPower() {
+    static auto PROUNDINGPOWER = CConfigValue<Config::FLOAT>("decoration:rounding_power");
+
+    return m_window.m_ruleApplicator->roundingPower().valueOr(std::clamp(*PROUNDINGPOWER, 1.F, 10.F));
+}
+--- 0.56.2:src/desktop/view/Window.cpp:1138-1153
+int CWindow::getRealBorderSize() const {
+    if (!m_borderSizeCacheDirty)
+        return m_cachedBorderSize;
+
+    if ((m_workspace && Fullscreen::controller()->getFullscreenModes(m_self.lock()).internal == Fullscreen::FSMODE_FULLSCREEN) || !m_ruleApplicator->decorate().valueOrDefault()) {
+        m_cachedBorderSize     = 0;
+        m_borderSizeCacheDirty = false;
+        return 0;
+    }
+
+    static auto PBORDERSIZE = CConfigValue<Config::INTEGER>("general:border_size");
+
+    m_cachedBorderSize     = m_ruleApplicator->borderSize().valueOr(*PBORDERSIZE);
+    m_borderSizeCacheDirty = false;
+    return m_cachedBorderSize;
+}
+--- 0.57.0:src/render/decorations/CHyprBorderDecoration.cpp:207-231
+int CHyprBorderDecoration::borderSize() const {
+    if (!m_borderSizeCacheDirty)
+        return m_cachedBorderSize;
+
+    const auto PWINDOW = m_window.lock();
+    if (!PWINDOW)
+        return 0;
+
+    if ((PWINDOW->m_workspace && Fullscreen::controller()->getFullscreenModes(PWINDOW).internal == Fullscreen::FSMODE_FULLSCREEN) ||
+        !PWINDOW->m_ruleApplicator->decorate().valueOrDefault()) {
+        m_cachedBorderSize     = 0;
+        m_borderSizeCacheDirty = false;
+        return 0;
+    }
+
+    static auto PBORDERSIZE = CConfigValue<Config::INTEGER>("general:border_size");
+
+    m_cachedBorderSize     = PWINDOW->m_ruleApplicator->borderSize().valueOr(*PBORDERSIZE);
+    m_borderSizeCacheDirty = false;
+    return m_cachedBorderSize;
+}
+
+void CHyprBorderDecoration::invalidateBorderSize() {
+    m_borderSizeCacheDirty = true;
+}
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:212-218
+int CWindowPresentation::borderSize() const {
+    return m_borderDecoration->borderSize();
+}
+
+void CWindowPresentation::invalidateBorderSize() {
+    m_borderDecoration->invalidateBorderSize();
+}
+--- 0.56.2:src/desktop/view/Window.cpp:1203-1239
+void CWindow::onWorkspaceAnimUpdate() {
+    // clip box for animated offsets
+    if (!m_isFloating || m_pinned || Fullscreen::controller()->isFullscreen(m_self.lock())) {
+        m_floatingOffset = Vector2D(0, 0);
+        return;
+    }
+
+    Vector2D   offset;
+    const auto PWORKSPACE = m_workspace;
+    if (!PWORKSPACE)
+        return;
+
+    const auto PWSMON = m_monitor.lock();
+    if (!PWSMON)
+        return;
+
+    const auto WINBB = getFullWindowBoundingBox();
+    if (PWORKSPACE->m_renderOffset->value().x != 0) {
+        const auto PROGRESS = PWORKSPACE->m_renderOffset->value().x / PWSMON->m_size.x;
+
+        if (WINBB.x < PWSMON->m_position.x)
+            offset.x += (PWSMON->m_position.x - WINBB.x) * PROGRESS;
+
+        if (WINBB.x + WINBB.width > PWSMON->m_position.x + PWSMON->m_size.x)
+            offset.x += (WINBB.x + WINBB.width - PWSMON->m_position.x - PWSMON->m_size.x) * PROGRESS;
+    } else if (PWORKSPACE->m_renderOffset->value().y != 0) {
+        const auto PROGRESS = PWORKSPACE->m_renderOffset->value().y / PWSMON->m_size.y;
+
+        if (WINBB.y < PWSMON->m_position.y)
+            offset.y += (PWSMON->m_position.y - WINBB.y) * PROGRESS;
+
+        if (WINBB.y + WINBB.height > PWSMON->m_position.y + PWSMON->m_size.y)
+            offset.y += (WINBB.y + WINBB.height - PWSMON->m_position.y - PWSMON->m_size.y) * PROGRESS;
+    }
+
+    m_floatingOffset = offset;
+}
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:423-456
+void CWindowPresentation::onWorkspaceAnimUpdate() {
+    if (!m_window.isFloating() || (m_window.m_state & WINDOW_STATE_PINNED) || Fullscreen::controller()->isFullscreen(m_window.m_self.lock())) {
+        clearFloatingOffset();
+        return;
+    }
+
+    const auto WORKSPACE = m_window.m_workspace;
+    if (!WORKSPACE)
+        return;
+
+    const auto MONITOR = m_window.m_monitor.lock();
+    if (!MONITOR)
+        return;
+
+    Vector2D   offset;
+    const auto WINDOW_BOX = m_window.getFullWindowBoundingBox();
+    if (WORKSPACE->m_renderOffset->value().x != 0) {
+        const auto PROGRESS = WORKSPACE->m_renderOffset->value().x / MONITOR->m_size.x;
+
+        if (WINDOW_BOX.x < MONITOR->m_position.x)
+            offset.x += (MONITOR->m_position.x - WINDOW_BOX.x) * PROGRESS;
+        if (WINDOW_BOX.x + WINDOW_BOX.width > MONITOR->m_position.x + MONITOR->m_size.x)
+            offset.x += (WINDOW_BOX.x + WINDOW_BOX.width - MONITOR->m_position.x - MONITOR->m_size.x) * PROGRESS;
+    } else if (WORKSPACE->m_renderOffset->value().y != 0) {
+        const auto PROGRESS = WORKSPACE->m_renderOffset->value().y / MONITOR->m_size.y;
+
+        if (WINDOW_BOX.y < MONITOR->m_position.y)
+            offset.y += (MONITOR->m_position.y - WINDOW_BOX.y) * PROGRESS;
+        if (WINDOW_BOX.y + WINDOW_BOX.height > MONITOR->m_position.y + MONITOR->m_size.y)
+            offset.y += (WINDOW_BOX.y + WINDOW_BOX.height - MONITOR->m_position.y - MONITOR->m_size.y) * PROGRESS;
+    }
+
+    m_floatingOffset.set(offset, eFloatingOffsetSource::WORKSPACE);
+}
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:360-374
+const Vector2D& CWindowPresentation::floatingOffset() const {
+    return m_floatingOffset.value();
+}
+
+eFloatingOffsetSource CWindowPresentation::floatingOffsetSource() const {
+    return m_floatingOffset.source();
+}
+
+void CWindowPresentation::setFloatingOffset(const Vector2D& offset) {
+    m_floatingOffset.set(offset);
+}
+
+void CWindowPresentation::clearFloatingOffset() {
+    m_floatingOffset.clear();
+}
+--- 0.57.0:src/render/WindowRenderPresentation.cpp:8-30
+Render::SWindowRenderPresentation Render::resolveWindowPresentation(const SWindowPresentationState& state, eSceneMode mode) {
+    if (mode != eSceneMode::MONITOR) {
+        const auto FADE = state.fade * state.fullscreen * state.layout;
+        return {
+            .floatingOffset = state.floatingOffsetFromWorkspace ? Hyprutils::Math::Vector2D{} : state.floatingOffset,
+            .alpha          = state.active,
+            .fadeAlpha      = FADE,
+            .alphaVisible   = state.fade * state.active * state.fullscreen * state.layout != 0.F || state.alphaAnimating,
+            .workspaceScene = true,
+        };
+    }
+
+    const bool TRANSFERRING = state.movingFromMonitor && !state.workspaceVisible;
+    const auto TOTAL_ALPHA  = state.fade * state.active * state.fullscreen * state.layout * state.moveToWorkspace * state.moveFromWorkspace;
+
+    return {
+        .workspaceOffset = state.hasWorkspacePresentation && !state.pinned ? state.workspaceOffset : Hyprutils::Math::Vector2D{},
+        .floatingOffset  = state.hasWorkspacePresentation ? state.floatingOffset : Hyprutils::Math::Vector2D{},
+        .workspaceAlpha  = state.hasWorkspacePresentation ? state.workspaceAlpha : 1.F,
+        .alpha           = state.active,
+        .fadeAlpha       = state.fade * state.fullscreen * state.layout * (!state.hasWorkspacePresentation || state.pinned || TRANSFERRING ? 1.F : state.workspaceAlpha) *
+            (TRANSFERRING ? state.moveToWorkspace : 1.F) * state.moveFromWorkspace,
+        .workspaceOffsetAnimating = state.hasWorkspacePresentation && state.workspaceOffsetAnimating,
+--- /home/lhen/.hermes/cache/scratch/kwinish-p5/old/WindowTarget.cpp:281-296
+bool CWindowTarget::floating() {
+    return m_window->m_isFloating;
+}
+
+void CWindowTarget::setFloating(bool x) {
+    if (x == m_window->m_isFloating)
+        return;
+
+    m_window->m_layoutFlags = {};
+
+    m_window->m_isFloating = x;
+    m_window->m_pinned     = false;
+
+    m_window->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FLOATING);
+}
+
+--- 0.57.0:src/layout/target/WindowTarget.cpp:282-301
+bool CWindowTarget::floating() {
+    return m_floating;
+}
+
+void CWindowTarget::setFloating(bool x) {
+    if (x == m_floating)
+        return;
+
+    m_cantLockCursor = false;
+
+    m_floating = x;
+    m_window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+    m_window->stateTracker().scheduleUpdate();
+
+    m_window->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FLOATING);
+}
+
+void CWindowTarget::setFloatingInitial(bool x) {
+    m_floating = x;
+}
+--- 0.57.0:src/desktop/view/window/Window.cpp:227-229
+bool CWindow::mapped() const {
+    return m_isMapped;
+}
+--- 0.57.0:src/desktop/view/window/Window.cpp:1949-1951
+bool CWindow::isFloating() const {
+    return m_target->floating();
+}
+--- 0.56.2:src/desktop/view/Window.cpp:1446-1470
+void CWindow::onUpdateMeta() {
+    const auto NEWTITLE = fetchTitle();
+    bool       doUpdate = false;
+
+    if (m_title != NEWTITLE) {
+        m_title = NEWTITLE;
+        g_pEventManager->postEvent(SHyprIPCEvent{.event = "windowtitle", .data = std::format("{:x}", rc<uintptr_t>(this))});
+        g_pEventManager->postEvent(SHyprIPCEvent{.event = "windowtitlev2", .data = std::format("{:x},{}", rc<uintptr_t>(this), m_title)});
+        Event::bus()->m_events.window.title.emit(m_self.lock());
+
+        if (m_self == Desktop::focusState()->window()) { // if it's the active, let's post an event to update others
+            g_pEventManager->postEvent(SHyprIPCEvent{.event = "activewindow", .data = m_class + "," + m_title});
+            g_pEventManager->postEvent(SHyprIPCEvent{.event = "activewindowv2", .data = std::format("{:x}", rc<uintptr_t>(this))});
+
+            // no need for a hook event
+        }
+
+        Log::logger->log(Log::DEBUG, "Window {:x} set title to {}", rc<uintptr_t>(this), m_title);
+        doUpdate = true;
+    }
+
+    const auto NEWCLASS = fetchClass();
+    if (m_class != NEWCLASS) {
+        m_class = NEWCLASS;
+
+--- 0.57.0:src/desktop/view/window/Window.cpp:903-926
+void CWindow::onUpdateMeta(const SBackendMetadata& metadata) {
+    const auto& NEWTITLE = metadata.title;
+    bool        doUpdate = false;
+
+    if (m_metadata->updateTitle(NEWTITLE)) {
+        IPC::Socket2::sock()->postEvent({.event = "windowtitle", .data = std::format("{:x}", rc<uintptr_t>(this))});
+        IPC::Socket2::sock()->postEvent({.event = "windowtitlev2", .data = std::format("{:x},{}", rc<uintptr_t>(this), m_metadata->title())});
+        Event::bus()->m_events.window.title.emit(m_self.lock());
+
+        if (m_self == Desktop::focusState()->window()) { // if it's the active, let's post an event to update others
+            IPC::Socket2::sock()->postEvent({.event = "activewindow", .data = std::format("{},{}", m_metadata->appID(), m_metadata->title())});
+            IPC::Socket2::sock()->postEvent({.event = "activewindowv2", .data = std::format("{:x}", rc<uintptr_t>(this))});
+
+            // no need for a hook event
+        }
+
+        LOG(Log::DEBUG, "Window {:x} set title to {}", rc<uintptr_t>(this), m_metadata->title());
+        doUpdate = true;
+    }
+
+    const auto& NEWCLASS = metadata.appID;
+    if (m_metadata->updateAppID(NEWCLASS)) {
+        Event::bus()->m_events.window.class_.emit(m_self.lock());
+
+--- 0.56.2:src/desktop/view/Window.cpp:383-401
+void CWindow::updateWindowDecos() {
+
+    if (!m_isMapped || isHidden())
+        return;
+
+    for (auto const& wd : m_decosToRemove) {
+        for (auto it = m_windowDecorations.begin(); it != m_windowDecorations.end(); it++) {
+            if (it->get() == wd) {
+                g_pDecorationPositioner->uncacheDecoration(it->get());
+                it = m_windowDecorations.erase(it);
+                if (it == m_windowDecorations.end())
+                    break;
+            }
+        }
+    }
+
+    g_pDecorationPositioner->onWindowUpdate(m_self.lock());
+
+    m_decosToRemove.clear();
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:131-154
+void CWindowPresentation::updateDecorations() {
+    for (const auto& pending : m_decosToRemove) {
+        const auto IT = std::ranges::find_if(m_windowDecorations, [pending](const auto& decoration) { return decoration.get() == pending; });
+        if (IT == m_windowDecorations.end())
+            continue;
+
+        g_pDecorationPositioner->uncacheDecoration(IT->get());
+        m_windowDecorations.erase(IT);
+    }
+
+    m_decosToRemove.clear();
+
+    if (!m_window.mapped() || m_window.isHidden())
+        return;
+
+    g_pDecorationPositioner->onWindowUpdate(m_window.m_self.lock());
+
+    const CDecorationSnapshot SNAPSHOT{m_windowDecorations};
+    for (const auto& decoration : SNAPSHOT.decorations()) {
+        if (!containsDecoration(decoration.get()))
+            continue;
+        decoration->updateWindow(m_window.m_self.lock());
+    }
+}
+
+```
+
+## Writers of the old fields vs new storage (grep, real output)
+```
+# 0.56.2 writers
+./config/shared/actions/ConfigActions.cpp:254:    window->m_pinned = wantPin;
+./desktop/view/Window.cpp:1206:        m_floatingOffset = Vector2D(0, 0);
+./desktop/view/Window.cpp:1238:    m_floatingOffset = offset;
+./desktop/view/Window.cpp:2076:    m_isMapped      = true;
+./desktop/view/Window.cpp:2130:        m_isFloating    = true;
+./desktop/view/Window.cpp:2191:        m_isFloating = m_ruleApplicator->static_.floating.value_or(m_isFloating);
+./desktop/view/Window.cpp:2194:        m_pinned         = m_ruleApplicator->static_.pin.value_or(m_pinned);
+./desktop/view/Window.cpp:2291:        m_pinned = false;
+./desktop/view/Window.cpp:2644:    m_isMapped = false;
+./layout/supplementary/DragController.cpp:272:        W->m_floatingOffset = {};
+./layout/target/WindowTarget.cpp:291:    m_window->m_isFloating = x;
+./layout/target/WindowTarget.cpp:292:    m_window->m_pinned     = false;
+./managers/fullscreen/FullscreenController.cpp:408:            window->m_pinned          = false;
+./managers/fullscreen/FullscreenController.cpp:411:            window->m_pinned          = true;
+./managers/input/trackpad/gestures/MoveGesture.cpp:33:    m_window->m_floatingOffset = (m_lastDelta * 0.5F).clamp(Vector2D{-100.F, -100.F}, Vector2D{100.F, 100.F});
+./managers/input/trackpad/gestures/MoveGesture.cpp:50:    m_window->m_floatingOffset = {};
+./protocols/XDGShell.cpp:330:            m_self->m_window->m_pinned = true;
+./protocols/XDGShell.cpp:567:            createdWindow->m_pinned = true;
+# 0.57.0 writers
+./desktop/view/window/WindowPresentation.cpp:369:    m_floatingOffset.set(offset);
+./desktop/view/window/WindowPresentation.cpp:373:    m_floatingOffset.clear();
+./desktop/view/window/WindowPresentation.cpp:425:        clearFloatingOffset();
+./desktop/view/window/WindowPresentation.cpp:455:    m_floatingOffset.set(offset, eFloatingOffsetSource::WORKSPACE);
+./managers/input/trackpad/gestures/MoveGesture.cpp:34:    m_window->presentation().setFloatingOffset((m_lastDelta * 0.5F).clamp(Vector2D{-100.F, -100.F}, Vector2D{100.F, 100.F}));
+./managers/input/trackpad/gestures/MoveGesture.cpp:51:    m_window->presentation().clearFloatingOffset();
+./layout/supplementary/DragController.cpp:308:        W->presentation().clearFloatingOffset();
+./desktop/view/window/Window.cpp:1300:            m_state |= WINDOW_STATE_PINNED;
+./desktop/view/window/Window.cpp:1302:            m_state &= ~WINDOW_STATE_PINNED;
+./desktop/view/window/Window.cpp:1359:        m_state &= ~WINDOW_STATE_PINNED;
+./managers/fullscreen/FullscreenController.cpp:403:            window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+./managers/fullscreen/FullscreenController.cpp:407:            window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+./config/shared/actions/ConfigActions.cpp:318:        window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+./config/shared/actions/ConfigActions.cpp:320:        window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+./layout/target/WindowTarget.cpp:293:    m_window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+./protocols/XDGShell.cpp:364:            m_self->m_window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+./protocols/XDGShell.cpp:604:            createdWindow->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+292:    m_floating = x;
+300:    m_floating = x;
+1171:    m_isMapped      = true;
+1683:    m_isMapped = false;
+
+```
+
+## Compiler error comparison: B1 = HEAD with ONLY the include path fixed (scratch copy) vs C = candidate (real output)
+```
+== g++: B1=98 C=73 eliminated=27 persistent=71 new=2
+-- new (C only):
+   barDeco.cpp:806 x1: call to consteval function ‘std::basic_format_string<char, const char*>((* &(& W.Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow>::operator->()->Desktop::View::CWindow::metadata())->Desktop::
+   barDeco.cpp:806 x1: call to non-‘constexpr’ function ‘const std::string& Desktop::View::CWindowMetadata::appID() const’
+-- eliminated by message:
+   x6: class Desktop::View::CWindow has no member named m_class
+   x4: class Desktop::View::CWindow has no member named m_isFloating; did you mean isFloating?
+   x4: class Desktop::View::CWindow has no member named m_pinned
+   x3: class Desktop::View::CWindow has no member named m_floatingOffset
+   x2: class Desktop::View::CWindow has no member named rounding
+   x2: class Desktop::View::CWindow has no member named getRealBorderSize
+   x2: class Desktop::View::CWindow has no member named m_title
+   x1: bool Desktop::View::CWindow::m_isMapped is private within this context
+   x1: could not convert {(((double)DECOBOX.Hyprutils::Math::CBox::x) - pMonitor.Hyprutils::Memory::CSharedPointer<Monitor::CMonitor>::operator->()->Monitor::CMonitor:
+   x1: could not convert {<expression error>, <expression error>, (((Desktop::View::CGeometricMovableAnimated*)(PWINDOW.Hyprutils::Memory::CSharedPointer<Desktop::View
+   x1: could not convert {<expression error>, (textBox.Hyprutils::Math::CBox::y + ((double)yOffset)), ((CHyprBar*)this)->CHyprBar::m_pTextTex.Hyprutils::Memory::CShare
+-- persistent by message:
+   x13: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   x7: ‘class Render::IHyprRenderer’ has no member named ‘m_renderPass’; did you mean ‘startRenderPass’?
+   x4: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+   x3: ‘class Render::IHyprRenderer’ has no member named ‘m_renderData’
+   x3: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderTexture(SP<Render::ITexture>&, Hyprutils::Math::CBox&, <brace-enclosed initializer list>)’
+   x3: ‘class Desktop::View::CWindow’ has no member named ‘roundingPower’
+   x2: ‘CONFIG_LEGACY’ is not a member of ‘Config’; did you mean ‘CONFIG_LUA’?
+   x2: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CBarPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CBarPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox()’ marked ‘override’, but does not override
+   x2: ‘virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CPreviewPassElement::needsLiveBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual bool CPreviewPassElement::needsPrecomputeBlur()’ marked ‘override’, but does not override
+   x2: ‘virtual std::optional<Hyprutils::Math::CBox> CPreviewPassElement::boundingBox()’ marked ‘override’, but does not override
+   x2: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   x2: ‘HL_MODIFIER_SHIFT’ was not declared in this scope
+   x2: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::scissor(std::nullptr_t)’
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘m_X11DoesntWantBorders’
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘m_windowDecorations’
+   x1: invalid initialization of reference of type ‘SP<IHyprWindowDecoration>&&’ {aka ‘Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&’} from expression of 
+   x1: ‘class Desktop::View::CWindow’ has no member named ‘updateWindowDecos’; did you mean ‘updateWindowData’?
+   x1: no matching function for call to ‘Hyprutils::Signal::CSignalT<Event::SRenderStageEvent>::listen(pluginInit(void*)::<lambda(eRenderStage)>)’
+   x1: ‘bool Desktop::View::CWindow::m_isMapped’ is private within this context
+   x1: invalid new-expression of abstract class type ‘CHyprBar’
+   x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [92], uintptr_t, uintptr_t, const double&, const double&, std::
+   x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [42], uintptr_t)’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::scissor(Hyprutils::Math::CBox&)’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor, <brace-enclosed initializer list>)’
+   x1: invalid new-expression of abstract class type ‘CPreviewPassElement’
+   x1: invalid new-expression of abstract class type ‘CBarPassElement’
+   x1: no matching function for call to ‘Render::GL::CHyprOpenGLImpl::renderRect(const Hyprutils::Math::CBox&, CHyprColor&, <brace-enclosed initializer list>)’
+== clang++: B1=119 C=96 eliminated=24 persistent=95 new=1
+-- new (C only):
+   barDeco.cpp:806 x1: call to consteval function 'std::basic_format_string<char, const char *>::basic_format_string<std::basic_string<char>>' is not a constant expression
+-- eliminated by message:
+   x6: no member named m_class in Desktop::View::CWindow
+   x4: no member named m_isFloating in Desktop::View::CWindow
+   x4: no member named m_pinned in Desktop::View::CWindow
+   x3: no member named m_floatingOffset in Desktop::View::CWindow
+   x2: no member named rounding in Desktop::View::CWindow
+   x2: no member named getRealBorderSize in Desktop::View::CWindow
+   x2: no member named m_title in Desktop::View::CWindow
+   x1: m_isMapped is a private member of Desktop::View::CWindow
+-- persistent by message:
+   x18: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   x10: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+   x8: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   x7: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+   x6: too few arguments to function call, expected 4, have 3
+   x4: 'draw' marked 'override' but does not override any member functions
+   x4: 'needsLiveBlur' marked 'override' but does not override any member functions
+   x4: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   x4: 'boundingBox' marked 'override' but does not override any member functions
+   x4: no matching member function for call to 'log'
+   x3: no member named 'm_renderData' in 'Render::IHyprRenderer'
+   x3: no matching member function for call to 'scissor'
+   x3: no member named 'roundingPower' in 'Desktop::View::CWindow'
+   x2: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+   x2: non-constant-expression cannot be narrowed from type 'Config::INTEGER' (aka 'long') to 'int' in initializer list [-Wc++11-narrowing]
+   x2: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+   x2: non-constant-expression cannot be narrowed from type 'int' to 'double' in initializer list [-Wc++11-narrowing]
+   x1: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+   x1: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+   x1: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar
+   x1: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+   x1: no matching member function for call to 'listen'
+   x1: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+   x1: allocating an object of abstract class type 'CHyprBar'
+   x1: allocating an object of abstract class type 'CPreviewPassElement'
+   x1: allocating an object of abstract class type 'CBarPassElement'
+
+```
+
+## Round 1 review (verbatim)
+```json
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "barDeco.cpp:392,419,594,770",
+      "claim": "The floating substitutions introduce a target dereference whose validity at these call sites has not been demonstrated. A valid window is not, by itself, evidence of a valid m_target. The excerpts establish correspondence between the old and new floating storage, but not unconditional read equivalence. Under the stated authorization, these substitutions need a target-lifetime invariant or should be deferred. An actual null-target crash is a possibility, not an established occurrence.",
+      "evidence": "0.57 CWindow::isFloating(): 'return m_target->floating();'. The old CWindowTarget::floating() returned 'm_window->m_isFloating', while the new one returns 'm_floating'. The plugin guards include 'if (!W || !W->isFloating())'; no supplied excerpt establishes m_target initialization or lifetime for these callers."
+    },
+    {
+      "severity": "major",
+      "where": "barDeco.cpp:1007,1093",
+      "claim": "The border-size substitutions are not sufficiently demonstrated as equivalent. The calculation is substantially the same, but the cache and its invalidation authority moved from the window to a decoration object. The material supplies the new invalidation method, not the callers that keep the cache coherent, nor the invariant making m_borderDecoration available at these reads. This is a missing equivalence proof, not evidence that stale values or a null dereference actually occur.",
+      "evidence": "The old getRealBorderSize() reads window-owned 'm_borderSizeCacheDirty' and 'm_cachedBorderSize'. The new CWindowPresentation::borderSize() does 'return m_borderDecoration->borderSize();', and invalidateBorderSize() does 'm_borderDecoration->invalidateBorderSize();'. CHyprBorderDecoration now owns the corresponding cache logic; no invalidation call sites or decoration-initialization invariant are included."
+    },
+    {
+      "severity": "minor",
+      "where": "probe_c_presentation.cpp: OldRounding",
+      "claim": "The negative capability assertion does not establish that both old rounding methods are unavailable. It succeeds when either method is unavailable. Split the concept or assertions if the intent is to detect either old method remaining accessible.",
+      "evidence": "'concept OldRounding = requires(W& w) { w.rounding(); w.roundingPower(); };' followed by 'static_assert(!OldRounding<CWindow>);'. Negating this conjunction establishes that at least one expression is invalid, not that both are invalid."
+    },
+    {
+      "severity": "minor",
+      "where": "probe_d_decorations.cpp: ownership assertion",
+      "claim": "The assertion does not test the UP<Derived> conversion claimed by its comment. It tests UP<IHyprWindowDecoration>. With custom pointer types, failure of that conversion alone does not prove failure for every derived unique-pointer type. The separate full-build diagnostic does support failure for the actual CHyprBar expression, so this is a probe-coverage defect rather than evidence that ownership migration should proceed.",
+      "evidence": "The comment says 'a UP<Derived> no longer binds', but the assertion uses 'UP<IHyprWindowDecoration>&&'. Separately, the clang comparison reports 'no viable conversion' from 'CUniquePointer<CHyprBar>'."
+    }
+  ],
+  "notes": "Substitution assessment: The include-path changes are directly supported by probe A. Adding WindowPresentation.hpp supports the permitted accessor changes and does not itself migrate an interface. mapped() is directly equivalent at luaGrab: its implementation returns m_isMapped, and the surrounding || short-circuit order is preserved. The title/appID substitutions are supported by the matching metadata-update excerpts and const-reference type checks. Comparisons, empty checks, and assignments retain the shown read/copy behavior; the assignments to m_szLastTitle and m_szIconClass still copy strings rather than retain references. The metadata accessor implementation and complete initialization path are not supplied, so this is not an independent proof of every metadata invariant.\n\nThe four pinned substitutions correctly extract a bool from an explicitly convertible mask. The conditional operator in updateTip receives bool on both branches; the workspace tests preserve short-circuiting. renderBarButtons still locks twice, but that pattern already existed and is not a newly introduced lifetime defect. The rounding substitutions have matching formulas and float types. The floatingOffset substitutions use the live raw presentation value, not SWindowRenderPresentation's scene-resolved snapshot. Their immediate uses do not retain references, and the separate x/y reads remain separate reads as before. The supplied producer excerpts support the raw-offset correspondence. Scene-dependent filtering shown in resolveWindowPresentation is a different operation and is not grounds to silently integrate snapshot geometry in this step. The floating and border substitutions have the proof gaps identified above.\n\nScope: No shown edit changes a render-pass interface, GL call or state operation, hook registration, timer, lifecycle operation, or decoration ownership/registration. Accessor replacements inside renderPass do not themselves change its interface. The stated deferrals are consistent with the restrictions: roundingPower remains inside prohibited GL-call lines; pluginInit remains lifecycle code; onNewWindow involves ownership/registration; updateDecorations demonstrably processes removals before the mapped/hidden guard, unlike updateWindowDecos; and Log migration is outside the authorized families. No supplied evidence requires reversing those deferrals. The insufficiently demonstrated floating and border replacements should be proven or deferred, not expanded into lifecycle/ownership changes.\n\nThe barDeco.cpp:806 classification is correct on the supplied evidence. With log(level, loc, fmt, ...), the unchanged old call shape places the runtime appID string in the format-string position. The consteval basic_format_string diagnostics are consistent with that pre-existing Log API mismatch becoming diagnosable once the missing m_class expression is repaired. This does not establish an appID semantic regression and does not authorize fixing Log here.\n\nThe probes are non-vacuous compile-time checks: their positive assertions constrain types and expressions, and their negative runs fail on identified obsolete APIs. The shapes functions are still type-checked despite not being called. They do not execute compositor behavior or prove cache coherence, pointer availability, reference stability across mutation, or rendering equivalence. Probe C's 'const auto off' also takes a value copy rather than reproducing the diff's separate live component reads. Negative runs identify at least the named failure, not necessarily every obsolete expression. The m1–m7 mutation definitions are absent, so the reported mutation failures cannot be assessed for relevance or independence."
+}
+
+```
+
+## Implementer's response evidence for round 2 (real output)
+```
+### R1-major-1 (m_target lifetime): CWindow ctor is private; create() is the only factory (Window.hpp: 'static PHLWINDOW create(UP<IWindowBackend> backend); private: CWindow(UP<IWindowBackend> backend);')
+--- 0.57.0:src/desktop/view/window/Window.cpp:100-127
+#define COMMA ,
+//
+
+PHLWINDOW CWindow::create(UP<IWindowBackend> backend) {
+    if (!backend)
+        return nullptr;
+
+    PHLWINDOW pWindow = SP<CWindow>(new CWindow(std::move(backend)));
+
+    pWindow->m_self = pWindow;
+    pWindow->m_backend->attach(pWindow);
+    pWindow->initialize();
+    pWindow->attachBackendListeners();
+
+    return pWindow;
+}
+
+void CWindow::initialize() {
+    const auto SELF = m_self.lock();
+
+    m_ruleApplicator = makeUnique<Desktop::Rule::CWindowRuleApplicator>(SELF);
+
+    Animation::mgr()->createAnimation(Vector2D(0, 0), positionAnimation(), Config::animationTree()->getAnimationPropertyConfig("windowsIn"), SELF, AVARDAMAGE_ENTIRE);
+    Animation::mgr()->createAnimation(Vector2D(0, 0), sizeAnimation(), Config::animationTree()->getAnimationPropertyConfig("windowsIn"), SELF, AVARDAMAGE_ENTIRE);
+    m_presentation->initialize();
+
+    m_target = Layout::CWindowTarget::create(SELF);
+
+--- all writers of m_target in desktop/view/window/ (grep 'm_target\s*=[^=]|m_target.reset|m_target = nullptr'):
+desktop/view/window/Window.cpp:126:    m_target = Layout::CWindowTarget::create(SELF);
+
+### R1-major-2 (border cache): m_borderDecoration creation and writers
+--- 0.57.0:src/desktop/view/window/WindowPresentation.cpp:61-66
+void CWindowPresentation::initialize() {
+    const auto WINDOW  = m_window.m_self.lock();
+    m_shadowDecoration = makeShared<CHyprDropShadowDecoration>(WINDOW);
+    m_borderDecoration = makeShared<CHyprBorderDecoration>(WINDOW);
+    m_glowDecoration   = makeShared<CHyprInnerGlowDecoration>(WINDOW);
+
+--- writers of m_borderDecoration (whole tree):
+desktop/view/window/WindowPresentation.cpp:64:    m_borderDecoration = makeShared<CHyprBorderDecoration>(WINDOW);
+--- invalidation: 0.56.2 sets m_borderSizeCacheDirty=true in updateWindowData(rule) and updateDecorationValues(); 0.57 calls invalidateBorderSize() in updateWindowData(rule) (Window.cpp:705) and in CHyprBorderDecoration::updateState() (:175), which refreshValues() calls for every decoration:
+    const CDecorationSnapshot SNAPSHOT{m_windowDecorations};
+    for (const auto& decoration : SNAPSHOT.decorations()) {
+        if (!containsDecoration(decoration.get()))
+            continue;
+        decoration->updateState();
+    }
+
+    updateDecorations();
+--- callers 0.56.2 updateDecorationValues():
+config/shared/actions/ConfigActions.cpp:640:        window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:653:        window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1300:    PWINDOW->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1444:    window->updateDecorationValues();
+config/shared/actions/ConfigActions.cpp:1460:    PWINDOW->updateDecorationValues();
+desktop/rule/windowRule/WindowRuleApplicator.cpp:583:    m_window->updateDecorationValues();
+desktop/state/FocusState.cpp:132:            PLASTWINDOW->updateDecorationValues();
+desktop/state/FocusState.cpp:190:        PLASTWINDOW->updateDecorationValues();
+desktop/state/FocusState.cpp:203:    pWindow->updateDecorationValues();
+desktop/state/GlobalWindowController.cpp:22:        w->updateDecorationValues();
+desktop/view/Group.cpp:316:    x->updateDecorationValues();
+desktop/view/Group.cpp:324:    x->updateDecorationValues();
+desktop/view/Group.cpp:335:            x->updateDecorationValues();
+desktop/view/Window.cpp:2532:    updateDecorationValues();
+layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.cpp:293:    WINDOW->updateDecorationValues();
+managers/fullscreen/FullscreenController.cpp:467:        window->updateDecorationValues();
+managers/fullscreen/FullscreenController.cpp:490:    window->updateDecorationValues();
+managers/fullscreen/handler/FullscreenHandler.cpp:170:    WINDOW->updateDecorationValues();
+managers/input/trackpad/gestures/CloseGesture.cpp:146:            window->updateDecorationValues();
+--- callers 0.57.0 refreshValues():
+desktop/view/window/Window.cpp:1584:    m_presentation->refreshValues();
+desktop/view/Group.cpp:401:    x->presentation().refreshValues();
+desktop/view/Group.cpp:411:    x->presentation().refreshValues();
+desktop/view/Group.cpp:422:            x->presentation().refreshValues();
+desktop/rule/windowRule/WindowRuleApplicator.cpp:640:    m_window->presentation().refreshValues();
+desktop/state/FocusState.cpp:139:            PLASTWINDOW->presentation().refreshValues();
+desktop/state/FocusState.cpp:198:        PLASTWINDOW->presentation().refreshValues();
+desktop/state/FocusState.cpp:211:    pWindow->presentation().refreshValues();
+desktop/state/GlobalWindowController.cpp:25:        w->presentation().refreshValues();
+managers/fullscreen/FullscreenController.cpp:468:        window->presentation().refreshValues();
+managers/fullscreen/FullscreenController.cpp:491:    window->presentation().refreshValues();
+managers/input/trackpad/gestures/CloseGesture.cpp:147:            window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:723:        window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:736:        window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1338:    PWINDOW->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1495:    window->presentation().refreshValues();
+config/shared/actions/ConfigActions.cpp:1511:    PWINDOW->presentation().refreshValues();
+--- the two 0.56.2 callers with no refreshValues() counterpart (fullscreen handlers): 0.56.2 ScrollingFullscreenHandler.cpp:286-294
+        return;
+
+    const auto MONITOR = target->workspace()->m_monitor.lock();
+    const auto WINDOW  = target->window();
+
+    WINDOW->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+    WINDOW->updateDecorationValues();
+
+--- 0.57.0 ScrollingFullscreenHandler.cpp:286-305
+
+void CScrollingFullscreenHandler::updateTargetRulesAndDecos(const SP<Layout::ITarget> target) {
+    if (!target || !target->window() || !target->workspace() || !target->workspace()->m_monitor)
+        return;
+
+    const auto MONITOR = target->workspace()->m_monitor.lock();
+    const auto WINDOW  = target->window();
+
+    // If window is in a group, we need to update these values for ALL members of the group.
+    if (WINDOW->grouping().group()) {
+        for (const auto& gm : WINDOW->grouping().group()->windows()) {
+            gm->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                    Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+            gm->presentation().updateDecorations();
+        }
+    } else {
+        WINDOW->m_ruleApplicator->propertiesChanged(Desktop::Rule::RULE_PROP_FULLSCREEN | Desktop::Rule::RULE_PROP_FULLSCREENSTATE_CLIENT |
+                                                    Desktop::Rule::RULE_PROP_FULLSCREENSTATE_INTERNAL | Desktop::Rule::RULE_PROP_ON_WORKSPACE);
+        WINDOW->presentation().updateDecorations();
+    }
+--- propertiesChanged in both versions ends with a border invalidation, but returns early when unmapped/hidden:
+--- 0.56.2 WindowRuleApplicator.cpp:547-549 and :581-583
+void CWindowRuleApplicator::propertiesChanged(std::underlying_type_t<eRuleProperty> props) {
+    if (!m_window || !m_window->m_isMapped || m_window->isHidden())
+        return;
+    m_window->updateWindowData();
+    m_window->updateWindowDecos();
+    m_window->updateDecorationValues();
+--- 0.57.0 WindowRuleApplicator.cpp:604-606 and :638-640
+void CWindowRuleApplicator::propertiesChanged(std::underlying_type_t<eRuleProperty> props) {
+    if (!m_window || !m_window->mapped() || m_window->isHidden())
+        return;
+    m_window->updateWindowData();
+    m_window->presentation().updateDecorations();
+    m_window->presentation().refreshValues();
+IMPLEMENTER'S STATED LIMITATION: in 0.57 a fullscreen-state change on an UNMAPPED or HIDDEN window no longer invalidates the border-size cache directly (0.56.2 did, via updateDecorationValues in the handler). borderSize() can therefore be stale for such a window until the next refreshValues()/updateWindowData(). The host's own border decoration reads the same cache, so the bar stays consistent with the 0.57 host border; it is not identical to 0.56.2 behaviour in that edge.
+
+### R1-minor fixes (probes changed after round 1; reruns below)
+--- probe_c: OldRounding split into OldRounding{rounding()} and OldRoundPow{roundingPower()}; floatingOffset read as separate .x/.y live reads.
+--- probe_d: added 'struct ProbeDeco : IHyprWindowDecoration {};' with !is_invocable for UP<ProbeDeco>&& and is_invocable for SP<ProbeDeco>&&.
+--- mutate.sh (mutation definitions):
+#!/usr/bin/env bash
+# Mutate each probe's positive static_assert to a wrong type; each mutant must fail to compile (static assertion).
+set -u
+D=$(cd "$(dirname "$0")" && pwd); W=$D/mut; rm -rf "$W"; mkdir -p "$W"; cp "$D"/probe_common.hpp "$W"/
+export HOME=$D/../home XDG_CONFIG_HOME=$D/../xdg
+INC=$(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)
+MUTS=(
+  "probe_a_include|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D)|position(Desktop::View::IGeometric::GEOMETRIC_CURRENT), Vector2D\&)"
+  "probe_b_metadata|metadata().title(), const std::string&)|metadata().title(), std::string)"
+  "probe_c_presentation|isFloating(), bool)|isFloating(), int)"
+  "probe_c_presentation|floatingOffset(), const Vector2D&)|floatingOffset(), Vector2D)"
+  "probe_c_presentation|static_assert(!std::is_convertible_v|static_assert(std::is_convertible_v"
+  "probe_d_decorations|std::span<const SP<IHyprWindowDecoration>>)|std::span<const UP<IHyprWindowDecoration>>)"
+  "probe_d_decorations|static_assert(!std::is_invocable_v|static_assert(std::is_invocable_v"
+  "probe_c_presentation|static_assert(!OldRoundPow|static_assert(OldRoundPow"
+  "probe_d_decorations|UP<ProbeDeco>&&>, \"UP<Derived> must not bind\");|UP<ProbeDeco>\&\&>, \"UP<Derived> must not bind\"); static_assert(std::is_invocable_v<decltype(\&HyprlandAPI::addWindowDecoration), HANDLE, PHLWINDOW, UP<ProbeDeco>\&\&>);"
+)
+fail=0; i=0
+for m in "${MUTS[@]}"; do
+  IFS='|' read -r name find repl <<<"$m"; i=$((i+1))
+  src="$W/${name}_m$i.cpp"; cp "$D/$name.cpp" "$src"
+  FIND="$find" REPL="$repl" perl -0pi -e 's/\Q$ENV{FIND}\E/$ENV{REPL}/' "$src"
+  if cmp -s "$D/$name.cpp" "$src"; then echo "FAIL m$i $name: mutation did not apply"; fail=1; continue; fi
+  g++ -std=c++2b -fsyntax-only -fPIC -I"$W" $INC "$src" >"$W/m$i.log" 2>&1; rc=$?
+  if [ $rc -ne 0 ] && grep -q 'static assertion failed' "$W/m$i.log"; then echo "OK   m$i $name killed (exit $rc, static assertion)"; else echo "FAIL m$i $name survived/other (exit $rc)"; fail=1; fi
+done
+exit $fail
+--- run.log:
+OK   pos g++ probe_a_include (exit 0)
+OK   neg g++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos g++ probe_b_metadata (exit 0)
+OK   neg g++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos g++ probe_c_presentation (exit 0)
+OK   neg g++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos g++ probe_d_decorations (exit 0)
+OK   neg g++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+OK   pos clang++ probe_a_include (exit 0)
+OK   neg clang++ probe_a_include (exit 1, diagnostic mentions 'desktop/view/Window.hpp.*(No such file|file not found)')
+OK   pos clang++ probe_b_metadata (exit 0)
+OK   neg clang++ probe_b_metadata (exit 1, diagnostic mentions 'm_title')
+OK   pos clang++ probe_c_presentation (exit 0)
+OK   neg clang++ probe_c_presentation (exit 1, diagnostic mentions 'm_isFloating')
+OK   pos clang++ probe_d_decorations (exit 0)
+OK   neg clang++ probe_d_decorations (exit 1, diagnostic mentions 'updateWindowDecos')
+--- mutate.log:
+OK   m1 probe_a_include killed (exit 1, static assertion)
+OK   m2 probe_b_metadata killed (exit 1, static assertion)
+OK   m3 probe_c_presentation killed (exit 1, static assertion)
+OK   m4 probe_c_presentation killed (exit 1, static assertion)
+OK   m5 probe_c_presentation killed (exit 1, static assertion)
+OK   m6 probe_d_decorations killed (exit 1, static assertion)
+OK   m7 probe_d_decorations killed (exit 1, static assertion)
+OK   m8 probe_c_presentation killed (exit 1, static assertion)
+OK   m9 probe_d_decorations killed (exit 1, static assertion)
+
+```
+Re-evaluate the round-1 findings against this evidence. Reject only for defects you can show from the material; a documented limitation is acceptable if it is correctly scoped.

@@ -1,0 +1,1239 @@
+You are an independent C++ reviewer (review round 3). You have NO tools; judge only the material below. Be adversarial and concrete.
+
+## Context
+Plugin "kwinish-bars" (Hyprland decoration plugin) is being ported from Hyprland 0.56.2 to 0.57.0. This step (P6) is authorised to change ONLY the five Log API calls in plugin/barDeco.cpp. It must preserve severity levels, diagnostic content, argument semantics and introduce no new side effects. It must NOT touch render passes, GL, timers, hooks, lifecycle or ownership. A full plugin build still fails (other API families: keybinds, render pass, GL, ownership). Compiling is NOT proof of equivalence.
+
+Implementer's choice: use the 0.57 template `log(level, loc, fmt, args...)` with loc = "kwinish-bars" and the old "[kwinish-bars] " prefix removed from fmt, because the 0.57 template builds `std::format("[{}] ", loc) + std::format(fmt, args...)`, i.e. the same bytes as 0.56.2's `"" + std::format("[kwinish-bars] ...", args...)`. Rejected alternatives: `LOG(level, fmt, ...)` macro (prefixes the caller's function name: content change), pre-formatting with std::format + the non-template overload (formats even when logging is disabled: new cost before the gate).
+
+## Round 1 (another session) verdict: reject
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "plugin/barDeco.cpp:380,611,654,677,807",
+      "claim": "Successful output equivalence does not establish the required exception and side-effect equivalence. Every new call performs a separate prefix-formatting operation and uses a different string-construction sequence. Allocation sizes, allocation timing and failure points are not guaranteed to match the old implementation. This matters under allocation failure or observable allocation instrumentation. It is not established that an additional allocation actually occurs for this short prefix, but exact equivalence cannot be claimed.",
+      "evidence": "0.56.2: \"std::string logMsg = \\\"\\\"; logMsg += std::format(fmt, std::forward<Args>(args)...);\" 0.57.0: \"std::string logMsg = std::format(\\\"[{}] \\\", loc); logMsg += std::format(fmt, std::forward<Args>(args)...);\""
+    },
+    {
+      "severity": "minor",
+      "where": "Runtime equivalence probe: equiv_main.cpp",
+      "claim": "The runtime comparison verifies the sampled messages, levels and aggregate evaluation counts, not evaluation order, disabled-logging equivalence or exception behaviour. The TRACE mutation supplies some evidence of default TRACE suppression on the candidate, but does not compare both implementations across gate states. These limitations do not demonstrate another call-site defect; they limit what the PASS proves.",
+      "evidence": "The sink comment states \"m_logsEnabled=true, m_isTrace=false by default\"; runCalls uses the five DEBUG statements; the final accounting is \"counters get=%d lock=%d meta=%d appid=%d what=%d\". No evaluation sequence, allocation failures or throwing argument evaluations are recorded."
+    },
+    {
+      "severity": "minor",
+      "where": "Probe E runner: negative-diagnostic acceptance",
+      "claim": "The runner does not enforce its stated requirement that negatives fail with no other kind of error. It requires an expected diagnostic somewhere and filters unexpected errors only when their location matches probe_e_log.cpp. Unrelated errors in included headers can coexist with an expected diagnostic and still pass. The reported successful positive builds make ordinary setup failures less likely, but do not repair this acceptance condition.",
+      "evidence": "The comment requires \"the expected diagnostic and no other kind of error\", but NERR is only printed. The rejecting filter is restricted to \"^/[^ ]*probe_e_log.cpp:[0-9]+:[0-9]+: error:\"."
+    }
+  ],
+  "notes": "For each of the five calls, successful formatting produces the same diagnostic bytes, with DEBUG preserved. Both template bodies check m_logsEnabled and then TRACE before formatting. The existing argument expressions and forwarding semantics are unchanged, and their evaluations still occur before entry to the logging function, including when logging is disabled. No new side-effecting argument expression is introduced. Neither version specifies a left-to-right evaluation order among arguments; the counters cannot establish identical observed ordering. Exceptions from argument evaluation remain outside the logging gate. The unaccounted-for difference is the formatting/string-allocation sequence identified above, not a demonstrated change in ordinary successful output.\n\nAll five old calls select the 0.56.2 formatting template, and all five new calls select the 0.57.0 formatting template. Every new call has at least four total arguments, so neither non-template overload is viable by arity. Both templates ultimately invoke the two-argument sink. The three-argument (level, loc, str) trap is real, and TrapBinds demonstrates a representative binding, but none of these five new calls risks it. NewShape establishes well-formedness for its synthetic types; it does not itself prove output semantics or instantiate all formatting behaviour. The runtime calls provide substantially stronger evidence for those sampled cases. Likewise, the logger type assertion establishes a type, not ownership behaviour in general, and inverted-assertion mutations show assertion enforcement rather than independent semantic validation.\n\nThe supplied diff changes only the five authorized logging statements. It shows no changes to rendering, GL, timers, hooks, lifecycle or ownership.\n\nThe runtime probe is non-vacuous: it extracts the real statements, requires five, compares messages and counters against a separately compiled reference, fails before the edit, and rejects compiling runtime mutations afterward. The supplied -H trace identifies oldinc/hyprland/src/debug/log/Logger.hpp, and the old statements failing against the installed header independently support the claim that the reference used the old API. On the supplied evidence, this is genuinely an old-header reference, not a comparison of two installed-header implementations. The negative runtime variants are meaningful for the particular changes they introduce; they do not establish exhaustive equivalence.\n\nThe diagnostic comparison is internally sound as reported. GCC reproduces P5 and removes six Log-related diagnostics with 67 persistent and zero new. Clang reproduces P5 under P5's flags and removes five with 91 persistent and zero new. The separate Makefile-flags result, 92 to 87, is explicitly reconciled by the four narrowing diagnostics; it should not be represented as directly matching the 96-error P5 run. The remaining build failure is disclosed and does not establish a P6 regression. No complete successful plugin build or runtime plugin validation is claimed.\n\nRejection is under the stated strict exception/no-new-side-effects requirement. If the authorization explicitly permits the upstream template's changed internal formatting and allocation behaviour, the supplied material otherwise supports this narrowly scoped migration."
+}
+
+
+## Response to round 1 (implementer)
+- Major (exception/side-effect equivalence): instead of arguing, the runtime probe now MEASURES, per statement and per gate state (logs on / logs off / trace on): emitted bytes+level, ordered argument-evaluation trace, number AND sizes of heap allocations during the statement, and the outcome of injecting std::bad_alloc at each allocation point. Result: identical in everything except allocation SIZES (e.g. 40,40 -> 31,40), which the runner now reports explicitly as a MEASURED DIFFERENCE instead of claiming exact equivalence. Logs-off: byte-identical including zero allocations. The only 0.57 route that avoids the host template (pre-format in the plugin + non-template sink, shown as ALT and as negative `preformat`) produces identical bytes but 1 allocation per call with logging DISABLED (reference: 0) -> a new side effect, rejected.
+- Minor (what the PASS proves): gate states added via the probe-defined constructor (env P6_LOGS / P6_TRACE); evaluation order recorded as a token sequence (same within each compiler; differs between GCC and Clang, as before the change).
+- Minor (negative acceptance): every error line in the log (any file) must now match the allowed set; GCC's consequential `<string>` error for NEG2 is explicitly allowed.
+- Runtime negatives now compare all three gate states with the sizes field ignored (otherwise the size difference alone would make them "detect").
+
+## Round 2 (another session) verdict: reject
+{
+  "verdict": "reject",
+  "findings": [
+    {
+      "severity": "major",
+      "where": "plugin/barDeco.cpp:380,611,654,677,807",
+      "claim": "The strict exception/no-new-side-effects requirement remains unmet. Round 2 establishes an observable allocation-size difference at every enabled call rather than eliminating the round-1 concern. Equal allocation counts and equal results when forcibly failing the nth allocation do not establish equivalent allocation-failure behaviour when the requested sizes differ. The authorization has not been amended to permit this upstream implementation difference.",
+      "evidence": "The reference reports, for example, \"stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,\" while the candidate reports \"stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,\". The runner accepts this through comparisons using \"sed 's/ sizes=.*//'\" and reports \"MEASURED DIFFERENCE (host template internals): allocation sizes differ:\"."
+    },
+    {
+      "severity": "minor",
+      "where": "Runtime equivalence probe: equiv_main.cpp allocation-failure runs",
+      "claim": "The fault-injection results are narrower than exception and side-effect equivalence. They test an unconditional failure at each sampled allocation ordinal, not size-dependent failures or actual memory-pressure behaviour. They also do not compare argument-evaluation traces during failing executions: those traces are reset and collected but never included in the failure report. No throwing argument accessor is supplied. These are coverage limitations, not additional demonstrated call-site defects.",
+      "evidence": "Failure is injected only by \"if (g_failAt && g_allocs == g_failAt) throw std::bad_alloc();\". Each failure run sets \"g_seqLen = 0\", but its report is only \"fail@%ld -> %s, emitted=%s\". The supplied accessors record tokens and return values; none explicitly injects an argument-evaluation exception."
+    },
+    {
+      "severity": "minor",
+      "where": "Probe E runner: NEG2 diagnostic acceptance",
+      "claim": "The all-file filtering improves round 1, but NEG2 still permits unrelated constant-expression errors. Its allowance is not restricted to the stated consequential <string> diagnostic: any matched error line containing 'is not a constant expression' passes. Thus an expected diagnostic plus an unrelated error of that form can still be accepted. This is a residual acceptance-condition weakness, not evidence that the reported runs contained such an error.",
+      "evidence": "For NEG2 the runner sets \"ALLOW=\\\"$RX|is not a constant expression\\\"\" and computes NBAD by filtering every matched error line against that unrestricted expression."
+    }
+  ],
+  "notes": "1. All five calls preserve DEBUG and, on successful formatting, the diagnostic bytes. The unchanged payload format strings and argument expressions support this independently of the sampled output. Both templates check m_logsEnabled and then the TRACE condition before formatting. Argument expressions still evaluate before function entry, including with logging disabled. The added location and format literals introduce no side-effecting argument expression. The probes show matching recorded accessor order within each compiler; GCC and Clang differ from each other in both versions. Neither source version specifies a common left-to-right order among arguments, and the mocks do not establish all effects of the real plugin argument types. Both versions propagate uncaught exceptions from arguments or formatting; exact exception behaviour is not established because allocation requests differ. As an illustrative hypothetical, not an observed result, a replacement allocator that rejects a 31-byte request but accepts a 40-byte request would distinguish the first sampled call even though the nth-allocation injection results match. Allocation sizes are already demonstrably observable in this harness.\n\n2. All five old calls select the 0.56.2 formatting template, and all five new calls select the 0.57 formatting template. Each new call has at least four total arguments, excluding both non-template overloads by arity. Both templates ultimately call the two-argument sink. The three-argument (level, loc, str) trap is real, but none of these five new calls risks it. TrapBinds establishes that its expression is well-formed; identifying the selected overload also requires inspecting the supplied overload set.\n\n3. The supplied diff changes only the five authorized logging statements. It contains no render-pass, GL, timer, hook, lifecycle or ownership edits.\n\n4. The runtime comparison is non-vacuous. It extracts the five actual statements, requires five matches, fails with the unmodified baseline used as candidate, and detects compiling runtime mutations after the edit. The supplied -H trace identifies the oldinc Logger.hpp; the old calls failing against the installed header independently corroborate that the working reference was not using that installed header. The compile commands support the same intended old-header selection for both compilers. The sinks and constructor are probe replacements, so this is a real-template comparison, not full host/plugin runtime validation. Runtime negatives now ignore the known size difference and compare all three configured states, making their detections meaningful for the introduced mutations. The five reference statements are DEBUG, so toggling m_isTrace does not itself exercise reference TRACE suppression; the candidate TRACE mutation and identical gate source provide narrower supporting evidence. NewShape checks expression well-formedness for synthetic types, not template-body behaviour or complete real-type semantics. The logger assertion checks its declared type, not ownership behaviour generally. Inverting assertions verifies that those assertions are enforced, not independent semantic correctness.\n\n5. The diagnostic comparison is internally consistent as reported. GCC reproduces the P5 baseline at 73 and removes six Log-related errors, leaving 67 persistent and zero new. Clang with P5 flags reproduces 96 and removes five, leaving 91 persistent and zero new. The Makefile-flags Clang comparison is separately 92 to 87; the four narrowing diagnostics explicitly reconcile it with the P5-flags run. These results support removal of the targeted diagnostics, not equivalence or a complete successful build. The remaining build failure and absence of a .so are disclosed. Geometry and tooltip passes do not resolve the logging allocation difference.\n\nThe main rejection is unchanged in substance: the newly measured allocation difference needs an explicit authorization exception or a different implementation. Showing that the preformat alternative introduces disabled-logging allocations does not make the selected implementation strictly equivalent."
+}
+
+
+## Response to round 2 (implementer)
+- Major (allocation sizes): not disputed. It is a real, measured difference and is reported as such; equivalence is NOT claimed for allocator traffic. Implementer's claim to be checked: within the public 0.57 Log API no implementation preserves bytes, the m_logsEnabled/TRACE gating before any formatting, AND the 0.56.2 allocation sizes. The 0.57 entry points are exactly: (a) template log(level, loc, fmt, args...) — always builds std::format("[{}] ", loc) then += std::format(fmt,...); with loc="kwinish-bars" the sizes are fixed by the host (measured 31,40 etc.); any other loc changes the bytes (negatives bracketLoc/emptyLoc/LOGmacro); (b) log(level, const string_view&) and (c) log(level, loc, str) — both need the message already formatted by the caller, i.e. allocation before the gate (measured: 1 allocation per call with logging disabled; reference 0); (d) hu() returns the Hyprutils logger and bypasses m_logsEnabled, the TRACE gate and SRollingLogFollow (Logger.cpp above) — a different side-effect set. Hence the residual difference is a property of the host API, to be accepted or not by the owner; the implementer will report it as an open owner decision, not as resolved.
+- Minor (fault-injection coverage): failure reports now include the evaluation trace; added a throwing argument accessor for every evaluated token (except what(), which is noexcept) — both versions: exception propagates, nothing emitted, 0 allocations, same partial trace. Size-dependent allocator failure is NOT tested (acknowledged).
+- Minor (NEG2 allowance): the extra allowance is now restricted to `^/usr/include/c++/N/bits/basic_string.h:L:C: error: .*is not a constant expression`.
+
+## Questions
+0. Is the implementer's claim in the round-2 response (no public 0.57 route preserves bytes + gating + 0.56.2 allocation sizes) correct on the supplied headers? If you can name a route, give it concretely.
+1. Is each of the five new calls equivalent to its 0.56.2 counterpart in: emitted bytes, level, gating (m_logsEnabled / TRACE), argument evaluation (count/order), exception behaviour, overload selected? Name any difference the implementer missed.
+2. Is there any overload-resolution trap (e.g. a call resolving to the non-template (level, loc, str) overload and so NOT formatting)? Does any of the five calls risk it?
+3. Does the diff touch anything out of scope?
+4. Are the probes non-vacuous? Does the runtime equivalence probe really compare against the 0.56.2 header (not the installed one)? Are the negative probes meaningful? Any assertion that does not test what it claims?
+5. Is the error comparison sound (baseline = P5 candidate, reproduced; eliminated/persistent/new)?
+
+Answer as JSON: {"verdict":"approve"|"reject","findings":[{"severity":"blocker|major|minor","where":"file:line or probe","claim":"...","evidence":"quote from the material"}],"notes":"..."}. Only cite what is in the material; mark speculation as such.
+
+## Real diff (baseline = P5 working copy of plugin/barDeco.cpp; nothing else changed in plugin/)
+```diff
+--- /home/lhen/.hermes/cache/scratch/p6/baseline/plugin/barDeco.cpp	2026-10-30 14:09:13.844266139 +0000
++++ plugin/barDeco.cpp	2026-10-30 14:47:10.583748368 +0000
+@@ -377,7 +377,7 @@
+             if (m_bTouchEv)
+                 g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
+             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+-            Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
++            Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+         }
+ 
+         m_bDraggingThis = false;
+@@ -608,7 +608,7 @@
+     } else if (const char* zone = edgeZone(C, M))
+         where = std::string_view(zone) == "left" ? "tile:left" : std::string_view(zone) == "right" ? "tile:right" : "tile:max";
+     const auto ACTIVE = Desktop::focusState()->window();
+-    Log::logger->log(Log::DEBUG, "[kwinish-bars] snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
++    Log::logger->log(Log::DEBUG, "kwinish-bars", "snap check: window={:x} active={:x} cursor=({:.0},{:.0}) monitor={} where={}", (uintptr_t)W.get(), (uintptr_t)ACTIVE.get(), C.x, C.y,
+                      M->m_name, where.empty() ? "none" : where);
+     // a plain click on the bar must not snap
+     if (where.empty() || (C - m_pressCursor).size() < 10)
+@@ -651,7 +651,7 @@
+         else
+             snapOnRelease();
+ 
+-        Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
++        Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)m_pWindow.lock().get());
+     }
+ 
+     m_bDragPending = false;
+@@ -674,7 +674,7 @@
+     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+     m_bDraggingThis = true;
+     warnIfNoCore();
+-    Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
++    Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
+     return;
+ }
+ 
+@@ -804,7 +804,7 @@
+             cairo_surface_destroy(surface);
+         }
+     } catch (const std::exception& e) {
+-        Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", W->metadata().appID(), e.what());
++        Log::logger->log(Log::DEBUG, "kwinish-bars", "icon lookup failed for {}: {}", W->metadata().appID(), e.what());
+     }
+ }
+ 
+
+```
+
+## 0.56.2 src/debug/log/Logger.hpp (tag v0.56.2 tarball, sha256 ddeb92a6...)
+```cpp
+#pragma once
+
+#include <hyprutils/cli/Logger.hpp>
+#include <utility>
+
+#include "../../helpers/memory/Memory.hpp"
+#include "../../helpers/env/Env.hpp"
+
+namespace Log {
+    class CLogger {
+      public:
+        CLogger();
+        ~CLogger() = default;
+
+        void initIS(const std::string_view& IS);
+        void initCallbacks();
+
+        void log(Hyprutils::CLI::eLogLevel level, const std::string_view& str);
+
+        template <typename... Args>
+        //NOLINTNEXTLINE
+        void log(Hyprutils::CLI::eLogLevel level, std::format_string<Args...> fmt, Args&&... args) {
+            if (!m_logsEnabled)
+                return;
+
+            if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+                return;
+
+            std::string logMsg = "";
+            logMsg += std::format(fmt, std::forward<Args>(args)...);
+
+            log(level, logMsg);
+        }
+
+        const std::string&       rolling();
+        Hyprutils::CLI::CLogger& hu();
+
+      private:
+        void                    recheckCfg();
+
+        Hyprutils::CLI::CLogger m_logger;
+        bool                    m_logsEnabled = true;
+        bool                    m_isTrace     = false;
+    };
+
+    inline UP<CLogger> logger = makeUnique<CLogger>();
+
+    //
+    inline constexpr const Hyprutils::CLI::eLogLevel DEBUG = Hyprutils::CLI::LOG_DEBUG;
+    inline constexpr const Hyprutils::CLI::eLogLevel WARN  = Hyprutils::CLI::LOG_WARN;
+    inline constexpr const Hyprutils::CLI::eLogLevel ERR   = Hyprutils::CLI::LOG_ERR;
+    inline constexpr const Hyprutils::CLI::eLogLevel CRIT  = Hyprutils::CLI::LOG_CRIT;
+    inline constexpr const Hyprutils::CLI::eLogLevel INFO  = Hyprutils::CLI::LOG_DEBUG;
+    inline constexpr const Hyprutils::CLI::eLogLevel TRACE = Hyprutils::CLI::LOG_TRACE;
+};
+
+```
+
+## 0.57.0 installed /usr/include/hyprland/src/debug/log/Logger.hpp (identical to pinned upstream 0aa6745f)
+```cpp
+#pragma once
+
+#include <hyprutils/cli/Logger.hpp>
+#include <source_location>
+#include <utility>
+
+#include "../../helpers/memory/Memory.hpp"
+#include "../../helpers/env/Env.hpp"
+
+#define LOG(level, fmt, ...)                                                                                                                                                       \
+    do {                                                                                                                                                                           \
+        Log::logger->log(level, Log::logFnName(), fmt __VA_OPT__(, ) __VA_ARGS__);                                                                                                 \
+    } while (0)
+
+namespace Log {
+
+    consteval std::string_view logFnName(std::source_location loc = std::source_location::current()) {
+        std::string_view name = loc.function_name();
+
+        // this usually returns something like:
+        //    void Fuck::fucker(float)
+        // and we basically only want the "Fuck::fucker"
+
+        if (const auto P = name.find(' '); P != std::string::npos)
+            name = name.substr(P + 1);
+        if (const auto P = name.find('('); P != std::string::npos)
+            name = name.substr(0, P);
+
+        return name;
+    }
+
+    class CLogger {
+      public:
+        CLogger();
+        ~CLogger() = default;
+
+        void initIS(const std::string_view& IS);
+        void initCallbacks();
+
+        void log(Hyprutils::CLI::eLogLevel level, const std::string_view& str);
+        void log(Hyprutils::CLI::eLogLevel level, const std::string_view loc, const std::string_view str);
+
+        template <typename... Args>
+        // NOLINTNEXTLINE
+        void log(Hyprutils::CLI::eLogLevel level, const std::string_view loc, std::format_string<Args...> fmt, Args&&... args) {
+            if (!m_logsEnabled)
+                return;
+
+            if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+                return;
+
+            std::string logMsg = std::format("[{}] ", loc);
+            logMsg += std::format(fmt, std::forward<Args>(args)...);
+
+            log(level, logMsg);
+        }
+
+        const std::string&       rolling();
+        Hyprutils::CLI::CLogger& hu();
+
+      private:
+        void                    recheckCfg();
+
+        Hyprutils::CLI::CLogger m_logger;
+        bool                    m_logsEnabled = true;
+        bool                    m_isTrace     = false;
+    };
+
+    inline UP<CLogger> logger = makeUnique<CLogger>();
+
+    //
+    inline constexpr const Hyprutils::CLI::eLogLevel DEBUG = Hyprutils::CLI::LOG_DEBUG;
+    inline constexpr const Hyprutils::CLI::eLogLevel WARN  = Hyprutils::CLI::LOG_WARN;
+    inline constexpr const Hyprutils::CLI::eLogLevel ERR   = Hyprutils::CLI::LOG_ERR;
+    inline constexpr const Hyprutils::CLI::eLogLevel CRIT  = Hyprutils::CLI::LOG_CRIT;
+    inline constexpr const Hyprutils::CLI::eLogLevel INFO  = Hyprutils::CLI::LOG_DEBUG;
+    inline constexpr const Hyprutils::CLI::eLogLevel TRACE = Hyprutils::CLI::LOG_TRACE;
+};
+
+```
+
+## Logger.cpp 0.56.2 -> 0.57.0 (diff -u)
+```diff
+--- /home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/debug/log/Logger.cpp	2026-08-05 14:13:21.000000000 +0000
++++ /home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/debug/log/Logger.cpp	2026-10-30 04:12:46.129339609 +0000
+@@ -24,6 +24,16 @@
+     m_logger.log(level, str);
+ }
+ 
++void CLogger::log(Hyprutils::CLI::eLogLevel level, const std::string_view loc, const std::string_view str) {
++    if (!m_logsEnabled)
++        return;
++
++    if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
++        return;
++
++    log(level, std::format("[{}] {}", loc, str));
++}
++
+ void CLogger::initIS(const std::string_view& IS) {
+     // NOLINTNEXTLINE
+     m_logger.setOutputFile(std::string{IS} + (ISDEBUG ? "/hyprlandd.log" : "/hyprland.log"));
+
+```
+
+## Probe E (compile-time; compiled with the plugin Makefile flags, GCC 16.2.1 and Clang 23.1.4)
+```cpp
+// P6 probe E — Log API, Hyprland 0.57.0 (installed headers, Makefile flags).
+// Positive mode: exact 0.57 shapes; the 0.56.2 call shapes no longer bind.
+// -DPROBE_NEG=1: the 0.56.2 shape of barDeco.cpp:380 must fail to compile.
+// -DPROBE_NEG=2: the 0.56.2 shape of barDeco.cpp:807 must fail to compile.
+#include <hyprland/src/debug/log/Logger.hpp>
+
+#include <concepts>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <type_traits>
+
+using Hyprutils::CLI::eLogLevel;
+
+// --- levels: names and values unchanged from 0.56.2 ---------------------------------
+static_assert(std::is_same_v<decltype(Log::DEBUG), const eLogLevel>);
+static_assert(Log::DEBUG == Hyprutils::CLI::LOG_DEBUG);
+static_assert(Log::INFO == Log::DEBUG, "INFO aliases DEBUG: a DEBUG->INFO swap is not observable");
+static_assert(Log::WARN != Log::DEBUG && Log::TRACE != Log::DEBUG);
+
+// --- logger object: same type/ownership as 0.56.2 ------------------------------------
+static_assert(std::is_same_v<decltype(Log::logger), UP<Log::CLogger>>);
+
+// --- 0.57 template takes an explicit location before the format ----------------------
+template <typename... A>
+concept NewShape = requires(Log::CLogger& l, A&&... a) { l.log(Log::DEBUG, std::string_view{"kwinish-bars"}, std::declval<std::format_string<A...>>(), std::forward<A>(a)...); };
+static_assert(NewShape<uintptr_t>);
+static_assert(NewShape<uintptr_t, uintptr_t, double, double, std::string&, std::string>);
+static_assert(NewShape<const std::string&, const char*>);
+
+// --- 0.56.2 shape (level, fmt, args...) no longer exists ------------------------------
+template <typename... A>
+concept OldShape = requires(Log::CLogger& l, A&&... a) { l.log(Log::DEBUG, std::declval<std::format_string<A...>>(), std::forward<A>(a)...); };
+static_assert(!OldShape<uintptr_t>);
+static_assert(!OldShape<uintptr_t, uintptr_t, double, double, std::string&, std::string>);
+
+// --- trap: (level, string-literal, string) still compiles, via the non-template ------
+// (level, loc, str) overload — "[loc] str", no formatting. Compiling is not equivalence.
+template <typename = void>
+concept TrapBinds = requires(Log::CLogger& l, std::string_view s) { l.log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}", s); };
+static_assert(TrapBinds<>);
+
+// --- LOG macro exists and supplies the caller's function name as loc ----------------
+#ifndef LOG
+#error "0.57 LOG macro missing"
+#endif
+static_assert(std::is_same_v<decltype(Log::logFnName()), std::string_view>);
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1(uintptr_t p) {
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] Dragging ended on {:x}", p);
+}
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2(const std::string& appID, const char* what) {
+    Log::logger->log(Log::DEBUG, "[kwinish-bars] icon lookup failed for {}: {}", appID, what);
+}
+#endif
+
+int main() {}
+
+```
+
+## Runtime equivalence probe: equiv_main.cpp (compiled twice: -I oldinc where oldinc/hyprland -> v0.56.2 tarball tree, with the five statements extracted verbatim from the P5 baseline file; and against installed 0.57 headers with the five statements extracted verbatim from the candidate file)
+```cpp
+// P6 runtime equivalence probe for the Log API (round 2).
+// Compiled twice: against the 0.56.2 Logger.hpp (tarball, -I oldinc) with the
+// P5-baseline statements, and against the installed 0.57 Logger.hpp with the
+// candidate statements. calls.inc holds the five statements extracted verbatim
+// from the real barDeco.cpp, one `case` each. Only the non-inline members
+// (constructor, sinks) are defined here; the template overloads are the host's
+// real inline code. Records, per statement: emitted bytes + level, ordered
+// argument-evaluation trace, heap allocations, and the outcome of injecting
+// std::bad_alloc at every allocation point. Gate state comes from the env
+// (P6_LOGS, P6_TRACE) through the probe-defined constructor.
+#include <hyprland/src/debug/log/Logger.hpp>
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <new>
+#include <stdexcept>
+#include <string>
+
+// ---- allocation accounting / fault injection --------------------------------------
+static bool g_counting = false;
+static long   g_allocs = 0, g_failAt = 0;
+static size_t g_sizes[16];
+void* operator new(std::size_t n) {
+    if (g_counting) {
+        if (g_allocs < 16)
+            g_sizes[g_allocs] = n;
+        ++g_allocs;
+        if (g_failAt && g_allocs == g_failAt)
+            throw std::bad_alloc();
+    }
+    if (void* p = std::malloc(n ? n : 1))
+        return p;
+    throw std::bad_alloc();
+}
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+// ---- non-allocating capture buffers -----------------------------------------------
+static char   g_out[1 << 16];
+static size_t g_outLen = 0;
+static void   put(const char* s, size_t n) {
+    if (g_outLen + n < sizeof(g_out)) {
+        std::memcpy(g_out + g_outLen, s, n);
+        g_outLen += n;
+    }
+}
+static void put(const char* s) { put(s, std::strlen(s)); }
+static char g_seq[64];
+static int  g_seqLen  = 0;
+static char g_throwOn = 0; // argument accessor that throws (except 'e': what() is noexcept)
+struct SArgThrow {};
+static void ev(char c) {
+    if (g_seqLen < 63)
+        g_seq[g_seqLen++] = c;
+    if (g_throwOn && c == g_throwOn && c != 'e')
+        throw SArgThrow{};
+}
+
+Log::CLogger::CLogger() {
+    const char* L = std::getenv("P6_LOGS");
+    const char* T = std::getenv("P6_TRACE");
+    m_logsEnabled = !(L && L[0] == '0');
+    m_isTrace     = T && T[0] == '1';
+}
+void Log::CLogger::log(Hyprutils::CLI::eLogLevel level, const std::string_view& str) {
+    // Same gates as Logger.cpp of both versions.
+    if (!m_logsEnabled)
+        return;
+    if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+        return;
+    char lv[16];
+    std::snprintf(lv, sizeof lv, "  %d|", static_cast<int>(level));
+    put(lv);
+    put(str.data(), str.size());
+    put("\n");
+}
+#ifdef LOG // only the 0.57 header defines LOG and the (level, loc, str) overload
+void Log::CLogger::log(Hyprutils::CLI::eLogLevel level, const std::string_view loc, const std::string_view str) {
+    // Body copied from upstream 0.57.0 src/debug/log/Logger.cpp:27-35.
+    if (!m_logsEnabled)
+        return;
+    if (level == Hyprutils::CLI::LOG_TRACE && !m_isTrace)
+        return;
+    log(level, std::format("[{}] {}", loc, str));
+}
+#endif
+
+// ---- mocks; every accessor records an ordered evaluation token ----------------------
+struct SFakeMeta {
+    std::string        id;
+    const std::string& appID() const {
+        ev('a');
+        return id;
+    }
+};
+struct SFakeWin {
+    void*      p;
+    char       tag;
+    SFakeMeta  meta;
+    void*      get() const {
+        ev(tag);
+        return p;
+    }
+    const SFakeWin* operator->() const {
+        ev('>');
+        return this;
+    }
+    const SFakeMeta& metadata() const {
+        ev('m');
+        return meta;
+    }
+};
+struct SFakeWeak {
+    SFakeWin w;
+    SFakeWin lock() const {
+        ev('L');
+        return w;
+    }
+};
+struct SFakeMon {
+    std::string m_name;
+};
+struct SVec {
+    double x, y;
+};
+struct SFakeExc : std::runtime_error {
+    using std::runtime_error::runtime_error;
+    const char* what() const noexcept override {
+        ev('e');
+        return std::runtime_error::what();
+    }
+};
+
+static void runStmt(int k, const std::string& where) {
+    const SFakeWin  PWINDOW{reinterpret_cast<void*>(0x55aa10), 'P', {"pwin"}};
+    const SFakeWin  W{reinterpret_cast<void*>(0x7f00beef), 'W', {"org.kde.dolphin.with-a-long-app-id-beyond-sso"}};
+    const SFakeWin  ACTIVE{reinterpret_cast<void*>(0x1234abcd), 'A', {"active"}};
+    const SFakeWeak m_pWindow{{reinterpret_cast<void*>(0xdeadbeef00), 'w', {"weak"}}};
+    const SVec      C{1919.5, -3.49};
+    const SFakeMon  MON{"DP-1"};
+    const SFakeMon* M = &MON;
+    const SFakeExc  e{"icon theme missing {braces}"};
+    g_counting = true; // only the statement itself is measured
+    switch (k) {
+#include "calls.inc"
+        default: break;
+    }
+    g_counting = false;
+}
+
+int main() {
+    char line[256];
+    for (const std::string where : {std::string{"tile:left"}, std::string{""}}) {
+        for (int k = 0; k < 5; ++k) {
+            g_allocs = 0;
+            g_failAt = 0;
+            g_seqLen = 0;
+            runStmt(k, where);
+            const long allocs = g_allocs;
+            std::snprintf(line, sizeof line, "stmt %d where='%s' allocs=%ld seq=%.*s sizes=", k, where.c_str(), allocs, g_seqLen, g_seq);
+            put(line);
+            for (long i = 0; i < allocs && i < 16; ++i) {
+                std::snprintf(line, sizeof line, "%zu,", g_sizes[i]);
+                put(line);
+            }
+            put("\n");
+            // inject bad_alloc at each allocation point of this statement
+            for (long f = 1; f <= allocs; ++f) {
+                g_allocs = 0;
+                g_failAt = f;
+                g_seqLen = 0;
+                const size_t before = g_outLen;
+                const char*  what   = "returned";
+                try {
+                    runStmt(k, where);
+                } catch (const std::bad_alloc&) {
+                    g_counting = false;
+                    what       = "bad_alloc";
+                } catch (...) {
+                    g_counting = false;
+                    what       = "other";
+                }
+                std::snprintf(line, sizeof line, "  fail@%ld -> %s, emitted=%s seq=%.*s\n", f, what, g_outLen > before ? "yes" : "no", g_seqLen, g_seq);
+                put(line);
+            }
+            g_failAt = 0;
+            // a throwing argument accessor, for each distinct evaluated token of this statement
+            char toks[64];
+            int  ntok = 0;
+            {
+                g_seqLen = 0;
+                const size_t keep = g_outLen;
+                runStmt(k, where);
+                g_outLen = keep; // discard the duplicate emission
+                for (int i = 0; i < g_seqLen; ++i)
+                    toks[ntok++] = g_seq[i];
+            }
+            for (int i = 0; i < ntok; ++i) {
+                if (toks[i] == 'e')
+                    continue;
+                g_seqLen = 0;
+                g_allocs  = 0;
+                g_throwOn = toks[i];
+                const size_t before = g_outLen;
+                const char*  what   = "returned";
+                try {
+                    runStmt(k, where);
+                } catch (const SArgThrow&) {
+                    g_counting = false;
+                    what       = "arg-exception";
+                } catch (...) {
+                    g_counting = false;
+                    what       = "other";
+                }
+                g_throwOn = 0;
+                std::snprintf(line, sizeof line, "  argthrow@%c -> %s, emitted=%s allocs=%ld seq=%.*s\n", toks[i], what, g_outLen > before ? "yes" : "no", g_allocs, g_seqLen, g_seq);
+                put(line);
+            }
+        }
+    }
+    std::fwrite(g_out, 1, g_outLen, stdout);
+    return 0;
+}
+
+```
+Extractor:
+```python
+#!/usr/bin/env python3
+"""Extract every Log API call statement verbatim from a barDeco.cpp.
+
+usage: extract_calls.py SRC OUT [--expect N]
+Each statement (case K of a switch; from the line containing `Log::` + `log`/`LOG(` up to the
+line ending in `;`) is wrapped in its own block, preceded by a #line directive
+pointing back to the real file so diagnostics name the real line.
+"""
+import re
+import sys
+
+src, out = sys.argv[1], sys.argv[2]
+expect = int(sys.argv[sys.argv.index("--expect") + 1]) if "--expect" in sys.argv else 5
+lines = open(src, encoding="utf-8").read().split("\n")
+start = re.compile(r"\bLog::logger->log\(|\bLOG\(")
+stmts, i = [], 0
+while i < len(lines):
+    if start.search(lines[i]) and not lines[i].lstrip().startswith("//"):
+        j = i
+        while not lines[j].rstrip().endswith(";"):
+            j += 1
+            assert j - i < 10, f"unterminated statement at {src}:{i+1}"
+        stmts.append((i + 1, lines[i : j + 1]))
+        i = j + 1
+    else:
+        i += 1
+assert len(stmts) == expect, f"expected {expect} log statements, found {len(stmts)}: {[s[0] for s in stmts]}"
+with open(out, "w", encoding="utf-8") as f:
+    for k, (ln, body) in enumerate(stmts):
+        f.write(f"    case {k}: {{\n")
+        f.write(f'#line {ln} "{src}"\n')
+        f.write("\n".join(body) + "\n")
+        f.write("    } break;\n")
+print(" ".join(str(s[0]) for s in stmts))
+
+```
+Runner:
+```bash
+#!/usr/bin/env bash
+# P6 Log API probe runner. usage: run.sh CANDIDATE_BARDECO [BASELINE_BARDECO]
+# Exit 0 only if every check behaves as expected.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+CAND=${1:?candidate barDeco.cpp}
+BASE=${2:-/home/lhen/.hermes/cache/scratch/p6/baseline/plugin/barDeco.cpp}
+O=$P/out
+mkdir -p "$O"
+export HOME=$P/home XDG_CONFIG_HOME=$P/home/.config XDG_CACHE_HOME=$P/home/.cache XDG_DATA_HOME=$P/home/.local/share
+mkdir -p "$HOME"
+unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+PLUGFLAGS="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+HU_CFLAGS=$(pkg-config --cflags hyprutils)
+HU_LIBS=$(pkg-config --libs hyprutils)
+FAIL=0
+ok() { echo "OK   - $*"; }
+bad() { echo "FAIL - $*"; FAIL=1; }
+
+for CXX in g++ clang++; do
+    # E: type probe, positive
+    if $CXX $PLUGFLAGS -fsyntax-only "$P/probe_e_log.cpp" >"$O/E-$CXX.log" 2>&1; then ok "$CXX E positive exit 0"; else bad "$CXX E positive (see $O/E-$CXX.log)"; fi
+    # E: negatives, must fail with the expected diagnostic and no other kind of error
+    for N in 1 2; do
+        $CXX $PLUGFLAGS -fsyntax-only -DPROBE_NEG=$N "$P/probe_e_log.cpp" >"$O/E-neg$N-$CXX.log" 2>&1
+        RC=$?
+        # NEG1 (380 shape): no overload; NEG2 (807 shape): appID() lands in the consteval format_string slot.
+        if [ $N = 1 ]; then RX="no matching (member )?function for call to .{0,3}(Log::CLogger::)?log"; else RX="consteval function '?.?std::basic_format_string.*is not a constant expression"; fi
+        # Every error line in the log (any file) must belong to the allowed set. GCC adds one
+        # consequential error inside <string> for NEG2 (the non-constant appID() operand).
+        if [ $N = 1 ]; then ALLOW="$RX"; else ALLOW="$RX|^/usr/include/c\\+\\+/[0-9]+/bits/basic_string\\.h:[0-9]+:[0-9]+: error: .*is not a constant expression"; fi
+        NERR=$(grep -cE '^[^ ].*: (fatal )?error:' "$O/E-neg$N-$CXX.log")
+        NBAD=$(grep -E '^[^ ].*: (fatal )?error:' "$O/E-neg$N-$CXX.log" | grep -vcE "$ALLOW")
+        if [ $RC -ne 0 ] && grep -qE "$RX" "$O/E-neg$N-$CXX.log" && [ "$NERR" -gt 0 ] && [ "$NBAD" = 0 ]; then
+            ok "$CXX E NEG$N exit $RC, expected diagnostic ($NERR error lines)"
+        else
+            bad "$CXX E NEG$N exit $RC unexpected (see $O/E-neg$N-$CXX.log)"
+        fi
+    done
+
+    # R: runtime equivalence. Reference = 0.56.2 header + baseline calls.
+    python3 "$P/extract_calls.py" "$BASE" "$O/calls-old.inc" >"$O/lines-old.txt" || { bad "extract baseline"; continue; }
+    mkdir -p "$O/old-$CXX" && cp "$O/calls-old.inc" "$O/old-$CXX/calls.inc"
+    if $CXX -std=c++2b -I"$P/oldinc" $HU_CFLAGS -I"$O/old-$CXX" "$P/equiv_main.cpp" -o "$O/old-$CXX/equiv" $HU_LIBS >"$O/R-old-$CXX.log" 2>&1 \
+        && P6_LOGS=1 P6_TRACE=0 "$O/old-$CXX/equiv" >"$O/R-old-$CXX.txt" \
+        && P6_LOGS=0 P6_TRACE=0 "$O/old-$CXX/equiv" >"$O/R-old-off-$CXX.txt" \
+        && P6_LOGS=1 P6_TRACE=1 "$O/old-$CXX/equiv" >"$O/R-old-trace-$CXX.txt"; then
+        ok "$CXX R reference (0.56.2 header, baseline lines $(cat "$O/lines-old.txt")) built and ran"
+    else
+        bad "$CXX R reference (see $O/R-old-$CXX.log)"; continue
+    fi
+    # Sanity: DEBUG lines present when enabled, none when disabled, fault injection fired.
+    [ "$(grep -c '^  1|\[kwinish-bars\] ' "$O/R-old-$CXX.txt")" -ge 10 ] || bad "$CXX R reference lacks the DEBUG lines"
+    [ "$(grep -c '|' "$O/R-old-off-$CXX.txt")" = 0 ] || bad "$CXX R reference emitted with logs disabled"
+    grep -q 'fail@1 -> bad_alloc' "$O/R-old-$CXX.txt" || bad "$CXX R reference: fault injection never fired"
+
+    run_new() { # $1 = tag, $2 = calls.inc ; prints output file or empty on build/run failure
+        local D="$O/new-$1-$CXX"
+        mkdir -p "$D" && cp "$2" "$D/calls.inc"
+        if $CXX -std=c++2b $HU_CFLAGS -I/usr/include/hyprland -I"$D" "$P/equiv_main.cpp" -o "$D/equiv" $HU_LIBS >"$D/build.log" 2>&1 \
+            && P6_LOGS=1 P6_TRACE=0 "$D/equiv" >"$D/out.txt" && P6_LOGS=0 P6_TRACE=0 "$D/equiv" >"$D/out-off.txt" \
+            && P6_LOGS=1 P6_TRACE=1 "$D/equiv" >"$D/out-trace.txt"; then echo "$D/out.txt"; fi
+    }
+    python3 "$P/extract_calls.py" "$CAND" "$O/calls-new.inc" >"$O/lines-new.txt" || { bad "extract candidate"; continue; }
+    OUT=$(run_new cand "$O/calls-new.inc")
+    if [ -z "$OUT" ]; then
+        bad "$CXX R candidate (0.57 header, lines $(cat "$O/lines-new.txt")) does not build/run (see $O/new-cand-$CXX/build.log)"
+        continue
+    fi
+    for ST in "" -off -trace; do
+        NO="${OUT%.txt}$ST.txt"
+        if cmp -s "$O/R-old$ST-$CXX.txt" "$NO"; then
+            ok "$CXX R[${ST:-on}] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)"
+        elif cmp -s <(sed 's/ sizes=.*//' "$O/R-old$ST-$CXX.txt") <(sed 's/ sizes=.*//' "$NO"); then
+            ok "$CXX R[${ST:-on}] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point"
+            echo "NOTE - $CXX R[${ST:-on}] MEASURED DIFFERENCE (host template internals): allocation sizes differ:"
+            diff <(grep -o "^stmt.*" "$O/R-old$ST-$CXX.txt") <(grep -o "^stmt.*" "$NO") | sed 's/^/       /'
+        else
+            bad "$CXX R[${ST:-on}] candidate differs:"; diff "$O/R-old$ST-$CXX.txt" "$NO" | head -20
+        fi
+    done
+    # ALT (informative): the only way to avoid the 0.57 template is to pre-format in the plugin and call the
+    # non-template (level, str) sink. Measure it to show whether it would preserve allocation behaviour.
+    cp "$O/calls-new.inc" "$O/alt-preformat.inc"
+    perl -0pi -e 's/Log::logger->log\(Log::DEBUG, "kwinish-bars", "/Log::logger->log(Log::DEBUG, std::format("[kwinish-bars] /g; s/\);(\n    \} break;)/));$1/g' "$O/alt-preformat.inc"
+    AOUT=$(run_new alt-preformat "$O/alt-preformat.inc")
+    if [ -n "$AOUT" ]; then
+        echo "INFO - $CXX ALT preformat: bytes $(cmp -s <(grep '|' "$O/R-old-$CXX.txt") <(grep '|' "$AOUT") && echo identical || echo differ); logs ON allocs: $(grep -o 'allocs=[0-9]* .*sizes=[0-9,]*' "$AOUT" | head -1); logs OFF allocs: $(grep "^stmt" "${AOUT%.txt}-off.txt" | grep -o "allocs=[0-9]*" | sort | uniq -c | tr '\n' ' ') (reference OFF: $(grep "^stmt" "$O/R-old-off-$CXX.txt" | grep -o "allocs=[0-9]*" | sort | uniq -c | tr '\n' ' '))"
+    else
+        echo "INFO - $CXX ALT preformat did not build"
+    fi
+
+    # RN: negative runtime variants of the candidate; each must build and must DIFFER from the reference.
+    # name | perl substitution applied to calls-new.inc
+    while IFS='|' read -r NAME SUB; do
+        [ -z "$NAME" ] && continue
+        cp "$O/calls-new.inc" "$O/neg-$NAME.inc"
+        perl -0pi -e "$SUB" "$O/neg-$NAME.inc"
+        if cmp -s "$O/calls-new.inc" "$O/neg-$NAME.inc"; then bad "$CXX RN $NAME: substitution did not change the calls"; continue; fi
+        NOUT=$(run_new "neg-$NAME" "$O/neg-$NAME.inc")
+        if [ -z "$NOUT" ]; then bad "$CXX RN $NAME: did not build/run (not a valid detection; see $O/new-neg-$NAME-$CXX/build.log)"; continue; fi
+        # Compare WITHOUT the sizes field (otherwise the known size difference would make every negative
+        # "differ"), across all three gate states; detected if any state differs.
+        SAME=1
+        for ST in "" -off -trace; do
+            cmp -s <(sed 's/ sizes=.*//' "$O/R-old$ST-$CXX.txt") <(sed 's/ sizes=.*//' "${NOUT%.txt}$ST.txt") || SAME=0
+        done
+        if [ $SAME = 1 ]; then bad "$CXX RN $NAME: wrong correspondence NOT detected"; else ok "$CXX RN $NAME: compiles, output differs (sizes ignored) -> rejected"; fi
+    done <<'EOF'
+LOGmacro|s/Log::logger->log\(Log::DEBUG, "kwinish-bars", /LOG(Log::DEBUG, /g
+bracketLoc|s/"kwinish-bars", /"[kwinish-bars]", /g
+doublePrefix|s/"kwinish-bars", "/"kwinish-bars", "[kwinish-bars] /g
+emptyLoc|s/"kwinish-bars", /"", /g
+levelWarn|s/Log::DEBUG/Log::WARN/
+levelTrace|s/Log::DEBUG/Log::TRACE/
+dropArg|s/, e\.what\(\)\);/, "?");/
+preformat|s/Log::logger->log\(Log::DEBUG, "kwinish-bars", "/Log::logger->log(Log::DEBUG, std::format("[kwinish-bars] /g; s/\);(\n    \} break;)/));$1/g
+EOF
+done
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"
+exit $FAIL
+
+```
+Proof the reference build used the 0.56.2 header (g++ -H): `. ../oldinc/hyprland/src/debug/log/Logger.hpp`. Also, the baseline (old-shape) statements fail to compile against the 0.57 header (red run below), so the reference could not have used it.
+
+### Red run (round-2 harness; candidate == baseline file) — non-OK lines
+```
+FAIL - g++ R candidate (0.57 header, lines 380 611 654 677 807) does not build/run (see /home/lhen/.hermes/cache/scratch/p6/probes/out/new-cand-g++/build.log)
+FAIL - clang++ R candidate (0.57 header, lines 380 611 654 677 807) does not build/run (see /home/lhen/.hermes/cache/scratch/p6/probes/out/new-cand-clang++/build.log)
+result: FAIL
+
+```
+### Green run (after the edit, round-3 harness)
+```
+OK   - g++ E positive exit 0
+OK   - g++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - g++ E NEG2 exit 1, expected diagnostic (2 error lines)
+OK   - g++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - g++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+OK   - g++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - g++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - g++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+INFO - g++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - g++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - g++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ E positive exit 0
+OK   - clang++ E NEG1 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ E NEG2 exit 1, expected diagnostic (1 error lines)
+OK   - clang++ R reference (0.56.2 header, baseline lines 380 611 654 677 807) built and ran
+OK   - clang++ R[on] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[on] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+OK   - clang++ R[-off] candidate byte-identical to 0.56.2 reference (bytes, level, eval order, alloc count+sizes, bad_alloc at each point)
+OK   - clang++ R[-trace] candidate identical to 0.56.2 reference in bytes, level, gating, eval order, alloc COUNT and bad_alloc at each point
+NOTE - clang++ R[-trace] MEASURED DIFFERENCE (host template internals): allocation sizes differ:
+       1,10c1,10
+       < stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='tile:left' allocs=2 seq=WA sizes=106,106,
+       < stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='tile:left' allocs=2 seq=>mae sizes=113,113,
+       < stmt 0 where='' allocs=2 seq=P sizes=40,40,
+       < stmt 1 where='' allocs=2 seq=WA sizes=101,101,
+       < stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+       < stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+       < stmt 4 where='' allocs=2 seq=>mae sizes=113,113,
+       ---
+       > stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='tile:left' allocs=2 seq=WA sizes=91,106,
+       > stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='tile:left' allocs=2 seq=>mae sizes=98,113,
+       > stmt 0 where='' allocs=2 seq=P sizes=31,40,
+       > stmt 1 where='' allocs=2 seq=WA sizes=86,101,
+       > stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+       > stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+       > stmt 4 where='' allocs=2 seq=>mae sizes=98,113,
+INFO - clang++ ALT preformat: bytes identical; logs ON allocs: allocs=1 seq=P sizes=40,; logs OFF allocs:      10 allocs=1  (reference OFF:      10 allocs=0 )
+OK   - clang++ RN LOGmacro: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN bracketLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN doublePrefix: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN emptyLoc: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelWarn: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN levelTrace: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN dropArg: compiles, output differs (sizes ignored) -> rejected
+OK   - clang++ RN preformat: compiles, output differs (sizes ignored) -> rejected
+result: PASS
+
+```
+### Reference output (0.56.2, g++, logs on)
+```
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='tile:left' allocs=2 seq=P sizes=40,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=tile:left
+stmt 1 where='tile:left' allocs=2 seq=AW sizes=106,106,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='tile:left' allocs=2 seq=Lw sizes=44,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='tile:left' allocs=2 seq=Lw sizes=48,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=113,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='' allocs=2 seq=P sizes=40,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=none
+stmt 1 where='' allocs=2 seq=AW sizes=101,101,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='' allocs=2 seq=Lw sizes=44,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='' allocs=2 seq=Lw sizes=48,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='' allocs=2 seq=e>ma sizes=113,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+
+```
+### Candidate output (0.57, g++, logs on)
+```
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='tile:left' allocs=2 seq=P sizes=31,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=tile:left
+stmt 1 where='tile:left' allocs=2 seq=AW sizes=91,106,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='tile:left' allocs=2 seq=Lw sizes=31,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='tile:left' allocs=2 seq=Lw sizes=33,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='tile:left' allocs=2 seq=e>ma sizes=98,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+  1|[kwinish-bars] Dragging ended on 55aa10
+stmt 0 where='' allocs=2 seq=P sizes=31,40,
+  fail@1 -> bad_alloc, emitted=no seq=P
+  fail@2 -> bad_alloc, emitted=no seq=P
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+  1|[kwinish-bars] snap check: window=7f00beef active=1234abcd cursor=(2e+03,-3) monitor=DP-1 where=none
+stmt 1 where='' allocs=2 seq=AW sizes=86,101,
+  fail@1 -> bad_alloc, emitted=no seq=AW
+  fail@2 -> bad_alloc, emitted=no seq=AW
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+  1|[kwinish-bars] Dragging ended on deadbeef00
+stmt 2 where='' allocs=2 seq=Lw sizes=31,44,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] Dragging initiated on deadbeef00
+stmt 3 where='' allocs=2 seq=Lw sizes=33,48,
+  fail@1 -> bad_alloc, emitted=no seq=Lw
+  fail@2 -> bad_alloc, emitted=no seq=Lw
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+  1|[kwinish-bars] icon lookup failed for org.kde.dolphin.with-a-long-app-id-beyond-sso: icon theme missing {braces}
+stmt 4 where='' allocs=2 seq=e>ma sizes=98,113,
+  fail@1 -> bad_alloc, emitted=no seq=e>ma
+  fail@2 -> bad_alloc, emitted=no seq=e>ma
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+
+```
+### Reference / candidate, logs off (g++)
+```
+stmt 0 where='tile:left' allocs=0 seq=P sizes=
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+stmt 1 where='tile:left' allocs=0 seq=AW sizes=
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+stmt 2 where='tile:left' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 3 where='tile:left' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 4 where='tile:left' allocs=0 seq=e>ma sizes=
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+stmt 0 where='' allocs=0 seq=P sizes=
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+stmt 1 where='' allocs=0 seq=AW sizes=
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+stmt 2 where='' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 3 where='' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 4 where='' allocs=0 seq=e>ma sizes=
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+
+---
+stmt 0 where='tile:left' allocs=0 seq=P sizes=
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+stmt 1 where='tile:left' allocs=0 seq=AW sizes=
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+stmt 2 where='tile:left' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 3 where='tile:left' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 4 where='tile:left' allocs=0 seq=e>ma sizes=
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+stmt 0 where='' allocs=0 seq=P sizes=
+  argthrow@P -> arg-exception, emitted=no allocs=0 seq=P
+stmt 1 where='' allocs=0 seq=AW sizes=
+  argthrow@A -> arg-exception, emitted=no allocs=0 seq=A
+  argthrow@W -> arg-exception, emitted=no allocs=0 seq=AW
+stmt 2 where='' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 3 where='' allocs=0 seq=Lw sizes=
+  argthrow@L -> arg-exception, emitted=no allocs=0 seq=L
+  argthrow@w -> arg-exception, emitted=no allocs=0 seq=Lw
+stmt 4 where='' allocs=0 seq=e>ma sizes=
+  argthrow@> -> arg-exception, emitted=no allocs=0 seq=e>
+  argthrow@m -> arg-exception, emitted=no allocs=0 seq=e>m
+  argthrow@a -> arg-exception, emitted=no allocs=0 seq=e>ma
+
+```
+### Example negative outputs (first line): LOG macro -> `  1|[runStmt] Dragging ended on 55aa10`; empty loc -> `  1|[] Dragging ended on 55aa10`
+
+### Probe E mutations (kill counted only if every error is a static assertion failure)
+```bash
+#!/usr/bin/env bash
+# Mutate probe_e_log.cpp assertions; a kill counts only if the mutant fails and
+# EVERY file-located error is a static assertion failure.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+M=$P/out/mut; mkdir -p "$M"
+export HOME=$P/home XDG_CACHE_HOME=$P/home/.cache
+FLAGS="-std=c++2b -Wno-c++11-narrowing $(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)"
+FAIL=0; N=0
+while IFS='|' read -r NAME FIND REPL; do
+    [ -z "$NAME" ] && continue
+    cp "$P/probe_e_log.cpp" "$M/$NAME.cpp"
+    F="$FIND" R="$REPL" perl -0pi -e 's/\Q$ENV{F}\E/$ENV{R}/' "$M/$NAME.cpp"
+    if cmp -s "$P/probe_e_log.cpp" "$M/$NAME.cpp"; then echo "FAIL - $NAME: unchanged"; FAIL=1; continue; fi
+    for CXX in g++ clang++; do
+        N=$((N+1))
+        $CXX $FLAGS -fsyntax-only "$M/$NAME.cpp" >"$M/$NAME.$CXX.log" 2>&1; RC=$?
+        TOT=$(grep -cE '^[^ ].*: error:' "$M/$NAME.$CXX.log")
+        SA=$(grep -E '^[^ ].*: error:' "$M/$NAME.$CXX.log" | grep -cE 'static assertion failed|static_assert failed')
+        if [ $RC -ne 0 ] && [ "$TOT" -gt 0 ] && [ "$TOT" = "$SA" ]; then echo "OK   - $NAME $CXX killed by static_assert ($SA)"; else echo "FAIL - $NAME $CXX rc=$RC errors=$TOT static=$SA"; FAIL=1; fi
+    done
+done <<'EOF'
+m1|static_assert(NewShape<uintptr_t>);|static_assert(!NewShape<uintptr_t>);
+m2|static_assert(!OldShape<uintptr_t>);|static_assert(OldShape<uintptr_t>);
+m3|static_assert(TrapBinds<>);|static_assert(!TrapBinds<>);
+m4|static_assert(Log::INFO == Log::DEBUG|static_assert(Log::INFO != Log::DEBUG
+m5|static_assert(Log::DEBUG == Hyprutils::CLI::LOG_DEBUG);|static_assert(Log::DEBUG != Hyprutils::CLI::LOG_DEBUG);
+m6|static_assert(NewShape<const std::string&, const char*>);|static_assert(!NewShape<const std::string&, const char*>);
+m7|static_assert(!OldShape<uintptr_t, uintptr_t|static_assert(OldShape<uintptr_t, uintptr_t
+m8|static_assert(NewShape<uintptr_t, uintptr_t|static_assert(!NewShape<uintptr_t, uintptr_t
+EOF
+echo "mutants run: $N; result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"
+exit $FAIL
+
+```
+```
+OK   - m1 g++ killed by static_assert (1)
+OK   - m1 clang++ killed by static_assert (1)
+OK   - m2 g++ killed by static_assert (1)
+OK   - m2 clang++ killed by static_assert (1)
+OK   - m3 g++ killed by static_assert (1)
+OK   - m3 clang++ killed by static_assert (1)
+OK   - m4 g++ killed by static_assert (1)
+OK   - m4 clang++ killed by static_assert (1)
+OK   - m5 g++ killed by static_assert (1)
+OK   - m5 clang++ killed by static_assert (1)
+OK   - m6 g++ killed by static_assert (1)
+OK   - m6 clang++ killed by static_assert (1)
+OK   - m7 g++ killed by static_assert (1)
+OK   - m7 clang++ killed by static_assert (1)
+OK   - m8 g++ killed by static_assert (1)
+OK   - m8 clang++ killed by static_assert (1)
+mutants run: 16; result: PASS
+
+```
+
+## Build / diagnostics comparison
+Isolated `make -C plugin TARGET=<scratch>` : exit 2 (expected; other families), 67 GCC error lines (P5: 73), 0 mentioning Log::/CLogger, no .so produced.
+Per-TU -fsyntax-only, no error limit. Baseline = full plugin copy with the P5 barDeco.cpp; reproduced P5's candidate logs exactly (GCC 73 == 73; Clang 96 == 96 with P5's flags).
+```
+== g++: base=73 cand=67 eliminated=6 persistent=67 new=0 base==P5-C:True
+-- eliminated:
+   barDeco.cpp:380 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   barDeco.cpp:611 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [92], uintptr_t, uintptr_t, const double&, const double&, std::string&, std::string)’
+   barDeco.cpp:654 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [38], uintptr_t)’
+   barDeco.cpp:677 x1: no matching function for call to ‘Log::CLogger::log(const Hyprutils::CLI::eLogLevel&, const char [42], uintptr_t)’
+   barDeco.cpp:807 x1: call to consteval function ‘std::basic_format_string<char, const char*>((* &(& W.Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow>::operator->()->Desktop::View::CWindow::metadata())->Desktop::View::CWindowMetadat
+   barDeco.cpp:807 x1: call to non-‘constexpr’ function ‘const std::string& Desktop::View::CWindowMetadata::appID() const’
+-- new:
+-- persistent by file:line (Log-related lines 380/611/654/677/807 only):
+-- persistent families (message, count):
+   x13: g_pKeybindManager was not declared in this scope; did you mean g_pXWaylandManager?
+   x7: class Render::IHyprRenderer has no member named m_renderPass; did you mean startRenderPass?
+   x4: no matching function for call to Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor&, 
+   x3: class Render::IHyprRenderer has no member named m_renderData
+   x3: no matching function for call to Render::GL::CHyprOpenGLImpl::renderTexture(SP<Render::ITexture>&, Hyprutils::
+   x3: class Desktop::View::CWindow has no member named roundingPower
+   x2: CONFIG_LEGACY is not a member of Config; did you mean CONFIG_LUA?
+   x2: virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CBarPassElement::draw() marked override,
+   x2: virtual bool CBarPassElement::needsLiveBlur() marked override, but does not override
+   x2: virtual bool CBarPassElement::needsPrecomputeBlur() marked override, but does not override
+   x2: virtual std::optional<Hyprutils::Math::CBox> CBarPassElement::boundingBox() marked override, but does not over
+   x2: virtual std::vector<Hyprutils::Memory::CUniquePointer<IPassElement> > CPreviewPassElement::draw() marked overr
+   x2: virtual bool CPreviewPassElement::needsLiveBlur() marked override, but does not override
+   x2: virtual bool CPreviewPassElement::needsPrecomputeBlur() marked override, but does not override
+   x2: virtual std::optional<Hyprutils::Math::CBox> CPreviewPassElement::boundingBox() marked override, but does not 
+   x2: HL_MODIFIER_SHIFT was not declared in this scope
+   x2: no matching function for call to Render::GL::CHyprOpenGLImpl::scissor(std::nullptr_t)
+   x1: class Desktop::View::CWindow has no member named m_X11DoesntWantBorders
+   x1: class Desktop::View::CWindow has no member named m_windowDecorations
+   x1: invalid initialization of reference of type SP<IHyprWindowDecoration>&& {aka Hyprutils::Memory::CSharedPointer
+   x1: class Desktop::View::CWindow has no member named updateWindowDecos; did you mean updateWindowData?
+   x1: no matching function for call to Hyprutils::Signal::CSignalT<Event::SRenderStageEvent>::listen(pluginInit(void
+   x1: bool Desktop::View::CWindow::m_isMapped is private within this context
+   x1: invalid new-expression of abstract class type CHyprBar
+   x1: no matching function for call to Render::GL::CHyprOpenGLImpl::scissor(Hyprutils::Math::CBox&)
+   x1: no matching function for call to Render::GL::CHyprOpenGLImpl::renderRect(Hyprutils::Math::CBox&, CHyprColor, <
+   x1: invalid new-expression of abstract class type CPreviewPassElement
+   x1: invalid new-expression of abstract class type CBarPassElement
+   x1: no matching function for call to Render::GL::CHyprOpenGLImpl::renderRect(const Hyprutils::Math::CBox&, CHyprCo
+== clang++: base=92 cand=87 eliminated=5 persistent=87 new=0 base==P5-C:False
+   base-P5 diff: +0 -4
+-- eliminated:
+   barDeco.cpp:380 x1: no matching member function for call to 'log'
+   barDeco.cpp:611 x1: no matching member function for call to 'log'
+   barDeco.cpp:654 x1: no matching member function for call to 'log'
+   barDeco.cpp:677 x1: no matching member function for call to 'log'
+   barDeco.cpp:807 x1: call to consteval function 'std::basic_format_string<char, const char *>::basic_format_string<std::basic_string<char>>' is not a constant expression
+-- new:
+-- persistent by file:line (Log-related lines 380/611/654/677/807 only):
+-- persistent families (message, count):
+   x18: use of undeclared identifier g_pKeybindManager; did you mean g_pXWaylandManager?
+   x10: no member named changeMouseBindMode in CHyprXWaylandManager
+   x8: no member named m_dispatchers in CHyprXWaylandManager
+   x7: no member named m_renderPass in Render::IHyprRenderer
+   x6: too few arguments to function call, expected 4, have 3
+   x4: draw marked override but does not override any member functions
+   x4: needsLiveBlur marked override but does not override any member functions
+   x4: needsPrecomputeBlur marked override but does not override any member functions
+   x4: boundingBox marked override but does not override any member functions
+   x3: no member named m_renderData in Render::IHyprRenderer
+   x3: no matching member function for call to scissor
+   x3: no member named roundingPower in Desktop::View::CWindow
+   x2: no member named CONFIG_LEGACY in namespace Config; did you mean CONFIG_LUA?
+   x2: use of undeclared identifier HL_MODIFIER_SHIFT; did you mean Input::HL_MODIFIER_SHIFT?
+   x1: no member named m_X11DoesntWantBorders in Desktop::View::CWindow
+   x1: no member named m_windowDecorations in Desktop::View::CWindow
+   x1: no viable conversion from typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type 
+   x1: no member named updateWindowDecos in Desktop::View::CWindow
+   x1: no matching member function for call to listen
+   x1: m_isMapped is a private member of Desktop::View::CWindow
+   x1: allocating an object of abstract class type CHyprBar
+   x1: allocating an object of abstract class type CPreviewPassElement
+   x1: allocating an object of abstract class type CBarPassElement
+
+clang (P5 flags, no -Wno-c++11-narrowing): base=96 cand=91 P5-C=96 base==P5-C:True eliminated=5 persistent=91 new=0
+  eliminated ('barDeco.cpp', 380, "no matching member function for call to 'log'")
+  eliminated ('barDeco.cpp', 611, "no matching member function for call to 'log'")
+  eliminated ('barDeco.cpp', 654, "no matching member function for call to 'log'")
+  eliminated ('barDeco.cpp', 677, "no matching member function for call to 'log'")
+  eliminated ('barDeco.cpp', 807, "call to consteval function 'std::basic_format_string<char, const char *>::basic_format_string<std::basic_string<char>>' is not a constant expression")
+
+```
+(Clang with the Makefile's -Wno-c++11-narrowing: 92 -> 87; the 4-line difference to 96 is exactly the narrowing diagnostics at barDeco.cpp:88, 1011, 1076x2.)
+
+Geometry regressions (tools/test-plugin-geometry.sh, GCC and Clang): exit 0, 320762 checks, 13 negatives + header mutations rejected. Tooltip test: exit 0.

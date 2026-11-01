@@ -1,0 +1,1902 @@
+You are an independent reviewer (review round 1) of an IMPLEMENTATION step (P8-A) of the port of the Hyprland plugin "kwinish-bars" from Hyprland 0.56.2 to 0.57.0. You have NO tools; judge only the material below. Be adversarial and concrete, reproduce any counterexample from the material, but do NOT demand identity of host-internal details that are not part of Kwinish's observable requirements.
+
+## Owner authorization and decisions (binding)
+- Implement K4-K8 and K10-K13 of the P7 mapping (legacy dispatchers -> Config::Actions / executor). K1-K3 and K9 (drag, changeMouseBindMode, "mouse 0movewindow") are OUT of scope (next step P8-B, gated on this review). Q4/session ownership/unload is a separate change.
+- RD risks of P7 §6 are accepted CONDITIONALLY, only to allow incremental implementation and tests; they are NOT resolved.
+- Preserve binds:drag_center_window; preserve K2 (window under the cursor); NO deliberate functional change in focus or minimization.
+- "Inspect ActionResult and handle failures explicitly, without excessive logging."
+- K11: pay attention to minimize and focus fallback; do not silently change Kwinish's minimization policy.
+- K13: preserve the previous logic of ignoring/handling unknown dispatchers per the existing contract.
+- Classes: BC = violates a written Kwinish requirement (OpenSpec, docs/API.md, docs/CONFIGURAVEL.md); RD = observable difference outside written requirements needing a test + owner acceptance; DI = internal.
+
+## Questions
+1. Is each replacement equivalent to the 0.56.2 dispatcher path in arguments, window selection, guards and call order? Any case where the new code acts on a different window or with different arguments?
+2. Is the ActionResult handling explicit, non-excessive and free of control-flow change? Any log flood path, wrong level, or failure that is silently swallowed?
+3. K11 and K13: is the minimization/focus policy unchanged by the plugin (differences only from the host and documented)? Is the unknown-dispatcher semantic handled per the contract?
+4. Are the tests (host-free suite, fake-host equivalence with verbatim translator, mutations, real-header probe, unmasked error comparison) sound, or can a wrong implementation pass them? Name concrete surviving mutants if any.
+5. Are the document's claims (P8-DISPATCHERS.md) accurate against the evidence? Anything overstated?
+6. actionGate.hpp: state, counters (overflow), timing (steady_clock, window edges, clock going backwards), concurrency (Hyprland runs these on its single event-loop thread; say if you see any multi-thread path in the material).
+7. Lifetime and unload: do the new helpers introduce state, callbacks, timers or references that survive or run after the plugin is unloaded (inline globals in a dlopen'ed module, static locals, captured pointers)?
+8. Effects of removing dispatchIfKnown (third-party plugin override/removal, unknown names).
+9. Do the test results really exercise the real code (extraction from the real barDeco.cpp, real hostActions.hpp, the 0.56.2 translator verbatim)? Any place where the harness tests a copy rather than the shipped code?
+
+Answer as JSON: {"verdict":"approve"|"reject","findings":[{"severity":"blocker|major|minor","class":"BC|RD|DI|test|doc","where":"file/line/section","claim":"...","evidence":"quote from the material"}],"notes":"..."}. "reject" only for findings that make the implementation wrong, unsafe, or insufficiently tested for this step; mark speculation as such.
+
+## Document P8-DISPATCHERS.md
+# P8-A — Dispatchers do Kwinish sobre Hyprland 0.57 (30/10/2026)
+
+Escopo autorizado (dono, P8-A): implementar K4–K8 e K10–K13 de [P7](P7-KEYBINDS.md) §3, em alterações pequenas, com testes. **Fora do escopo e não tocados:** K1–K3 e K9 (drag; P8-B, depende de revisão desta etapa), Q4/posse por sessão/unload, render/GL, hooks, lifecycle. Nenhum plugin carregado, nenhum teste gráfico ou ao vivo, nada instalado, nenhum commit. Legenda como em P7: `O:` = fonte 0.56.2, `U:` = 0.57.0 `0aa6745f` (= headers instalados), `H:` = header instalado; linhas do plugin = worktree após esta etapa.
+
+**Decisões do dono aplicadas:** os RD de P7 §6 foram aceitos **condicionalmente**, só para a implementação incremental e os testes; **não estão resolvidos**. `binds:drag_center_window` preservado (não tocado). K2 mantém a janela sob o cursor (não tocado nesta etapa). Sem mudança funcional deliberada em foco ou minimização. `ActionResult` inspecionado, falhas tratadas explicitamente, sem log excessivo. Q4 separado.
+
+## 1. Antes do código
+
+**Assinaturas reais 0.57** (sonda A, `evidence/P8-probe-a.txt`, GCC+Clang): `floatWindow/pinWindow(eTogglableAction, optional<PHLWINDOW>)`, `move/resize(const Vector2D&, bool, optional<PHLWINDOW>)`, `fullscreenWindow(eFullscreenMode, bool layoutAware, optional<PHLWINDOW>)` (`H:ConfigActions.hpp:45`), `moveToWorkspace(const std::string&, bool, optional<PHLWINDOW>)` (`:49`), todas → `ActionResult = std::expected<SActionResult{passEvent}, SConfigError{message, level, code}>`; `executor()->spawn(const std::string&)` → `optional<uint64_t>`. Seleção de sobrecarga provada: `std::string` não converte para `PHLWORKSPACE`, `bool` não converte para `eFullscreenMode`, `std::string` não converte para `SExecRequest`. `FSMODE_MAXIMIZED=1`, `FSMODE_FULLSCREEN=2`; `TOGGLE/ENABLE/DISABLE = 0/1/2`.
+
+**Sondas existentes reexecutadas** (antes e depois): K de P7 36 OK + 26/26 mutações; P5 16/16 + 9 mutações; P6 30 OK + 16/16 mutações (extrai ainda exatamente as 5 chamadas de log de `barDeco.cpp`: nenhuma nova).
+
+**Semântica e retorno, O → U** (corpos extraídos e comparados com `diff`, `evidence/P8-host-diff.txt`):
+
+| Item | 0.56.2 (dispatcher legado) | 0.57 (chamada direta) | Classe |
+|---|---|---|---|
+| Seleção `"activewindow"` | `windowFromArg` → `selector("activewindow")` → `starts_with("active")` → `focusState()->window()` (`O:DispatcherTranslator.cpp:45`, `O:ViewQuery.cpp:100`) | `std::nullopt` → `xtract` = `value_or(focusState()->window())` (`U:ConfigActions.cpp:57`, idêntico a `O:47`) ou o próprio `focusState()->window()` em K5/K7 | igual (mesma janela, avaliada no mesmo momento) |
+| `floatWindow` | — | só `m_isFloating`→`isFloating()` e `changeMouseBindMode(INVALID)`→`endDragTarget()` | DI (P7) |
+| `pinWindow` | — | estado em `m_state`, `stateTracker().scheduleUpdate()`, IPC via `Socket2` | DI (P7) |
+| `move`, `resize`, `fullscreenWindow`, `closeWindow`, `parseWindowVectorArgsRelative`, `spawn` | — | corpos idênticos (parser e executor: só macro de log) | DI |
+| `moveToWorkspace` silencioso | `resolveWorkspace` do tradutor → `(PHLWORKSPACE)`; foco: janela sob o antigo centro, senão `g_pInputManager->refocus()` | `findOrCreateWorkspace` + `ready()`; guarda nova `window->m_workspace != POLDWS`; sem janela sob o centro foca `POLDWS->getFirstWindow()` (ou nada); suspende *pointer constraints* | **RD** (foco; aceito condicionalmente) |
+| Retorno | `SDispatchResult{success,error}` via `wrap`, **descartado** pelo plugin | `ActionResult` **inspecionado** (§3) | mudança de diagnóstico, pedida pelo dono |
+| Nome inexistente (K13) | `dispatchIfKnown`: no-op se o nome não estiver no mapa | não há mapa; chamadas tipadas | DI (§4) |
+
+Erros possíveis das ações usadas (U): `pinWindow` "does not qualify"/"no monitor"/"no active workspace"/"no layout target" (WARNING), `move/resize` "Window is fullscreen" (WARNING), `resize` "Invalid size" (ERROR), `moveToWorkspace` "No workspace to move to" (WARNING). Janela nula → `{}` (sucesso) em todas. `passEvent` nunca é `true` nelas; era e continua ignorado.
+
+## 2. Mudança
+
+Arquivos: `plugin/barDeco.cpp` (M; sobre P5+P6), `plugin/hostActions.hpp`, `plugin/actionGate.hpp`, `plugin/test_actions.cpp`, `tools/test-plugin-actions.sh` (novos). `main.cpp` intocado. Diff: `evidence/P8-step2.diff` (passo 1 = K4–K8, passo 2 = K10–K13: `evidence/P8-step1.diff`).
+
+| # | Antes | Depois (`barDeco.cpp`) | Janela | Guardas |
+|---|---|---|---|---|
+| K4 | `["setfloating"]("activewindow")` | `KwAct::check(SITE_TOUCH_FLOAT, floatWindow(TOGGLE_ACTION_ENABLE))` :336 | focada | — |
+| K5 | `["resizewindowpixel"]("exact 50% 50%,activewindow")` | `KwAct::resizeFocused(SITE_TOUCH_RESIZE, "exact 50% 50%")` :337 | focada | sem janela → falha "resizeWindow: no window"; `SIZ.x<1\|\|SIZ.y<1` → "Invalid size" (verbatim do tradutor; NaN passa, como antes) |
+| K6 | `["pin"]("activewindow")` | `check(SITE_TOUCH_PIN, pinWindow(TOGGLE_ACTION_TOGGLE))` :339 | focada | — |
+| K7 | `["movewindowpixel"](format("exact {} {},activewindow", (int)…, (int)…))` | `KwAct::moveFocused(SITE_TOUCH_MOVE, exactPixelArg((int)…, (int)…))` :341 — mesmos casts, mesmo texto | focada | sem janela → "moveWindow: no window" |
+| K8 | `["settiled"]("activewindow")` | `check(SITE_TOUCH_TILE, floatWindow(TOGGLE_ACTION_DISABLE))` :379 | focada | — |
+| K10 | `dispatchIfKnown("fullscreen","1"/"0")` | `check(SITE_MAXIMIZE/SITE_FULLSCREEN, fullscreenWindow(FSMODE_MAXIMIZED/FSMODE_FULLSCREEN, true))` :703/:705 — o tradutor fazia exatamente `fullscreenWindow(MODE, true)` (1 arg → ramo *toggle*) | focada | — |
+| K11 | `dispatchIfKnown("movetoworkspacesilent","special:minimized")` | `check(SITE_MINIMIZE, moveToWorkspace(std::string{"special:minimized"}, true))` :707 | focada | — |
+| K12 | `dispatchIfKnown("exec", …)` ×2 | `KwAct::spawn(SITE_EXEC_BUTTON, action.substr(5))` :711, `KwAct::spawn(SITE_MENU, format("kwinish-ui menu 0x{:x} --at {},{}", …))` :815 | — | `nullopt` ou pid 0 = falha (mesmas mensagens do dispatcher `exec`, `O:DispatcherTranslator.cpp:65`) |
+| K13 | `dispatchIfKnown` | removido; ações desconhecidas continuam ignoradas pela cadeia `if/else` de `runAction` | — | — |
+
+A janela continua sendo a **focada**, não a da barra (em `runAction` o clique acabou de focá-la; no toque, como o tradutor). As chamadas pré-existentes `(void)Config::Actions::…` (`:315,:319,:580,:581,:618,:651,:693–701`) já eram 0.56.2/0.57 e **não** fazem parte de K4–K13: continuam descartando o resultado (estender a política a elas é decisão separada). K9 (`["mouse"]("0movewindow")`, :380) fica para P8-B; é o único `m_dispatchers` restante.
+
+## 3. Tratamento de `ActionResult` (política nova de diagnóstico)
+
+`KwAct::check(site, result)` (`hostActions.hpp`): sucesso → `true`. Falha → `false` e uma linha de log `[kwinish-bars] <site> failed: <mensagem> (<código>)` no nível que o **host** deu ao erro (ERROR→`Log::ERR`, WARNING→`Log::WARN`, INFO→`Log::DEBUG`; SILENT → nada). Limite: por site, a primeira falha é registrada; as seguintes dentro de 10 s da última linha só são contadas, e a próxima linha informa quantas foram omitidas (`actionGate.hpp`, `SFailureGate`, trivialmente destrutível; 10 sites fixos). **O resultado nunca muda o fluxo**: o chamador faz exatamente o que fazia antes (ex.: K4 falhou → K5/K6/K7 seguem, como com os dispatchers); o `bool` é ignorado nos chamadores. As guardas de K5/K7/K12 reproduzem as recusas do tradutor e passam pelo mesmo `check`. Nada é logado em sucesso; nenhuma das 5 linhas de log existentes mudou.
+
+## 4. K11 e K13 em detalhe
+
+**K11 (minimizar):** a política do Kwinish (`docs/API.md` §6: mover para `special:minimized` sem seguir) **não muda**: mesma janela (focada), mesmo nome (`U:state/workspace/Resolver.cpp:134–137`: `special:<nome>` → endereço/nome `special:minimized`, tipo SPECIAL), silencioso. Na 0.57 o núcleo Lua minimiza pela mesma rota (`hl.dsp.window.move{workspace="special:minimized", follow=false}` → `CA::moveToWorkspace(string, silent, w)`, `U:LuaBindingsDispatchers.cpp:467–471`); botão da barra e núcleo seguem iguais entre si, como na 0.56.2. **Diferença do host (RD, aceita condicionalmente, não resolvida):** depois de mover a janela focada, se não houver janela sob o centro antigo, a 0.57 foca `POLDWS->getFirstWindow()` (ou nada) em vez de `refocus()`; a guarda nova pula o refoco se a janela não saiu do workspace; *pointer constraints* suspensas durante a ação. O plugin não compensa (compensar seria mudar a política de foco). Teste ao vivo pendente (§6).
+
+**K13 (dispatcher desconhecido):** na 0.56.2 os quatro nomes usados (`fullscreen`, `movetoworkspacesilent`, `exec`) eram sempre registrados (`O:KeybindManager.cpp:42–113`); `dispatchIfKnown` só virava no-op se **outro plugin** removesse o nome (`O:PluginAPI.cpp:271`) e passava a chamar o substituto se outro plugin o sobrescrevesse (`:244,:260`). Com chamadas tipadas isso deixa de existir: remoção/sobrescrita por terceiros não afeta mais o Kwinish (DI; fora do contrato escrito). Ações de botão desconhecidas continuam ignoradas sem log (contrato `docs/API.md`/`CONFIGURAVEL.md` inalterado).
+
+## 5. Testes e resultados (execução real nesta sessão)
+
+- **Host-free** `tools/test-plugin-actions.sh` (novo; entra em `tools/check.sh` pelo glob `tools/test-*.sh`): vermelho antes do header (`evidence/P8-red-1.log`, não compila), verde GCC e Clang, 24 verificações: argumento `exact X Y` e truncamento dos casts, guarda `<1` (NaN passa), `spawnStarted`, porta de log (primeira, supressão, contagem, reinício, relógio para trás, sites independentes, janela 10 s, nomes distintos).
+- **Equivalência com host falso** (`evidence/P8-equiv.txt`): OLD = as 10 linhas antigas extraídas do `barDeco.cpp` P5+P6 + `dispatchIfKnown` + **corpos verbatim** do tradutor 0.56.2 (`wrap`, `windowFromArg`, `resolveWorkspace`, 8 dispatchers, `run`, registros); NEW = as 10 linhas novas extraídas do candidato + `hostActions.hpp` real. Mesmos falsos gravando cada chamada ao host com a janela **resolvida**. 10 instruções × 3 focos (janela da barra / outra / nenhuma) × 5 resultados (ok/info/warn/err/silent) × 3 parses (normal/<1/NaN) × 3 spawns (pid/0/nullopt) = **1350 cenários, traços idênticos** (GCC e Clang); repetição 3× sem mudar chamadas; oráculo de log independente: 876 cenários com exatamente 1 linha, 0 divergências. Vermelho antes da mudança (`P8-equiv-red.log`: 0 instruções novas).
+- **Mutações** (`evidence/P8-mutations.log`): 35 mutantes reais (argumentos, modos, `silent`, nome do workspace, janela da barra em vez da focada, GOAL→CURRENT, guarda removida, `relative`, níveis, SILENT, mensagem, `spawnStarted`, porta, nomes, janela de 10 s, contador): **35/35 mortos**, só com NEW compilando nos dois compiladores e falhando traço/oráculo (3 só pela suíte host-free: `<=1`, 10 s, reinício do contador). Um mutante mal formado (m21, `if` sem chaves) foi corrigido e reexecutado; não foi contado como morte.
+- **Sonda A** (headers 0.57 reais): 22 OK (positivo + 2 NEG com só o diagnóstico esperado, GCC+Clang), 16/16 mutações mortas só por `static_assert`.
+- **Build isolado** (`TARGET` em scratch, HOME/XDG temporários): `make` exit 2 (esperado: K1–K3/K9, render/GL), nenhum `.so`. Varredura por TU, chave (arquivo, texto da linha, mensagem), base = P5+P6: **GCC 67→63** (4 eliminados, **0 novos**), **Clang 87→73** (14 eliminados, **0 novos**); **0** erros em linhas `KwAct` e nos dois headers novos; o único erro de dispatcher restante é K9 (:380). Geometria GCC/Clang exit 0; tooltip exit 0.
+- **Não executados:** `tools/check.sh` (o `make` falha por itens fora do escopo), teste aninhado/ao vivo.
+
+**Limites da prova:** o host falso não executa a resolução real de workspace (os dois lados são reduzidos a "o nome alvo"), nem foco, layout, grupos ou IPC; ele prova argumentos, seleção de janela, guardas, ordem das chamadas e a política de log. Os corpos do host foram comparados por leitura/`diff` (§1), não executados.
+
+## 6. Pendências e teste do dono (quando o plugin compilar)
+
+O plugin **ainda não compila** na 0.57 (K1–K3/K9, render/GL), então nenhum teste ao vivo é possível agora. Roteiro para quando houver `.so` (V de P7 §3): botões maximizar/tela cheia (alternam na janela focada); minimizar → `hyprctl clients` mostra a janela em `special:minimized`, sem seguir, e anotar **qual janela recebe foco** (RD K11) com e sem janela sob o centro antigo; botão `exec:` e menu da janela abrem; arrasto por toque (flutuar, 50 %, fixar, seguir o dedo, voltar a ladrilhar ao sair da barra); com `hyprctl` ver no log no máximo uma linha `failed:` por site a cada 10 s (ex.: fixar uma janela em tela cheia por toque).
+
+## 7. Revisão independente
+
+(preenchida após as rodadas)
+
+
+## P7 mapping (for reference): docs/port-0-57/P7-KEYBINDS.md §3 rows K4-K13 and §6
+| # | Operação antiga (linhas) | API candidata 0.57 | Argumentos / retorno | Mudanças de comportamento | Dependências input / lifecycle | Testes | Impede equivalência | Classe |
+|---|---|---|---|---|---|---|---|---|
+| K1 | `changeMouseBindMode(MBIND_MOVE)` — `barDeco:674` (`handleMovement`), `:277` (`rearmDrag`), `:585` (fim do unsnap), `main:314` (`luaGrab` move) | corpo antigo reproduzido (§2), privado ao plugin | `eMouseBindMode` → resultado ignorado (hoje também). `beginDragTarget(...)` → `void` | Janela **ladrilhada**: posição inicial proporcional em vez de centrada (RD). Floating (rearm/unsnap): igual | Precisa do foco já na janela da barra (o plugin faz `fullWindowFocus` antes); hit-test pelo cursor, não pela janela da barra; `binds:drag_threshold`; sem lifecycle | H: sonda de tipos (feito); A/V: arrastar janela flutuante e ladrilhada pela barra, unsnap com rearm, `drag_threshold` 0 e >0, monitor com escala | Se o dono exigir centralização ao pegar janela ladrilhada: só com `binds:drag_center_window` (config global do usuário) ou reposicionamento próprio | RD |
+| K2 | `changeMouseBindMode(MBIND_RESIZE)` — `main:314` (`luaGrab` resize) | idem, `MODE = MBIND_RESIZE` | idem | `setXDGResizingState` → `setClientResizingState` via backend: troca de implementação, efeito visível ao cliente não demonstrado (DI); canto escolhido pela posição do cursor (igual) | `luaGrab` foca `w` mas o host redimensiona a janela **sob o cursor** — comportamento **herdado** da 0.56.2, não regressão do port; depende do cursor estar sobre `w` | A/V: menu → Redimensionar, com cursor sobre e fora da janela; Escape | Usar `w->layoutTarget()` em vez do hit-test **mudaria** a semântica (corrigiria o caso cursor-fora); decisão do dono | RD (herdado) |
+| K3 | `changeMouseBindMode(MBIND_INVALID)` — `barDeco:276, 564, 584, 628, 647`; `main:483` | `if (g_layoutManager->dragController()->target()) g_layoutManager->endDragTarget();` | `bool` (ignorável) | Nenhuma além de §2; encerra **qualquer** drag ativo, inclusive um iniciado por bind do usuário (igual à 0.56.2) | Release do botão chega pelo listener do plugin antes do host; se o plugin cancela o evento, só ele encerra o drag; `dragEnd` foca e pode agrupar | H: sonda; A/V: soltar sobre barra de grupo (`drag_into_group`), soltar em borda (snap), release órfão | — | DI |
+| K4 | `m_dispatchers["setfloating"]("activewindow")` — `barDeco:335` (toque) | `Config::Actions::floatWindow(TOGGLE_ACTION_ENABLE)` (janela ativa = `std::nullopt`) | → `ActionResult` (`std::expected`), descartar com `(void)` como já se faz em `barDeco:650`/`:697` | Corpo igual; 0.57 encerra drag via `endDragTarget()` em vez de `changeMouseBindMode(INVALID)` (DI). `"activewindow"` resolvia para a janela focada (`O:ViewQuery.cpp:100`) = `xtract(nullopt)` (`U:ConfigActions.cpp:57`) | Toque; foco atual | A: arrasto por toque (não testável sem dispositivo de toque → V) | — | DI |
+| K5 | `["resizewindowpixel"]("exact 50% 50%,activewindow")` — `:336` | `W = Desktop::focusState()->window()` (janela **focada**, com a guarda "sem janela" do tradutor; não trocar pela janela da barra) + `g_pCompositor->parseWindowVectorArgsRelative("exact 50% 50%", W->size(GOAL))` + `Actions::resize(SIZ, false, W)` com a guarda `SIZ.x<1\|\|SIZ.y<1` do tradutor | `Vector2D`; `ActionResult` | Nenhuma: parser idêntico (diff só no log), `resize` idêntico | idem K4 | H: sonda de tipos; V: toque | O plugin precisa reproduzir o pequeno embrulho do tradutor (seleção + guarda) | DI |
+| K6 | `["pin"]("activewindow")` — `:338` | `Actions::pinWindow(TOGGLE_ACTION_TOGGLE)` | `ActionResult` | Estado em `m_state` + `stateTracker().scheduleUpdate()` (DI) | idem | V: toque, trocar de workspace durante o arrasto | — | DI |
+| K7 | `["movewindowpixel"]("exact X Y,activewindow")` — `:340` | `parseWindowVectorArgsRelative("exact X Y", W->position(GOAL))` + `Actions::move(POS, false, W)` | idem | Nenhuma (`move` idêntico) | idem; a formatação `std::format("exact {} {}", …)` pode ser trocada por `Vector2D` direto **somente** mantendo os casts `(int)` atuais (coordenadas fracionárias mudariam a posição) | H; V | — | DI |
+| K8 | `["settiled"]("activewindow")` — `:378` | `Actions::floatWindow(TOGGLE_ACTION_DISABLE)` (já usado em `:650`) | idem | DI (como K4) | idem | V | — | DI |
+| K9 | `["mouse"]("0movewindow")` — `:379` | K3 (`endDragTarget` guardado) | — | 0.56.2: o `0` era descartado (`args.substr(1)`) e o efeito dependia de `m_passPressed`, que fora de um bind vale `-1` (`O:KeybindManager.cpp:804–814`) → encerrava o drag. O candidato faz isso de forma determinística | idem | V: toque saindo da barra | Se `onMouseMove` fosse chamado **durante** um bind (`m_passPressed==1`), o antigo **iniciaria** um drag; o candidato não. Não há caminho conhecido para isso (hipótese) | DI |
+| K10 | `dispatchIfKnown("fullscreen","1"/"0")` — `:705/:707` | `Actions::fullscreenWindow(FSMODE_MAXIMIZED / FSMODE_FULLSCREEN, true)` | `ActionResult` | Corpo idêntico (12 linhas, diff vazio) | Janela focada pelo clique | V: maximizar/tela cheia pelos botões | — | DI |
+| K11 | `dispatchIfKnown("movetoworkspacesilent","special:minimized")` — `:709` | `Actions::moveToWorkspace("special:minimized", true)` (sobrecarga `string` nova) | `ActionResult` | Resolução do workspace mudou (`resolveWorkspace` → `findOrCreateWorkspace` + `ready()`); no modo silencioso, se a janela estava focada, as duas versões focam a janela sob o antigo centro dela; **sem janela ali**, a 0.57 foca a primeira janela do workspace antigo (ou nenhuma) em vez de `g_pInputManager->refocus()`; suspende *pointer constraints* durante a ação | `docs/API.md` §6 (nome `special:minimized`, sem seguir) e o núcleo Lua (`core/kwinish.lua:432,775`) dependem do **nome** do workspace | V: minimizar pelo botão → janela em `special:minimized` (`hyprctl clients`), sem seguir; dock/núcleo continuam reconhecendo; ver qual janela recebe foco | Foco pós-minimizar diferente: fora do contrato escrito (RD). Nome do workspace: contrato — precisa ser verificado | RD |
+| K12 | `dispatchIfKnown("exec", cmd)` — `:713`, `:817` | `Config::Supplementary::executor()->spawn(cmd)` | `optional<uint64_t>` | `spawn` idêntico (diff vazio) | — | V: botão `exec:` e menu da janela | — | DI |
+| K13 | `dispatchIfKnown` (no-op se o nome não existe; resultado do dispatcher descartado) | chamadas diretas tipadas | Actions → `ActionResult`; `spawn` → `optional<uint64_t>` | Some só a busca por nome (o conjunto é fixo e conhecido). Os erros já existiam (o tradutor convertia `ActionResult` em `SDispatchResult{.success=false}`) e já eram descartados: descartar com `(void)` mantém o comportamento | — | H | Logar erros antes descartados é **mudança de política de diagnóstico**, separada da troca de API (se adotada: com limitação de frequência, como a decisão `nullopt`) | DI |
+## 6. Condições que impedem equivalência estrita (resumo)
+
+1. **Posição inicial ao pegar janela ladrilhada/fullscreen** (K1): o host 0.57 mudou o algoritmo; a centralização antiga só volta com `binds:drag_center_window` (config do usuário) ou código próprio. RD.
+2. **Limiar de arrasto em coordenadas não transformadas** e **release órfão encerra o drag**: mudanças do host. RD.
+3. **Foco após minimizar** (K11): mudança do `moveToWorkspace` silencioso. RD. O nome `special:minimized` é contrato e precisa de verificação.
+4. Nenhum **BC identificado nas fontes revisadas** (OpenSpec `title-bar`, `window-snapping`, `snap-assist`, `workspace-modes`; `docs/API.md`; `docs/CONFIGURAVEL.md`): nenhuma operação viola requisito escrito. Isso não é prova de ausência de BC fora dessas fontes; o nome `special:minimized` (API §6) e `grab:<move|resize>` (API §3) precisam do teste ao vivo. Os itens RD precisam de aceite explícito do dono e de teste ao vivo; até lá, **não** são "riscos aceitos".
+
+
+## Code diff barDeco.cpp (base = P5+P6 state, uncommitted earlier steps)
+--- /home/lhen/.hermes/cache/scratch/p8/pre/barDeco.cpp	2026-10-30 15:41:30.146655420 +0000
++++ /home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/barDeco.cpp	2026-10-30 15:55:07.694341499 +0000
+@@ -33,6 +33,7 @@
+ #include <hyprland/src/render/pass/TexPassElement.hpp>
+ 
+ #include "globals.hpp"
++#include "hostActions.hpp"
+ #include "BarPassElement.hpp"
+ #include "icon.hpp"
+ #include "PreviewPassElement.hpp"
+@@ -331,13 +332,13 @@
+     const auto COORDS = Vector2D(PMONITOR->m_position.x + e.pos.x * PMONITOR->m_size.x, PMONITOR->m_position.y + e.pos.y * PMONITOR->m_size.y);
+ 
+     if (!m_bDraggingThis) {
+-        // Initial setup for dragging a window.
+-        g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");
+-        g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");
++        // Initial setup for dragging a window (the focused one, as the "activewindow" dispatchers did).
++        KwAct::check(KwAct::SITE_TOUCH_FLOAT, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE));
++        KwAct::resizeFocused(KwAct::SITE_TOUCH_RESIZE, "exact 50% 50%");
+         // pin it so you can change workspaces while dragging a window
+-        g_pKeybindManager->m_dispatchers["pin"]("activewindow");
++        KwAct::check(KwAct::SITE_TOUCH_PIN, Config::Actions::pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE));
+     }
+-    g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
++    KwAct::moveFocused(KwAct::SITE_TOUCH_MOVE, KwAct::exactPixelArg((int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y));
+     m_bDraggingThis = true;
+     warnIfNoCore();
+ }
+@@ -375,7 +376,7 @@
+ 
+         if (m_bDraggingThis) {
+             if (m_bTouchEv)
+-                g_pKeybindManager->m_dispatchers["settiled"]("activewindow");
++                KwAct::check(KwAct::SITE_TOUCH_TILE, Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));
+             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+             Log::logger->log(Log::DEBUG, "kwinish-bars", "Dragging ended on {:x}", (uintptr_t)PWINDOW.get());
+         }
+@@ -680,12 +681,9 @@
+ 
+ // Built-in actions run inside the compositor, so they cannot go stale when Hyprland's dispatcher syntax changes
+ // (upstream hyprbars shells out, which broke the Ryoku buttons on the Lua-era Hyprland).
+-// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>.
+-static void dispatchIfKnown(const std::string& name, const std::string& arg) {
+-    if (g_pKeybindManager->m_dispatchers.contains(name))
+-        g_pKeybindManager->m_dispatchers[name](arg);
+-}
+-
++// action: close maximize fullscreen minimize float pin raise lower menu, or exec:<shell command>; anything else is ignored.
++// maximize, fullscreen and minimize act on the focused window (the click just focused the bar's), as the 0.56.2
++// dispatchers did; a failure is logged (hostActions.hpp) and changes nothing else.
+ void CHyprBar::runAction(const std::string& action) {
+     const auto W = m_pWindow.lock();
+     if (!W)
+@@ -702,15 +700,15 @@
+     else if (action == "lower")
+         (void)Config::Actions::alterZOrder("bottom", W);
+     else if (action == "maximize")
+-        dispatchIfKnown("fullscreen", "1"); // the window was just focused by the click
++        KwAct::check(KwAct::SITE_MAXIMIZE, Config::Actions::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)); // the window was just focused by the click
+     else if (action == "fullscreen")
+-        dispatchIfKnown("fullscreen", "0");
++        KwAct::check(KwAct::SITE_FULLSCREEN, Config::Actions::fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true));
+     else if (action == "minimize")
+-        dispatchIfKnown("movetoworkspacesilent", "special:minimized");
++        KwAct::check(KwAct::SITE_MINIMIZE, Config::Actions::moveToWorkspace(std::string{"special:minimized"}, true));
+     else if (action == "menu")
+         openMenu(g_pInputManager->getMouseCoordsInternal().x, assignedBoxGlobal().y + assignedBoxGlobal().h);
+     else if (action.starts_with("exec:"))
+-        dispatchIfKnown("exec", action.substr(5));
++        KwAct::spawn(KwAct::SITE_EXEC_BUTTON, action.substr(5));
+ }
+ 
+ // One layout for hit tests, hover, drawing and the title: left items (app icon, then left buttons) from the left edge,
+@@ -814,7 +812,7 @@
+     const auto W = m_pWindow.lock();
+     if (!W)
+         return;
+-    dispatchIfKnown("exec", std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
++    KwAct::spawn(KwAct::SITE_MENU, std::format("kwinish-ui menu 0x{:x} --at {},{}", (uintptr_t)W.get(), (int)x, (int)y));
+ }
+ 
+ bool CHyprBar::doButtonPress(Config::INTEGER barPadding, Config::INTEGER barButtonPadding, Config::INTEGER barHeight, Vector2D COORDS, const bool BUTTONSRIGHT) {
+
+
+## New files
+
+######## plugin/hostActions.hpp ########
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+// The bar's host actions on Hyprland 0.57, replacing the 0.56.2 legacy dispatchers (g_pKeybindManager->m_dispatchers).
+// Each wrapper keeps what the dispatcher translator did around the Config::Actions call (window selection, argument
+// parsing, guards) and inspects the result: a failure is logged through a per-site gate (actionGate.hpp), never more
+// than one line per site every FAILURE_LOG_WINDOW. A failure never changes what the caller does next, as before.
+// Map and differences: docs/port-0-57/P8-DISPATCHERS.md.
+#pragma once
+
+#include "actionGate.hpp"
+
+#include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+#include <hyprland/src/config/supplementary/executor/Executor.hpp>
+#include <hyprland/src/debug/log/Logger.hpp>
+#include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+
+#include <array>
+#include <chrono>
+#include <format>
+#include <string>
+
+namespace KwAct {
+    inline std::array<SFailureGate, SITE_COUNT> g_failureGates{};
+
+    // true if the action succeeded. A failure is logged at the level the host gave it (SILENT: not logged).
+    inline bool check(eSite site, const Config::Actions::ActionResult& result) {
+        if (result)
+            return true;
+        const auto& E = result.error();
+        if (E.level == Config::eConfigErrorLevel::SILENT || site >= SITE_COUNT)
+            return false;
+        const auto SKIPPED = g_failureGates[site].admit(std::chrono::steady_clock::now());
+        if (!SKIPPED)
+            return false;
+        const auto LEVEL = E.level == Config::eConfigErrorLevel::ERROR ? Log::ERR : E.level == Config::eConfigErrorLevel::WARNING ? Log::WARN : Log::DEBUG;
+        if (*SKIPPED == 0)
+            Log::logger->log(LEVEL, "kwinish-bars", "{} failed: {} ({})", siteName(site), E.message, Config::toString(E.code));
+        else
+            Log::logger->log(LEVEL, "kwinish-bars", "{} failed: {} ({}); {} earlier failure(s) not logged", siteName(site), E.message, Config::toString(E.code), *SKIPPED);
+        return false;
+    }
+
+    // 0.56.2 resizewindowpixel "<cmd>,activewindow": the focused window (not necessarily the bar's), the size parsed
+    // relative to its goal size, refused below 1x1.
+    inline bool resizeFocused(eSite site, const std::string& cmd) {
+        const auto W = Desktop::focusState()->window();
+        if (!W)
+            return check(site, Config::Actions::actionError("resizeWindow: no window", Config::eConfigErrorLevel::WARNING, Config::eConfigErrorCode::NO_TARGET));
+        const auto SIZ = g_pCompositor->parseWindowVectorArgsRelative(cmd, W->size(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+        if (!usableSize(SIZ.x, SIZ.y))
+            return check(site, Config::Actions::actionError("Invalid size", Config::eConfigErrorLevel::ERROR, Config::eConfigErrorCode::INVALID_ARGUMENT));
+        return check(site, Config::Actions::resize(SIZ, false, W));
+    }
+
+    // 0.56.2 movewindowpixel "<cmd>,activewindow": the focused window, the position parsed relative to its goal position.
+    inline bool moveFocused(eSite site, const std::string& cmd) {
+        const auto W = Desktop::focusState()->window();
+        if (!W)
+            return check(site, Config::Actions::actionError("moveWindow: no window", Config::eConfigErrorLevel::WARNING, Config::eConfigErrorCode::NO_TARGET));
+        const auto POS = g_pCompositor->parseWindowVectorArgsRelative(cmd, W->position(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+        return check(site, Config::Actions::move(POS, false, W));
+    }
+
+    // 0.56.2 exec: the executor's spawn, a failure being no pid or pid 0 (same messages as the old dispatcher).
+    inline bool spawn(eSite site, const std::string& cmd) {
+        const auto PROC = Config::Supplementary::executor()->spawn(cmd);
+        if (spawnStarted(PROC))
+            return true;
+        return check(site,
+                     Config::Actions::actionError(PROC ? std::format("Failed to start process {}", cmd) : std::format("Failed to start process. No closing bracket in exec rule. {}", cmd),
+                                                  Config::eConfigErrorLevel::ERROR, Config::eConfigErrorCode::EXECUTION_FAILED));
+    }
+}
+
+######## plugin/actionGate.hpp ########
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+// The part of the bar's host actions that needs no compositor: the arguments and guards the 0.56.2 dispatcher
+// translator applied, and the gate that keeps action-failure diagnostics from flooding the log. The Hyprland side
+// is hostActions.hpp. Tested by tools/test-plugin-actions.sh.
+#pragma once
+
+#include <array>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <format>
+#include <optional>
+#include <string>
+#include <string_view>
+
+namespace KwAct {
+    // Where a host action is called from; each site has its own failure-log gate.
+    enum eSite : uint8_t {
+        SITE_TOUCH_FLOAT = 0, // K4  touch drag start: float the focused window
+        SITE_TOUCH_RESIZE,    // K5  touch drag start: exact 50% 50%
+        SITE_TOUCH_PIN,       // K6  touch drag start: pin toggle
+        SITE_TOUCH_MOVE,      // K7  touch drag: move to the finger
+        SITE_TOUCH_TILE,      // K8  touch drag left the bar: tile again
+        SITE_MAXIMIZE,        // K10 maximize button
+        SITE_FULLSCREEN,      // K10 fullscreen button
+        SITE_MINIMIZE,        // K11 minimize button
+        SITE_EXEC_BUTTON,     // K12 exec:<cmd> button
+        SITE_MENU,            // K12 window menu (kwinish-ui)
+        SITE_COUNT,
+    };
+
+    inline std::string_view siteName(eSite s) {
+        static constexpr std::array<std::string_view, SITE_COUNT> NAMES = {
+            "touch float", "touch resize", "touch pin", "touch move", "touch tile", "maximize", "fullscreen", "minimize", "exec button", "window menu",
+        };
+        return s < SITE_COUNT ? NAMES[s] : "?";
+    }
+
+    // "exact X Y": the movewindowpixel argument the 0.56.2 call built, without the ",activewindow" selector.
+    // The caller keeps its (int) casts so fractional coordinates are truncated exactly as before.
+    inline std::string exactPixelArg(int x, int y) {
+        return std::format("exact {} {}", x, y);
+    }
+
+    // The resizewindowpixel guard of the 0.56.2 translator, verbatim: refuse if SIZ.x < 1 || SIZ.y < 1 (NaN passes).
+    inline bool usableSize(double x, double y) {
+        return !(x < 1 || y < 1);
+    }
+
+    // The 0.56.2 exec dispatcher reported success as PROC.has_value() && PROC.value() > 0.
+    inline bool spawnStarted(const std::optional<uint64_t>& pid) {
+        return pid.has_value() && *pid > 0;
+    }
+
+    inline constexpr std::chrono::steady_clock::duration FAILURE_LOG_WINDOW = std::chrono::seconds(10);
+
+    // One per call site. The first failure is logged; later ones inside FAILURE_LOG_WINDOW of the last logged line are
+    // only counted, and the next logged line reports how many were skipped. Trivially destructible (safe at unload).
+    struct SFailureGate {
+        std::optional<std::chrono::steady_clock::time_point> last;
+        uint64_t                                             suppressed = 0;
+
+        // nullopt: do not log this one. Otherwise log it, together with the returned number of skipped failures.
+        std::optional<uint64_t> admit(std::chrono::steady_clock::time_point now) {
+            if (last && now < *last + FAILURE_LOG_WINDOW) {
+                ++suppressed;
+                return std::nullopt;
+            }
+            const uint64_t SKIPPED = suppressed;
+            last                   = now;
+            suppressed             = 0;
+            return SKIPPED;
+        }
+    };
+}
+
+######## plugin/test_actions.cpp ########
+// SPDX-License-Identifier: MIT
+// Part of kwinish (Copyright (c) 2026 lhen).
+// Tests for actionGate.hpp (no Hyprland): bash tools/test-plugin-actions.sh
+#include "actionGate.hpp"
+
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <limits>
+#include <optional>
+#include <string>
+
+static int fails = 0;
+
+static void check(bool okay, const std::string& what) {
+    std::printf("%s - %s\n", okay ? "ok" : "FALHOU", what.c_str());
+    fails += okay ? 0 : 1;
+}
+
+int main() {
+    using namespace std::chrono_literals;
+    using clk = std::chrono::steady_clock;
+
+    // K7: the pixel argument the 0.56.2 call built, minus ",activewindow"; the (int) casts stay at the call site
+    check(KwAct::exactPixelArg(10, 20) == "exact 10 20", "exact pixel argument");
+    check(KwAct::exactPixelArg(-3, 0) == "exact -3 0", "negative coordinate kept");
+    check(KwAct::exactPixelArg((int)-3.7, (int)7.9) == "exact -3 7", "casts truncate toward zero, as before");
+
+    // K5: the translator's guard (resizewindowpixel): SIZ.x < 1 || SIZ.y < 1 refuses
+    check(KwAct::usableSize(1, 1), "1x1 is usable");
+    check(KwAct::usableSize(800, 600), "800x600 is usable");
+    check(!KwAct::usableSize(0.999, 600), "width below 1 refused");
+    check(!KwAct::usableSize(800, 0), "height 0 refused");
+    check(!KwAct::usableSize(-5, -5), "negative refused");
+    const double NAN_ = std::numeric_limits<double>::quiet_NaN();
+    check(KwAct::usableSize(NAN_, 600), "NaN passes, exactly like the translator's comparison");
+
+    // K12: the 0.56.2 exec dispatcher reported success = PROC.has_value() && PROC.value() > 0
+    check(!KwAct::spawnStarted(std::nullopt), "spawn nullopt is a failure");
+    check(!KwAct::spawnStarted(std::optional<uint64_t>{0}), "spawn pid 0 is a failure");
+    check(KwAct::spawnStarted(std::optional<uint64_t>{4242}), "spawn pid > 0 is a success");
+
+    // failure diagnostics: first failure logged, then at most one line per window per site, with the count skipped
+    {
+        KwAct::SFailureGate g;
+        const auto          T0 = clk::time_point{} + 1000s;
+        auto                a  = g.admit(T0);
+        check(a.has_value() && *a == 0, "first failure is logged, nothing suppressed");
+        check(!g.admit(T0 + 1s).has_value(), "second failure inside the window is suppressed");
+        check(!g.admit(T0 + 9s).has_value(), "third failure inside the window is suppressed");
+        a = g.admit(T0 + KwAct::FAILURE_LOG_WINDOW);
+        check(a.has_value() && *a == 2, "after the window: logged, reports 2 suppressed");
+        check(!g.admit(T0 + KwAct::FAILURE_LOG_WINDOW + 1s).has_value(), "window restarts at the logged line");
+        a = g.admit(T0 + 3 * KwAct::FAILURE_LOG_WINDOW);
+        check(a.has_value() && *a == 1, "suppressed count resets after each logged line");
+    }
+    {
+        // a clock that goes backwards (it cannot for steady_clock, but the gate must not lock up forever)
+        KwAct::SFailureGate g;
+        const auto          T0 = clk::time_point{} + 1000s;
+        (void)g.admit(T0);
+        check(!g.admit(T0 - 5s).has_value(), "earlier timestamp inside the window is suppressed");
+        check(g.admit(T0 + KwAct::FAILURE_LOG_WINDOW).has_value(), "and the gate still opens after the window");
+    }
+    {
+        // gates are independent per site
+        KwAct::SFailureGate a, b;
+        const auto          T0 = clk::time_point{} + 1000s;
+        (void)a.admit(T0);
+        check(b.admit(T0 + 1s).has_value(), "a second site is not suppressed by the first");
+    }
+    check(KwAct::FAILURE_LOG_WINDOW == 10s, "window is 10 s");
+
+    // site names are fixed, distinct and non-empty
+    bool namesOk = true;
+    for (size_t i = 0; i < KwAct::SITE_COUNT; ++i) {
+        const std::string_view n = KwAct::siteName((KwAct::eSite)i);
+        namesOk                  = namesOk && !n.empty() && n != "?";
+        for (size_t j = 0; j < i; ++j)
+            namesOk = namesOk && n != KwAct::siteName((KwAct::eSite)j);
+    }
+    check(namesOk, "every site has a distinct name");
+    check(KwAct::siteName(KwAct::SITE_COUNT) == "?", "out-of-range site is '?'");
+
+    return fails > 0 ? 1 : 0;
+}
+
+######## tools/test-plugin-actions.sh ########
+#!/usr/bin/env bash
+# Builds and runs plugin/test_actions.cpp: arguments, guards and failure-log gating of the bar's host actions
+# (plugin/actionGate.hpp), no Hyprland needed.
+set -u
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P) || exit 1
+t=$(mktemp -d "${TMPDIR:-/tmp}/kwinish-test-actions.XXXXXXXX") || exit 1
+trap 'rm -rf -- "$t"' EXIT
+cxx=${CXX:-g++}
+command -v "$cxx" >/dev/null || { echo "FALHOU - falta o compilador $cxx"; exit 1; }
+"$cxx" -std=c++2b -Wall -Wextra -Werror -I "$root/plugin" "$root/plugin/test_actions.cpp" -o "$t/test_actions" || { echo "FALHOU - compilar plugin/test_actions.cpp"; exit 1; }
+"$t/test_actions"
+
+
+## Test harness and probes
+
+######## equiv/fake/fakehost.hpp ########
+// P8 fake host: just enough of Hyprland for (a) the verbatim 0.56.2 DispatcherTranslator bodies behind the old
+// plugin lines and (b) plugin/hostActions.hpp behind the new lines. Every host call is recorded in g_trace with the
+// window it RESOLVES to (xtract semantics: value_or(focused), evaluated at call time, like the real host).
+#pragma once
+#include "/usr/include/hyprland/src/config/shared/ConfigErrors.hpp" // real: SConfigError, levels, codes, toString
+
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <expected>
+#include <format>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+inline std::vector<std::string> g_trace;
+inline void                     T(std::string s) { g_trace.push_back(std::move(s)); }
+
+struct Vector2D {
+    double x = 0, y = 0;
+};
+inline std::string str(const Vector2D& v) { return std::format("({},{})", v.x, v.y); }
+
+template <typename X>
+using SP = std::shared_ptr<X>;
+template <typename X>
+using UP = std::unique_ptr<X>;
+
+namespace Desktop::View {
+    struct IGeometric {
+        enum eGeometricType : uint8_t { GEOMETRIC_CURRENT = 0, GEOMETRIC_GOAL };
+    };
+    struct CWindow : IGeometric {
+        int      id = 0;
+        Vector2D curPos, goalPos, curSize, goalSize;
+        Vector2D position(eGeometricType t) const { return t == GEOMETRIC_GOAL ? goalPos : curPos; }
+        Vector2D size(eGeometricType t) const { return t == GEOMETRIC_GOAL ? goalSize : curSize; }
+    };
+}
+using PHLWINDOW = SP<Desktop::View::CWindow>;
+inline std::string wid(const PHLWINDOW& w) { return w ? std::format("#{}", w->id) : "null"; }
+
+struct CMonitor {
+    int64_t m_id = 7;
+};
+using PHLMONITOR = SP<CMonitor>;
+
+struct CWorkspace {
+    int64_t     m_id = 0;
+    std::string m_name;
+};
+using PHLWORKSPACE = SP<CWorkspace>;
+
+namespace Desktop {
+    struct CFocusState {
+        PHLWINDOW  focused;
+        PHLMONITOR mon = std::make_shared<CMonitor>();
+        PHLWINDOW  window() { return focused; }
+        PHLMONITOR monitor() { return mon; }
+    };
+    inline SP<CFocusState> g_focus = std::make_shared<CFocusState>();
+    inline SP<CFocusState> focusState() { return g_focus; }
+
+    // 0.56.2 CViewQuery::bySelector, the only branch reached by "activewindow": starts_with("active") -> focused
+    struct CViewQuery {
+        std::string sel;
+        CViewQuery&& selector(std::string_view s) && { sel = std::string{s}; return std::move(*this); }
+        PHLWINDOW    runWindow() && {
+            std::string r = sel;
+            r.erase(0, r.find_first_not_of(" \t"));
+            r.erase(r.find_last_not_of(" \t") + 1);
+            if (r.starts_with("active"))
+                return focusState()->window();
+            return nullptr; // not reached by the plugin's strings
+        }
+    };
+    struct CViewState {
+        CViewQuery query() { return {}; }
+    };
+    inline SP<CViewState> viewState() { static auto s = std::make_shared<CViewState>(); return s; }
+}
+
+namespace Fullscreen {
+    enum eFullscreenMode : int8_t { FSMODE_NONE = 0, FSMODE_MAXIMIZED, FSMODE_FULLSCREEN }; // as H:managers/fullscreen/FullscreenTypes.hpp
+    inline const char* name(eFullscreenMode m) { return m == FSMODE_MAXIMIZED ? "MAXIMIZED" : m == FSMODE_FULLSCREEN ? "FULLSCREEN" : m == FSMODE_NONE ? "NONE" : "?"; }
+    inline bool        g_isFs = false; // the old "set/unset" branches (unused by the plugin's args) read this
+    struct CController {
+        bool isFullscreen(const PHLWINDOW, std::optional<eFullscreenMode> = std::nullopt, std::optional<bool> = std::nullopt) { T("isFullscreen"); return g_isFs; }
+    };
+    inline SP<CController> controller() { static auto c = std::make_shared<CController>(); return c; }
+}
+
+// parseWindowVectorArgsRelative: deterministic fake; "exact A B", A/B integers or N% (of a 1000x1000 box)
+enum class eParse : uint8_t { NORMAL, TINY, NAN_ };
+inline eParse g_parse = eParse::NORMAL;
+struct CCompositor {
+    Vector2D parseWindowVectorArgsRelative(const std::string& args, const Vector2D& rel) {
+        T(std::format("parse('{}', rel={})", args, str(rel)));
+        if (g_parse == eParse::TINY)
+            return {0.5, 10};
+        if (g_parse == eParse::NAN_)
+            return {std::nan(""), 10};
+        std::istringstream is(args);
+        std::string        kw, a, b;
+        is >> kw >> a >> b;
+        auto num = [](const std::string& s) { return s.ends_with('%') ? std::stod(s.substr(0, s.size() - 1)) * 10.0 : std::stod(s); };
+        if (kw != "exact")
+            return {rel.x + num(kw), rel.y + num(a)};
+        return {num(a), num(b)};
+    }
+};
+inline UP<CCompositor> g_pCompositor = std::make_unique<CCompositor>();
+
+enum class eRes : uint8_t { OK, INFO, WARN, ERR, SILENT };
+inline eRes g_res = eRes::OK;
+
+namespace Config::Actions {
+    struct SActionResult {
+        bool passEvent = false;
+    };
+    using eActionErrorLevel = Config::eConfigErrorLevel;
+    using eActionErrorCode  = Config::eConfigErrorCode;
+    using SActionError      = Config::SConfigError;
+    using Config::toString;
+    inline std::unexpected<SActionError> actionError(std::string message, eActionErrorLevel level = eActionErrorLevel::ERROR, eActionErrorCode code = eActionErrorCode::UNKNOWN) {
+        return Config::configError(std::move(message), level, code);
+    }
+    enum eTogglableAction : uint8_t { TOGGLE_ACTION_TOGGLE = 0, TOGGLE_ACTION_ENABLE, TOGGLE_ACTION_DISABLE };
+    using ActionResult = std::expected<SActionResult, SActionError>;
+
+    inline const char* tname(eTogglableAction a) { return a == TOGGLE_ACTION_TOGGLE ? "TOGGLE" : a == TOGGLE_ACTION_ENABLE ? "ENABLE" : "DISABLE"; }
+    inline PHLWINDOW   xtract(std::optional<PHLWINDOW> w) { return w.value_or(Desktop::focusState()->window()); }
+    inline ActionResult result(const char* fn) {
+        switch (g_res) {
+            case eRes::OK: return {};
+            case eRes::INFO: return actionError(std::format("fake {} info", fn), eActionErrorLevel::INFO, eActionErrorCode::INVALID_STATE);
+            case eRes::WARN: return actionError(std::format("fake {} warning", fn), eActionErrorLevel::WARNING, eActionErrorCode::INVALID_STATE);
+            case eRes::ERR: return actionError(std::format("fake {} error", fn), eActionErrorLevel::ERROR, eActionErrorCode::INVALID_ARGUMENT);
+            case eRes::SILENT: return actionError(std::format("fake {} silent", fn), eActionErrorLevel::SILENT, eActionErrorCode::UNKNOWN);
+        }
+        return {};
+    }
+    inline ActionResult floatWindow(eTogglableAction a, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("floatWindow({}, win={})", tname(a), wid(xtract(w))));
+        return result("floatWindow");
+    }
+    inline ActionResult pinWindow(eTogglableAction a, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("pinWindow({}, win={})", tname(a), wid(xtract(w))));
+        return result("pinWindow");
+    }
+    inline ActionResult move(const Vector2D& p, bool rel, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("move({}, rel={}, win={})", str(p), rel, wid(xtract(w))));
+        return result("move");
+    }
+    inline ActionResult resize(const Vector2D& s, bool rel, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("resize({}, rel={}, win={})", str(s), rel, wid(xtract(w))));
+        return result("resize");
+    }
+    inline ActionResult fullscreenWindow(Fullscreen::eFullscreenMode m, bool layoutAware, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("fullscreenWindow({}, layoutAware={}, win={})", Fullscreen::name(m), layoutAware, wid(xtract(w))));
+        return result("fullscreenWindow");
+    }
+    inline ActionResult fullscreenWindow(Fullscreen::eFullscreenMode, Fullscreen::eFullscreenMode, bool, std::optional<PHLWINDOW> = std::nullopt) {
+        T("fullscreenWindow(4-arg overload)");
+        return result("fullscreenWindow4");
+    }
+    // the host resolves names differently in 0.56.2 (translator) and 0.57 (findOrCreateWorkspace); both are faked to
+    // "the workspace with that name", so the trace compares the NAME the plugin targets, not host resolution.
+    inline ActionResult moveToWorkspace(PHLWORKSPACE ws, bool silent, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("moveToWorkspace(ws='{}', silent={}, win={})", ws ? ws->m_name : "null", silent, wid(xtract(w))));
+        return result("moveToWorkspace");
+    }
+    inline ActionResult moveToWorkspace(const std::string& ws, bool silent, std::optional<PHLWINDOW> w = std::nullopt) {
+        T(std::format("moveToWorkspace(ws='{}', silent={}, win={})", ws, silent, wid(xtract(w))));
+        return result("moveToWorkspace");
+    }
+}
+
+namespace Config::Supplementary {
+    inline std::optional<uint64_t> g_spawn = 4242;
+    struct CExecutor {
+        std::optional<uint64_t> spawn(const std::string& args) {
+            T(std::format("spawn('{}')", args));
+            return g_spawn;
+        }
+    };
+    inline UP<CExecutor>& executor() { static UP<CExecutor> e = std::make_unique<CExecutor>(); return e; }
+}
+
+namespace Log {
+    enum eLogLevel : uint8_t { L_DEBUG, L_WARN, L_ERR };
+    inline constexpr eLogLevel DEBUG = L_DEBUG, WARN = L_WARN, ERR = L_ERR;
+    inline std::vector<std::string> g_lines;
+    struct CLogger {
+        template <typename... Args>
+        void log(eLogLevel level, const std::string_view loc, std::format_string<Args...> fmt, Args&&... args) {
+            g_lines.push_back(std::format("LOG[{}] [{}] ", level == L_ERR ? "ERR" : level == L_WARN ? "WARN" : "DEBUG", loc) + std::format(fmt, std::forward<Args>(args)...));
+        }
+    };
+    inline UP<CLogger> logger = std::make_unique<CLogger>();
+}
+
+// ---- 0.56.2-only pieces the verbatim translator needs --------------------------------------------------------
+struct SDispatchResult { // O:SharedDefs.hpp:52
+    bool        passEvent = false;
+    bool        success   = true;
+    std::string error;
+};
+using WORKSPACEID = int64_t;
+#define WORKSPACE_INVALID -1L
+struct SWorkspaceIDName { // O:helpers/MiscFunctions.hpp:18
+    WORKSPACEID id = WORKSPACE_INVALID;
+    std::string name;
+    bool        isAutoIDd = false;
+};
+inline SWorkspaceIDName getWorkspaceIDNameFromString(const std::string& s) {
+    if (s.starts_with("special:"))
+        return {-98, s, false};
+    return {};
+}
+namespace State {
+    struct CWorkspaceQuery {
+        int64_t                 qid = 0;
+        CWorkspaceQuery&&       id(int64_t i) && { qid = i; return std::move(*this); }
+        PHLWORKSPACE            run() && { return nullptr; } // not existing yet: the translator creates it
+    };
+    struct CWorkspaceState {
+        CWorkspaceQuery query() { return {}; }
+        PHLWORKSPACE    create(int64_t id, int64_t mon, const std::string& name, bool) {
+            (void)id; (void)mon; // host-internal resolution, not traced
+            auto w = std::make_shared<CWorkspace>(); w->m_id = id; w->m_name = name; return w;
+        }
+    };
+    inline SP<CWorkspaceState> workspaceState() { static auto s = std::make_shared<CWorkspaceState>(); return s; }
+}
+
+######## equiv/equiv.cpp ########
+// P8 equivalence harness. Build OLD: -DSIDE_OLD with old.inc (translator + dispatchIfKnown) and calls.inc from the
+// P5/P6 barDeco.cpp; build NEW: hostActions.hpp (real plugin header, fake host include tree) and calls.inc from the
+// candidate barDeco.cpp. Output: one line per (statement, scenario) with the host calls; LOG lines on stderr-like
+// prefix so the runner can strip them for the old/new comparison and check them separately.
+#include "fakehost.hpp"
+
+#ifdef SIDE_OLD
+using namespace Config;
+using namespace Config::Actions;
+#include <hyprutils/string/VarList2.hpp>
+using namespace Hyprutils::String;
+#include "old.inc"
+struct CKeybindManager {
+    std::unordered_map<std::string, std::function<SDispatchResult(std::string)>> m_dispatchers;
+};
+inline UP<CKeybindManager> g_pKeybindManager = std::make_unique<CKeybindManager>();
+static void                initOld() {
+    registerDispatchers();
+    // O:KeybindManager.cpp:42-113: every legacy name forwards to the translator
+    for (const auto& name : {"exec", "setfloating", "settiled", "fullscreen", "movetoworkspacesilent", "movewindowpixel", "resizewindowpixel", "pin"})
+        g_pKeybindManager->m_dispatchers[name] = [n = std::string(name)](std::string args) -> SDispatchResult { return translatorRun(n, args); };
+}
+#include "dispatchIfKnown.inc"
+#else
+#include "hostActions.hpp"
+static void initOld() {}
+#endif
+
+struct SBox {
+    double x = 0, y = 0, w = 0, h = 0;
+};
+struct SCtx {
+    Vector2D    COORDS{333.6, 444.4};
+    SBox        box{100, 50, 801, 30};
+    std::string action;
+    PHLWINDOW   W;
+    double      x = 120.7, y = 80.2;
+};
+
+static void runStmt(int k, SCtx& ctx) {
+    [[maybe_unused]] auto& COORDS            = ctx.COORDS;
+    [[maybe_unused]] auto  assignedBoxGlobal = [&] { return ctx.box; };
+    [[maybe_unused]] auto& action            = ctx.action;
+    [[maybe_unused]] auto& W                 = ctx.W;
+    [[maybe_unused]] auto  x = ctx.x, y = ctx.y;
+    switch (k) {
+#include "calls.inc"
+        default: T("NO-STATEMENT"); break;
+    }
+}
+
+static const char* ACTIONS[10] = {"", "", "", "", "", "maximize", "fullscreen", "minimize", "exec:kitty --title 'a b'", "menu"};
+
+static std::vector<std::pair<std::string, std::string>> g_ptrNames; // window address -> stable name
+static std::string flush() {
+    std::string s;
+    for (auto& t : g_trace)
+        s += (s.empty() ? "" : " ; ") + t;
+    for (auto& [hex, name] : g_ptrNames)
+        for (size_t at; (at = s.find(hex)) != std::string::npos;)
+            s.replace(at, hex.size(), name);
+    g_trace.clear();
+    return s.empty() ? "(no host call)" : s;
+}
+
+int main(int argc, char** argv) {
+    initOld();
+    auto A      = std::make_shared<Desktop::View::CWindow>();
+    A->id       = 1;
+    A->curPos   = {10, 20};
+    A->goalPos  = {11, 21};
+    A->curSize  = {640, 480};
+    A->goalSize = {641, 481};
+    auto B      = std::make_shared<Desktop::View::CWindow>();
+    B->id       = 2;
+    B->curPos   = {500, 600};
+    B->goalPos  = {501, 601};
+    B->curSize  = {300, 200};
+    B->goalSize = {301, 201};
+
+    g_ptrNames = {{std::format("0x{:x}", (uintptr_t)A.get()), "<bar-window>"}, {std::format("0x{:x}", (uintptr_t)B.get()), "<other-window>"}};
+    const bool LOGMODE = argc > 1 && std::string(argv[1]) == "logs";
+    struct SFocus {
+        const char* n;
+        PHLWINDOW   w;
+    } FOCI[] = {{"bar", A}, {"other", B}, {"none", nullptr}};
+    const char* RESN[]   = {"ok", "info", "warn", "err", "silent"};
+    const char* PARSEN[] = {"normal", "tiny", "nan"};
+    struct SSpawn {
+        const char*             n;
+        std::optional<uint64_t> v;
+    } SPAWNS[] = {{"pid", 4242}, {"zero", 0}, {"none", std::nullopt}};
+
+    for (int k = 0; k < 10; ++k)
+        for (auto& f : FOCI)
+            for (int r = 0; r < 5; ++r)
+                for (int p = 0; p < 3; ++p)
+                    for (auto& s : SPAWNS) {
+                        Desktop::g_focus->focused       = f.w;
+                        g_res                           = (eRes)r;
+                        g_parse                         = (eParse)p;
+                        Config::Supplementary::g_spawn  = s.v;
+                        SCtx ctx;
+                        ctx.W      = A; // the bar's window
+                        ctx.action = ACTIONS[k];
+#ifndef SIDE_OLD
+                        KwAct::g_failureGates = {};
+#endif
+                        Log::g_lines.clear();
+                        const int REPS = LOGMODE ? 3 : 1; // logs mode: the same failure three times in a row
+                        std::string calls;
+                        for (int rep = 0; rep < REPS; ++rep) {
+                            runStmt(k, ctx);
+                            const auto C = flush();
+                            calls        = rep == 0 ? C : (C == calls ? calls : calls + " !! rep differs: " + C);
+                        }
+                        std::printf("k=%d focus=%s res=%s parse=%s spawn=%s | %s\n", k, f.n, RESN[r], PARSEN[p], s.n, calls.c_str());
+                        if (LOGMODE)
+                            for (auto& l : Log::g_lines)
+                                std::printf("  %s\n", l.c_str());
+                    }
+    return 0;
+}
+
+######## equiv/extract.py ########
+#!/usr/bin/env python3
+"""P8 extraction.
+
+extract.py calls SRC OUT MODE   MODE=old: plugin lines using m_dispatchers[...] / dispatchIfKnown(...) (K4-K8, K10-K12;
+                                the K9 line `["mouse"]("0movewindow")` is out of scope and skipped);
+                                MODE=new: plugin lines containing `KwAct::` (statements, not includes/comments).
+extract.py old-fn SRC OUT       the plugin's own dispatchIfKnown definition, verbatim.
+extract.py translator OSRC OUT  verbatim 0.56.2 DispatcherTranslator helpers + the 8 dispatchers the plugin used.
+Each extracted plugin statement becomes `case K:` with a #line back to the real file.
+"""
+import re, sys
+
+EXPECT = 10
+ORDER = ["K4", "K5", "K6", "K7", "K8", "K10a", "K10b", "K11", "K12a", "K12b"]
+
+
+def stmts(lines, pred):
+    out, i, in_def = [], 0, False
+    while i < len(lines):
+        l = lines[i]
+        if l.startswith("static void dispatchIfKnown("):
+            in_def = True
+        if in_def:
+            if l.startswith("}"):
+                in_def = False
+            i += 1
+            continue
+        s = l.strip()
+        if pred(l) and not s.startswith("//") and not s.startswith("#"):
+            j = i
+            while not lines[j].split("//")[0].rstrip().endswith(";"):
+                j += 1
+                assert j - i < 6, f"unterminated at {i+1}"
+            out.append((i + 1, lines[i : j + 1]))
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+
+def main():
+    mode = sys.argv[1]
+    if mode == "calls":
+        src, out, kind = sys.argv[2:5]
+        lines = open(src, encoding="utf-8").read().split("\n")
+        if kind == "old":
+            pred = lambda l: ("m_dispatchers[" in l and '"mouse"' not in l) or "dispatchIfKnown(" in l
+        else:
+            pred = lambda l: "KwAct::" in l
+        st = stmts(lines, pred)
+        assert len(st) == EXPECT, f"{kind}: expected {EXPECT} statements, found {len(st)} at {[s[0] for s in st]}"
+        with open(out, "w") as f:
+            for k, (ln, body) in enumerate(st):
+                f.write(f"    case {k}: {{ // {ORDER[k]}\n#line {ln} \"{src}\"\n" + "\n".join(body) + "\n    } break;\n")
+        print(" ".join(f"{ORDER[k]}:{ln}" for k, (ln, _) in enumerate(st)))
+    elif mode == "old-fn":
+        src, out = sys.argv[2:4]
+        lines = open(src, encoding="utf-8").read().split("\n")
+        i = next(n for n, l in enumerate(lines) if l.startswith("static void dispatchIfKnown("))
+        j = next(n for n in range(i, len(lines)) if lines[n].startswith("}"))
+        open(out, "w").write(f"#line {i+1} \"{src}\"\n" + "\n".join(lines[i : j + 1]) + "\n")
+        print(f"dispatchIfKnown {i+1}-{j+1}")
+    elif mode == "translator":
+        src, out = sys.argv[2:4]
+        t = open(src, encoding="utf-8").read().split("\n")
+        want = ["wrap", "windowFromArg", "resolveWorkspace", "exec", "setfloating", "settiled", "fullscreen",
+                "movetoworkspacesilent", "movewindowpixel", "resizewindowpixel", "pin"]
+        parts = []
+        for name in want:
+            rx = re.compile(r"^static [\w:<>]+ " + name + r"\(")
+            i = next(n for n, l in enumerate(t) if rx.match(l))
+            j = next(n for n in range(i, len(t)) if t[n].startswith("}"))
+            parts.append(f"#line {i+1} \"{src}\"\n" + "\n".join(t[i : j + 1]))
+        # CDispatcherTranslator::run, verbatim body (as a free function over a local map)
+        i = next(n for n, l in enumerate(t) if l.startswith("SDispatchResult CDispatcherTranslator::run("))
+        j = next(n for n in range(i, len(t)) if t[n].startswith("}"))
+        run = "\n".join(t[i : j + 1]).replace("SDispatchResult CDispatcherTranslator::run(", "SDispatchResult translatorRun(")
+        reg = []
+        for n, l in enumerate(t):
+            m = re.match(r'^\s*m_dispMap\["(\w+)"\]\s*=\s*::(\w+);', l)
+            if m and m.group(1) in want:
+                reg.append(f'#line {n+1} "{src}"\n' + l)
+        assert len(reg) == 8, reg
+        open(out, "w").write("\n\n".join(parts) + "\n\n"
+                             "inline std::unordered_map<std::string, std::function<SDispatchResult(const std::string&)>> m_dispMap;\n"
+                             + f"#line {i+1} \"{src}\"\n" + run + "\n"
+                             "static void registerDispatchers() {\n" + "\n".join(reg) + "\n}\n")
+        print("translator: " + " ".join(want) + f"; run {i+1}; {len(reg)} registrations")
+
+
+main()
+
+######## equiv/check_logs.py ########
+#!/usr/bin/env python3
+"""P8 log-policy oracle for the NEW side ('logs' mode: every scenario runs the statement 3 times in a row).
+Expected, computed from the scenario alone (not from the implementation):
+  K5/K7 with no focused window      -> 1 WARN  '<site> failed: <...>: no window (no_target)'
+  K5 with a parse below 1x1          -> 1 ERR   'Invalid size (invalid_argument)'
+  K12 with spawn pid 0 / no pid      -> 1 ERR   'Failed to start process ...' (execution_failed)
+  otherwise a failed action result   -> info: 1 DEBUG, warn: 1 WARN, err: 1 ERR; silent/ok: none
+Exactly one line for the three repeats (the gate), none when nothing failed."""
+import re, sys
+
+SITES = ["touch float", "touch resize", "touch pin", "touch move", "touch tile", "maximize", "fullscreen", "minimize", "exec button", "window menu"]
+LEVEL = {"info": "DEBUG", "warn": "WARN", "err": "ERR"}
+CODE = {"info": "invalid_state", "warn": "invalid_state", "err": "invalid_argument"}
+
+blocks, cur = [], None
+for line in open(sys.argv[1], encoding="utf-8"):
+    line = line.rstrip("\n")
+    m = re.match(r"^k=(\d+) focus=(\w+) res=(\w+) parse=(\w+) spawn=(\w+) \| (.*)$", line)
+    if m:
+        cur = {"k": int(m[1]), "focus": m[2], "res": m[3], "parse": m[4], "spawn": m[5], "logs": []}
+        blocks.append(cur)
+    elif line.startswith("  LOG"):
+        cur["logs"].append(line.strip())
+    else:
+        print("unexpected line:", line); sys.exit(1)
+
+bad = 0
+for b in blocks:
+    k, site = b["k"], SITES[b["k"]]
+    exp = None  # (level, substring)
+    if k in (8, 9):
+        if b["spawn"] == "zero":
+            exp = ("ERR", "Failed to start process ")
+        elif b["spawn"] == "none":
+            exp = ("ERR", "Failed to start process. No closing bracket in exec rule. ")
+    elif k in (1, 3) and b["focus"] == "none":
+        exp = ("WARN", ("resizeWindow" if k == 1 else "moveWindow") + ": no window (no_target)")
+    elif k == 1 and b["parse"] == "tiny":
+        exp = ("ERR", "Invalid size (invalid_argument)")
+    elif b["res"] in LEVEL:
+        exp = (LEVEL[b["res"]], f"({CODE[b['res']]})")
+    logs = b["logs"]
+    if exp is None:
+        if logs:
+            bad += 1; print("unexpected log:", b)
+        continue
+    if len(logs) != 1:
+        bad += 1; print(f"expected exactly 1 log line, got {len(logs)}:", b); continue
+    want = f"LOG[{exp[0]}] [kwinish-bars] {site} failed: "
+    if not logs[0].startswith(want) or exp[1] not in logs[0] or "earlier failure" in logs[0]:
+        bad += 1; print("wrong log line:", logs[0], "| want prefix", want, "and", exp[1])
+    if k in (8, 9) and b["spawn"] in ("zero", "none") and "(execution_failed)" not in logs[0]:
+        bad += 1; print("spawn failure without execution_failed code:", logs[0])
+n_logged = sum(1 for b in blocks if b["logs"])
+print(f"log oracle: {len(blocks)} scenarios, {n_logged} with one log line, {bad} mismatches")
+sys.exit(1 if bad or len(blocks) != 1350 else 0)
+
+######## equiv/run.sh ########
+#!/usr/bin/env bash
+# P8 runtime equivalence (fake host). usage: run.sh CANDIDATE_BARDECO [PLUGIN_DIR_FOR_HEADERS] [BASELINE_BARDECO]
+# OLD = P5/P6 barDeco.cpp lines + verbatim 0.56.2 translator; NEW = candidate lines + plugin/hostActions.hpp.
+# Checks: host-call traces identical over 10 statements x 3 foci x 5 results x 3 parse x 3 spawn (1350 runs);
+# log policy on NEW (first failure logged at the host level, repeats inside the window not logged, SILENT/success never).
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+CAND=${1:?candidate barDeco.cpp}
+PLUG=${2:-/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin}
+BASE=${3:-/home/lhen/.hermes/cache/scratch/p8/pre/barDeco.cpp}
+OSRC=/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp
+O=${OUT:-$P/out}; rm -rf "$O"; mkdir -p "$O/old" "$O/new"
+HU="$(pkg-config --cflags --libs hyprutils)"
+FAIL=0; ok() { echo "OK   - $*"; }; bad() { echo "FAIL - $*"; FAIL=1; }
+# fake include tree for the headers hostActions.hpp includes
+for h in Compositor.hpp config/shared/actions/ConfigActions.hpp config/supplementary/executor/Executor.hpp debug/log/Logger.hpp desktop/state/FocusState.hpp desktop/view/window/Window.hpp; do
+    mkdir -p "$P/fake/hyprland/src/$(dirname "$h")"; echo '#include <fakehost.hpp>' >"$P/fake/hyprland/src/$h"
+done
+python3 "$P/extract.py" translator "$OSRC" "$O/old/old.inc" >"$O/old/extract.txt" || { bad "extract translator"; exit 1; }
+python3 "$P/extract.py" old-fn "$BASE" "$O/old/dispatchIfKnown.inc" >>"$O/old/extract.txt" || { bad "extract dispatchIfKnown"; exit 1; }
+python3 "$P/extract.py" calls "$BASE" "$O/old/calls.inc" old >>"$O/old/extract.txt" || { bad "extract old calls"; exit 1; }
+if ! python3 "$P/extract.py" calls "$CAND" "$O/new/calls.inc" new >"$O/new/extract.txt" 2>"$O/new/extract.err"; then
+    bad "extract candidate calls: $(tail -1 "$O/new/extract.err")"; echo "result: FAIL"; exit 1
+fi
+ok "extracted: old $(tail -1 "$O/old/extract.txt"); new $(cat "$O/new/extract.txt")"
+for CXX in g++ clang++; do
+    if $CXX -std=c++2b -Wall -Wextra -DSIDE_OLD -I"$P/fake" -I"$O/old" "$P/equiv.cpp" -o "$O/old/eq-$CXX" $HU >"$O/old/build-$CXX.log" 2>&1 \
+        && "$O/old/eq-$CXX" >"$O/old/trace-$CXX.txt"; then ok "$CXX OLD built and ran ($(wc -l <"$O/old/trace-$CXX.txt") runs)"; else bad "$CXX OLD (see $O/old/build-$CXX.log)"; continue; fi
+    if $CXX -std=c++2b -Wall -Wextra -Werror -I"$P/fake" -I"$PLUG" -I"$O/new" "$P/equiv.cpp" -o "$O/new/eq-$CXX" $HU >"$O/new/build-$CXX.log" 2>&1 \
+        && "$O/new/eq-$CXX" >"$O/new/trace-$CXX.txt" && "$O/new/eq-$CXX" logs >"$O/new/logs-$CXX.txt"; then ok "$CXX NEW built and ran"; else bad "$CXX NEW (see $O/new/build-$CXX.log)"; continue; fi
+    grep -q 'NO-STATEMENT' "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" && bad "$CXX a statement slot is empty"
+    if cmp -s "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt"; then
+        ok "$CXX host-call traces identical OLD vs NEW ($(wc -l <"$O/new/trace-$CXX.txt") runs)"
+    else
+        bad "$CXX traces differ: $(diff "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" | grep -c '^[<>]') lines"; diff "$O/old/trace-$CXX.txt" "$O/new/trace-$CXX.txt" | head -8
+    fi
+    # repeated calls must not change host calls (logs mode prints the same trace lines plus LOG lines)
+    grep -v '^  LOG' "$O/new/logs-$CXX.txt" | cmp -s - "$O/new/trace-$CXX.txt" && ok "$CXX repeats: same host calls" || bad "$CXX repeats change host calls"
+    python3 "$P/check_logs.py" "$O/new/logs-$CXX.txt" && ok "$CXX log policy" || bad "$CXX log policy"
+done
+echo "result: $([ $FAIL = 0 ] && echo PASS || echo FAIL)"; exit $FAIL
+
+######## equiv/mut.sh ########
+#!/usr/bin/env bash
+# P8 mutation run: each mutant edits a scratch copy of plugin/{barDeco.cpp,hostActions.hpp,actionGate.hpp}; killed only
+# if NEW still builds and runs on both compilers AND the trace comparison or the log oracle fails (build errors are
+# not kills). Host-free suite mutants (actionGate.hpp) are also run through tools/test-plugin-actions.sh.
+set -u
+P=$(cd "$(dirname "$0")" && pwd)
+W=/home/lhen/Projects/ryoku-work/kwinish-port-0-57
+M=$P/mut; [ -z "${ONLY:-}" ] && rm -rf "$M"; mkdir -p "$M"
+FAIL=0; N=0; K=0
+while IFS='~' read -r NAME FILE FIND REPL; do
+    [ -z "$NAME" ] && continue
+    [ -n "${ONLY:-}" ] && [ "$ONLY" != "$NAME" ] && continue
+    D=$M/$NAME; mkdir -p "$D/plugin" "$D/tools"
+    cp "$W/plugin/"{barDeco.cpp,hostActions.hpp,actionGate.hpp,test_actions.cpp} "$D/plugin/"; cp "$W/tools/test-plugin-actions.sh" "$D/tools/"
+    FF="$FIND" RR="$REPL" perl -0pi -e 's/\Q$ENV{FF}\E/$ENV{RR}/' "$D/plugin/$FILE"
+    if cmp -s "$W/plugin/$FILE" "$D/plugin/$FILE"; then echo "FAIL - $NAME: mutation did not apply"; FAIL=1; continue; fi
+    N=$((N+1))
+    OUT=$D/out bash "$P/run.sh" "$D/plugin/barDeco.cpp" "$D/plugin" >"$D/run.log" 2>&1; RC=$?
+    BUILT=$(grep -c 'NEW built and ran' "$D/run.log")
+    DET=$(grep -cE 'FAIL - .*(traces differ|log policy|repeats change|statement slot)' "$D/run.log")
+    HF=""; if [ "$FILE" = actionGate.hpp ]; then bash "$D/tools/test-plugin-actions.sh" >"$D/hostfree.log" 2>&1 && HF="hostfree:pass" || HF="hostfree:$(grep -c FALHOU "$D/hostfree.log")fail"; fi
+    if [ $RC -ne 0 ] && [ "$BUILT" = 2 ] && [ "$DET" -gt 0 ]; then
+        K=$((K+1)); echo "OK   - $NAME killed ($(grep -E 'FAIL - ' "$D/run.log" | head -1 | cut -c1-90)) $HF"
+    elif [ -n "$HF" ] && [ "$HF" != "hostfree:pass" ] && [ "$BUILT" = 2 ]; then
+        K=$((K+1)); echo "OK   - $NAME killed by the host-free suite only ($HF; equivalence rc=$RC)"
+    else
+        echo "FAIL - $NAME survived or not a valid kill (rc=$RC built=$BUILT detections=$DET $HF)"; FAIL=1
+    fi
+done <<'EOF'
+m01~barDeco.cpp~floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE)~floatWindow(Config::Actions::TOGGLE_ACTION_TOGGLE)
+m02~barDeco.cpp~"exact 50% 50%"~"exact 50% 40%"
+m03~barDeco.cpp~pinWindow(Config::Actions::TOGGLE_ACTION_TOGGLE)~pinWindow(Config::Actions::TOGGLE_ACTION_ENABLE)
+m04~barDeco.cpp~(int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.y)~(int)(COORDS.x - (assignedBoxGlobal().w / 2)), (int)COORDS.x)
+m05~barDeco.cpp~(int)(COORDS.x - (assignedBoxGlobal().w / 2))~(int)std::round(COORDS.x - (assignedBoxGlobal().w / 2))
+m06~barDeco.cpp~floatWindow(Config::Actions::TOGGLE_ACTION_DISABLE));~floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE));
+m07~barDeco.cpp~fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)~fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true)
+m08~barDeco.cpp~fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, true)~fullscreenWindow(Fullscreen::FSMODE_FULLSCREEN, false)
+m09~barDeco.cpp~fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)~fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true, W)
+m10~barDeco.cpp~std::string{"special:minimized"}, true)~std::string{"special:minimized"}, false)
+m11~barDeco.cpp~std::string{"special:minimized"}~std::string{"special:minimised"}
+m12~barDeco.cpp~moveToWorkspace(std::string{"special:minimized"}, true)~moveToWorkspace(std::string{"special:minimized"}, true, W)
+m13~barDeco.cpp~action.substr(5)~action.substr(4)
+m14~barDeco.cpp~--at {},{}"~--at {} {}"
+m15~barDeco.cpp~KwAct::SITE_MINIMIZE~KwAct::SITE_MAXIMIZE
+m16~hostActions.hpp~W->size(Desktop::View::IGeometric::GEOMETRIC_GOAL)~W->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT)
+m17~hostActions.hpp~W->position(Desktop::View::IGeometric::GEOMETRIC_GOAL)~W->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT)
+m18~hostActions.hpp~if (!usableSize(SIZ.x, SIZ.y))~if (false && !usableSize(SIZ.x, SIZ.y))
+m19~hostActions.hpp~Config::Actions::resize(SIZ, false, W)~Config::Actions::resize(SIZ, true, W)
+m20~hostActions.hpp~Config::Actions::move(POS, false, W)~Config::Actions::move(POS, true, W)
+m21~hostActions.hpp~return check(site, Config::Actions::actionError("moveWindow: no window"~return true || check(site, Config::Actions::actionError("moveWindow: no window"
+m22~hostActions.hpp~E.level == Config::eConfigErrorLevel::SILENT || ~
+m23~hostActions.hpp~E.level == Config::eConfigErrorLevel::WARNING ? Log::WARN~E.level == Config::eConfigErrorLevel::WARNING ? Log::ERR
+m24~hostActions.hpp~: Log::DEBUG;~: Log::WARN;
+m25~hostActions.hpp~"Invalid size", Config::eConfigErrorLevel::ERROR~"Invalid size", Config::eConfigErrorLevel::WARNING
+m26~hostActions.hpp~"Failed to start process {}", cmd)~"Failed to start {}", cmd)
+m27~hostActions.hpp~if (spawnStarted(PROC))~if (PROC)
+m28~hostActions.hpp~const auto SKIPPED = g_failureGates[site].admit(std::chrono::steady_clock::now());~const auto SKIPPED = std::optional<uint64_t>{0};
+m29~actionGate.hpp~return !(x < 1 || y < 1);~return !(x <= 1 || y < 1);
+m30~actionGate.hpp~return pid.has_value() && *pid > 0;~return pid.has_value();
+m31~actionGate.hpp~if (last && now < *last + FAILURE_LOG_WINDOW) {~if (false) {
+m32~actionGate.hpp~"touch pin", "touch move"~"touch move", "touch pin"
+m33~actionGate.hpp~std::format("exact {} {}", x, y)~std::format("exact {} {}", y, x)
+m34~actionGate.hpp~std::chrono::seconds(10)~std::chrono::seconds(5)
+m35~actionGate.hpp~            suppressed             = 0;~            (void)0;
+EOF
+echo "mutants: $N killed: $K"
+echo "result: $([ $FAIL = 0 ] && [ $K = $N ] && echo PASS || echo FAIL)"; [ $FAIL = 0 ] && [ $K = $N ]
+
+######## probe_p8_actions.cpp ########
+// P8 probe A — hostActions.hpp against the installed Hyprland 0.57 headers (Makefile flags).
+// Positive: exact wrapper signatures; the call forms used in barDeco.cpp select the intended overloads; the host types
+// the wrappers rely on. -DPROBE_NEG=1: a const char* workspace name (no std::string) — must still pick the string
+// overload or fail loudly; NEG=2: the 0.56.2 dispatcher map (gone).
+#include "hostActions.hpp"
+
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+
+#include <type_traits>
+
+namespace A = Config::Actions;
+
+static_assert(std::is_same_v<decltype(&KwAct::check), bool (*)(KwAct::eSite, const A::ActionResult&)>);
+static_assert(std::is_same_v<decltype(&KwAct::resizeFocused), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(&KwAct::moveFocused), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(&KwAct::spawn), bool (*)(KwAct::eSite, const std::string&)>);
+static_assert(std::is_same_v<decltype(KwAct::g_failureGates), std::array<KwAct::SFailureGate, KwAct::SITE_COUNT>>);
+static_assert(std::is_trivially_destructible_v<KwAct::SFailureGate>, "gates must be safe at module unload");
+
+// host types the wrappers use
+static_assert(std::is_same_v<A::SActionError, Config::SConfigError>);
+static_assert(std::is_same_v<decltype(std::declval<A::SActionError&>().level), Config::eConfigErrorLevel>);
+static_assert(std::is_same_v<decltype(std::declval<A::SActionError&>().message), std::string>);
+static_assert(std::is_same_v<decltype(Config::toString(Config::eConfigErrorCode{})), const char*>);
+static_assert(std::is_same_v<decltype(A::actionError(std::string{}, Config::eConfigErrorLevel::WARNING, Config::eConfigErrorCode::NO_TARGET)), std::unexpected<A::SActionError>>);
+static_assert(std::is_same_v<decltype(Desktop::focusState()->window()), PHLWINDOW>);
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().size(Desktop::View::IGeometric::GEOMETRIC_GOAL)), Vector2D>);
+static_assert(std::is_same_v<decltype(std::declval<Desktop::View::CWindow&>().position(Desktop::View::IGeometric::GEOMETRIC_GOAL)), Vector2D>);
+static_assert(std::is_same_v<decltype(Config::Supplementary::executor()->spawn(std::string{})), std::optional<uint64_t>>);
+
+// overload selection of the barDeco.cpp call forms
+static_assert(!std::is_convertible_v<std::string, PHLWORKSPACE>, "moveToWorkspace(std::string, bool) can only be the name overload");
+static_assert(!std::is_convertible_v<bool, Fullscreen::eFullscreenMode>, "fullscreenWindow(mode, true) can only be the (mode, layoutAware) overload");
+static_assert(!std::is_convertible_v<std::string, Config::Supplementary::SExecRequest>, "spawn(std::string) is the string overload");
+static_assert(std::is_same_v<decltype(A::moveToWorkspace(std::string{"special:minimized"}, true)), A::ActionResult>);
+static_assert(std::is_same_v<decltype(A::fullscreenWindow(Fullscreen::FSMODE_MAXIMIZED, true)), A::ActionResult>);
+static_assert(Fullscreen::FSMODE_MAXIMIZED == 1 && Fullscreen::FSMODE_FULLSCREEN == 2, "0.56.2 \"fullscreen 1\" = MAXIMIZED, else FULLSCREEN");
+static_assert(A::TOGGLE_ACTION_TOGGLE == 0 && A::TOGGLE_ACTION_ENABLE == 1 && A::TOGGLE_ACTION_DISABLE == 2);
+
+#if defined(PROBE_NEG) && PROBE_NEG == 1
+void neg1() { (void)A::moveToWorkspace(PHLWORKSPACE{std::string{"special:minimized"}}, true); }
+#elif defined(PROBE_NEG) && PROBE_NEG == 2
+void neg2() { g_pKeybindManager->m_dispatchers["exec"]("kitty"); }
+#endif
+
+int main() {}
+
+
+## Run logs
+
+######## equiv-red.log ########
+FAIL - extract candidate calls: AssertionError: new: expected 10 statements, found 0 at []
+result: FAIL
+
+######## equiv-green.log ########
+OK   - extracted: old K4:335 K5:336 K6:338 K7:340 K8:378 K10a:705 K10b:707 K11:709 K12a:713 K12b:817; new K4:336 K5:337 K6:339 K7:341 K8:379 K10a:703 K10b:705 K11:707 K12a:711 K12b:815
+OK   - g++ OLD built and ran (1350 runs)
+OK   - g++ NEW built and ran
+OK   - g++ host-call traces identical OLD vs NEW (1350 runs)
+OK   - g++ repeats: same host calls
+log oracle: 1350 scenarios, 876 with one log line, 0 mismatches
+OK   - g++ log policy
+OK   - clang++ OLD built and ran (1350 runs)
+OK   - clang++ NEW built and ran
+OK   - clang++ host-call traces identical OLD vs NEW (1350 runs)
+OK   - clang++ repeats: same host calls
+log oracle: 1350 scenarios, 876 with one log line, 0 mismatches
+OK   - clang++ log policy
+result: PASS
+
+######## mut.log ########
+OK   - m01 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m02 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m03 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m04 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m05 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m06 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m07 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m08 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m09 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m10 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m11 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m12 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m13 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m14 killed (FAIL - g++ traces differ: 270 lines) 
+OK   - m15 killed (FAIL - g++ log policy) 
+OK   - m16 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m17 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m18 killed (FAIL - g++ traces differ: 60 lines) 
+OK   - m19 killed (FAIL - g++ traces differ: 120 lines) 
+OK   - m20 killed (FAIL - g++ traces differ: 180 lines) 
+OK   - m21 killed (FAIL - g++ log policy) 
+OK   - m22 killed (FAIL - g++ log policy) 
+OK   - m23 killed (FAIL - g++ log policy) 
+OK   - m24 killed (FAIL - g++ log policy) 
+OK   - m25 killed (FAIL - g++ log policy) 
+OK   - m26 killed (FAIL - g++ log policy) 
+OK   - m27 killed (FAIL - g++ log policy) 
+OK   - m28 killed (FAIL - g++ log policy) 
+OK   - m29 killed by the host-free suite only (hostfree:1fail; equivalence rc=0)
+OK   - m30 killed (FAIL - g++ log policy) hostfree:1fail
+OK   - m31 killed (FAIL - g++ log policy) hostfree:6fail
+OK   - m32 killed (FAIL - g++ log policy) hostfree:pass
+OK   - m33 killed (FAIL - g++ traces differ: 180 lines) hostfree:3fail
+OK   - m34 killed by the host-free suite only (hostfree:4fail; equivalence rc=0)
+OK   - m35 killed by the host-free suite only (hostfree:1fail; equivalence rc=0)
+mutants: 35 killed: 35
+result: PASS
+
+######## probeA.log ########
+OK   - g++ A positive exit 0
+OK   - g++ A NEG1 exit 1 (1 expected error lines)
+OK   - g++ A NEG2 exit 1 (1 expected error lines)
+OK   - clang++ A positive exit 0
+OK   - clang++ A NEG1 exit 1 (1 expected error lines)
+OK   - clang++ A NEG2 exit 1 (2 expected error lines)
+OK   - mut a1 g++ killed by static_assert
+OK   - mut a1 clang++ killed by static_assert
+OK   - mut a2 g++ killed by static_assert
+OK   - mut a2 clang++ killed by static_assert
+OK   - mut a3 g++ killed by static_assert
+OK   - mut a3 clang++ killed by static_assert
+OK   - mut a4 g++ killed by static_assert
+OK   - mut a4 clang++ killed by static_assert
+OK   - mut a5 g++ killed by static_assert
+OK   - mut a5 clang++ killed by static_assert
+OK   - mut a6 g++ killed by static_assert
+OK   - mut a6 clang++ killed by static_assert
+OK   - mut a7 g++ killed by static_assert
+OK   - mut a7 clang++ killed by static_assert
+OK   - mut a8 g++ killed by static_assert
+OK   - mut a8 clang++ killed by static_assert
+mutants run: 16
+result: PASS
+
+######## validate.log ########
+geometry g++ exit 0
+actions g++ exit 0 (24 ok)
+geometry clang++ exit 0
+actions clang++ exit 0 (24 ok)
+tooltip exit 0
+make exit 2
+so in scratch: 0; so in plugin/: 0
+main.cpp unchanged vs pre
+== g++: base=67 cand=63 eliminated=4 persistent=63 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- new:
+-- candidate errors on dispatcher/KwAct lines in barDeco.cpp: 1
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: ‘g_pKeybindManager’ was not declared in this scope; did you mean ‘g_pXWaylandManager’?
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+== clang++: base=87 cand=73 eliminated=14 persistent=73 new=0
+-- eliminated:
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["movewindowpixel"](std::format("exact {} {},activewindow", (int)(COORDS.x - (  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["pin"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["pin"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["resizewindowpixel"]("exact 50% 50%,activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["setfloating"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers["settiled"]("activewindow");  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers[name](arg);  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: g_pKeybindManager->m_dispatchers[name](arg);  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+   [barDeco.cpp] barDeco.cpp x1: if (g_pKeybindManager->m_dispatchers.contains(name))  ::  use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+-- new:
+-- candidate errors on dispatcher/KwAct lines in barDeco.cpp: 2
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+   barDeco.cpp:380: g_pKeybindManager->m_dispatchers["mouse"]("0movewindow"); :: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+-- candidate errors inside hostActions.hpp/actionGate.hpp: 0
+
+######## red-1.log ########
+/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin/test_actions.cpp:4:10: fatal error: actionGate.hpp: No such file or directory
+    4 | #include "actionGate.hpp"
+      |          ^~~~~~~~~~~~~~~~
+compilation terminated.
+FALHOU - compilar plugin/test_actions.cpp
+
+
+## Trace samples (NEW side; identical to OLD per the logs)
+k=0 focus=bar res=ok parse=normal spawn=pid | floatWindow(ENABLE, win=#1)
+k=0 focus=bar res=err parse=normal spawn=pid | floatWindow(ENABLE, win=#1)
+k=0 focus=other res=ok parse=normal spawn=pid | floatWindow(ENABLE, win=#2)
+k=0 focus=other res=err parse=normal spawn=pid | floatWindow(ENABLE, win=#2)
+k=0 focus=none res=ok parse=normal spawn=pid | floatWindow(ENABLE, win=null)
+k=0 focus=none res=err parse=normal spawn=pid | floatWindow(ENABLE, win=null)
+k=1 focus=bar res=ok parse=normal spawn=pid | parse('exact 50% 50%', rel=(641,481)) ; resize((500,500), rel=false, win=#1)
+k=1 focus=bar res=err parse=normal spawn=pid | parse('exact 50% 50%', rel=(641,481)) ; resize((500,500), rel=false, win=#1)
+k=1 focus=other res=ok parse=normal spawn=pid | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+k=1 focus=other res=err parse=normal spawn=pid | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+k=1 focus=none res=ok parse=normal spawn=pid | (no host call)
+k=1 focus=none res=err parse=normal spawn=pid | (no host call)
+k=2 focus=bar res=ok parse=normal spawn=pid | pinWindow(TOGGLE, win=#1)
+k=2 focus=bar res=err parse=normal spawn=pid | pinWindow(TOGGLE, win=#1)
+k=2 focus=other res=ok parse=normal spawn=pid | pinWindow(TOGGLE, win=#2)
+k=2 focus=other res=err parse=normal spawn=pid | pinWindow(TOGGLE, win=#2)
+k=2 focus=none res=ok parse=normal spawn=pid | pinWindow(TOGGLE, win=null)
+k=2 focus=none res=err parse=normal spawn=pid | pinWindow(TOGGLE, win=null)
+k=3 focus=bar res=ok parse=normal spawn=pid | parse('exact -66 444', rel=(11,21)) ; move((-66,444), rel=false, win=#1)
+k=3 focus=bar res=err parse=normal spawn=pid | parse('exact -66 444', rel=(11,21)) ; move((-66,444), rel=false, win=#1)
+k=3 focus=other res=ok parse=normal spawn=pid | parse('exact -66 444', rel=(501,601)) ; move((-66,444), rel=false, win=#2)
+k=3 focus=other res=err parse=normal spawn=pid | parse('exact -66 444', rel=(501,601)) ; move((-66,444), rel=false, win=#2)
+k=3 focus=none res=ok parse=normal spawn=pid | (no host call)
+k=3 focus=none res=err parse=normal spawn=pid | (no host call)
+k=4 focus=bar res=ok parse=normal spawn=pid | floatWindow(DISABLE, win=#1)
+k=4 focus=bar res=err parse=normal spawn=pid | floatWindow(DISABLE, win=#1)
+k=4 focus=other res=ok parse=normal spawn=pid | floatWindow(DISABLE, win=#2)
+k=4 focus=other res=err parse=normal spawn=pid | floatWindow(DISABLE, win=#2)
+k=4 focus=none res=ok parse=normal spawn=pid | floatWindow(DISABLE, win=null)
+k=4 focus=none res=err parse=normal spawn=pid | floatWindow(DISABLE, win=null)
+k=5 focus=bar res=ok parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=#1)
+k=5 focus=bar res=err parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=#1)
+k=5 focus=other res=ok parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=#2)
+k=5 focus=other res=err parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=#2)
+k=5 focus=none res=ok parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=null)
+k=5 focus=none res=err parse=normal spawn=pid | fullscreenWindow(MAXIMIZED, layoutAware=true, win=null)
+k=6 focus=bar res=ok parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=#1)
+k=6 focus=bar res=err parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=#1)
+k=6 focus=other res=ok parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=#2)
+k=6 focus=other res=err parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=#2)
+k=6 focus=none res=ok parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=null)
+k=6 focus=none res=err parse=normal spawn=pid | fullscreenWindow(FULLSCREEN, layoutAware=true, win=null)
+k=7 focus=bar res=ok parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=#1)
+k=7 focus=bar res=err parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=#1)
+k=7 focus=other res=ok parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=#2)
+k=7 focus=other res=err parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=#2)
+k=7 focus=none res=ok parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=null)
+k=7 focus=none res=err parse=normal spawn=pid | moveToWorkspace(ws='special:minimized', silent=true, win=null)
+k=8 focus=bar res=ok parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=8 focus=bar res=err parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=8 focus=other res=ok parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=8 focus=other res=err parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=8 focus=none res=ok parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=8 focus=none res=err parse=normal spawn=pid | spawn('kitty --title 'a b'')
+k=9 focus=bar res=ok parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+k=9 focus=bar res=err parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+k=9 focus=other res=ok parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+k=9 focus=other res=err parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+k=9 focus=none res=ok parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+k=9 focus=none res=err parse=normal spawn=pid | spawn('kwinish-ui menu <bar-window> --at 120,80')
+
+-- logs mode sample --
+k=1 focus=other res=warn parse=normal spawn=pid | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+  LOG[WARN] [kwinish-bars] touch resize failed: fake resize warning (invalid_state)
+k=1 focus=other res=warn parse=normal spawn=zero | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+  LOG[WARN] [kwinish-bars] touch resize failed: fake resize warning (invalid_state)
+--
+k=1 focus=other res=warn parse=tiny spawn=pid | parse('exact 50% 50%', rel=(301,201))
+  LOG[ERR] [kwinish-bars] touch resize failed: Invalid size (invalid_argument)
+k=1 focus=other res=warn parse=tiny spawn=zero | parse('exact 50% 50%', rel=(301,201))
+  LOG[ERR] [kwinish-bars] touch resize failed: Invalid size (invalid_argument)
+--
+k=1 focus=other res=silent parse=normal spawn=pid | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+k=1 focus=other res=silent parse=normal spawn=zero | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+k=1 focus=other res=silent parse=normal spawn=none | parse('exact 50% 50%', rel=(301,201)) ; resize((500,500), rel=false, win=#2)
+k=1 focus=other res=silent parse=tiny spawn=pid | parse('exact 50% 50%', rel=(301,201))
+  LOG[ERR] [kwinish-bars] touch resize failed: Invalid size (invalid_argument)
+k=1 focus=other res=silent parse=tiny spawn=zero | parse('exact 50% 50%', rel=(301,201))
+  LOG[ERR] [kwinish-bars] touch resize failed: Invalid size (invalid_argument)
+--
+k=1 focus=none res=warn parse=normal spawn=pid | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+k=1 focus=none res=warn parse=normal spawn=zero | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+--
+k=1 focus=none res=warn parse=tiny spawn=pid | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+k=1 focus=none res=warn parse=tiny spawn=zero | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+--
+k=1 focus=none res=silent parse=normal spawn=pid | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+k=1 focus=none res=silent parse=normal spawn=zero | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+--
+k=1 focus=none res=silent parse=tiny spawn=pid | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+k=1 focus=none res=silent parse=tiny spawn=zero | (no host call)
+  LOG[WARN] [kwinish-bars] touch resize failed: resizeWindow: no window (no_target)
+--
+k=3 focus=other res=warn parse=normal spawn=pid | parse('exact -66 444', rel=(501,601)) ; move((-66,444), rel=false, win=#2)
+  LOG[WARN] [kwinish-bars] touch move failed: fake move warning (invalid_state)
+
+
+## Host evidence (O vs U)
+# P8 host evidence: Config::Actions bodies O (0.56.2) vs U (0.57.0 0aa6745f), extracted and diffed
+
+## closeWindow-0: IDENTICAL
+## floatWindow-0: diff O U
+8c8
+<         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->m_isFloating; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantFloat = !window->isFloating(); break;
+13c13
+<     if (wantFloat == window->m_isFloating)
+---
+>     if (wantFloat == window->isFloating())
+17c17
+<         CKeybindManager::changeMouseBindMode(MBIND_INVALID);
+---
+>         g_layoutManager->endDragTarget();
+21c21
+<     if (window->m_isFloating)
+---
+>     if (window->isFloating())
+
+## pinWindow-0: diff O U
+6c6
+<     if (!window->m_isFloating || Fullscreen::controller()->isFullscreen(window))
+---
+>     if (!window->isFloating() || Fullscreen::controller()->isFullscreen(window))
+9c9,10
+<     bool wantPin = false;
+---
+>     const bool PINNED  = sc<bool>(window->m_state & Desktop::View::WINDOW_STATE_PINNED);
+>     bool       wantPin = false;
+11c12
+<         case TOGGLE_ACTION_TOGGLE: wantPin = !window->m_pinned; break;
+---
+>         case TOGGLE_ACTION_TOGGLE: wantPin = !PINNED; break;
+16c17
+<     if (wantPin == window->m_pinned)
+---
+>     if (wantPin == PINNED)
+23c24
+<     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->m_space)
+---
+>     if (!PMONITOR->m_activeWorkspace || !PMONITOR->m_activeWorkspace->space())
+30c31,35
+<     window->m_pinned = wantPin;
+---
+>     if (wantPin)
+>         window->m_state |= Desktop::View::WINDOW_STATE_PINNED;
+>     else
+>         window->m_state &= ~Desktop::View::WINDOW_STATE_PINNED;
+>     window->stateTracker().scheduleUpdate();
+32c37
+<     *window->alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+---
+>     *window->presentation().alpha(Desktop::View::WINDOW_ALPHA_FULLSCREEN) = window->isBlockedByFullscreen() ? 0.F : 1.F;
+34c39
+<     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->m_space);
+---
+>     LAYOUTTARGET->assignToSpace(PMONITOR->m_activeWorkspace->space());
+38,39c43,44
+<     PWORKSPACE->m_lastFocusedWindow =
+<         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS);
+---
+>     PWORKSPACE->rememberFocusedWindow(
+>         Desktop::viewState()->hitTest().windowAt(g_pInputManager->getMouseCoordsInternal(), Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS));
+41c46
+<     g_pEventManager->postEvent(SHyprIPCEvent{.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(window->m_pinned))});
+---
+>     IPC::Socket2::sock()->postEvent({.event = "pin", .data = std::format("{:x},{}", rc<uintptr_t>(window.get()), sc<int>(wantPin))});
+
+## fullscreenWindow-0: IDENTICAL
+## fullscreenWindow-1: IDENTICAL
+## move-0: IDENTICAL
+## resize-0: IDENTICAL
+## moveToWorkspace-0: diff O U
+9c9
+<     if (ws->m_id == window->workspaceID())
+---
+>     if (ws == window->m_workspace)
+11a12,13
+>     auto       constraintGuard = g_pInputManager->pointerConstraints().suspend();
+> 
+21c23
+<         if (window == Desktop::focusState()->window()) {
+---
+>         if (window->m_workspace != POLDWS && window == Desktop::focusState()->window()) {
+26,27c28,32
+<             else
+<                 g_pInputManager->refocus();
+---
+>             else {
+>                 // try to focus anything. If there isn't anything, this will unfocus (nullptr)
+>                 const auto PATWS = POLDWS->getFirstWindow();
+>                 Desktop::focusState()->fullWindowFocus(PATWS, Desktop::FOCUS_REASON_KEYBIND);
+>             }
+38c43
+<         POLDWS->m_lastFocusedWindow = POLDWS->getFirstWindow();
+---
+>         POLDWS->rememberFocusedWindow(POLDWS->getFirstWindow());
+40c45
+<         if (ws->m_isSpecialWorkspace)
+---
+>         if (ws->type() == Workspace::eWorkspaceType::SPECIAL)
+42c47
+<         else if (POLDWS->m_isSpecialWorkspace)
+---
+>         else if (POLDWS->type() == Workspace::eWorkspaceType::SPECIAL)
+
+## U moveToWorkspace(PHLWORKSPACE) full body
+ActionResult Actions::moveToWorkspace(PHLWORKSPACE ws, bool silent, std::optional<PHLWINDOW> w) {
+    auto window = xtract(w);
+    if (!window)
+        return {};
+
+    if (!ws)
+        return actionError("No workspace to move to", eActionErrorLevel::WARNING, eActionErrorCode::INVALID_ARGUMENT);
+
+    if (ws == window->m_workspace)
+        return {};
+
+    auto       constraintGuard = g_pInputManager->pointerConstraints().suspend();
+
+    const auto POLDWS = window->m_workspace;
+
+    updateRelativeCursorCoords();
+    g_pHyprRenderer->damageWindow(window);
+
+    if (silent) {
+        const auto OLDMIDDLE = window->middle();
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+
+        if (window->m_workspace != POLDWS && window == Desktop::focusState()->window()) {
+            if (const auto PATCOORDS =
+                    Desktop::viewState()->hitTest().windowAt(OLDMIDDLE, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, window);
+                PATCOORDS)
+                Desktop::focusState()->fullWindowFocus(PATCOORDS, Desktop::FOCUS_REASON_KEYBIND);
+            else {
+                // try to focus anything. If there isn't anything, this will unfocus (nullptr)
+                const auto PATWS = POLDWS->getFirstWindow();
+                Desktop::focusState()->fullWindowFocus(PATWS, Desktop::FOCUS_REASON_KEYBIND);
+            }
+        }
+    } else {
+        PHLMONITOR pMonitor = nullptr;
+
+        const auto FULLSCREENMODE = Fullscreen::controller()->getFullscreenModes(window).internal;
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+        pMonitor = ws->m_monitor.lock();
+        Desktop::focusState()->rawMonitorFocus(pMonitor);
+        Fullscreen::controller()->setFullscreenMode(window, FULLSCREENMODE);
+
+        POLDWS->rememberFocusedWindow(POLDWS->getFirstWindow());
+
+        if (ws->type() == Workspace::eWorkspaceType::SPECIAL)
+            pMonitor->setSpecialWorkspace(ws);
+        else if (POLDWS->type() == Workspace::eWorkspaceType::SPECIAL)
+            POLDWS->m_monitor.lock()->setSpecialWorkspace(nullptr);
+
+        pMonitor->changeWorkspace(ws);
+
+        Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_KEYBIND);
+        window->warpCursor();
+    }
+
+    return {};
+}
+
+## O moveToWorkspace(PHLWORKSPACE) full body
+ActionResult Actions::moveToWorkspace(PHLWORKSPACE ws, bool silent, std::optional<PHLWINDOW> w) {
+    auto window = xtract(w);
+    if (!window)
+        return {};
+
+    if (!ws)
+        return actionError("No workspace to move to", eActionErrorLevel::WARNING, eActionErrorCode::INVALID_ARGUMENT);
+
+    if (ws->m_id == window->workspaceID())
+        return {};
+
+    const auto POLDWS = window->m_workspace;
+
+    updateRelativeCursorCoords();
+    g_pHyprRenderer->damageWindow(window);
+
+    if (silent) {
+        const auto OLDMIDDLE = window->middle();
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+
+        if (window == Desktop::focusState()->window()) {
+            if (const auto PATCOORDS =
+                    Desktop::viewState()->hitTest().windowAt(OLDMIDDLE, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING, window);
+                PATCOORDS)
+                Desktop::focusState()->fullWindowFocus(PATCOORDS, Desktop::FOCUS_REASON_KEYBIND);
+            else
+                g_pInputManager->refocus();
+        }
+    } else {
+        PHLMONITOR pMonitor = nullptr;
+
+        const auto FULLSCREENMODE = Fullscreen::controller()->getFullscreenModes(window).internal;
+        Desktop::globalWindowController()->moveWindowToWorkspace(window, ws);
+        pMonitor = ws->m_monitor.lock();
+        Desktop::focusState()->rawMonitorFocus(pMonitor);
+        Fullscreen::controller()->setFullscreenMode(window, FULLSCREENMODE);
+
+        POLDWS->m_lastFocusedWindow = POLDWS->getFirstWindow();
+
+        if (ws->m_isSpecialWorkspace)
+            pMonitor->setSpecialWorkspace(ws);
+        else if (POLDWS->m_isSpecialWorkspace)
+            POLDWS->m_monitor.lock()->setSpecialWorkspace(nullptr);
+
+        pMonitor->changeWorkspace(ws);
+
+        Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_KEYBIND);
+        window->warpCursor();
+    }
+
+    return {};
+}
+
+## U moveToWorkspace(string) (new overload)
+ActionResult Actions::moveToWorkspace(const std::string& ws, bool silent, std::optional<PHLWINDOW> w) {
+    const auto WORKSPACE = findOrCreateWorkspace(ws, false);
+    const auto res       = Actions::moveToWorkspace(WORKSPACE, silent, w);
+    if (WORKSPACE)
+        WORKSPACE->ready();
+    return res;
+}
+
+## U findOrCreateWorkspace (ConfigActions.cpp:151-168)
+static PHLWORKSPACE findOrCreateWorkspace(const State::Workspace::STarget target, bool isEmpty) {
+    if (!target.valid())
+        return nullptr;
+
+    auto ws = State::Workspace::state()->find(target);
+    if (!ws) {
+        const auto PMONITOR = Desktop::focusState()->monitor();
+        if (PMONITOR)
+            ws = State::Workspace::state()->create(target, PMONITOR, isEmpty);
+    }
+
+    return ws;
+}
+
+static PHLWORKSPACE findOrCreateWorkspace(const std::string& args, bool isEmpty) {
+    const auto TARGET = State::Workspace::resolver()->getWorkspaceTargetFromString(args);
+    return findOrCreateWorkspace(TARGET, isEmpty);
+}
+
+## U Resolver special: (state/workspace/Resolver.cpp:126-138)
+State::Workspace::STarget CWorkspaceResolver::getWorkspaceTargetFromString(const std::string& in, std::optional<PHLMONITOR> baseMon) {
+    const auto BASEMONITOR = baseMon.value_or(Desktop::focusState()->monitor());
+    if (in.empty())
+        return {};
+
+    if (in == "special")
+        return {.id = ::Workspace::SWorkspaceSpecialID{}, .address = "special:special", .displayName = "special:special", .type = ::Workspace::eWorkspaceType::SPECIAL};
+
+    if (in.starts_with("special:")) {
+        if (in.size() == 8)
+            return {};
+        return {.id = ::Workspace::SWorkspaceSpecialID{}, .address = in, .displayName = in, .type = ::Workspace::eWorkspaceType::SPECIAL};
+    }
+
+## U xtract (ConfigActions.cpp:57-59) / O xtract (47-49)
+static PHLWINDOW xtract(std::optional<PHLWINDOW> window) {
+    return window.value_or(Desktop::focusState()->window());
+}
+static PHLWINDOW xtract(std::optional<PHLWINDOW> window) {
+    return window.value_or(Desktop::focusState()->window());
+}
+
+## executor spawn(string) O vs U: IDENTICAL
+std::optional<uint64_t> CExecutor::spawn(const std::string& args) {
+    return spawnWithRules(args);
+}
+
+## spawnRawProc / spawnWithRules(rule) O vs U
+2c2
+<     Log::logger->log(Log::DEBUG, "[executor] Executing {}", args);
+---
+>     LOG(Log::DEBUG, "[executor] Executing {}", args);
+8c8
+<         Log::logger->log(Log::DEBUG, "Fail to fork");
+---
+>         LOG(Log::DEBUG, "Fail to fork");
+40c40
+<     Log::logger->log(Log::DEBUG, "[executor] Process created with pid {}", child);
+---
+>     LOG(Log::DEBUG, "[executor] Process created with pid {}", child);
+21c21
+<             Log::logger->log(Log::ERR, "Failed to parse exec rule: {}", builtRule.error());
+---
+>             LOG(Log::ERR, "Failed to parse exec rule: {}", builtRule.error());
+
+## parseWindowVectorArgsRelative O vs U
+32c32
+<         Log::logger->log(Log::ERR, "parseWindowVectorArgsRelative: args not numbers");
+---
+>         LOG(Log::ERR, "parseWindowVectorArgsRelative: args not numbers");
+
+## O translator: wrap/windowFromArg/resolveWorkspace + 8 dispatchers (verbatim, as fed to the OLD harness)
+#line 38 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult wrap(ActionResult res) {
+    if (!res)
+        return {.success = false, .error = res.error().message};
+    return {.passEvent = res->passEvent};
+}
+
+#line 45 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static std::optional<PHLWINDOW> windowFromArg(const std::string& arg) {
+    if (arg.empty() || arg == "active")
+        return std::nullopt; // will use xtract(nullopt) -> focused window
+    return Desktop::viewState()->query().selector(arg).runWindow();
+}
+
+#line 52 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static PHLWORKSPACE resolveWorkspace(const std::string& args) {
+    const auto& [id, name, isAutoID] = getWorkspaceIDNameFromString(args);
+    if (id == WORKSPACE_INVALID)
+        return nullptr;
+    auto ws = State::workspaceState()->query().id(id).run();
+    if (!ws) {
+        const auto PMONITOR = Desktop::focusState()->monitor();
+        if (PMONITOR)
+            ws = State::workspaceState()->create(id, PMONITOR->m_id, name, false);
+    }
+    return ws;
+}
+
+#line 65 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult exec(const std::string& args) {
+    const auto PROC = Config::Supplementary::executor()->spawn(args);
+    if (!PROC.has_value())
+        return {.success = false, .error = std::format("Failed to start process. No closing bracket in exec rule. {}", args)};
+    return {.success = PROC.value() > 0, .error = std::format("Failed to start process {}", args)};
+}
+
+#line 122 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult setfloating(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_ENABLE, w));
+}
+
+#line 127 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult settiled(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::floatWindow(TOGGLE_ACTION_DISABLE, w));
+}
+
+#line 160 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult fullscreen(const std::string& args) {
+
+    CVarList2                         ARGS(args, 2, ' ');
+
+    const Fullscreen::eFullscreenMode MODE = ARGS.size() > 0 && ARGS[0] == "1" ? Fullscreen::FSMODE_MAXIMIZED : Fullscreen::FSMODE_FULLSCREEN;
+
+    if (ARGS.size() <= 1 || ARGS[1] == "toggle")
+        return wrap(Actions::fullscreenWindow(MODE, true));
+
+    // "set" means enable, "unset" means disable - but the Action toggles.
+    // We need to check current state ourselves.
+    const auto PWINDOW = Desktop::focusState()->window();
+    if (!PWINDOW)
+        return {.success = false, .error = "Window not found"};
+
+    if (ARGS[1] == "set") {
+        if (!Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    } else if (ARGS[1] == "unset") {
+        if (Fullscreen::controller()->isFullscreen(PWINDOW, MODE))
+            return wrap(Actions::fullscreenWindow(MODE, true));
+        return {};
+    }
+
+    return {};
+}
+
+#line 225 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult movetoworkspacesilent(const std::string& args) {
+    PHLWINDOW   PWINDOW = Desktop::focusState()->window();
+    std::string wsArgs  = args;
+
+    if (args.contains(',')) {
+        PWINDOW = Desktop::viewState()->query().selector(args.substr(args.find_last_of(',') + 1)).runWindow();
+        wsArgs  = args.substr(0, args.find_last_of(','));
+    }
+
+    auto ws = resolveWorkspace(wsArgs);
+    if (!ws)
+        return {.success = false, .error = "Invalid workspace"};
+
+    return wrap(Actions::moveToWorkspace(ws, true, PWINDOW));
+}
+
+#line 448 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult movewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "moveWindow: no window"};
+
+    const auto POS = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    return wrap(Actions::move(POS, false, PWINDOW));
+}
+
+#line 460 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult resizewindowpixel(const std::string& args) {
+    const auto WINDOWREGEX = args.substr(args.find_first_of(',') + 1);
+    const auto MOVECMD     = args.substr(0, args.find_first_of(','));
+
+    const auto PWINDOW = Desktop::viewState()->query().selector(WINDOWREGEX).runWindow();
+    if (!PWINDOW)
+        return {.success = false, .error = "resizeWindow: no window"};
+
+    const auto SIZ = g_pCompositor->parseWindowVectorArgsRelative(MOVECMD, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_GOAL));
+    if (SIZ.x < 1 || SIZ.y < 1)
+        return {.success = false, .error = "Invalid size"};
+
+    return wrap(Actions::resize(SIZ, false, PWINDOW));
+}
+
+#line 670 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+static SDispatchResult pin(const std::string& args) {
+    auto w = windowFromArg(args);
+    return wrap(Actions::pinWindow(TOGGLE_ACTION_TOGGLE, w));
+}
+
+inline std::unordered_map<std::string, std::function<SDispatchResult(const std::string&)>> m_dispMap;
+#line 30 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+SDispatchResult translatorRun(const std::string& d, const std::string& w) {
+    if (!m_dispMap.contains(d))
+        return {.success = false, .error = "Bad dispatcher"};
+
+    return m_dispMap.at(d)(w);
+}
+static void registerDispatchers() {
+#line 797 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["exec"]                           = ::exec;
+#line 806 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["setfloating"]                    = ::setfloating;
+#line 807 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["settiled"]                       = ::settiled;
+#line 810 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["fullscreen"]                     = ::fullscreen;
+#line 813 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["movetoworkspacesilent"]          = ::movetoworkspacesilent;
+#line 845 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["movewindowpixel"]                = ::movewindowpixel;
+#line 846 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["resizewindowpixel"]              = ::resizewindowpixel;
+#line 849 "/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/config/legacy/DispatcherTranslator.cpp"
+    m_dispMap["pin"]                            = ::pin;
+}
+
+## O ViewQuery::bySelector (desktop/state/ViewQuery.cpp:97-101)
+PHLWINDOW CViewQuery::bySelector() const {
+    auto regexp = trim(*m_selector);
+
+    if (regexp.starts_with("active"))
+        return focusState()->window();
+
+## O KeybindManager.cpp:113 (legacy name -> translator)
+        m_dispatchers[name] = [n = std::string(name)](std::string args) -> SDispatchResult { return Config::Legacy::translator()->run(n, args); };
+    }
+
+## O PluginAPI.cpp:240-272 (third-party add/remove dispatcher)
+        return false;
+
+    PLUGIN->m_registeredDispatchers.push_back(name);
+
+    g_pKeybindManager->m_dispatchers[name] = [handler](std::string arg1) -> SDispatchResult {
+        handler(arg1);
+        return {};
+    };
+
+    return true;
+}
+
+APICALL bool HyprlandAPI::addDispatcherV2(HANDLE handle, const std::string& name, std::function<SDispatchResult(std::string)> handler) {
+    auto* const PLUGIN = g_pPluginSystem->getPluginByHandle(handle);
+
+    if (!PLUGIN)
+        return false;
+
+    PLUGIN->m_registeredDispatchers.push_back(name);
+
+    g_pKeybindManager->m_dispatchers[name] = handler;
+
+    return true;
+}
+
+APICALL bool HyprlandAPI::removeDispatcher(HANDLE handle, const std::string& name) {
+    auto* const PLUGIN = g_pPluginSystem->getPluginByHandle(handle);
+
+    if (!PLUGIN)
+        return false;
+
+    std::erase_if(g_pKeybindManager->m_dispatchers, [&](const auto& other) { return other.first == name; });
+    std::erase_if(PLUGIN->m_registeredDispatchers, [&](const auto& other) { return other == name; });
+
+## U LuaBindingsDispatchers.cpp:467-471 (core's minimize path on 0.57)
+static int dsp_moveToWorkspace(lua_State* L) {
+    std::string ws     = lua_tostring(L, lua_upvalueindex(1));
+    bool        silent = lua_toboolean(L, lua_upvalueindex(2));
+    return Internal::checkResult(L, CA::moveToWorkspace(ws, silent, Internal::windowFromUpval(L, 3)));
+}
+

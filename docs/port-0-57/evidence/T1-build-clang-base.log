@@ -1,0 +1,408 @@
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+clang++ -O2 -ferror-limit=0 -shared -fPIC -std=c++2b -Wno-c++11-narrowing   `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o /tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/w-clang-base-nolimit/kw.so `pkg-config --libs cairo librsvg-2.0`
+main.cpp:35:28: warning: 'pluginAPIVersion' has C-linkage specified, but returns user-defined type 'std::string' (aka 'basic_string<char>') which is incompatible with C [-Wreturn-type-c-linkage]
+   35 | APICALL EXPORT std::string PLUGIN_API_VERSION() {
+      |                            ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:102:37: note: expanded from macro 'PLUGIN_API_VERSION'
+  102 | #define PLUGIN_API_VERSION          pluginAPIVersion
+      |                                     ^
+main.cpp:40:18: error: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+   40 |     if (!window->m_X11DoesntWantBorders) {
+      |          ~~~~~~~~^
+main.cpp:41:41: error: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+   41 |         if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+      |                                 ~~~~~~~~^
+main.cpp:47:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+   47 |         HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));
+      |                                                           ^~~~~~~~~~~~~~
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:40:9: note: candidate constructor not viable: no known conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'const CSharedPointer<IHyprWindowDecoration> &' for 1st argument
+   40 |         CSharedPointer(const CSharedPointer& ref) noexcept : impl_(ref.impl_), m_data(ref.m_data) {
+      |         ^              ~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:52:9: note: candidate constructor not viable: no known conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'CSharedPointer<IHyprWindowDecoration> &&' for 1st argument
+   52 |         CSharedPointer(CSharedPointer&& ref) noexcept {
+      |         ^              ~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:66:9: note: candidate constructor not viable: no known conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'std::nullptr_t' for 1st argument
+   66 |         CSharedPointer(std::nullptr_t) noexcept {
+      |         ^              ~~~~~~~~~~~~~~
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:36:9: note: candidate template ignored: could not match 'CSharedPointer' against 'Hyprutils::Memory::CUniquePointer'
+   36 |         CSharedPointer(const CSharedPointer<U>& ref) noexcept : impl_(ref.impl_), m_data(Impl_::dataPointer(sc<T*>(ref.get()))) {
+      |         ^
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:45:9: note: candidate template ignored: could not match 'CSharedPointer' against 'Hyprutils::Memory::CUniquePointer'
+   45 |         CSharedPointer(CSharedPointer<U>&& ref) noexcept {
+      |         ^
+/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp:30:18: note: explicit constructor is not a candidate
+   30 |         explicit CSharedPointer(T* object) noexcept : impl_(new Impl_::impl_base(Impl_::dataPointer(object), _delete)), m_data(Impl_::dataPointer(object)) {
+      |                  ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:267:100: note: passing argument to parameter 'pDecoration' here
+  267 |     APICALL bool addWindowDecoration(HANDLE handle, PHLWINDOW pWindow, SP<IHyprWindowDecoration>&& pDecoration);
+      |                                                                                                    ^
+main.cpp:103:13: error: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+  103 |     window->updateWindowDecos();
+      |     ~~~~~~~~^
+main.cpp:353:40: warning: 'pluginInit' has C-linkage specified, but returns user-defined type 'PLUGIN_DESCRIPTION_INFO' which is incompatible with C [-Wreturn-type-c-linkage]
+  353 | APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+      |                                        ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:112:30: note: expanded from macro 'PLUGIN_INIT'
+  112 | #define PLUGIN_INIT          pluginInit
+      |                              ^
+main.cpp:436:42: error: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+  436 |     if (Config::mgr()->type() == Config::CONFIG_LEGACY)
+      |                                          ^~~~~~~~~~~~~
+      |                                          CONFIG_LUA
+/usr/include/hyprland/src/config/ConfigManager.hpp:28:9: note: 'CONFIG_LUA' declared here
+   28 |         CONFIG_LUA,
+      |         ^
+main.cpp:437:22: warning: 'addConfigKeyword' is deprecated [-Wdeprecated-declarations]
+  437 |         HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
+      |                      ^
+/usr/include/hyprland/src/plugins/PluginAPI.hpp:153:15: note: 'addConfigKeyword' has been explicitly marked deprecated here
+  153 |     APICALL [[deprecated]] bool addConfigKeyword(HANDLE handle, const std::string& name, Hyprlang::PCONFIGHANDLERFUNC fn, Hyprlang::SHandlerOptions opts);
+      |               ^
+main.cpp:440:42: error: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+  440 |     if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+      |                                          ^~~~~~~~~~~~~
+      |                                          CONFIG_LUA
+/usr/include/hyprland/src/config/ConfigManager.hpp:28:9: note: 'CONFIG_LUA' declared here
+   28 |         CONFIG_LUA,
+      |         ^
+main.cpp:484:13: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  484 |             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |             ^~~~~~~~~~~~~~~~~
+      |             g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+main.cpp:484:32: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  484 |             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |             ~~~~~~~~~~~~~~~~~~~^
+main.cpp:507:41: error: no member named 'm_renderData' in 'Render::IHyprRenderer'
+  507 |         const auto M = g_pHyprRenderer->m_renderData.pMonitor.lock();
+      |                        ~~~~~~~~~~~~~~~~~^
+main.cpp:504:58: error: no matching member function for call to 'listen'
+  504 |     static auto PR = Event::bus()->m_events.render.stage.listen([&](eRenderStage stage) {
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~
+/usr/include/hyprutils/signal/Signal.hpp:48:92: note: candidate function not viable: no known conversion from '(lambda at main.cpp:504:65)' to 'std::function<void (RefArg<Event::SRenderStageEvent>)>' (aka 'std::function<void (const Event::SRenderStageEvent &)>') for 1st argument
+   48 |         [[nodiscard("Listener is unregistered when the ptr is lost")]] CHyprSignalListener listen(std::function<void(RefArg<Args>...)> handler) {
+      |                                                                                            ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprutils/signal/Signal.hpp:52:92: note: candidate function not viable: no known conversion from '(lambda at main.cpp:504:65)' to 'std::function<void ()>' for 1st argument
+   52 |         [[nodiscard("Listener is unregistered when the ptr is lost")]] CHyprSignalListener listen(std::function<void()> handler)
+      |                                                                                            ^      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+main.cpp:516:34: error: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+  516 |         if (w->isHidden() || !w->m_isMapped)
+      |                                  ^
+/usr/include/hyprland/src/desktop/view/window/Window.hpp:286:21: note: declared private here
+  286 |         bool        m_isMapped  = false;
+      |                     ^
+main.cpp:531:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+  531 |     g_pHyprRenderer->m_renderPass.removeAllOfType("CBarPassElement");
+      |     ~~~~~~~~~~~~~~~~~^
+main.cpp:532:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+  532 |     g_pHyprRenderer->m_renderPass.removeAllOfType("CPreviewPassElement"); // queued by the drag preview: it would outlive the library
+      |     ~~~~~~~~~~~~~~~~~^
+In file included from main.cpp:8:
+In file included from /usr/include/hyprland/src/Compositor.hpp:8:
+In file included from /usr/include/hyprland/src/managers/XWaylandManager.hpp:3:
+In file included from /usr/include/hyprland/src/managers/../defines.hpp:4:
+In file included from /usr/include/hyprland/src/managers/../debug/log/Logger.hpp:3:
+In file included from /usr/include/hyprutils/cli/Logger.hpp:7:
+/usr/include/hyprutils/cli/../memory/UniquePtr.hpp:166:38: error: allocating an object of abstract class type 'CHyprBar'
+  166 |         return CUniquePointer<U>(new U(std::forward<Args>(args)...));
+      |                                      ^
+main.cpp:44:20: note: in instantiation of function template specialization 'Hyprutils::Memory::makeUnique<CHyprBar, Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow> &>' requested here
+   44 |         auto bar = makeUnique<CHyprBar>(window);
+      |                    ^
+/usr/include/hyprland/src/render/decorations/IHyprWindowDecoration.hpp:50:40: note: unimplemented pure virtual method 'draw' in 'CHyprBar'
+   50 |     virtual void                       draw(Render::CRenderContext& ctx, PHLMONITOR, float const& a, const Render::SWindowRenderPresentation& presentation) = 0;
+      |                                        ^
+3 warnings and 14 errors generated.
+In file included from barDeco.cpp:38:
+./BarPassElement.hpp:18:43: error: 'draw' marked 'override' but does not override any member functions
+   18 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^
+./BarPassElement.hpp:19:43: error: 'needsLiveBlur' marked 'override' but does not override any member functions
+   19 |     virtual bool                          needsLiveBlur() override;
+      |                                           ^
+./BarPassElement.hpp:20:43: error: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   20 |     virtual bool                          needsPrecomputeBlur() override;
+      |                                           ^
+./BarPassElement.hpp:21:43: error: 'boundingBox' marked 'override' but does not override any member functions
+   21 |     virtual std::optional<CBox>           boundingBox() override;
+      |                                           ^
+In file included from barDeco.cpp:40:
+./PreviewPassElement.hpp:20:43: error: 'draw' marked 'override' but does not override any member functions
+   20 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^
+./PreviewPassElement.hpp:21:43: error: 'needsLiveBlur' marked 'override' but does not override any member functions
+   21 |     virtual bool                          needsLiveBlur() override {
+      |                                           ^
+./PreviewPassElement.hpp:24:18: error: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   24 |     virtual bool needsPrecomputeBlur() override {
+      |                  ^
+./PreviewPassElement.hpp:27:33: error: 'boundingBox' marked 'override' but does not override any member functions
+   27 |     virtual std::optional<CBox> boundingBox() override {
+      |                                 ^
+barDeco.cpp:278:5: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  278 |     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |     ^~~~~~~~~~~~~~~~~
+      |     g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:278:24: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  278 |     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |     ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:279:5: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  279 |     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+      |     ^~~~~~~~~~~~~~~~~
+      |     g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:279:24: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  279 |     g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+      |     ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:381:13: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  381 |             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+      |             ^~~~~~~~~~~~~~~~~
+      |             g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:381:32: error: no member named 'm_dispatchers' in 'CHyprXWaylandManager'
+  381 |             g_pKeybindManager->m_dispatchers["mouse"]("0movewindow");
+      |             ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:486:56: error: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+  486 |             if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+      |                                                        ^~~~~~~~~~~~~~~~~
+      |                                                        Input::HL_MODIFIER_SHIFT
+/usr/include/hyprland/src/plugins/../event/../devices/../input/Keys.hpp:20:16: note: 'Input::HL_MODIFIER_SHIFT' declared here
+   20 |     using enum eKeyboardModifiers;
+      |                ^
+barDeco.cpp:522:26: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+  522 |         g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+      |         ~~~~~~~~~~~~~~~~~^
+barDeco.cpp:566:5: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  566 |     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |     ^~~~~~~~~~~~~~~~~
+      |     g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:566:24: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  566 |     g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |     ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:586:9: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  586 |         g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |         ^~~~~~~~~~~~~~~~~
+      |         g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:586:28: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  586 |         g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |         ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:587:9: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  587 |         g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+      |         ^~~~~~~~~~~~~~~~~
+      |         g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:587:28: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  587 |         g_pKeybindManager->changeMouseBindMode(MBIND_MOVE);
+      |         ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:605:48: error: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+  605 |     if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
+      |                                                ^~~~~~~~~~~~~~~~~
+      |                                                Input::HL_MODIFIER_SHIFT
+/usr/include/hyprland/src/plugins/../event/../devices/../input/Keys.hpp:20:16: note: 'Input::HL_MODIFIER_SHIFT' declared here
+   20 |     using enum eKeyboardModifiers;
+      |                ^
+barDeco.cpp:630:13: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  630 |             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |             ^~~~~~~~~~~~~~~~~
+      |             g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:630:32: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  630 |             g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |             ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:649:9: error: use of undeclared identifier 'g_pKeybindManager'; did you mean 'g_pXWaylandManager'?
+  649 |         g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |         ^~~~~~~~~~~~~~~~~
+      |         g_pXWaylandManager
+/usr/include/hyprland/src/managers/XWaylandManager.hpp:21:33: note: 'g_pXWaylandManager' declared here
+   21 | inline UP<CHyprXWaylandManager> g_pXWaylandManager;
+      |                                 ^
+barDeco.cpp:649:28: error: no member named 'changeMouseBindMode' in 'CHyprXWaylandManager'
+  649 |         g_pKeybindManager->changeMouseBindMode(MBIND_INVALID);
+      |         ~~~~~~~~~~~~~~~~~~~^
+barDeco.cpp:896:142: error: too few arguments to function call, expected 4, have 3
+  896 |             g_pHyprOpenGL->renderRect(buttonBox, color, {.round = static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                        ^
+/usr/include/hyprland/src/render/OpenGL.hpp:195:14: note: 'renderRect' declared here
+  195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+      |              ^          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:934:71: error: too few arguments to function call, expected 4, have 3
+  934 |             g_pHyprOpenGL->renderTexture(button.iconTex, pos, {.a = a});
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~                              ^
+/usr/include/hyprland/src/render/OpenGL.hpp:196:14: note: 'renderTexture' declared here
+  196 |         void renderTexture(CRenderContext& ctx, SP<ITexture>, const CBox&, STextureRenderData data);
+      |              ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:964:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+  964 |     g_pHyprRenderer->m_renderPass.add(makeUnique<CBarPassElement>(data));
+      |     ~~~~~~~~~~~~~~~~~^
+barDeco.cpp:1024:20: error: no matching member function for call to 'scissor'
+ 1024 |     g_pHyprOpenGL->scissor(titleBarBox);
+      |     ~~~~~~~~~~~~~~~^~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:223:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  223 |         void                                      scissor(CRenderContext& ctx, const CBox&, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:224:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  224 |         void                                      scissor(CRenderContext& ctx, const pixman_box32*, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:225:51: note: candidate function not viable: requires at least 5 arguments, but 1 was provided
+  225 |         void                                      scissor(CRenderContext& ctx, const int x, const int y, const int w, const int h, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:1033:28: error: no matching member function for call to 'scissor'
+ 1033 |             g_pHyprOpenGL->scissor(nullptr);
+      |             ~~~~~~~~~~~~~~~^~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:223:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  223 |         void                                      scissor(CRenderContext& ctx, const CBox&, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:224:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  224 |         void                                      scissor(CRenderContext& ctx, const pixman_box32*, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:225:51: note: candidate function not viable: requires at least 5 arguments, but 1 was provided
+  225 |         void                                      scissor(CRenderContext& ctx, const int x, const int y, const int w, const int h, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:1048:124: error: no member named 'roundingPower' in 'Desktop::View::CWindow'
+ 1048 |         g_pHyprOpenGL->renderRect(windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+      |                                                                                                                 ~~~~~~~~~~~^
+barDeco.cpp:1056:109: error: no member named 'roundingPower' in 'Desktop::View::CWindow'
+ 1056 |         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower(), .blur = true, .blurA = a});
+      |                                                                                                  ~~~~~~~~~~~^
+barDeco.cpp:1058:109: error: no member named 'roundingPower' in 'Desktop::View::CWindow'
+ 1058 |         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+      |                                                                                                  ~~~~~~~~~~~^
+barDeco.cpp:1081:75: error: too few arguments to function call, expected 4, have 3
+ 1081 |         g_pHyprOpenGL->renderTexture(m_pIconTex, iconBox.round(), {.a = a});
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                      ^
+/usr/include/hyprland/src/render/OpenGL.hpp:196:14: note: 'renderTexture' declared here
+  196 |         void renderTexture(CRenderContext& ctx, SP<ITexture>, const CBox&, STextureRenderData data);
+      |              ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:1097:68: error: too few arguments to function call, expected 4, have 3
+ 1097 |         g_pHyprOpenGL->renderTexture(m_pTextTex, titleBox, {.a = a});
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~                               ^
+/usr/include/hyprland/src/render/OpenGL.hpp:196:14: note: 'renderTexture' declared here
+  196 |         void renderTexture(CRenderContext& ctx, SP<ITexture>, const CBox&, STextureRenderData data);
+      |              ^             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:1103:20: error: no matching member function for call to 'scissor'
+ 1103 |     g_pHyprOpenGL->scissor(nullptr);
+      |     ~~~~~~~~~~~~~~~^~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:223:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  223 |         void                                      scissor(CRenderContext& ctx, const CBox&, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:224:51: note: candidate function not viable: requires at least 2 arguments, but 1 was provided
+  224 |         void                                      scissor(CRenderContext& ctx, const pixman_box32*, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/hyprland/src/render/OpenGL.hpp:225:51: note: candidate function not viable: requires at least 5 arguments, but 1 was provided
+  225 |         void                                      scissor(CRenderContext& ctx, const int x, const int y, const int w, const int h, bool transform = true);
+      |                                                   ^       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+barDeco.cpp:1335:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+ 1335 |     g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(outer));
+      |     ~~~~~~~~~~~~~~~~~^
+barDeco.cpp:1340:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+ 1340 |     g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(inner));
+      |     ~~~~~~~~~~~~~~~~~^
+barDeco.cpp:1345:22: error: no member named 'm_renderPass' in 'Render::IHyprRenderer'
+ 1345 |     g_pHyprRenderer->m_renderPass.add(makeUnique<CTexPassElement>(std::move(text)));
+      |     ~~~~~~~~~~~~~~~~~^
+In file included from barDeco.cpp:3:
+In file included from ./barDeco.hpp:7:
+In file included from /usr/include/hyprland/src/render/decorations/IHyprWindowDecoration.hpp:9:
+In file included from /usr/include/hyprland/src/render/decorations/../../defines.hpp:4:
+In file included from /usr/include/hyprland/src/render/decorations/../../debug/log/Logger.hpp:3:
+In file included from /usr/include/hyprutils/cli/Logger.hpp:7:
+/usr/include/hyprutils/cli/../memory/UniquePtr.hpp:166:38: error: allocating an object of abstract class type 'CPreviewPassElement'
+  166 |         return CUniquePointer<U>(new U(std::forward<Args>(args)...));
+      |                                      ^
+barDeco.cpp:522:43: note: in instantiation of function template specialization 'Hyprutils::Memory::makeUnique<CPreviewPassElement, CPreviewPassElement::SPreviewData &>' requested here
+  522 |         g_pHyprRenderer->m_renderPass.add(makeUnique<CPreviewPassElement>(data));
+      |                                           ^
+/usr/include/hyprland/src/render/pass/PassElement.hpp:34:33: note: unimplemented pure virtual method 'needsLiveBlur' in 'CPreviewPassElement'
+   34 |     virtual bool                needsLiveBlur(Render::CRenderContext& ctx)       = 0;
+      |                                 ^
+/usr/include/hyprland/src/render/pass/PassElement.hpp:35:33: note: unimplemented pure virtual method 'needsPrecomputeBlur' in 'CPreviewPassElement'
+   35 |     virtual bool                needsPrecomputeBlur(Render::CRenderContext& ctx) = 0;
+      |                                 ^
+In file included from barDeco.cpp:3:
+In file included from ./barDeco.hpp:7:
+In file included from /usr/include/hyprland/src/render/decorations/IHyprWindowDecoration.hpp:9:
+In file included from /usr/include/hyprland/src/render/decorations/../../defines.hpp:4:
+In file included from /usr/include/hyprland/src/render/decorations/../../debug/log/Logger.hpp:3:
+In file included from /usr/include/hyprutils/cli/Logger.hpp:7:
+/usr/include/hyprutils/cli/../memory/UniquePtr.hpp:166:38: error: allocating an object of abstract class type 'CBarPassElement'
+  166 |         return CUniquePointer<U>(new U(std::forward<Args>(args)...));
+      |                                      ^
+barDeco.cpp:964:39: note: in instantiation of function template specialization 'Hyprutils::Memory::makeUnique<CBarPassElement, CBarPassElement::SBarData &>' requested here
+  964 |     g_pHyprRenderer->m_renderPass.add(makeUnique<CBarPassElement>(data));
+      |                                       ^
+/usr/include/hyprland/src/render/pass/PassElement.hpp:34:33: note: unimplemented pure virtual method 'needsLiveBlur' in 'CBarPassElement'
+   34 |     virtual bool                needsLiveBlur(Render::CRenderContext& ctx)       = 0;
+      |                                 ^
+/usr/include/hyprland/src/render/pass/PassElement.hpp:35:33: note: unimplemented pure virtual method 'needsPrecomputeBlur' in 'CBarPassElement'
+   35 |     virtual bool                needsPrecomputeBlur(Render::CRenderContext& ctx) = 0;
+      |                                 ^
+43 errors generated.
+In file included from BarPassElement.cpp:3:
+./BarPassElement.hpp:18:43: error: 'draw' marked 'override' but does not override any member functions
+   18 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^
+./BarPassElement.hpp:19:43: error: 'needsLiveBlur' marked 'override' but does not override any member functions
+   19 |     virtual bool                          needsLiveBlur() override;
+      |                                           ^
+./BarPassElement.hpp:20:43: error: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   20 |     virtual bool                          needsPrecomputeBlur() override;
+      |                                           ^
+./BarPassElement.hpp:21:43: error: 'boundingBox' marked 'override' but does not override any member functions
+   21 |     virtual std::optional<CBox>           boundingBox() override;
+      |                                           ^
+BarPassElement.cpp:15:44: error: no member named 'm_renderData' in 'Render::IHyprRenderer'
+   15 |     data.deco->renderPass(g_pHyprRenderer->m_renderData.pMonitor.lock(), data.a);
+      |                           ~~~~~~~~~~~~~~~~~^
+BarPassElement.cpp:31:71: error: no member named 'm_renderData' in 'Render::IHyprRenderer'
+   31 |     return data.deco->assignedBoxGlobal().translate(-g_pHyprRenderer->m_renderData.pMonitor->m_position).expand(10);
+      |                                                      ~~~~~~~~~~~~~~~~~^
+6 errors generated.
+In file included from PreviewPassElement.cpp:3:
+./PreviewPassElement.hpp:20:43: error: 'draw' marked 'override' but does not override any member functions
+   20 |     virtual std::vector<UP<IPassElement>> draw() override;
+      |                                           ^
+./PreviewPassElement.hpp:21:43: error: 'needsLiveBlur' marked 'override' but does not override any member functions
+   21 |     virtual bool                          needsLiveBlur() override {
+      |                                           ^
+./PreviewPassElement.hpp:24:18: error: 'needsPrecomputeBlur' marked 'override' but does not override any member functions
+   24 |     virtual bool needsPrecomputeBlur() override {
+      |                  ^
+./PreviewPassElement.hpp:27:33: error: 'boundingBox' marked 'override' but does not override any member functions
+   27 |     virtual std::optional<CBox> boundingBox() override {
+      |                                 ^
+PreviewPassElement.cpp:10:73: error: too few arguments to function call, expected 4, have 3
+   10 |     g_pHyprOpenGL->renderRect(data.box, data.fill, {.round = data.round});
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~                                           ^
+/usr/include/hyprland/src/render/OpenGL.hpp:195:14: note: 'renderRect' declared here
+  195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+      |              ^          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PreviewPassElement.cpp:17:51: error: too few arguments to function call, expected 4, have 3
+   17 |         g_pHyprOpenGL->renderRect(s, data.line, {});
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~                 ^
+/usr/include/hyprland/src/render/OpenGL.hpp:195:14: note: 'renderRect' declared here
+  195 |         void renderRect(CRenderContext& ctx, const CBox&, const CHyprColor&, SRectRenderData data);
+      |              ^          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+6 errors generated.
+make: *** [Makefile:19: /tmp/claude-1000/-home-lhen-Projects-ryoku-work-kwinish-port-0-57/3282a325-6c94-4b31-b71a-5e66a6b474b7/scratchpad/t1/w-clang-base-nolimit/kw.so] Error 1
+make: Target 'all' not remade because of errors.
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+exit=2

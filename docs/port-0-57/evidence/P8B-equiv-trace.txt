@@ -1,0 +1,216 @@
+k=0 mode=move active=0 under=0 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=1 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=1 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)) | after=none
+k=0 mode=move active=0 under=1 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=1 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=2 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(412.5,37.25)) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=0 under=2 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(412.5,37.25)) | after=none
+k=0 mode=move active=0 under=2 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=0 under=2 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=0 under=0 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=1 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=1 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(412.5,37.25)) | after=none
+k=1 mode=move active=0 under=1 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=1 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=2 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(412.5,37.25)) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=0 under=2 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(412.5,37.25)) | after=none
+k=1 mode=move active=0 under=2 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=0 under=2 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=0 under=0 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=1 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=2 fs=0 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=0 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=1 deco=0 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=1 deco=1 | windowAt((412.5,37.25), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=0 under=0 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=0 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=0 mode=move active=0 under=1 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(1500.75,-20.5)) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=1 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(1500.75,-20.5)) | after=none
+k=0 mode=move active=0 under=1 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=1 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=0 mode=move active=0 under=2 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(1500.75,-20.5)) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=0 under=2 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(1500.75,-20.5)) | after=none
+k=0 mode=move active=0 under=2 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=0 under=2 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=0 mode=move active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=0 mode=move active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=0 mode=move active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=0 mode=move active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=0 under=0 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=0 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=move active=0 under=1 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(1500.75,-20.5)) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=1 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=barwin, type=2, at=(1500.75,-20.5)) | after=none
+k=1 mode=move active=0 under=1 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=1 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=move active=0 under=2 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(1500.75,-20.5)) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=0 under=2 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; decoCheck(win=other, type=2, at=(1500.75,-20.5)) | after=none
+k=1 mode=move active=0 under=2 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=0 under=2 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=MOVE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=move active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=move active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=move active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=move active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=0 under=0 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=0 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) | after=none
+k=1 mode=resize active=0 under=1 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=1 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:barwin, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:barwin
+k=1 mode=resize active=0 under=2 fs=0 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=0 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=1 deco=0 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=0 under=2 fs=1 deco=1 | windowAt((1500.75,-20.5), props=19, ignore=none) ; beginDragTarget(target=T:other, mode=RESIZE, edge=nullopt, exclusiveDeviceGrab=false) | after=T:other
+k=1 mode=resize active=1 under=0 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=0 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=1 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=0 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=0 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=1 deco=0 | (no host call) | after=T:third-party
+k=1 mode=resize active=1 under=2 fs=1 deco=1 | (no host call) | after=T:third-party
+k=1 mode=resize active=2 under=0 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=0 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=1 fs=1 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=0 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=0 deco=1 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=1 deco=0 | (no host call) | after=T:barwin
+k=1 mode=resize active=2 under=2 fs=1 deco=1 | (no host call) | after=T:barwin

@@ -1,0 +1,29 @@
+make: Entering directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+g++ -O2 -shared -fPIC -std=c++2b -Wno-c++11-narrowing  --no-gnu-unique `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0` main.cpp barDeco.cpp BarPassElement.cpp PreviewPassElement.cpp icon.cpp  -o /tmp/tmp.6xiun9B4kF/kw.so `pkg-config --libs cairo librsvg-2.0`
+barDeco.cpp: In member function 'virtual SDecorationPositioningInfo CHyprBar::getPositioningInfo()':
+barDeco.cpp:83:57: warning: narrowing conversion of '(((!((CHyprBar*)this)->CHyprBar::barActive()) || (!(bool)ENABLED)) ? 0 : ((long int)HEIGHT))' from 'long int' to 'int' [-Wnarrowing]
+   83 |     info.desiredExtents = {{0, !barActive() || !ENABLED ? 0 : HEIGHT}, {0, 0}};
+      |                                ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+barDeco.cpp: In member function 'void CHyprBar::renderPass(Render::CRenderContext&, PHLMONITOR, const float&)':
+barDeco.cpp:633:24: warning: narrowing conversion of '(long int)HEIGHT' from 'long int' to 'int' [-Wnarrowing]
+  633 |     m_seExtents = {{0, HEIGHT}, {}};
+      |                        ^~~~~~
+barDeco.cpp:671:85: warning: narrowing conversion of '(float)scaledRounding' from 'float' to 'int' [-Wnarrowing]
+  671 |         g_pHyprOpenGL->renderRect(ctx, windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
+      |                                                                                     ^~~~~~~~~~~~~~
+barDeco.cpp:679:70: warning: narrowing conversion of '(float)scaledRounding' from 'float' to 'int' [-Wnarrowing]
+  679 |         g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower(), .blur = true, .blurA = a});
+      |                                                                      ^~~~~~~~~~~~~~
+barDeco.cpp:681:70: warning: narrowing conversion of '(float)scaledRounding' from 'float' to 'int' [-Wnarrowing]
+  681 |         g_pHyprOpenGL->renderRect(ctx, titleBarBox, color, {.round = scaledRounding, .roundingPower = PWINDOW->presentation().roundingPower()});
+      |                                                                      ^~~~~~~~~~~~~~
+barDeco.cpp:698:51: warning: narrowing conversion of '(int)(double)BARBUF.Hyprutils::Math::Vector2D::x' from 'int' to 'double' [-Wnarrowing]
+  698 |     CBox textBox = {titleBarBox.x, titleBarBox.y, (int)BARBUF.x, (int)BARBUF.y};
+      |                                                   ^~~~~~~~~~~~~
+barDeco.cpp:698:66: warning: narrowing conversion of '(int)(double)BARBUF.Hyprutils::Math::Vector2D::y' from 'int' to 'double' [-Wnarrowing]
+  698 |     CBox textBox = {titleBarBox.x, titleBarBox.y, (int)BARBUF.x, (int)BARBUF.y};
+      |                                                                  ^~~~~~~~~~~~~
+At global scope:
+cc1plus: note: unrecognized command-line option '-Wno-c++11-narrowing' may have been intended to silence earlier diagnostics
+make: Leaving directory '/home/lhen/Projects/ryoku-work/kwinish-port-0-57/plugin'
+exit=0

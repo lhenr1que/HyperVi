@@ -1,0 +1,265 @@
+Você é revisor independente, SOMENTE LEITURA, rodada 2 (última) da tarefa T2 (grupo W) do Kwinish, worktree /home/lhen/Projects/ryoku-work/kwinish-port-0-57. O código de produção (plugin/main.cpp, diff abaixo) NÃO mudou desde a rodada 1. A rodada 1 deu "conditional" com 3 minors (parecer completo abaixo). Correções feitas só em evidências:
+1. T2-probe-run.sh: cada variante do host falso é compilada antes; erro de compilação é FAIL do runner, nunca morte; morte só com exit 1 + linha "FAIL S<n>" do teste e sem relatório de sanitizer; contagem separada behavioural/structural.
+2. Contabilidade: 7 mutações comportamentais (real-dtor) + 1 estrutural (MUT1, só na variante T2_DTOR_NO_ERASE). Para compilar MUT8 na variante sem erase, `g_pGlobalState` do fake recebeu [[maybe_unused]] (-Werror unused-variable).
+3. T2-W-findings.md reescrito (o texto lido na r1 estava corrompido por um heredoc sem aspas), linhas de opções/independente/predicado ajustadas, m_self esclarecido.
+Verifique em português, com achados classificados (blocker/major/minor/nit), evidência arquivo:linha e reprodução: (a) as três correções resolvem os achados da r1 sem criar falso verde (leia T2-probe-run.sh e T2-hostfree.cpp no disco; confira T2-probe-run.log e T2-probe-run-red-HEAD.log abaixo — no HEAD não deve haver nenhum "killed"); (b) T2-W-findings.md agora é preciso; (c) qualquer problema restante no código. Veredito final: approve | conditional | reject.
+
+===== T2-review-1.md (r1) =====
+O diff de produção está correto e mínimo para W. Não encontrei blocker ou major no código. O parecer é **conditional** por problemas no oráculo e na documentação da evidência.
+
+Revisão somente leitura: inspecionei fontes, scripts e logs; reexecutei apenas o comparador Python sobre os logs existentes. Não executei sondas, build ou teste ao vivo.
+
+**Achados**
+
+1. **minor — O runner pode contabilizar erro de compilação ou crash como mutação morta.**  
+   Evidência: [T2-probe-run.sh:37](/home/lhen/Projects/ryoku-work/kwinish-port-0-57/docs/port-0-57/evidence/T2-probe-run.sh:37) combina compilação e execução; a linha 39 aceita qualquer retorno diferente de zero. Não exige compilação bem-sucedida nem a assertiva esperada.  
+   **Reprodução:** o próprio `T2-probe-run-red-HEAD.log` contém mutações marcadas `OK … killed` por membros ausentes no fake. O runner termina vermelho, portanto isso não invalida o vermelho global, mas demonstra o falso positivo local.  
+   **Correção:** separar compilação de execução e exigir a mensagem específica da assertiva. No log verde apresentado, as oito mortes efetivamente mostram assertivas; o problema é a garantia oferecida pelo runner.
+
+2. **minor — `T2_DTOR_NO_ERASE` testa uma propriedade estrutural, não uma diferença observável da implementação real.**  
+   Evidência: [T2-hostfree.cpp:49](/home/lhen/Projects/ryoku-work/kwinish-port-0-57/docs/port-0-57/evidence/T2-hostfree.cpp:49) e [T2-probe-run.sh:49](/home/lhen/Projects/ryoku-work/kwinish-port-0-57/docs/port-0-57/evidence/T2-probe-run.sh:49).  
+   **Reprodução:** executar MUT1 somente com o destrutor que faz `erase`: ela passa, conforme reconhecido em `T2-W-findings.md:51`. A publicação acontece depois da resposta do host e é desfeita pelo destrutor antes do retorno, sem observador intermediário nesse modelo.  
+   A variante é **legítima para isolar a responsabilidade da guarda**. Deve ser contabilizada separadamente: sete mutações comportamentais detectadas com o destrutor representativo, mais uma verificação estrutural com rollback desativado.
+
+3. **minor — A seção de implementação da evidência perdeu conteúdo.**  
+   Evidência: [T2-W-findings.md:44](/home/lhen/Projects/ryoku-work/kwinish-port-0-57/docs/port-0-57/evidence/T2-W-findings.md:44): há frases como “Diff: (só , +9/−7)” e referências/comandos vazios nas linhas seguintes. As linhas 24 e 29 também conservam formulações anteriores à decisão/implementação.  
+   **Reprodução:** `sed -n '24,53p' docs/port-0-57/evidence/T2-W-findings.md`.  
+   Restaurar símbolos, caminhos e comandos; esclarecer que atribuir `m_self` antes da chamada é intencional e não equivale a publicar em `bars`.
+
+**Conclusões por item**
+
+- **(a) Ordem e callbacks:** segura nas fontes examinadas. `WindowPresentation.cpp:97–118` insere a decoração antes de chamar `initializeAnimations`, `updateState`, `onWindowMap`, atualização e recálculo. Os três primeiros são no-ops herdados em `IHyprWindowDecoration.cpp:36–46`; `CHyprBar::updateWindow` apenas causa damage (`plugin/barDeco.cpp:1122`). Posicionamento e damage não procuram a barra em `bars`. Não identifiquei dependência da publicação antecipada. A lista do host já permite deduplicação durante os callbacks; o SP local mantém a barra viva, e `m_self`/`bars` são fracos.
+
+- **(b) Caminho `false`:** `PluginAPI.cpp:143–157` retorna antes de mover o argumento nos casos de recusa. O temporário convertido libera sua referência; depois o SP local destrói a barra. O destrutor faz `erase` sem encontrar publicação. Os listeners são membros RAII; a animação é membro proprietário e desconecta-se da lista ativa ao morrer. Resta `m_scheduledRecalc = true` (`plugin/barDeco.cpp:57`): recálculo adicional, sem referência à barra recusada. É aceitável nesse caminho; não é rollback integral dos efeitos do construtor. O host-free não testa esses efeitos reais.
+
+- **(c) Predicado:** conferido: mesmos sete átomos e override-redirect; Wayland mantém `suggestsNoBorder=false`. A pegajosidade antiga também está corretamente identificada. A frase “predicado no instante de `window.open` é o mesmo” deve ser entendida como **mesma expressão sobre o estado corrente**, ressalvado o histórico pegajoso já documentado. D1/D2 justificam a divergência aceita na opção A.
+
+- **(d) Atualização:** sustenta-se no ponto de chamada normal. A busca integral encontrou apenas declaração, `push_back`, leitura e `clear` da fila. Entre o `push_back` e `updateDecorations`, `forceRecalcFor` apenas marca um booleano (`DecorationPositioner.cpp:100–106`). Não encontrei outro caminho normal que deixe a fila pendente. A ressalva de reentrância durante destruição/flush continua necessária; não se deve ampliar a conclusão para equivalência geral dos hosts.
+
+- **(e) Provas:** a sonda confirma tipos e expressões contra headers reais; o vermelho de HEAD demonstra incompatibilidade com o contrato 0.57, não regressão comportamental executável. O host-free usa ownership real, mas substitui construtor, callbacks e host. As verificações textuais vinculam o código ao padrão esperado; não provam semântica de regras, Wayland ou X11 ao vivo.
+
+- **(f) Build:** reproduzi a comparação dos logs: GCC **57→52**, Clang **65→60**. Saem cinco diagnósticos W; o diagnóstico de classe abstrata muda de `UniquePtr.hpp` para `SharedPtr.hpp`, mantendo a origem em `CHyprBar`. Sustenta **nenhum diagnóstico adicional além desse deslocamento**, não build funcional nem ausência de erros ainda mascarados.
+
+**HANDOFF PARA PRÓXIMA SESSÃO**
+
+Revisão W concluída; código recomendado para aprovação. Branch `port-kwinish-bars-to-hyprland-0-57`, HEAD `dc4f48a312a7be99a2ae1b26a3166c734835c621`; alterações preexistentes em `plugin/main.cpp`, documentação e evidências preservadas. Nenhuma escrita ou commit realizado.
+
+Opção A aprovada pelo dono; pendentes os três ajustes acima. Próxima ação recomendada: corrigir runner e registro documental sob autorização de escrita, depois conferir novamente a evidência. D/R, build completo e validação ao vivo continuam fora desta revisão.
+
+**Veredito: conditional.**
+===== T2-step.diff =====
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index 9962581..404b042 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -37,14 +37,16 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
+ }
+ 
+ static void onNewWindow(PHLWINDOW window) {
+-    if (!window->m_X11DoesntWantBorders) {
+-        if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
++    if (!window->backend().traits().suggestsNoBorder) {
++        if (std::ranges::any_of(window->presentation().decorations(), [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+             return;
+ 
+-        auto bar = makeUnique<CHyprBar>(window);
+-        g_pGlobalState->bars.emplace_back(bar);
++        auto bar    = makeShared<CHyprBar>(window);
+         bar->m_self = bar;
+-        HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));
++        // publish only what the host took; on failure the bar dies here, before anyone saw it
++        if (!HyprlandAPI::addWindowDecoration(PHANDLE, window, SP<IHyprWindowDecoration>(bar)))
++            return;
++        g_pGlobalState->bars.emplace_back(bar);
+     }
+ }
+ 
+@@ -100,7 +102,7 @@ static void onUpdateWindowRules(PHLWINDOW window) {
+         return;
+ 
+     (*BARIT)->updateRules();
+-    window->updateWindowDecos();
++    window->presentation().updateDecorations();
+ }
+ 
+ Hyprlang::CParseResult onNewButton(const char* K, const char* V) {
+@@ -508,7 +510,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+ 
+     // add deco to existing windows
+     for (auto& w : Desktop::windowState()->windows()) {
+-        if (w->isHidden() || !w->m_isMapped)
++        if (w->isHidden() || !w->mapped())
+             continue;
+ 
+         onNewWindow(w);
+
+===== T2-probe-run.log =====
+OK   probe positive (0.57 forms) [g++]
+OK   NEG1 m_X11DoesntWantBorders [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'
+OK   NEG2 m_windowDecorations [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_windowDecorations'
+OK   NEG3 UP handed to addWindowDecoration [g++] rejected: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+OK   NEG4 updateWindowDecos [g++] rejected: 'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?
+OK   NEG5 m_isMapped (private) [g++] rejected: 'bool Desktop::View::CWindow::m_isMapped' is private within this context
+OK   probe positive (0.57 forms) [clang++]
+OK   NEG1 m_X11DoesntWantBorders [clang++] rejected: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+OK   NEG2 m_windowDecorations [clang++] rejected: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+OK   NEG3 UP handed to addWindowDecoration [clang++] rejected: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+OK   NEG4 updateWindowDecos [clang++] rejected: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+OK   NEG5 m_isMapped (private) [clang++] rejected: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+OK   host-free main.cpp onNewWindow [g++]: real-dtor:ALL-OK no-erase:ALL-OK 
+OK   host-free main.cpp onNewWindow [clang++]: real-dtor:ALL-OK no-erase:ALL-OK 
+OK   host-free MUT1 ignore the false return [g++] killed (structural): real-dtor:ALL-OK no-erase:FAIL S6 host refuses: never published, not even while the host decides | 
+OK   host-free MUT1 ignore the false return [clang++] killed (structural): real-dtor:ALL-OK no-erase:FAIL S6 host refuses: never published, not even while the host decides | 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published only after the host took it | no-erase:FAIL S1 normal window: published only after the host took it | 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published only after the host took it | no-erase:FAIL S1 normal window: published only after the host took it | 
+OK   host-free MUT3 no Hyprbar dedupe [g++] killed (behavioural): real-dtor:FAIL S4 already has Hyprbar: no bar | no-erase:FAIL S4 already has Hyprbar: no bar | 
+OK   host-free MUT3 no Hyprbar dedupe [clang++] killed (behavioural): real-dtor:FAIL S4 already has Hyprbar: no bar | no-erase:FAIL S4 already has Hyprbar: no bar | 
+OK   host-free MUT4 no KwinishBar dedupe [g++] killed (behavioural): real-dtor:FAIL S3 already has KwinishBar: no second bar | no-erase:FAIL S3 already has KwinishBar: no second bar | 
+OK   host-free MUT4 no KwinishBar dedupe [clang++] killed (behavioural): real-dtor:FAIL S3 already has KwinishBar: no second bar | no-erase:FAIL S3 already has KwinishBar: no second bar | 
+OK   host-free MUT5 inverted no-border test [g++] killed (behavioural): real-dtor:FAIL S1 normal window: one bar registered | no-erase:FAIL S1 normal window: one bar registered | 
+OK   host-free MUT5 inverted no-border test [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: one bar registered | no-erase:FAIL S1 normal window: one bar registered | 
+OK   host-free MUT6 m_self not set [g++] killed (behavioural): real-dtor:FAIL S1 normal window: m_self set before the host sees the bar | no-erase:FAIL S1 normal window: m_self set before the host sees the bar | 
+OK   host-free MUT6 m_self not set [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: m_self set before the host sees the bar | no-erase:FAIL S1 normal window: m_self set before the host sees the bar | 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT8 never published [g++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   host-free MUT8 never published [clang++] killed (behavioural): real-dtor:FAIL S1 normal window: published once, the registered bar | no-erase:FAIL S1 normal window: published once, the registered bar | 
+OK   main.cpp: onNewWindow exact body
+OK   main.cpp: the only bars.emplace_back is in onNewWindow
+OK   main.cpp: onUpdateWindowRules uses presentation().updateDecorations()
+OK   main.cpp: pluginInit skips hidden or unmapped windows via mapped()
+OK   main.cpp: no 0.56.2 window forms left
+mutation kills (compiler runs): behavioural=14 structural-only=2
+ALL OK
+
+===== T2-probe-run-red-HEAD.log =====
+OK   probe positive (0.57 forms) [g++]
+OK   NEG1 m_X11DoesntWantBorders [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'
+OK   NEG2 m_windowDecorations [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_windowDecorations'
+OK   NEG3 UP handed to addWindowDecoration [g++] rejected: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+OK   NEG4 updateWindowDecos [g++] rejected: 'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?
+OK   NEG5 m_isMapped (private) [g++] rejected: 'bool Desktop::View::CWindow::m_isMapped' is private within this context
+OK   probe positive (0.57 forms) [clang++]
+OK   NEG1 m_X11DoesntWantBorders [clang++] rejected: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+OK   NEG2 m_windowDecorations [clang++] rejected: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+OK   NEG3 UP handed to addWindowDecoration [clang++] rejected: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+OK   NEG4 updateWindowDecos [clang++] rejected: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+OK   NEG5 m_isMapped (private) [clang++] rejected: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+FAIL host-free main.cpp onNewWindow [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/1609221030/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free main.cpp onNewWindow [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2939510192/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT1 did not apply (ignore the false return)
+FAIL host-free MUT2 publish before the host answers (0.56.2 order) [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/14378518/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT2 publish before the host answers (0.56.2 order) [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1341027201/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL host-free MUT3 no Hyprbar dedupe [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/496525071/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT3 no Hyprbar dedupe [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/944128846/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL host-free MUT4 no KwinishBar dedupe [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/232921748/onNewWindow.inc:9:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT4 no KwinishBar dedupe [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/190191177/onNewWindow.inc:9:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT5 did not apply (inverted no-border test)
+FAIL host-free MUT6 m_self not set [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/3274113073/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT6 m_self not set [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/2878032357/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL MUT7 did not apply (move the bar into the host, publish a moved-from pointer)
+FAIL host-free MUT8 never published [g++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:2:18: error: 'struct CWindow' has no member named 'm_X11DoesntWantBorders'
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:3:41: error: 'struct CWindow' has no member named 'm_windowDecorations'
+/tmp/tmp.hoH90klF5J/238111942/onNewWindow.inc:8:68: error: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+FAIL host-free MUT8 never published [clang++] real-dtor: does not compile
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:2:18: error: no member named 'm_X11DoesntWantBorders' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:3:41: error: no member named 'm_windowDecorations' in 'CWindow'
+/tmp/tmp.hoH90klF5J/1030519458/onNewWindow.inc:8:59: error: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'CSharedPointer<IHyprWindowDecoration>')
+FAIL main.cpp: onNewWindow exact body
+OK   main.cpp: the only bars.emplace_back is in onNewWindow
+FAIL main.cpp: onUpdateWindowRules uses presentation().updateDecorations()
+FAIL main.cpp: pluginInit skips hidden or unmapped windows via mapped()
+40:    if (!window->m_X11DoesntWantBorders) {
+41:        if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+44:        auto bar = makeUnique<CHyprBar>(window);
+103:    window->updateWindowDecos();
+511:        if (w->isHidden() || !w->m_isMapped)
+FAIL main.cpp: no 0.56.2 window forms left
+mutation kills (compiler runs): behavioural=0 structural-only=0
+FAILURES
+
+===== T2-W-findings.md =====
+# T2 (grupo W): investigação de equivalência (30/10/2026)
+
+Primeira passada (só leitura) parou no item 1 por instrução ("sem equivalente exato → PARE e apresente opções"). **Decisão do dono (30/10/2026): opção A** (valor ao vivo; D1/D2 abaixo aceitas como diferença registrada). Implementação e resultados: seção "Implementação" no fim.
+
+Fontes:
+- **O** = 0.56.2: `/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/` (mesma árvore usada por P5).
+- **U** = 0.57: `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/` (rev. `0aa6745`). `WindowPresentation.hpp` e `WindowBackend.hpp` idênticos (`cmp`) aos instalados em `/usr/include/hyprland/src` (pacote `hyprland 0.57.0-1`).
+
+## Item 1 — `m_X11DoesntWantBorders` (`main.cpp:40`): SEM equivalente exato
+
+| | 0.56.2 | 0.57 |
+|---|---|---|
+| Predicado | `XWaylandManager.cpp:149–165` `checkBorders`: só X11; átomo em {POPUP_MENU, NOTIFICATION, DROPDOWN_MENU, COMBO, MENU, SPLASH, TOOLTIP} **ou** `isX11OverrideRedirect()` | `X11Backend.cpp:65–69,80,98` `traitsFrom`: mesma lista de 7 átomos **ou** `m_overrideRedirect`; Wayland: `suggestsNoBorder` fica no padrão `false` (`WindowBackend.hpp:70`; `WaylandBackend.cpp:271–275` não o define) |
+| Quando é calculado | uma vez por mapeamento, `Window.cpp:2124`, antes de `window.open` (`:2433`) | ao vivo a cada `backend().traits()` (`X11Backend.cpp:292–296`; cache `m_traits` só sem superfície) |
+| Pode voltar a `false`? | **não**: os dois únicos escritores (`XWaylandManager.cpp:158,164`) gravam `true`; o `CWindow` X11 sobrevive a unmap/remap (ouvintes `Window.cpp:196–197`, só zerados no destroy `:2794–2796`) | sim (estado atual da superfície) |
+
+**Correção do P5** (`P5-WINDOW-API.md:39`): `suggestsNoBorder` **não** é superconjunto; o 0.56.2 também incluía override-redirect. É a mesma expressão sobre o estado corrente da superfície; difere só pelo histórico pegajoso abaixo.
+
+**Divergência real (pegajosidade):**
+- D1: janela X11 que num mapeamento anterior teve átomo sem-borda/override-redirect e é remapeada como janela normal → 0.56.2 sem barra; 0.57 (ao vivo) com barra.
+- D2: no laço de `pluginInit` (janelas já mapeadas), janela cujo tipo mudou depois do mapeamento → 0.56.2 usa o valor do mapeamento; 0.57 o atual.
+- Fato de contexto: o próprio host 0.57 passou a usar o valor ao vivo para borda/sombra/animação (`Renderer.cpp:660,3419`, `CHyprBorderDecoration.cpp:234`, `Window.cpp:1733`), onde o 0.56.2 usava a flag pegajosa.
+
+**Opções apresentadas ao dono (escolhida: A, 30/10/2026):**
+- **A.** `window->backend().traits().suggestsNoBorder` ao vivo. Uma linha; mesma regra do host 0.57 para bordas. Aceita D1/D2 como diferença registrada.
+- **B.** A + emular a pegajosidade no plugin (registro de janelas já vistas com `suggestsNoBorder`, limpo no `window.close`/destroy). Mais estado e teardown; ainda não exato (não vê o histórico anterior à carga do plugin nem mapeamentos sem `window.open`).
+- Nenhuma opção reproduz o 0.56.2 integralmente; a 0.57 não expõe o histórico.
+
+Independente da escolha (feito na implementação abaixo): `addWindowDecoration(PHANDLE, window, SP&&) → bool` (`plugins/PluginAPI.hpp:267`), `presentation().decorations()` (`WindowPresentation.hpp:43`), não publicar em `bars` se devolver `false` (`m_self` é atribuído antes de propósito: é um auto-ponteiro fraco da barra, não publicação) (H-REG, LEDGER L09/`:61`), e o erro `invalid new-expression of abstract class CHyprBar` (grupo R) deve continuar visível.
+
+## Item 2 — `updateWindowDecos()` (`main.cpp:103`): equivalente no ponto de chamada (confirmado pela revisão Codex r1, com a ressalva de reentrância)
+
+- O `Window.cpp:382–425`: se `!m_isMapped || isHidden()` retorna **sem** processar `m_decosToRemove`; senão processa remoções, `onWindowUpdate`, `updateWindow` em cópia de ponteiros crus.
+- U `WindowPresentation.cpp:131–154`: processa `m_decosToRemove` **antes** do teste mapped/hidden; depois `onWindowUpdate` e `updateWindow` em `CDecorationSnapshot` (SP).
+- A diferença apontada pelo P5 existe, mas é do **host**: na 0.57 o único escritor de `m_decosToRemove` (`WindowPresentation.cpp:123`, grep em toda a árvore U) chama `updateDecorations()` logo em seguida (`:125`), que esvazia a fila incondicionalmente. Logo, fora de reentrância dentro do próprio flush, a fila está vazia quando `onUpdateWindowRules` roda, e a chamada se comporta como a 0.56.2 com fila vazia (no-op se oculta/não mapeada; senão `onWindowUpdate` + `updateWindow`). O momento em que a 0.57 esvazia remoções de janela oculta mudou no host (em `removeDecoration`, O `:436–443` deixava pendente), e o plugin não o altera.
+- Snapshot SP em vez de ponteiros crus: mantém decorações vivas durante o laço (mais seguro), mesmo filtro de pertença (`containsDecoration`).
+
+## Item 3 — `m_isMapped` (`main.cpp:516`) → `mapped()`: equivalente
+
+U `Window.cpp:227–229` devolve o mesmo campo `m_isMapped` (agora privado), escrito em `:1171` (map) e `:1683` (unmap), como O `:2076`/`:2644`. Já usado assim em `luaGrab` (P5).
+
+## Implementação (após a decisão A)
+
+Diff: `T2-step.diff` (só `plugin/main.cpp`, +9/−7).
+- `onNewWindow`: `backend().traits().suggestsNoBorder`; `presentation().decorations()`; `makeShared<CHyprBar>`; `m_self` antes do registro; `addWindowDecoration(PHANDLE, window, SP<IHyprWindowDecoration>(bar))`; publicação em `bars` **só depois de `true`**. Em `false` o host não toca o ponteiro (U `PluginAPI.cpp:146–150`) e o SP local morre no fim da função (destrutor `barDeco.cpp:74–78` faz `erase` de `m_self`, no-op).
+- Segurança da nova ordem: o código da barra nunca lê `bars` (só `barDeco.cpp:77`); os demais leitores são manipuladores de evento em `main.cpp`, que não rodam dentro de `addWindowDecoration`.
+- `onUpdateWindowRules`: `presentation().updateDecorations()`. `pluginInit`: `mapped()`.
+
+Validação (nada ao vivo):
+- **Sonda** `T2-probe-run.sh` (GCC 16.2.1 / Clang 23.1.4, headers 0.57.0-1): exit 0, 35 OK. Positivo (tipos e expressões exatas) + NEG1–5 (as 5 formas 0.56.2) rejeitados nos dois compiladores. Vermelho no HEAD: `T2-probe-run-red-HEAD.log` (exit 1; mesmo runner com `T2_PLUGIN` apontando para o `main.cpp` do HEAD).
+- **Host-free** (`T2-hostfree.cpp`; corpo de `onNewWindow` extraído verbatim de `main.cpp`; SP/WP reais do hyprutils; `-Werror`, ASan/UBSan): 7 cenários (normal, sem borda, já tem KwinishBar, já tem Hyprbar, decoração alheia, host recusa + sucesso posterior, host remove depois) em duas variantes do destrutor falso (real; sem `erase`, para provar a guarda sem o rollback do destrutor). Cada variante é compilada antes (erro de compilação nunca conta como morte) e só mata com a assertiva `FAIL S<n>` do teste, sem relatório de sanitizer. Mutações: **7 comportamentais** mortas com o destrutor real (MUT2–8) e **1 estrutural** (MUT1, ignorar o `false`), morta só na variante sem `erase`: com o destrutor real ela é observavelmente equivalente (a publicação seria desfeita antes do retorno, sem observador intermediário). O host-free não exercita os efeitos reais do construtor (ouvintes, animação, `m_scheduledRecalc`); numa barra recusada eles são liberados por RAII, exceto `m_scheduledRecalc = true` (`barDeco.cpp:57`): um recálculo extra, sem referência à barra.
+- **Build isolado** (`T2-build.sh`): exit 2, sem `.so` (esperado). GCC **57→52**, Clang **65→60**. Saem os 5 erros W e o erro R `abstract class CHyprBar` em `UniquePtr.hpp`; entra o **mesmo** erro R em `SharedPtr.hpp` (instanciado em `main.cpp:44` via `makeShared`): deslocado, não escondido. Nenhum outro erro novo; avisos iguais; sem fatal/linker (`T2-build-compare.txt`).
+- **Regressões**: geometria (g++ e clang++), tooltip, ações e sonda T1: exit 0 (`T2-hostfree-*.log`, `T2-regress-T1-probe.log`).

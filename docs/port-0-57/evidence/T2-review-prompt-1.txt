@@ -1,0 +1,170 @@
+Você é revisor independente, SOMENTE LEITURA. Repositório: Kwinish (plugin C++ do Hyprland), worktree /home/lhen/Projects/ryoku-work/kwinish-port-0-57 (port 0.56.2 -> 0.57.0). Headers 0.57 instalados em /usr/include/hyprland; fontes 0.57 de referência em /home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src; fontes 0.56.2 em /home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src. O plugin ainda não compila por outros grupos (D drag, R render/GL) — fora de escopo.
+
+Tarefa T2 (grupo W), só plugin/main.cpp:
+1. onNewWindow: `m_X11DoesntWantBorders` -> `backend().traits().suggestsNoBorder` (opção A, escolhida pelo dono: valor ao vivo; a flag 0.56.2 era pegajosa — divergência aceita e documentada em docs/port-0-57/evidence/T2-W-findings.md); `m_windowDecorations` -> `presentation().decorations()`; UP -> SP; `addWindowDecoration` devolve bool: a barra só é publicada em g_pGlobalState->bars depois do sucesso; em falha, o SP local morre (destrutor CHyprBar em plugin/barDeco.cpp:74–78 faz erase de m_self).
+2. onUpdateWindowRules: `updateWindowDecos()` -> `presentation().updateDecorations()`. P5 (docs/port-0-57/P5-WINDOW-API.md:38) marcou "não equivalente"; T2 argumenta (T2-W-findings.md, item 2) que é equivalente no ponto de chamada porque na 0.57 o único escritor de m_decosToRemove esvazia a fila na hora.
+3. pluginInit: `m_isMapped` -> `mapped()`.
+Esperado no build: os 5 erros W somem; o erro "abstract class CHyprBar" (grupo R, draw sem override) continua, agora via makeShared/SharedPtr.hpp em vez de UniquePtr.hpp.
+
+Verifique e responda em português, com achados classificados (blocker/major/minor/nit), cada um com evidência (arquivo:linha) e como reproduzir:
+(a) o diff é correto e mínimo; a ordem m_self -> addWindowDecoration -> publicar é segura (algum callback do host durante addDecoration — updateState, onWindowMap, updateWindow, recalc — depende de a barra estar em `bars`? consulte plugin/barDeco.cpp e plugin/main.cpp); nenhum ponteiro fraco pendurado nem duplicação;
+(b) a semântica do caminho false: confira src/plugins/PluginAPI.cpp:143–157 (0.57) — o SP temporário não é movido; a barra é destruída corretamente; efeitos colaterais do construtor de CHyprBar (ouvintes, animação, m_scheduledRecalc) em barra recusada são aceitáveis?;
+(c) item 1: a análise de equivalência do predicado (lista de átomos, override-redirect, Wayland) e da pegajosidade em T2-W-findings.md está correta?
+(d) item 2: a afirmação de equivalência no ponto de chamada se sustenta? Procure outros escritores de m_decosToRemove ou caminhos que deixem a fila não vazia;
+(e) a sonda T2-probe.cpp, o host-free T2-hostfree.cpp e o runner T2-probe-run.sh realmente provam vermelho (HEAD) / verde e matam as mutações; lacunas do oráculo; a variante T2_DTOR_NO_ERASE é legítima?;
+(f) a comparação de build (T2-build-compare.txt) sustenta "0 erros novos" exceto o erro R deslocado.
+Termine com veredito: approve | conditional | reject.
+
+===== T2-step.diff =====
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index 9962581..404b042 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -37,14 +37,16 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
+ }
+ 
+ static void onNewWindow(PHLWINDOW window) {
+-    if (!window->m_X11DoesntWantBorders) {
+-        if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
++    if (!window->backend().traits().suggestsNoBorder) {
++        if (std::ranges::any_of(window->presentation().decorations(), [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))
+             return;
+ 
+-        auto bar = makeUnique<CHyprBar>(window);
+-        g_pGlobalState->bars.emplace_back(bar);
++        auto bar    = makeShared<CHyprBar>(window);
+         bar->m_self = bar;
+-        HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));
++        // publish only what the host took; on failure the bar dies here, before anyone saw it
++        if (!HyprlandAPI::addWindowDecoration(PHANDLE, window, SP<IHyprWindowDecoration>(bar)))
++            return;
++        g_pGlobalState->bars.emplace_back(bar);
+     }
+ }
+ 
+@@ -100,7 +102,7 @@ static void onUpdateWindowRules(PHLWINDOW window) {
+         return;
+ 
+     (*BARIT)->updateRules();
+-    window->updateWindowDecos();
++    window->presentation().updateDecorations();
+ }
+ 
+ Hyprlang::CParseResult onNewButton(const char* K, const char* V) {
+@@ -508,7 +510,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+ 
+     // add deco to existing windows
+     for (auto& w : Desktop::windowState()->windows()) {
+-        if (w->isHidden() || !w->m_isMapped)
++        if (w->isHidden() || !w->mapped())
+             continue;
+ 
+         onNewWindow(w);
+
+===== T2-W-findings.md =====
+# T2 (grupo W): investigação de equivalência (30/10/2026)
+
+Somente leitura de fontes; **nenhum código alterado**, nenhuma sonda/build/host-free executado. A tarefa parou no item 1 por instrução ("sem equivalente exato → PARE e apresente opções").
+
+Fontes:
+- **O** = 0.56.2: `/home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src/` (mesma árvore usada por P5).
+- **U** = 0.57: `/home/lhen/Projects/kwinish-plan-hyprland-0.57/investigacao-b1-b3/evidence/upstream/Hyprland/src/` (rev. `0aa6745`). `WindowPresentation.hpp` e `WindowBackend.hpp` idênticos (`cmp`) aos instalados em `/usr/include/hyprland/src` (pacote `hyprland 0.57.0-1`).
+
+## Item 1 — `m_X11DoesntWantBorders` (`main.cpp:40`): SEM equivalente exato
+
+| | 0.56.2 | 0.57 |
+|---|---|---|
+| Predicado | `XWaylandManager.cpp:149–165` `checkBorders`: só X11; átomo em {POPUP_MENU, NOTIFICATION, DROPDOWN_MENU, COMBO, MENU, SPLASH, TOOLTIP} **ou** `isX11OverrideRedirect()` | `X11Backend.cpp:65–69,80,98` `traitsFrom`: mesma lista de 7 átomos **ou** `m_overrideRedirect`; Wayland: `suggestsNoBorder` fica no padrão `false` (`WindowBackend.hpp:70`; `WaylandBackend.cpp:271–275` não o define) |
+| Quando é calculado | uma vez por mapeamento, `Window.cpp:2124`, antes de `window.open` (`:2433`) | ao vivo a cada `backend().traits()` (`X11Backend.cpp:292–296`; cache `m_traits` só sem superfície) |
+| Pode voltar a `false`? | **não**: os dois únicos escritores (`XWaylandManager.cpp:158,164`) gravam `true`; o `CWindow` X11 sobrevive a unmap/remap (ouvintes `Window.cpp:196–197`, só zerados no destroy `:2794–2796`) | sim (estado atual da superfície) |
+
+**Correção do P5** (`P5-WINDOW-API.md:39`): `suggestsNoBorder` **não** é superconjunto; o 0.56.2 também incluía override-redirect. O predicado no instante de `window.open` é o mesmo.
+
+**Divergência real (pegajosidade):**
+- D1: janela X11 que num mapeamento anterior teve átomo sem-borda/override-redirect e é remapeada como janela normal → 0.56.2 sem barra; 0.57 (ao vivo) com barra.
+- D2: no laço de `pluginInit` (janelas já mapeadas), janela cujo tipo mudou depois do mapeamento → 0.56.2 usa o valor do mapeamento; 0.57 o atual.
+- Fato de contexto: o próprio host 0.57 passou a usar o valor ao vivo para borda/sombra/animação (`Renderer.cpp:660,3419`, `CHyprBorderDecoration.cpp:234`, `Window.cpp:1733`), onde o 0.56.2 usava a flag pegajosa.
+
+**Opções para o dono (não escolhidas):**
+- **A.** `window->backend().traits().suggestsNoBorder` ao vivo. Uma linha; mesma regra do host 0.57 para bordas. Aceita D1/D2 como diferença registrada.
+- **B.** A + emular a pegajosidade no plugin (registro de janelas já vistas com `suggestsNoBorder`, limpo no `window.close`/destroy). Mais estado e teardown; ainda não exato (não vê o histórico anterior à carga do plugin nem mapeamentos sem `window.open`).
+- Nenhuma opção reproduz o 0.56.2 integralmente; a 0.57 não expõe o histórico.
+
+Independe da escolha (fica para a implementação): `addWindowDecoration(PHANDLE, window, SP&&) → bool` (`plugins/PluginAPI.hpp:267`), `presentation().decorations()` (`WindowPresentation.hpp:43`), não publicar em `bars`/`m_self` se devolver `false` (H-REG, LEDGER L09/`:61`), e o erro `invalid new-expression of abstract class CHyprBar` (grupo R) deve continuar visível.
+
+## Item 2 — `updateWindowDecos()` (`main.cpp:103`): equivalente no ponto de chamada (proposta; não validada por revisão)
+
+- O `Window.cpp:382–425`: se `!m_isMapped || isHidden()` retorna **sem** processar `m_decosToRemove`; senão processa remoções, `onWindowUpdate`, `updateWindow` em cópia de ponteiros crus.
+- U `WindowPresentation.cpp:131–154`: processa `m_decosToRemove` **antes** do teste mapped/hidden; depois `onWindowUpdate` e `updateWindow` em `CDecorationSnapshot` (SP).
+- A diferença apontada pelo P5 existe, mas é do **host**: na 0.57 o único escritor de `m_decosToRemove` (`WindowPresentation.cpp:123`, grep em toda a árvore U) chama `updateDecorations()` logo em seguida (`:125`), que esvazia a fila incondicionalmente. Logo, fora de reentrância dentro do próprio flush, a fila está vazia quando `onUpdateWindowRules` roda, e a chamada se comporta como a 0.56.2 com fila vazia (no-op se oculta/não mapeada; senão `onWindowUpdate` + `updateWindow`). O momento em que a 0.57 esvazia remoções de janela oculta mudou no host (em `removeDecoration`, O `:436–443` deixava pendente), e o plugin não o altera.
+- Snapshot SP em vez de ponteiros crus: mantém decorações vivas durante o laço (mais seguro), mesmo filtro de pertença (`containsDecoration`).
+
+## Item 3 — `m_isMapped` (`main.cpp:516`) → `mapped()`: equivalente
+
+U `Window.cpp:227–229` devolve o mesmo campo `m_isMapped` (agora privado), escrito em `:1171` (map) e `:1683` (unmap), como O `:2076`/`:2644`. Já usado assim em `luaGrab` (P5).
+
+===== T2-build-compare.txt =====
+== gcc
+base=57 after=52
+removed=6
+  - ('main.cpp', 'if (!window->m_X11DoesntWantBorders) {', "'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'")
+  - ('main.cpp', 'if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))', "'class Desktop::View::CWindow' has no member named 'm_windowDecorations'")
+  - ('main.cpp', 'HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));', "invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}")
+  - ('main.cpp', 'window->updateWindowDecos();', "'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?")
+  - ('main.cpp', 'if (w->isHidden() || !w->m_isMapped)', "'bool Desktop::View::CWindow::m_isMapped' is private within this context")
+  - ('/usr/include/hyprutils/memory/UniquePtr.hpp', 'return CUniquePointer<U>(new U(std::forward<Args>(args)...));', "invalid new-expression of abstract class type 'CHyprBar'")
+new=1
+  + ('/usr/include/hyprutils/memory/SharedPtr.hpp', 'return CSharedPointer<U>(new U(std::forward<Args>(args)...));', "invalid new-expression of abstract class type 'CHyprBar'")
+== clang
+base=65 after=60
+removed=6
+  - ('main.cpp', 'if (!window->m_X11DoesntWantBorders) {', "no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'if (std::ranges::any_of(window->m_windowDecorations, [](const auto& d) { return d->getDisplayName() == "Hyprbar" || d->getDisplayName() == "KwinishBar"; }))', "no member named 'm_windowDecorations' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));', "no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')")
+  - ('main.cpp', 'window->updateWindowDecos();', "no member named 'updateWindowDecos' in 'Desktop::View::CWindow'")
+  - ('main.cpp', 'if (w->isHidden() || !w->m_isMapped)', "'m_isMapped' is a private member of 'Desktop::View::CWindow'")
+  - ('/usr/include/hyprutils/cli/../memory/UniquePtr.hpp', 'return CUniquePointer<U>(new U(std::forward<Args>(args)...));', "allocating an object of abstract class type 'CHyprBar'")
+new=1
+  + ('/usr/include/hyprutils/cli/../memory/./SharedPtr.hpp', 'return CSharedPointer<U>(new U(std::forward<Args>(args)...));', "allocating an object of abstract class type 'CHyprBar'")
+== origem do erro R movido
+main.cpp:44:43:   required from here
+main.cpp:44:23: note: in instantiation of function template specialization 'Hyprutils::Memory::makeShared<CHyprBar, Hyprutils::Memory::CSharedPointer<Desktop::View::CWindow> &>' requested here
+== avisos (arquivo+mensagem, multiconjunto): iguais base/after em GCC e Clang; sem fatal/linker
+
+===== T2-probe-run.log =====
+OK   probe positive (0.57 forms) [g++]
+OK   NEG1 m_X11DoesntWantBorders [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_X11DoesntWantBorders'
+OK   NEG2 m_windowDecorations [g++] rejected: 'class Desktop::View::CWindow' has no member named 'm_windowDecorations'
+OK   NEG3 UP handed to addWindowDecoration [g++] rejected: invalid initialization of reference of type 'SP<IHyprWindowDecoration>&&' {aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>&&'} from expression of type 'std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar>&>::type' {aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>'}
+OK   NEG4 updateWindowDecos [g++] rejected: 'class Desktop::View::CWindow' has no member named 'updateWindowDecos'; did you mean 'updateWindowData'?
+OK   NEG5 m_isMapped (private) [g++] rejected: 'bool Desktop::View::CWindow::m_isMapped' is private within this context
+OK   probe positive (0.57 forms) [clang++]
+OK   NEG1 m_X11DoesntWantBorders [clang++] rejected: no member named 'm_X11DoesntWantBorders' in 'Desktop::View::CWindow'
+OK   NEG2 m_windowDecorations [clang++] rejected: no member named 'm_windowDecorations' in 'Desktop::View::CWindow'
+OK   NEG3 UP handed to addWindowDecoration [clang++] rejected: no viable conversion from 'typename std::remove_reference<Hyprutils::Memory::CUniquePointer<CHyprBar> &>::type' (aka 'Hyprutils::Memory::CUniquePointer<CHyprBar>') to 'SP<IHyprWindowDecoration>' (aka 'Hyprutils::Memory::CSharedPointer<IHyprWindowDecoration>')
+OK   NEG4 updateWindowDecos [clang++] rejected: no member named 'updateWindowDecos' in 'Desktop::View::CWindow'
+OK   NEG5 m_isMapped (private) [clang++] rejected: 'm_isMapped' is a private member of 'Desktop::View::CWindow'
+OK   host-free main.cpp onNewWindow [g++]: 2/2 variants ALL OK
+OK   host-free main.cpp onNewWindow [clang++]: 2/2 variants ALL OK
+OK   host-free MUT1 ignore the false return [g++] killed: variant -DT2_DTOR_NO_ERASE FAIL S6 host refuses: never published, not even while the host decides 
+OK   host-free MUT1 ignore the false return [clang++] killed: variant -DT2_DTOR_NO_ERASE FAIL S6 host refuses: never published, not even while the host decides 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [g++] killed: variant real-dtor FAIL S1 normal window: published only after the host took it 
+OK   host-free MUT2 publish before the host answers (0.56.2 order) [clang++] killed: variant real-dtor FAIL S1 normal window: published only after the host took it 
+OK   host-free MUT3 no Hyprbar dedupe [g++] killed: variant real-dtor FAIL S4 already has Hyprbar: no bar 
+OK   host-free MUT3 no Hyprbar dedupe [clang++] killed: variant real-dtor FAIL S4 already has Hyprbar: no bar 
+OK   host-free MUT4 no KwinishBar dedupe [g++] killed: variant real-dtor FAIL S3 already has KwinishBar: no second bar 
+OK   host-free MUT4 no KwinishBar dedupe [clang++] killed: variant real-dtor FAIL S3 already has KwinishBar: no second bar 
+OK   host-free MUT5 inverted no-border test [g++] killed: variant real-dtor FAIL S1 normal window: one bar registered 
+OK   host-free MUT5 inverted no-border test [clang++] killed: variant real-dtor FAIL S1 normal window: one bar registered 
+OK   host-free MUT6 m_self not set [g++] killed: variant real-dtor FAIL S1 normal window: m_self set before the host sees the bar 
+OK   host-free MUT6 m_self not set [clang++] killed: variant real-dtor FAIL S1 normal window: m_self set before the host sees the bar 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [g++] killed: variant real-dtor FAIL S1 normal window: published once, the registered bar 
+OK   host-free MUT7 move the bar into the host, publish a moved-from pointer [clang++] killed: variant real-dtor FAIL S1 normal window: published once, the registered bar 
+OK   host-free MUT8 never published [g++] killed: variant real-dtor FAIL S1 normal window: published once, the registered bar 
+OK   host-free MUT8 never published [clang++] killed: variant real-dtor FAIL S1 normal window: published once, the registered bar 
+OK   main.cpp: onNewWindow exact body
+OK   main.cpp: the only bars.emplace_back is in onNewWindow
+OK   main.cpp: onUpdateWindowRules uses presentation().updateDecorations()
+OK   main.cpp: pluginInit skips hidden or unmapped windows via mapped()
+OK   main.cpp: no 0.56.2 window forms left
+ALL OK

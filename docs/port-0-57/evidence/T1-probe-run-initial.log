@@ -1,0 +1,19 @@
+OK   positive (0.57 forms, 256-mask oracle) [g++]
+OK   NEG1 old Shift test [g++] rejected: 'HL_MODIFIER_SHIFT' was not declared in this scope
+OK   NEG2 CONFIG_LEGACY [g++] rejected: 'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?
+OK   NEG3 mask as uint32_t [g++] rejected: cannot convert 'Input::ModifierMask' to 'uint32_t' {aka 'unsigned int'} in initialization
+OK   MUT1 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT2 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT3 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT4 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT5 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   positive (0.57 forms, 256-mask oracle) [clang++]
+OK   NEG1 old Shift test [clang++] rejected: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+OK   NEG2 CONFIG_LEGACY [clang++] rejected: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+OK   NEG3 mask as uint32_t [clang++] rejected: no viable conversion from 'Input::ModifierMask' to 'uint32_t' (aka 'unsigned int')
+OK   MUT1 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT2 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT3 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT4 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT5 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+ALL OK

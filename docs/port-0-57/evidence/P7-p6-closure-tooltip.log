@@ -1,0 +1,28 @@
+ok - LANG=pt_BR is Portuguese
+ok - an empty LC_ALL is skipped
+ok - LC_ALL wins over LANG
+ok - LC_MESSAGES wins over LANG
+ok - LANG=C is English
+ok - no locale is English
+ok - minimize pt
+ok - minimize en
+ok - maximize pt
+ok - maximize en
+ok - maximize on a maximized window pt
+ok - maximize on a maximized window en
+ok - close pt
+ok - close en
+ok - pin pt
+ok - pin en
+ok - pin on a pinned window pt
+ok - pin on a pinned window en
+ok - menu (the app icon) pt
+ok - menu (the app icon) en
+ok - float has no tip
+ok - fullscreen has no tip
+ok - exec: has no tip
+ok - under the button, centred
+ok - pushed left at the right edge
+ok - pushed right at the left edge of a second monitor
+ok - above the bar when there is no room below
+ok - wider than the monitor: starts at its left edge, top kept

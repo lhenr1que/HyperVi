@@ -1,0 +1,243 @@
+Você é revisor independente, SOMENTE LEITURA. Repositório: Kwinish (plugin C++ do Hyprland), worktree de port 0.56.2 -> 0.57.0 (headers 0.57 instalados em /usr/include/hyprland; fontes 0.56.2 de referência em /home/lhen/.hermes/cache/scratch/kwinish-p5/old/src0562/src). O plugin ainda não compila por outros grupos de erro (fora de escopo).
+
+Tarefa T1 (grupo M), escopo fechado:
+1. barDeco.cpp:486 e :605 — `HL_MODIFIER_SHIFT` global sumiu; 0.57 tem `Input::eKeyboardModifiers` (enum class uint8_t) e `getModsFromAllKBs()` devolve `Input::ModifierMask` (macro EXPOSE_ENUM_AS_MASK em src/macros/Enums.hpp). Semântica exigida: idêntica ("Shift pressionado em qualquer teclado").
+2. main.cpp:436/:440 — `Config::CONFIG_LEGACY` não existe no 0.57 (só CONFIG_LUA). Remover os ramos legados; registrar sempre as 7 funções Lua; remover só o registro do keyword hyprlang `plugin:kwinish:button`. `onNewButton` mantido (ligação externa, não gera aviso).
+Fora de escopo: drag, render/GL, decorações, Lua/UI, OpenSpec.
+
+Verifique e responda em português, com achados classificados (blocker/major/minor/nit), cada um com evidência (arquivo:linha) e como reproduzir:
+(a) o diff é correto e mínimo e preserva a semântica 0.56.2 em ambos os itens (inclusive: no 0.56.2 com config Lua os 7 registros já ocorriam?);
+(b) a forma de teste de bit é a prevista pelo header (operator& + explicit operator bool), sem wrapper inventado;
+(c) a sonda T1-probe.cpp e seu runner realmente provam vermelho/verde e detectam as mutações; lacunas do oráculo;
+(d) a comparação de build (por arquivo+texto da linha+mensagem) sustenta "0 erros novos";
+(e) qualquer outra referência a CONFIG_LEGACY, plugin:kwinish:button ou HL_MODIFIER_* no repositório (docs, Lua, testes) que T1 deixou inconsistente — apenas reporte.
+Termine com veredito: approve | conditional | reject.
+
+===== DIFF (git diff plugin/) =====
+diff --git a/plugin/barDeco.cpp b/plugin/barDeco.cpp
+index e9775ea..fa60409 100644
+--- a/plugin/barDeco.cpp
++++ b/plugin/barDeco.cpp
+@@ -483,7 +483,7 @@ void CHyprBar::drawSnapPreview(PHLMONITOR pMonitor) {
+         const auto C = g_pInputManager->getMouseCoordsInternal();
+         const auto M = monitorAtPointer(C);
+         if (M && M == pMonitor) {
+-            if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
++            if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
+                 const auto HOVER = layoutZoneAt(C, MIT->second);
+                 for (const auto& [name, z] : MIT->second)
+                     if (name.starts_with("z:"))
+@@ -602,7 +602,7 @@ void CHyprBar::snapOnRelease() {
+         return;
+ 
+     std::string where;
+-    if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {
++    if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT) {
+         // Shift held: the layout zone under the pointer ("z:3" is action "zone:3")
+         if (const auto MIT = g_pGlobalState->zones.find(M->m_name); MIT != g_pGlobalState->zones.end())
+             if (const auto Z = layoutZoneAt(C, MIT->second); !Z.empty())
+diff --git a/plugin/main.cpp b/plugin/main.cpp
+index 66de4c0..9962581 100644
+--- a/plugin/main.cpp
++++ b/plugin/main.cpp
+@@ -433,18 +433,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonHoverColor);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.pinnedColor);
+ 
+-    if (Config::mgr()->type() == Config::CONFIG_LEGACY)
+-        HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:kwinish:button", onNewButton, Hyprlang::SHandlerOptions{});
+-    else
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
+-    if (Config::mgr()->type() != Config::CONFIG_LEGACY) {
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
+-        HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+-    }
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "add_button", ::newLuaButton);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "remember", ::luaRemember);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "forget", ::luaForget);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_zone", ::luaSetZone);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "clear_zones", ::luaClearZones);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "set_bar_hidden", ::luaSetBarHidden);
++    HyprlandAPI::addLuaFunction(PHANDLE, "kwinish", "grab", ::luaGrab);
+     for (const auto& f : HyprlandAPI::findFunctionsByName(PHANDLE, "onMouseMoved"))
+         if (f.demangled.starts_with("CInputManager::onMouseMoved")) {
+             g_pMotionHook = HyprlandAPI::createFunctionHook(PHANDLE, f.address, (void*)&hkOnMouseMoved);
+===== docs/port-0-57/evidence/T1-probe.cpp =====
+// T1 probe (group M) — installed Hyprland 0.57.0 headers, Makefile flags, -fsyntax-only.
+// Default: the 0.57 forms used by T1 compile and keep the 0.56.2 semantics.
+// -DPROBE_NEG=1: the 0.56.2 Shift test (barDeco.cpp:486/605) must fail to compile.
+// -DPROBE_NEG=2: Config::CONFIG_LEGACY (main.cpp:436/440) must fail to compile.
+// -DPROBE_NEG=3: reading the 0.57 mask as uint32_t (the 0.56.2 return type) must fail.
+// -DPROBE_MUT=1..5: wrong forms of the Shift test; each must trip a static_assert.
+#include <hyprland/src/managers/input/InputManager.hpp>
+#include <hyprland/src/config/ConfigManager.hpp>
+
+#include <cstdint>
+#include <type_traits>
+
+using Input::eKeyboardModifiers;
+using Input::ModifierMask;
+
+// --- 0.57 types -----------------------------------------------------------------------
+static_assert(std::is_same_v<decltype(std::declval<CInputManager&>().getModsFromAllKBs()), ModifierMask>);
+static_assert(std::is_same_v<std::underlying_type_t<eKeyboardModifiers>, uint8_t>);
+static_assert(!std::is_convertible_v<ModifierMask, uint32_t>, "no implicit integer view of the mask");
+static_assert(!std::is_convertible_v<ModifierMask, bool>, "bool view is explicit: only contextual use");
+
+// --- bit values unchanged from 0.56.2 (src/devices/IKeyboard.hpp:14,16) ----------------
+static_assert(static_cast<uint8_t>(eKeyboardModifiers::HL_MODIFIER_SHIFT) == (1 << 0));
+static_assert(static_cast<uint8_t>(eKeyboardModifiers::HL_MODIFIER_CTRL) == (1 << 2));
+
+// --- 0.56.2 Config type: CONFIG_LEGACY = 0, CONFIG_LUA = 1; 0.57 keeps only CONFIG_LUA ----
+static_assert(Config::CONFIG_LUA == 0);
+
+// --- the T1 Shift test, exactly as written in barDeco.cpp ------------------------------
+#ifndef PROBE_MUT
+#define PROBE_MUT 0
+#endif
+constexpr bool kwShift(ModifierMask mods) {
+#if PROBE_MUT == 1
+    if (mods & eKeyboardModifiers::HL_MODIFIER_CTRL) // wrong modifier
+#elif PROBE_MUT == 2
+    if (mods & eKeyboardModifiers::HL_MODIFIER_CAPS) // neighbouring bit
+#elif PROBE_MUT == 3
+    if (!(mods & eKeyboardModifiers::HL_MODIFIER_SHIFT)) // inverted
+#elif PROBE_MUT == 4
+    if (mods == ModifierMask{eKeyboardModifiers::HL_MODIFIER_SHIFT}) // equality: Shift alone only
+#elif PROBE_MUT == 5
+    if (mods & eKeyboardModifiers::HL_MODIFIER_NONE) // never
+#else
+    if (mods & eKeyboardModifiers::HL_MODIFIER_SHIFT)
+#endif
+        return true;
+    return false;
+}
+
+// 0.56.2 oracle: `getModsFromAllKBs() & HL_MODIFIER_SHIFT` on a uint32_t, HL_MODIFIER_SHIFT = 1 << 0.
+constexpr bool oldShift(uint32_t mods) {
+    return (mods & (1u << 0)) != 0;
+}
+
+// Exhaustive over the 8-bit mask (all reachable values of the 0.57 type).
+constexpr bool sameForAll() {
+    for (unsigned i = 0; i < 256; ++i)
+        if (kwShift(ModifierMask{static_cast<uint8_t>(i)}) != oldShift(i))
+            return false;
+    return true;
+}
+static_assert(sameForAll(), "T1 Shift test differs from 0.56.2 on some modifier mask");
+static_assert(kwShift(eKeyboardModifiers::HL_MODIFIER_SHIFT | eKeyboardModifiers::HL_MODIFIER_CTRL), "Shift+Ctrl counts as Shift");
+static_assert(!kwShift(eKeyboardModifiers::HL_MODIFIER_CTRL), "Ctrl alone is not Shift");
+static_assert(!kwShift(eKeyboardModifiers::HL_MODIFIER_NONE));
+
+// The production expression binds against the real global and member (not evaluated).
+[[maybe_unused]] static bool prodShape() {
+    if (g_pInputManager->getModsFromAllKBs() & Input::eKeyboardModifiers::HL_MODIFIER_SHIFT)
+        return true;
+    return Config::mgr()->type() == Config::CONFIG_LUA;
+}
+
+#if PROBE_NEG == 1
+[[maybe_unused]] static bool negOldShift() {
+    return static_cast<bool>(g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT);
+}
+#elif PROBE_NEG == 2
+[[maybe_unused]] static bool negLegacy() {
+    return Config::mgr()->type() == Config::CONFIG_LEGACY;
+}
+#elif PROBE_NEG == 3
+[[maybe_unused]] static uint32_t negIntMask() {
+    uint32_t m = g_pInputManager->getModsFromAllKBs();
+    return m;
+}
+#endif
+===== T1-probe-run.sh =====
+#!/bin/bash
+# T1 probe runner: GCC and Clang, Makefile flags, HOME/XDG in a temp dir, no session vars.
+# Exit 0 only if every case gives the expected result (and the expected diagnostic for NEG).
+set -u
+P=$(cd "$(dirname "$0")" && pwd)/T1-probe.cpp
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+INC=$(pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon cairo librsvg-2.0)
+fail=0
+run() { # compiler define expect(ok|fail) pattern label
+    local out rc
+    out=$(env -i PATH=/usr/bin:/bin HOME=$T XDG_CONFIG_HOME=$T XDG_CACHE_HOME=$T XDG_DATA_HOME=$T XDG_STATE_HOME=$T \
+        $1 -O2 -fPIC -std=c++2b -Wno-c++11-narrowing -fsyntax-only $INC $2 "$P" 2>&1); rc=$?
+    if [ "$3" = ok ] && [ $rc -eq 0 ]; then echo "OK   $5 [$1]";
+    elif [ "$3" = fail ] && [ $rc -ne 0 ] && grep -qE "$4" <<<"$out"; then echo "OK   $5 [$1] rejected: $(grep -m1 -E "$4" <<<"$out" | sed 's/.*error: //')";
+    else echo "FAIL $5 [$1] rc=$rc"; echo "$out" | grep -m5 error; fail=1; fi
+}
+for C in g++ clang++; do
+    run $C "" ok "" "positive (0.57 forms, 256-mask oracle)"
+    run $C -DPROBE_NEG=1 fail "HL_MODIFIER_SHIFT" "NEG1 old Shift test"
+    run $C -DPROBE_NEG=2 fail "CONFIG_LEGACY" "NEG2 CONFIG_LEGACY"
+    run $C -DPROBE_NEG=3 fail "cannot convert|no viable conversion" "NEG3 mask as uint32_t"
+    for m in 1 2 3 4 5; do run $C -DPROBE_MUT=$m fail "static assert|static_assert" "MUT$m"; done
+done
+[ $fail -eq 0 ] && echo "ALL OK" || echo "FAILURES"
+exit $fail
+===== saída do runner =====
+OK   positive (0.57 forms, 256-mask oracle) [g++]
+OK   NEG1 old Shift test [g++] rejected: 'HL_MODIFIER_SHIFT' was not declared in this scope
+OK   NEG2 CONFIG_LEGACY [g++] rejected: 'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?
+OK   NEG3 mask as uint32_t [g++] rejected: cannot convert 'Input::ModifierMask' to 'uint32_t' {aka 'unsigned int'} in initialization
+OK   MUT1 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT2 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT3 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT4 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT5 [g++] rejected: static assertion failed: T1 Shift test differs from 0.56.2 on some modifier mask
+OK   positive (0.57 forms, 256-mask oracle) [clang++]
+OK   NEG1 old Shift test [clang++] rejected: use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?
+OK   NEG2 CONFIG_LEGACY [clang++] rejected: no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?
+OK   NEG3 mask as uint32_t [clang++] rejected: no viable conversion from 'Input::ModifierMask' to 'uint32_t' (aka 'unsigned int')
+OK   MUT1 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT2 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT3 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT4 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+OK   MUT5 [clang++] rejected: static assertion failed due to requirement 'sameForAll()': T1 Shift test differs from 0.56.2 on some modifier mask
+ALL OK
+===== script de comparação =====
+# compare.py <base.log> <after.log> <base-rev>: key = (file, source line text, message); multiset diff
+import re,sys,subprocess,collections,os
+R='/home/lhen/Projects/ryoku-work/kwinish-port-0-57'
+def src(path,rev):
+    if path.startswith('/'): return open(path,errors='replace').read().splitlines()
+    if rev: return subprocess.run(['git','-C',R,'show',f'{rev}:plugin/{path}'],capture_output=True,text=True).stdout.splitlines()
+    return open(os.path.join(R,'plugin',path)).read().splitlines()
+def keys(log,rev):
+    c=collections.Counter(); cache={}
+    for l in open(log,errors='replace'):
+        m=re.match(r'^(\S+?):(\d+):\d+: error: (.*)$',l.rstrip())
+        if not m: continue
+        f,n,msg=m.group(1).removeprefix('./'),int(m.group(2)),m.group(3)
+        if f not in cache: cache[f]=src(f,rev)
+        line=cache[f][n-1].strip() if n<=len(cache[f]) else '?'
+        msg=msg.replace('‘',"'").replace('’',"'")
+        c[(f,line,msg)]+=1
+    return c
+b=keys(sys.argv[1],sys.argv[3]); a=keys(sys.argv[2],None)
+print(f'base={sum(b.values())} after={sum(a.values())}')
+gone=b-a; new=a-b
+print(f'removed={sum(gone.values())}'); [print('  -',k) for k in gone]
+print(f'new={sum(new.values())}'); [print('  +',k) for k in new]
+===== comparação (base = HEAD f76c785, depois = worktree) =====
+== gcc
+base=61 after=57
+removed=4
+  - ('main.cpp', 'if (Config::mgr()->type() == Config::CONFIG_LEGACY)', "'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('main.cpp', 'if (Config::mgr()->type() != Config::CONFIG_LEGACY) {', "'CONFIG_LEGACY' is not a member of 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('barDeco.cpp', 'if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {', "'HL_MODIFIER_SHIFT' was not declared in this scope")
+new=0
+== clang
+base=69 after=65
+removed=4
+  - ('main.cpp', 'if (Config::mgr()->type() == Config::CONFIG_LEGACY)', "no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('main.cpp', 'if (Config::mgr()->type() != Config::CONFIG_LEGACY) {', "no member named 'CONFIG_LEGACY' in namespace 'Config'; did you mean 'CONFIG_LUA'?")
+  - ('barDeco.cpp', 'if (g_pInputManager->getModsFromAllKBs() & HL_MODIFIER_SHIFT) {', "use of undeclared identifier 'HL_MODIFIER_SHIFT'; did you mean 'Input::HL_MODIFIER_SHIFT'?")
+new=0
+Clang medido com -ferror-limit=0 (CXXFLAGS de ambiente). Regressões host-free: tools/test-plugin-geometry.sh (g++ e clang++), tools/test-plugin-tooltip.sh, tools/test-plugin-actions.sh: exit 0.
