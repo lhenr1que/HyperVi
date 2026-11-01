@@ -9,3 +9,6 @@ plugin/*.o
 plugin/*.abi
 dist/
 .alethe/
+
+# machine-specific agent/tool config (generated, has local paths)
+.codex/config.toml

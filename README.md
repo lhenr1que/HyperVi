@@ -1,6 +1,6 @@
 # Kwinish
 
-KWin-style window management for **Hyprland 0.56.2** (Lua config), the documented test baseline. Early work; compatibility with other releases, including 0.57, is not established by this repository.
+KWin-style window management for **Hyprland 0.57** (Lua config). **Alpha**: used and tested live by its author on one machine; not yet packaged in any repository. The plugin is built against the exact Hyprland it runs on, so another Hyprland release needs a rebuild and may need code changes (the 0.56.2 line lives in the git history).
 
 Start with the [documentation index](docs/README.md), [implemented architecture](docs/ARCHITECTURE.md) and [current status](docs/STATUS.md). The [product documentation](docs/product/README.md) describes the future suite; approval of a product decision does not imply implementation.
 
@@ -45,8 +45,9 @@ in the plugin package rebuilds the plugin after `hyprland` changes; or run `sudo
 3. Plugin: `make -C plugin abi`, then `hyprctl plugin load $PWD/plugin/kwinish-bars.so`. Turn off any other title-bar
    plugin first (hyprbars). Loading a plugin can crash Hyprland if the plugin is wrong; keep a way to restart the session.
 
-Packages (drafts, `makepkg --nodeps` works, nothing published): `packaging/PKGBUILD` (core and UI) and
-`packaging/plugin/PKGBUILD` (plugin, rebuild script, pacman hook).
+Packages (Arch, `makepkg` from a clone, nothing published to the AUR yet): `packaging/PKGBUILD` (core and UI) and
+`packaging/plugin/PKGBUILD` (plugin, its sources, a rebuild script and a pacman hook that rebuilds it after `hyprland` updates).
+A real install, removal and upgrade have not been tested yet.
 
 Default binds with the default `mod = "SUPER"` ([table](core/binds.lua), installed by `recipes/hyprland-snippet.lua`):
 `SUPER + ALT + arrows` halves/top/bottom; `SUPER + ALT + Q/W/A/S` corners; `SUPER + ALT + Return` maximize;
@@ -59,7 +60,10 @@ The recipe also enables `ALT + Tab` and `ALT + F3` (window menu). Check local co
 bash tools/check.sh
 ```
 One command for every Lua suite, the tool tests, the Rust tests and a plugin build, in a temporary HOME; it exits non-zero
-on any failure. `--lua-only` runs just the Lua suites. Details: [testing guide](docs/TESTING.md). Registered live-session results and their limits are preserved in the [spike history](docs/history/initial-research/SPIKE-HYPR-WM-KWIN.md) and [STATUS](docs/STATUS.md). No software tests were rerun during the documentation consolidation of 2026-10-29.
+on any failure. `--lua-only` runs just the Lua suites. The same command runs in CI on Arch Linux (`.github/workflows/check.yml`). Details: [testing guide](docs/TESTING.md). Tests that need a live session are scripted for a person to run, with their results, in [STATUS](docs/STATUS.md).
+
+## Development records
+Changes go through [OpenSpec](openspec/) (proposals, designs, tasks and the accepted specs). `docs/STATUS.md`, `docs/DEVELOPMENT_STATE.md`, `docs/port-0-57/` and `docs/history/` are the author's working records: dated, kept as they were, and written for the author's machine (absolute paths in the live test scripts are deliberate). Most project documentation is in Portuguese.
 
 ## Known limits
 - Restore geometry and show-desktop origins live in Lua tables and are lost on a core/config reload. Keep-above and keep-below lists are rebuilt from window tags when the core is loaded; this does not make every state reload-safe.
