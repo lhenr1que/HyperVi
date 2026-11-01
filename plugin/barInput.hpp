@@ -160,6 +160,10 @@ namespace KwIn {
         SUnsnapStep finish(double cx, double cy) {
             return at(cx, cy, 1.0);
         }
+        // another drag started mid-ease: stop where it is, touch the window no more
+        void abort() {
+            active = false;
+        }
 
       private:
         SUnsnapStep at(double cx, double cy, double P) {
@@ -175,6 +179,25 @@ namespace KwIn {
             return r;
         }
     };
+
+    // Before the bar changes a window's geometry or focus on the way to its drag (openspec guard-titlebar-drag-start): go on,
+    // YIELD to a drag already going (anyone's), or NOT_OVER when the pointer left the bar's window (the press stays a click).
+    enum class eStartGate : uint8_t { GO, YIELD, NOT_OVER };
+    inline eStartGate startGate(bool dragActive, bool pointerOnOwnWindow) {
+        if (dragActive)
+            return eStartGate::YIELD;
+        return pointerOnOwnWindow ? eStartGate::GO : eStartGate::NOT_OVER;
+    }
+    // What the bar does with the gate; true: go on. YIELD lets the press's release reach the compositor, which ends that drag.
+    inline bool passGate(eStartGate g, SPairs& pairs, SUnsnap& unsnap, bool& pending) {
+        if (g == eStartGate::GO)
+            return true;
+        unsnap.abort();
+        pending = false;
+        if (g == eStartGate::YIELD)
+            pairs.dragStarted(BTN_LEFT);
+        return false;
+    }
 
     // What onMouseButton does with a decision. H: cancel(), focus(), raiseIfFloating(), run(eAction).
     template <class H>
@@ -192,6 +215,15 @@ namespace KwIn {
     // the Lua error when the compositor did not start the drag a valid grab asked for
     inline std::string grabRefused() {
         return "grab: the compositor did not start it (a drag is already going, or no window under the pointer)";
+    }
+
+    // grab with valid arguments: the Lua error when no drag started (window not found, focus refused, start refused), or ""
+    inline std::string grabStartError(bool found, bool focused, bool started) {
+        if (!found)
+            return "grab: no such window (closed, hidden or not mapped)";
+        if (!focused)
+            return "grab: the window could not take focus (a layer surface holds the keyboard)";
+        return started ? "" : grabRefused();
     }
 
     // hl.plugin.kwinish.grab(mode, address): the Lua error for bad arguments, or "" when the call may go ahead.

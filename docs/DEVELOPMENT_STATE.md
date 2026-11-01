@@ -2,7 +2,15 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — revisão da alpha-1 e proposta `guard-titlebar-drag-start` (01/11/2026; proposta aprovada e commitada; nada implementado)
+## Resultado mais recente — `guard-titlebar-drag-start` implementada (01/11/2026; commitada com aprovação do dono antes do teste ao vivo; nada ao vivo)
+
+- **Escopo (o dono mandou prosseguir em 01/11/2026):** `plugin/barInput.hpp` (`eStartGate`, `startGate`, `passGate`, `SUnsnap::abort`, `grabStartError`), `plugin/barDeco.cpp` (porta no movimento, na soltura no meio do unsnap e no começo de `handleMovement`), `plugin/main.cpp` (`luaGrab`), `plugin/test_input.cpp`, `tools/test-plugin-input.sh`, `docs/API.md`, roteiro **GS** no `docs/STATUS.md`, `tasks.md` da mudança e evidências em `docs/port-0-57/evidence/GS-tests/`.
+- **Vermelho → verde:** 18 assertivas e 7 checagens de ordem falham no esqueleto (nenhuma por compilação); verde com 152 ok em g++ e clang++. Mutações com controle: **10/10 mortas por assertiva** (7 executadas, 3 pela ordem no código). Limite: neutralizar a porta no `barDeco.cpp` mantendo o texto sobrevive (rotas que não rodam sem compositor).
+- **Desvios do design, registrados no `tasks.md`:** nas rotas que mexem em geometria, a porta olha só o drag ativo; a janela é conferida em `handleMovement`. A soltura no meio do unsnap também passou pela porta. Na soltura, liberar o par depende da ordem dos listeners (limite).
+- **Build isolado:** GCC e Clang com 0 erros, avisos 7/2; ELF passa; `check.sh` exit 0. Simulado; nada carregado.
+- **Pendente:** roteiro GS ao vivo (dono); arquivar a mudança depois do teste ao vivo. Commit aprovado pelo dono em 01/11/2026, antes do teste ao vivo.
+
+## Anterior — revisão da alpha-1 e proposta `guard-titlebar-drag-start` (01/11/2026; proposta aprovada e commitada em `f2b3b3e`)
 
 - **Revisão independente da alpha-1 (tarefa 5.4, pedida pelo dono):** Codex (agente `codex:codex-rescue`, somente leitura), 1 rodada, sobre `fecf267..622acc8`. Veredito **reject**. Achados conferidos pelo orquestrador no código:
   1. major, **confirmado**: unsnap, saída de maximizada e início adiado mudam geometria e foco sem conferir drag ativo (contrato Q4-A1 §2, linha 6, manda abortar);

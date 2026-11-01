@@ -101,6 +101,40 @@ Os resultados deste bloco são históricos; a atualização da documentação n�
 Roteiros e resultados parciais preservados de 27–28/10. **Não executados nesta consolidação, nem autorizados por ela.** Antes de um teste futuro, conferir versões e caminhos; os comandos de instalação/desfazer abaixo refletem os pacotes e backups da data original. A auditoria de 28/10 já registra r172 instalado, mas não fornece resultado completo do teste 12.
 **Regra do dono: todo comando e todo teste deve ser escrito por inteiro na resposta do chat, nunca só apontado para este arquivo.** Cada item: o comando (fish), o que deve acontecer, como desfazer. Todo roteiro carrega o plugin e o núcleo do repositório primeiro.
 
+**GS. Porta à entrada do arrasto (OpenSpec `guard-titlebar-drag-start`; 01/11/2026; não executado)**
+Corrige três achados da revisão da alpha-1: a saída de encaixe e a de maximizada não mexem mais na janela durante o arrasto de outro componente; o arrasto adiado só começa na janela da própria barra; e todo `grab` que não começa vira erro Lua. Só plugin e núcleo; o `kwinish-ui` não é necessário. Caminho novo, para não sobrescrever um `.so` carregado. Comandos com caminho completo, sem variáveis; rode um por vez. Antes de tudo, este comando não deve listar nenhum `kwinish` (se listar, descarregue o caminho mostrado com `hyprctl plugin unload <caminho>`):
+```bash
+hyprctl plugin list
+```
+```bash
+mkdir -p /tmp/kwinish-gs
+make -C ~/Projects/ryoku-work/kwinish-port-0-57/plugin TARGET=/tmp/kwinish-gs/kwinish-bars.so
+hyprctl plugin load /tmp/kwinish-gs/kwinish-bars.so
+hyprctl eval "package.path='/home/lhen/Projects/ryoku-work/kwinish-port-0-57/core/?.lua;'..package.path; for _,m in ipairs({'kwinish','geometry','layouts','assist','rules','modes','binds','switcher','settings','kwjson'}) do package.loaded[m]=nil end; require('kwinish')"
+kitty --class kwt8 & kitty --class kwt8 &
+```
+Deve acontecer: `make` sem `error`; `plugin load` sem erro; duas janelas `kwt8` com barra.
+1. **Janela vizinha (achado 2):** deixe os dois `kwt8` em tiling, lado a lado ou um sobre o outro. Aperte o título de um e dê um puxão **rápido** para dentro do outro, soltando lá. Esperado: o **outro** nunca é arrastado. Ou a janela que você apertou se move, ou nada acontece (vale como clique). Repita umas cinco vezes, com velocidades diferentes.
+2. **Regressão do arrasto:** deixe um `kwt8` flutuante (SUPER+V). Arraste pelo título até a borda esquerda e solte: ele ocupa a metade esquerda. Arraste de novo: ele volta ao tamanho de antes sob o ponteiro (animação de 140 ms) e segue o arrasto. Shift no meio do arrasto mostra as zonas e não larga a janela.
+3. **Maximizada:** maximize um `kwt8` (duplo clique no título) e arraste pelo título: ele sai da maximização sob o ponteiro e segue o arrasto.
+4. **`grab` que não começa (achado 3):** este comando deve terminar com um erro que contém `grab: no such window`:
+```bash
+hyprctl eval "hl.plugin.kwinish.grab('move','0x1')"
+```
+5. **Log:** este comando não deve mostrar `Q1 violated` nem `error`:
+```bash
+grep -i kwinish "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" | tail -n 30
+```
+*Sem passo próprio:* o achado 1 (outro arrasto começando dentro dos 140 ms da saída de encaixe) é difícil de provocar à mão. Ficou coberto só pelos testes sem compositor e pela ordem no código.
+Desfazer (tira o plugin e o núcleo e fecha as janelas de teste):
+```bash
+kill $(hyprctl clients -j | jq '.[] | select(.class == "kwt8") | .pid') 2>/dev/null
+hyprctl plugin unload /tmp/kwinish-gs/kwinish-bars.so
+hyprctl reload
+```
+*Se a sessão travar:* aperte Ctrl+Alt+F3, entre com seu usuário e rode `hyprctl -i 0 plugin unload /tmp/kwinish-gs/kwinish-bars.so`.
+*O que me mandar:* ok ou o que viu em cada passo (1–5).
+
 **A1. Porta 0.57, alpha-1: arrasto pela barra de volta (01/11/2026; executado pelo dono: passou; C11 feito no A1c)**
 OpenSpec `enable-titlebar-drag-alpha1`, política `alt5-rc`: o plugin nunca pede o fim de um arrasto, e o Hyprland o encerra na soltura. Mesmo ambiente da T8 (bash, um só terminal, Hyprland 0.57.0, um monitor DP-1). Os itens marcados *2 monitores* ficam para quando o HDMI-A-1 estiver ligado.
 

@@ -318,6 +318,62 @@ int main() {
         st = u.finish(1000, 500);
         check(near(st.w, 800) && near(st.h, 600) && !u.active, "unsnap: released mid-ease, lands on the earlier size");
     }
+
+    // guard-titlebar-drag-start: the gate before any geometry or focus change on the way to the bar's drag
+    check(startGate(false, true) == eStartGate::GO, "gate: no drag, pointer on the bar's window: go");
+    check(startGate(false, false) == eStartGate::NOT_OVER, "gate: no drag, pointer on another window: not over");
+    check(startGate(true, true) == eStartGate::YIELD, "gate: a drag is going: yield");
+    check(startGate(true, false) == eStartGate::YIELD, "gate: a drag is going wins over the pointer");
+    {
+        SUnsnap u;
+        u.start(300, 200, 800, 600, 0.25, 10, T0);
+        u.abort();
+        check(!u.active, "gate: abort stops the unsnap where it is");
+    }
+    // YIELD mid-unsnap: everything stops, and the title press's release reaches the compositor (it ends the other drag)
+    {
+        SClicks c;
+        SPairs  g;
+        SUnsnap u;
+        bool    pending = true;
+        press(c, g, down(eHit::TITLE), true, T0);
+        u.start(300, 200, 800, 600, 0.25, 10, T0);
+        check(!passGate(eStartGate::YIELD, g, u, pending), "gate: yield does not go on");
+        check(!u.active && !pending, "gate: yield stops the unsnap and the delayed start");
+        check(same(release(&c, g), eAction::NONE, false), "gate: after yield the release passes to the compositor");
+    }
+    // NOT_OVER: no drag, the press stays a click (its release is taken)
+    {
+        SClicks c;
+        SPairs  g;
+        SUnsnap u;
+        bool    pending = true;
+        press(c, g, down(eHit::TITLE), true, T0);
+        check(!passGate(eStartGate::NOT_OVER, g, u, pending) && !pending, "gate: not over does not go on and drops the delayed start");
+        check(same(release(&c, g), eAction::NONE, true), "gate: after not over the release is taken, as a click");
+    }
+    // GO: nothing touched
+    {
+        SClicks c;
+        SPairs  g;
+        SUnsnap u;
+        bool    pending = true;
+        press(c, g, down(eHit::TITLE), true, T0);
+        u.start(300, 200, 800, 600, 0.25, 10, T0);
+        check(passGate(eStartGate::GO, g, u, pending) && u.active && pending, "gate: go changes nothing");
+        check(same(release(&c, g), eAction::NONE, true), "gate: after go (no drag yet) the release is still the bar's");
+    }
+
+    // grab with valid arguments: every way it does not start is a Lua error, each with its cause
+    for (int i = 0; i < 8; ++i) {
+        const bool found = i & 1, focused = i & 2, started = i & 4;
+        const auto E     = grabStartError(found, focused, started);
+        check((found && focused && started) == E.empty(), "grab: error unless found, focused and started (case " + std::to_string(i) + ")");
+    }
+    check(grabStartError(false, false, false) != grabStartError(true, false, false) && grabStartError(true, false, false) != grabStartError(true, true, false),
+          "grab: not found, focus refused and start refused say different things");
+    check(grabStartError(true, true, false) == grabRefused(), "grab: a refused start keeps its message");
+    check(grabStartError(false, true, true).starts_with("grab: "), "grab: errors start with grab:");
 #endif
 
     if (fails)

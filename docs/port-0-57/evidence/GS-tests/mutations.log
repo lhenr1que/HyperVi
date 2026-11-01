@@ -1,0 +1,15 @@
+saídas em <saídas>
+controle: ok
+morta - porta ignora drag ativo :: FALHOU - gate: a drag is going: yield
+morta - porta ignora a janela :: FALHOU - gate: no drag, pointer on another window: not over
+morta - abort sem efeito :: FALHOU - gate: abort stops the unsnap where it is
+morta - YIELD não libera a soltura :: FALHOU - gate: after yield the release passes to the compositor
+morta - porta não limpa o início pendente :: FALHOU - gate: yield stops the unsnap and the delayed start
+morta - grab ignora foco recusado :: FALHOU - grab: error unless found, focused and started (case 5)
+morta - grab volta a sair em silêncio :: FALHOU - grab: every way out goes through grabStartError (int luaGrab(: 'grabStartError(' at 19, 'return 0' at 17)
+morta - porta removida do movimento :: FALHOU - gate before an unsnap step (void CHyprBar::onMouseMove(): 'startGate(' at none, 'applyUnsnap(' at 17)
+morta - porta removida do início :: FALHOU - gate before focusing for the drag (void CHyprBar::handleMovement(): 'startGate(' at none, 'fullWindowFocus(' at 16)
+morta - sem porta na soltura :: FALHOU - gate before landing an unsnap on release (void CHyprBar::onMouseButton(: 'startGate(' at none, 'applyUnsnap(' at 8)
+mutações: 10/10 mortas por assertiva
+VIVA - limite: porta neutralizada no movimento
+VIVA - limite: porta neutralizada no início

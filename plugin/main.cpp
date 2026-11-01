@@ -311,16 +311,19 @@ int luaGrab(lua_State* L) {
         return Config::Lua::Bindings::Internal::configError(L, ERR);
     const std::string mode = lua_tostring(L, 1);
     const auto        key  = (uintptr_t)std::strtoull(lua_tostring(L, 2), nullptr, 0);
+    bool found = false, focused = false, started = false;
     for (auto& w : Desktop::windowState()->windows()) {
         if ((uintptr_t)w.get() != key || !w->mapped() || w->isHidden())
             continue;
+        found = true;
         Desktop::focusState()->fullWindowFocus(w, Desktop::FOCUS_REASON_CLICK); // the compositor drags the focused window
-        if (Desktop::focusState()->window() != w)
-            break; // focus was refused (a layer surface holds the keyboard): do not drag some other window
-        if (KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE) != KwDrag::BEGIN_STARTED)
-            return Config::Lua::Bindings::Internal::configError(L, KwIn::grabRefused());
+        focused = Desktop::focusState()->window() == w; // refused: a layer surface holds the keyboard; do not drag another window
+        started = focused && KwDrag::begin(mode == "move" ? MBIND_MOVE : MBIND_RESIZE) == KwDrag::BEGIN_STARTED;
         break;
     }
+    // every grab that did not start is a Lua error (openspec guard-titlebar-drag-start)
+    if (const auto ERR = KwIn::grabStartError(found, focused, started); !ERR.empty())
+        return Config::Lua::Bindings::Internal::configError(L, ERR);
     return 0;
 }
 

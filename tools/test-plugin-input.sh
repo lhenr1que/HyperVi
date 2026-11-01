@@ -57,7 +57,7 @@ if grep -A3 -E 'm_unsnap\.step\(' "$src/barDeco.cpp" | grep -q 'handleMovement()
 present main.cpp 'g_pGlobalState->pairs\.onRelease\(e\.button\)\.cancel' "releases are taken by the listener that outlives the bars"
 present main.cpp 'KwIn::grabError\(' "luaGrab checks its arguments through barInput.hpp"
 present main.cpp 'KwDrag::begin\(mode == "move"' "K2: the menu grab starts through the helper"
-present main.cpp 'KwIn::grabRefused\(\)' "a refused grab is reported"
+present main.cpp 'KwIn::grabStartError\(' "a grab that did not start is reported (grabRefused through grabStartError)"
 present main.cpp 'createFunctionHook' "seam resistance: motion hook"
 present main.cpp 'KEY_LEFTSHIFT' "Shift rearm listener"
 # the C++ float action yields to an active drag (floating ends any drag in progress)
@@ -65,5 +65,23 @@ if grep -A2 -E 'action == "float"' "$src/barDeco.cpp" | grep -q 'dragController(
 # the preview is drawn again while the bar drags
 n=$(grep -c 'drawSnapPreview(' "$src/barDeco.cpp")
 if [ "$n" -ge 2 ]; then echo "ok - drawSnapPreview is called"; else echo "FALHOU - drawSnapPreview( appears $n times in barDeco.cpp (want the definition and a call)"; fails=$((fails + 1)); fi
+
+# guard-titlebar-drag-start: in each route, the gate comes before any geometry or focus change (comments ignored)
+body() { awk -v f="$2" 'index($0, f) == 1 {on = 1} on {sub(/\/\/.*/, ""); print} on && /^}/ {exit}' "$src/$1"; }
+before() { # file function first then what
+  local b a z
+  b=$(body "$1" "$2")
+  a=$(grep -n -m1 -F -- "$3" <<<"$b" | cut -d: -f1); z=$(grep -n -m1 -F -- "$4" <<<"$b" | cut -d: -f1)
+  if [ -n "$a" ] && [ -n "$z" ] && [ "$a" -lt "$z" ]; then echo "ok - $5"; else echo "FALHOU - $5 ($2: '$3' at ${a:-none}, '$4' at ${z:-none})"; fails=$((fails + 1)); fi
+}
+before barDeco.cpp 'void CHyprBar::onMouseMove()' 'startGate(' 'applyUnsnap(' "gate before an unsnap step"
+before barDeco.cpp 'void CHyprBar::onMouseMove()' 'startGate(' 'fullscreenWindow(' "gate before leaving maximized"
+before barDeco.cpp 'void CHyprBar::onMouseMove()' 'startGate(' 'startUnsnap(' "gate before starting an unsnap"
+before barDeco.cpp 'void CHyprBar::onMouseButton(' 'startGate(' 'applyUnsnap(' "gate before landing an unsnap on release"
+before barDeco.cpp 'void CHyprBar::handleMovement()' 'startGate(' 'fullWindowFocus(' "gate before focusing for the drag"
+before barDeco.cpp 'void CHyprBar::handleMovement()' 'startGate(' 'KwDrag::begin(' "gate before starting the drag"
+before main.cpp 'int luaGrab(' 'grabStartError(' 'return 0' "grab: every way out goes through grabStartError"
+n=$(body main.cpp 'int luaGrab(' | grep -c 'return 0')
+if [ "$n" = 1 ]; then echo "ok - grab: one success return"; else echo "FALHOU - grab: 'return 0' appears $n times in luaGrab (want 1, after grabStartError)"; fails=$((fails + 1)); fi
 
 [ "$fails" = 0 ] && echo "input: tudo passou" || { echo "input: $fails grupo(s) falharam"; exit 1; }

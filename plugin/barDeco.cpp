@@ -145,8 +145,11 @@ void CHyprBar::onMouseButton(Event::SCallbackInfo& info, IPointer::SButtonEvent 
     if (e.state != WL_POINTER_BUTTON_STATE_PRESSED && e.button == BTN_LEFT) {
         m_bDragPending = false;
         if (const auto W = m_pWindow.lock(); W && m_unsnap.active) { // released mid-ease: land on the earlier size, no drag
-            const auto C = g_pInputManager->getMouseCoordsInternal();
-            applyUnsnap(W, m_unsnap.finish(C.x, C.y));
+            // unless another drag started since the last motion: then stop where it is (openspec guard-titlebar-drag-start)
+            if (KwIn::passGate(KwIn::startGate(g_layoutManager->dragController()->target() != nullptr, true), g_pGlobalState->pairs, m_unsnap, m_bDragPending)) {
+                const auto C = g_pInputManager->getMouseCoordsInternal();
+                applyUnsnap(W, m_unsnap.finish(C.x, C.y));
+            }
         }
         if (m_drag.onRelease(dragGoing()) == KwIn::eDragStep::CLEAR)
             Log::logger->log(Log::DEBUG, "kwinish-bars", "drag over on {:x} (already ended)", (uintptr_t)m_pWindow.lock().get());
@@ -324,6 +327,13 @@ void CHyprBar::onTitlePress() {
 }
 
 void CHyprBar::handleMovement() {
+    // never over another drag, and only on this bar's window (begin drags the one under the pointer): openspec
+    // guard-titlebar-drag-start
+    if (!KwIn::passGate(KwIn::startGate(g_layoutManager->dragController()->target() != nullptr, pointerOverWindow()), g_pGlobalState->pairs, m_unsnap,
+                        m_bDragPending)) {
+        Log::logger->log(Log::DEBUG, "kwinish-bars", "drag not started on {:x} (another drag, or the pointer left the window)", (uintptr_t)m_pWindow.lock().get());
+        return;
+    }
     m_bDragPending = false;
     m_resistPush   = 0;
     const auto W   = m_pWindow.lock();
@@ -352,6 +362,11 @@ void CHyprBar::onMouseMove() {
         handleMovement();
 
     const auto C = g_pInputManager->getMouseCoordsInternal();
+    // another drag started: stop the unsnap or the delayed start before touching the window (openspec
+    // guard-titlebar-drag-start). These steps bring the window under the pointer, so only handleMovement asks where it is.
+    if ((m_unsnap.active || m_bDragPending) &&
+        !KwIn::passGate(KwIn::startGate(g_layoutManager->dragController()->target() != nullptr, true), g_pGlobalState->pairs, m_unsnap, m_bDragPending))
+        return;
     if (m_unsnap.active) {
         const auto ST = m_unsnap.step(C.x, C.y, Time::steadyNow());
         applyUnsnap(W, ST);
