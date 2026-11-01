@@ -1,6 +1,6 @@
 ## GitHub Actions — 01/11/2026
 
-As execuções nos commits `2050840` e `17bcaa4` falharam em `core/test_userdata.lua` e `tools/test-plugin-hostdrag.sh`. O workflow instala clang e o teste Lua informa o estado do processo filho para diagnosticar a falha no CI; validação remota pendente. Os 35 testes Rust passaram e o plugin compilou nas duas execuções.
+As execuções nos commits `2050840` e `17bcaa4` falharam em `core/test_userdata.lua` e `tools/test-plugin-hostdrag.sh`. O workflow instala clang. A execução seguinte confirmou o teste hostdrag e mostrou que `os.execute` retorna ENOSYS no CI; o teste Lua usa `io.popen` para iniciar o processo filho sob timeout, preservando a verificação. Validação remota da correção Lua pendente. Os 35 testes Rust passaram e o plugin compilou nas duas execuções.
 
 ## Limpeza do repositório — 01/11/2026
 

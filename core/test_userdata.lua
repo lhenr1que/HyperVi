@@ -26,7 +26,11 @@ local r = M[%q](text)
 if %q == "load_user" then r = M.user end
 os.exit((type(r) == "table" and next(r) == nil) and 10 or 11)]], dir, mod, file, fn, fn))
   f:close()
-  local _, how, n = os.execute("timeout 5 " .. sh(arg[-1]) .. " " .. sh(child))
+  local pipe, err = io.popen("timeout 5 " .. sh(arg[-1]) .. " " .. sh(child) .. " 2>&1", "r")
+  if not pipe then os.remove(file); os.remove(child); return "spawn failed: " .. tostring(err) end
+  local output = pipe:read("a")
+  local _, how, n = pipe:close()
+  if output ~= "" then io.stderr:write(output) end
   os.remove(file); os.remove(child)
   if how == "exit" and n == 10 then return "empty" elseif how == "exit" and n == 11 then return "entries" end
   return n == 124 and "timeout" or ("exited: " .. tostring(how) .. " " .. tostring(n))
