@@ -1,3 +1,7 @@
+## Limpeza do repositório — 01/11/2026
+
+Por solicitação do dono, os resultados brutos de `spike/nested-open/results/` foram removidos da árvore principal; o experimento e seu resumo permanecem. Os arquivos estão no histórico Git no commit `2050840` e em backup ZIP local completo, criado e verificado antes da limpeza. Código, evidências de port e acervo documental de importação foram preservados. A limpeza não reescreve o histórico Git.
+
 # Estado operacional do desenvolvimento
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.

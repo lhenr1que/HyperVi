@@ -21,8 +21,7 @@ python3 /home/ryo/Downloads/ryoku-work/kwinish-floating/spike/nested-open/run.py
 Não use esse mecanismo na sessão principal. O executor limpa seus processos
 no `finally`. Não guarda nem chama métodos de objetos retornados por regras/binds.
 
-Resultados preservados em `results/`; resumo e limites da evidência no
-`design.md` da mudança, seção “Resultado do experimento”.
+Os resultados brutos foram retirados da árvore principal para reduzir o volume; permanecem no histórico Git no commit `2050840` e no backup local anterior à limpeza. O resumo e os limites da evidência estão no `design.md` da mudança, seção “Resultado do experimento”.
 O backend Wayland adotou o tamanho da superfície externa (1827×1000), não o
 modo solicitado de 1280×800. Cada rodada amostra `clients -j` a cada ~15 ms
 por 1,5 s. A primeira amostra não substitui a observação da ordem dos eventos.
