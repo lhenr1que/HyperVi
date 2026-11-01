@@ -47,3 +47,9 @@ Estado em 01/11/2026: proposta **aprovada pelo dono**; implementação feita no 
 - Spec: o requisito "Mover e Redimensionar pelo menu na alpha-1" teve o texto da recusa corrigido (o grab foca a janela antes do início, como em `bf2049a`).
 - Ao vivo (dono, 01/11/2026): roteiros A1, A1b (animação) e A1c (C11, dois monitores) passaram.
 - 5.4: commit aprovado pelo dono em 01/11/2026; revisão independente não feita.
+
+## Arquivamento (01/11/2026)
+
+Arquivada pelo dono depois do teste ao vivo: roteiros A1, A1b e A1c do `docs/STATUS.md` passaram em 01/11/2026. Implementação em `38cc338`, testes ao vivo documentados em `622acc8`. Specs principais `title-bar` e `snap-assist` atualizadas com os deltas desta mudança (RENAMED, REMOVED, MODIFIED, ADDED, nesta ordem), copiados como estão; sem `openspec validate` (CLI não instalada). Conferência estrutural: `tools/test-openspec-specs.sh`.
+
+Ressalvas aceitas: a 3.4 **não foi feita como escrita** (o listener de Shift segue `static`, como os outros de `main.cpp`) e a 5.4, **revisão independente, não foi feita**. Custo C1/C2: se um arrasto preso aparecer no uso, é o gatilho para trocar para a paridade 0.56, o que exige nova proposta OpenSpec.

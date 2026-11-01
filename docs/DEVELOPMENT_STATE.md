@@ -38,8 +38,15 @@ Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é espe
 - **Animação do unsnap:** o dono escolheu animar antes do início (alt5-rc mantida). Implementada. Verde: input com 121 ok, cargo 32/32; build GCC/Clang com 0 erros e avisos 7/2; ELF passa; `check.sh` isolado exit 0. Desfazer do A1 conferido só com consultas: nenhum plugin carregado e link removido.
 - **A1b ao vivo (dono, 01/11/2026): passou** (animação, soltura no meio, Shift).
 - **A1c ao vivo (dono, 01/11/2026): passou.** Dois monitores: resistência na divisa, borda e Shift no outro monitor, e Assist só no mesmo monitor. Com isso, o C11 está feito.
-- **Pendente:** arquivar `enable-titlebar-drag-alpha1` (a CLI `openspec` não está instalada), revisão independente opcional, exposição do Q1 só por log, `SWindowRenderPresentation`, logs brutos antigos de P5–T6 sem versionar.
-- **Próxima ação recomendada:** arquivar a mudança da alpha-1 nos specs principais (à mão, como a D1, ou com a CLI se o dono a instalar).
+- **Arquivada (01/11/2026, à mão; não commitada até aprovação do dono):** `enable-titlebar-drag-alpha1` foi movida por `git mv` para `openspec/changes/archive/2026-11-01-enable-titlebar-drag-alpha1/`. Os deltas entraram em `openspec/specs/title-bar/spec.md` e `snap-assist/spec.md` (RENAMED, REMOVED, MODIFIED, ADDED, textos copiados como estão). O `tasks.md` da mudança ganhou a nota de arquivamento: 3.4 não feita como escrita e revisão independente (5.4) não feita. Teste novo, vermelho antes: `tools/test-openspec-specs.sh` (SHALL/MUST, WHEN/THEN, removidos, renomeados, 3 adicionados, texto igual ao delta, controle negativo).
+- **Pendências registradas (fora desta tarefa, não iniciadas):**
+  - revisão independente da alpha-1 (opcional);
+  - exposição do contador Q1 só por log;
+  - uso de `SWindowRenderPresentation` na barra;
+  - 73 logs brutos antigos de P5–T6 sem versionar;
+  - débito do `floatWindow` do núcleo Lua;
+  - custo C1/C2: se um arrasto preso aparecer no uso, é o gatilho para trocar para a paridade 0.56, o que exige nova proposta OpenSpec.
+- **Próxima ação recomendada:** o dono revisa e aprova o commit do arquivamento; depois escolhe entre as pendências acima.
 
 ## Anterior — proposta OpenSpec da alpha-1 (01/11/2026; aprovada pelo dono e commitada)
 

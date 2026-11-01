@@ -55,69 +55,75 @@ O sistema SHALL tirar a dica da tela quando o ponteiro sai do botão, quando um 
 - **WHEN** o plugin é descarregado enquanto uma dica está visível ou esperando o atraso
 - **THEN** a dica some e o compositor continua funcionando
 
-### Requirement: Drag da decoração indisponível na alpha-0
-Na alpha-0 para Hyprland 0.57, o sistema SHALL manter indisponível o movimento/redimensionamento interativo pela decoração do plugin e pelo grab do menu. As rotas da barra/menu MUST NOT iniciar, rearmar, substituir ou solicitar fim de drag. O sistema MUST NOT armar aquisição ou pendência de drag, fazer unsnap por arrasto, encaixar ao soltar, mostrar preview associado ou resistir ao cruzamento de monitores por essas rotas. O movimento interativo da janela SHALL permanecer disponível pelo bind nativo configurado no Hyprland, sem instalar ou mudar binds do usuário. Ações discretas de encaixe e workspace permanecem disponíveis.
-
-#### Scenario: Arrastar título de janela flutuante ou ladrilhada
-- **WHEN** o usuário pressiona o título vazio, move o ponteiro e solta, com ou sem Shift
-- **THEN** a barra não inicia/rearma/encerra drag nem aplica snap, preview ou resistência
-- **AND** não mantém flag de aquisição ou gesto pendente
-
-#### Scenario: Arrastar janela maximizada ou previamente encaixada
-- **WHEN** o usuário tenta arrastar a janela pelo título
-- **THEN** a tentativa não restaura tamanho, não retira maximização e não inicia unsnap
-- **AND** duplo clique configurado e ações explícitas continuam disponíveis
-
-#### Scenario: Drag nativo sem ação de floating
-- **WHEN** um bind nativo do Hyprland move uma janela e passam eventos de movimento, Shift e soltura sem acionar botão/duplo clique de floating
-- **THEN** as rotas desativadas da barra não alteram o delta nem adquirem, rearmam, encerram ou engolem eventos para controlar o drag
-
-### Requirement: Toque na decoração indisponível na alpha-0
-Na alpha-0, o sistema MUST NOT interpretar down/move/up de toque na decoração do plugin como gesto, clique de ação ou pedido de float, resize, pin, move, tile ou drag, nem cancelar esses eventos pelas rotas excluídas. Esta exceção temporária não altera o toque nativo do compositor fora dessas rotas.
+### Requirement: Toque na decoração indisponível
+Na alpha-0 e na alpha-1, o sistema MUST NOT interpretar down/move/up de toque na decoração do plugin como gesto, clique de ação ou pedido de float, resize, pin, move, tile ou drag, nem cancelar esses eventos. Esta exceção não altera o toque nativo do compositor fora dessas rotas.
 
 #### Scenario: Movimento por toque sobre a barra
 - **WHEN** uma sequência de toque ocorre sobre título, ícone ou botão da decoração
 - **THEN** a decoração não muda geometria, floating, pin ou snap e não cancela eventos por essa sequência
 
-### Requirement: Cliques de mouse preservados e pareados na alpha-0
-O sistema SHALL preservar botões, ícone, menu, roda, hover/tooltip, foco/elevação e duplo clique configurado. Cliques consumidos nos botões, ícone ou menu SHALL consumir press e release da mesma origem e botão, executando a ação uma única vez. Cliques não consumidos SHALL passar sem retenção por estado de drag/grab desativado. Mudança de foco ou ponteiro entre press e release MUST NOT produzir par órfão por intervenção da barra; release de outra origem/botão MUST NOT ser consumido como se fosse o par retido.
+### Requirement: Cliques de mouse pareados
+O sistema SHALL preservar botões, ícone, menu, roda, hover/tooltip, foco/elevação e duplo clique configurado. Cliques consumidos nos botões, ícone ou menu SHALL consumir press e release do mesmo botão, executando a ação uma única vez. O press no título que inicia drag é a exceção: sua soltura SHALL chegar ao compositor. Cliques não consumidos SHALL passar sem retenção. Mudança de foco ou ponteiro entre press e release MUST NOT produzir par órfão por intervenção da barra.
 
 #### Scenario: Minimizar muda foco antes da soltura
 - **WHEN** o botão minimizar consome press e o foco muda antes do release
 - **THEN** a ação acontece uma vez e a soltura correspondente também é consumida
-- **AND** a próxima interação não fica presa
 
 #### Scenario: Ícone ou botão direito abre menu
-- **WHEN** um clique no ícone ou com botão direito na barra abre o menu
-- **THEN** press e release do clique são tratados em par mesmo se o ponteiro sair da barra
-- **AND** nenhuma flag de drag/grab é armada
+- **WHEN** um clique no ícone ou com botão direito na barra abre o menu, sem drag ativo
+- **THEN** press e release são tratados em par mesmo se o ponteiro sair da barra
 
-#### Scenario: Dois dispositivos ou barras sobrepostas
-- **WHEN** há eventos intercalados de duas origens/botões ou duas barras recebem o mesmo press
-- **THEN** somente uma ação ocorre para o clique consumido
-- **AND** a soltura de outra origem/botão não é roubada
+#### Scenario: Press no título vira drag
+- **WHEN** um press no título passa do limiar e inicia drag
+- **THEN** a barra não toma a soltura e o compositor encerra o drag com ela
 
-#### Scenario: Clique comum após grab indisponível
-- **WHEN** uma tentativa de grab foi recusada pela alpha-0 e o usuário clica fora de uma ação da barra
-- **THEN** o antigo estado de grab não consome press nem release
+#### Scenario: Clique simples no título
+- **WHEN** o usuário aperta e solta o título sem passar do limiar
+- **THEN** a janela é focada (e elevada, se flutuante) e nenhum drag é iniciado
 
-### Requirement: Menu sem comandos de grab mudos na alpha-0
-Na alpha-0, o menu SHALL ocultar Mover e Redimensionar, preservando suas outras ações. Chamadas explícitas válidas à entrada Lua `grab` SHALL informar indisponibilidade sem mudar foco, iniciar/encerrar drag ou reter o próximo clique. Nomes e argumentos da entrada permanecem, e argumentos inválidos continuam diagnosticados.
+### Requirement: Arrasto pela barra com fim pelo compositor
+Na alpha-1 para Hyprland 0.57, o sistema SHALL mover a janela quando o usuário aperta o título e move o ponteiro além do limiar, iniciando o drag pelo controlador do compositor. As rotas da barra e do menu MUST NOT pedir fim, substituir ou reiniciar com fim um drag: o drag SHALL terminar pelo fim nativo do compositor, que recebe a soltura do botão sem cancelamento. A barra MUST NOT tomar press do botão esquerdo nem do direito enquanto houver drag ativo de qualquer origem. O estado de drag da barra SHALL ser armado só quando o início realmente ocorreu.
 
-#### Scenario: Abrir menu da janela
-- **WHEN** o usuário abre o menu pela barra ou pela entrada de menu do núcleo
-- **THEN** Mover/Redimensionar não são oferecidos
-- **AND** minimizar, maximizar, fechar e demais ações preservadas continuam acessíveis
+#### Scenario: Arrastar janela flutuante pelo título
+- **WHEN** o usuário aperta o título vazio, move o ponteiro além do limiar e solta
+- **THEN** a janela acompanha o ponteiro e o drag termina na soltura
+- **AND** a soltura chega ao compositor e nenhum estado de drag da barra fica armado
 
-#### Scenario: Chamada explícita de grab
-- **WHEN** alguém chama `hl.plugin.kwinish.grab` com modo e endereço válidos
-- **THEN** recebe diagnóstico de indisponibilidade na alpha-0
-- **AND** nenhum foco, aquisição, fim de drag ou cancelamento posterior é produzido pelo grab
+#### Scenario: Drag de outro componente ativo
+- **WHEN** um drag iniciado por outro componente (bind nativo, outra decoração) está ativo e o usuário aperta a barra com o botão esquerdo ou direito
+- **THEN** a barra não toma o press, não abre menu e não inicia, substitui nem encerra esse drag
 
-### Requirement: Reativação do drag após alpha-0
-O sistema MUST NOT reativar automaticamente drag da decoração/menu por uma opção runtime na alpha-0. A reativação SHALL pertencer à alpha-1 e depender de decisão explícita Q4/T10, recheck de `target()` em `KwDrag::begin` após o callback de decoração (T9) e autorização/validação próprias.
+#### Scenario: Início recusado
+- **WHEN** o compositor ou uma decoração recusa o início, ou já há drag ativo
+- **THEN** a barra não arma estado de drag e o próximo clique não é retido
 
-#### Scenario: Configuração de snap ou resistência habilitada
-- **WHEN** snap preview, snap de borda ou resistência estão configurados durante a alpha-0
-- **THEN** seus efeitos associados ao drag da barra permanecem inativos
-- **AND** dados e opções persistidos não são removidos para desativar a funcionalidade
+#### Scenario: Entrada capturada na soltura
+- **WHEN** um cliente captura a entrada no momento da soltura e o compositor não encerra o drag
+- **THEN** o drag da barra continua até a próxima tecla ou o próximo clique não capturado
+- **AND** o plugin não pede fim para compensar (custo aceito pelo dono em 01/11/2026)
+
+### Requirement: Encaixe, prévia e resistência ao arrastar pela barra
+Durante o drag da barra, o sistema SHALL voltar a: encaixar ao soltar nas bordas e, com Shift, na zona sob o ponteiro, segundo `snap_top_edge` e o layout ativo; mostrar a prévia segundo `snap_preview` e `preview_color`; resistir ao cruzar a divisa entre monitores segundo `seam_resistance`; sair de maximizada ou encaixada pelo limiar de arrasto. O rearm por Shift SHALL só iniciar um drag novo, nunca encerrar antes, e só com a barra em drag, sem saída de encaixe pendente e com o ponteiro sobre a janela da barra. O encaixe ao soltar SHALL usar as ações explícitas existentes, inclusive o monitor do soltar.
+
+#### Scenario: Soltar na borda esquerda
+- **WHEN** o usuário arrasta pela barra até a borda esquerda e solta
+- **THEN** a prévia aparece durante o arrasto e a janela é encaixada à esquerda depois da soltura
+
+#### Scenario: Arrastar janela maximizada
+- **WHEN** o usuário arrasta pela barra uma janela maximizada além do limiar
+- **THEN** a janela sai da maximização antes de o drag começar e acompanha o ponteiro
+
+#### Scenario: Shift fora do drag da barra
+- **WHEN** o usuário aperta Shift sem drag da barra ativo, ou durante um drag de outro componente
+- **THEN** nada é rearmado nem encerrado pela barra
+
+### Requirement: Mover e Redimensionar pelo menu na alpha-1
+O menu da janela SHALL voltar a oferecer Mover e Redimensionar. A entrada Lua `grab` SHALL iniciar o drag pelo controlador do compositor e só considerar o grab iniciado quando o início ocorreu; um início recusado pelo compositor SHALL ser diagnosticado como erro Lua, sem armar grab nem reter clique. O grab SHALL terminar pelo fim nativo do compositor e ser limpo em qualquer tecla; um clique de grab sem drag ativo SHALL passar.
+
+#### Scenario: Mover pelo menu
+- **WHEN** o usuário escolhe Mover no menu e move o ponteiro
+- **THEN** a janela acompanha o ponteiro e o próximo clique termina o movimento pelo compositor
+
+#### Scenario: Grab sem drag ativo
+- **WHEN** o grab foi armado mas o drag já terminou (tecla, outro componente) e o usuário clica
+- **THEN** o clique passa normalmente e nenhum estado de grab fica armado
