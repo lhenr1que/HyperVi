@@ -2,7 +2,27 @@
 
 Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é especificação técnica nem documentação de produto. Atualizar somente com autorização de escrita. Confirmar sempre o Git e as evidências reais antes de agir.
 
-## Resultado mais recente — alpha-1 implementada (01/11/2026; commitada com aprovação do dono; ao vivo: tudo passou)
+## Resultado mais recente — revisão da alpha-1 e proposta `guard-titlebar-drag-start` (01/11/2026; proposta aprovada e commitada; nada implementado)
+
+- **Revisão independente da alpha-1 (tarefa 5.4, pedida pelo dono):** Codex (agente `codex:codex-rescue`, somente leitura), 1 rodada, sobre `fecf267..622acc8`. Veredito **reject**. Achados conferidos pelo orquestrador no código:
+  1. major, **confirmado**: unsnap, saída de maximizada e início adiado mudam geometria e foco sem conferir drag ativo (contrato Q4-A1 §2, linha 6, manda abortar);
+  2. major, **confirmado e preexistente** (contrato §7 "Hit-test"): o início adiado pode arrastar a janela vizinha, porque `KwDrag::begin` usa o hit-test;
+  3. **confirmado**, rebaixado para minor: `luaGrab` devolve sucesso sem drag (janela não achada ou oculta, foco recusado). O menu chama `grab` em `pcall` e descarta o erro (`core/kwinish.lua:40`);
+  4. **parcialmente refutado por execução**: `run-mutations.sh` não tem controle e conta qualquer saída ≠ 0. Reexecutadas as 14 mutações do plugin fora do repositório: 12 morrem por assertiva ou inventário e 2 só por `-Werror`, que assertivas também matam com o aviso liberado. 15/15 se mantém; o método é falho. Minor;
+  5. minor, **confirmado**: `drags(c) == 0` é tautologia fora de `KW_BASELINE`; os `present` são grep; o inventário de fim olha 2 arquivos (varredura manual de `plugin/` e `core/`: só comentários);
+  6. minor, **confirmado**: clique simples em janela flutuante inicia drag no press (herança da 0.56.2), contra o cenário "Clique simples no título" do spec.
+  - Relatório fora do repositório (não versionado, sem autorização para `docs/`): `/tmp/claude-1000/-home-lhen-Downloads/1974bbe4-3c07-4f23-a576-f82df218df5c/scratchpad/A1-review-codex-2026-11-01.md`.
+  - Não verificado: reentrância do `move` dentro de `ended`, unload pela leitura (ao vivo passou no C9), corridas do unsnap, resistência com aceleração real, mutação do menu.
+- **Proposta `openspec/changes/guard-titlebar-drag-start/` (achados 1–3), aprovada pelo dono em 01/11/2026 com os padrões das Open Questions** (não restaurar `restores` ao abortar o unsnap; erro do `grab` não exibido no menu):
+  - porta única `startGate(dragActive, pointerOnOwnWindow)` em `barInput.hpp`, antes de qualquer mudança de geometria ou foco: YIELD aborta sem tocar em nada e libera a soltura ao compositor; NOT_OVER faz o press virar clique;
+  - `grabStartError` cobre toda saída sem drag;
+  - delta `title-bar`: 3 requisitos MODIFIED, 1 cenário novo em cada;
+  - mutações com controle e morte só por assertiva.
+- **Validação:** sem `openspec validate` (CLI ausente). Conferência estrutural por script fora do repositório: nomes existentes, texto e cenários originais preservados, SHALL/MUST, WHEN/THEN; controle negativo pegou 2 erros. Única troca de texto: a frase do grab, intencional. `bash tools/check.sh` exit 0 (simulado). Nada ao vivo.
+- **Pendências registradas (não iniciadas):** implementar `guard-titlebar-drag-start` (autorização própria); achado 6 (decidir spec ou código); achados 4 e 5 nos testes antigos; contador Q1 só por log; `SWindowRenderPresentation`; 73 logs brutos de P5–T6; débito do `floatWindow` do núcleo Lua; custo C1/C2 (gatilho para a paridade 0.56, com nova proposta).
+- **Próxima ação recomendada:** implementar `guard-titlebar-drag-start` pelo `tasks.md`, vermelho primeiro, com autorização própria.
+
+## Anterior — alpha-1 implementada (01/11/2026; commitada com aprovação do dono; ao vivo: tudo passou)
 
 - **Escopo (o dono mandou implementar em 01/11/2026):**
   - D1 arquivada à mão em `openspec/changes/archive/2026-11-01-disable-titlebar-drag-alpha0/`, porque a CLI `openspec` não está instalada. Os deltas foram aplicados aos specs principais `title-bar` (+5 requisitos) e `snap-assist` (Assist trocado). A nota de arquivamento em `tasks.md` registra a 4.3/4.4 cumpridas e as parciais aceitas.
@@ -38,7 +58,7 @@ Atualizado em **2026-11-01 (UTC)**. Registro curto de continuidade; não é espe
 - **Animação do unsnap:** o dono escolheu animar antes do início (alt5-rc mantida). Implementada. Verde: input com 121 ok, cargo 32/32; build GCC/Clang com 0 erros e avisos 7/2; ELF passa; `check.sh` isolado exit 0. Desfazer do A1 conferido só com consultas: nenhum plugin carregado e link removido.
 - **A1b ao vivo (dono, 01/11/2026): passou** (animação, soltura no meio, Shift).
 - **A1c ao vivo (dono, 01/11/2026): passou.** Dois monitores: resistência na divisa, borda e Shift no outro monitor, e Assist só no mesmo monitor. Com isso, o C11 está feito.
-- **Arquivada (01/11/2026, à mão; não commitada até aprovação do dono):** `enable-titlebar-drag-alpha1` foi movida por `git mv` para `openspec/changes/archive/2026-11-01-enable-titlebar-drag-alpha1/`. Os deltas entraram em `openspec/specs/title-bar/spec.md` e `snap-assist/spec.md` (RENAMED, REMOVED, MODIFIED, ADDED, textos copiados como estão). O `tasks.md` da mudança ganhou a nota de arquivamento: 3.4 não feita como escrita e revisão independente (5.4) não feita. Teste novo, vermelho antes: `tools/test-openspec-specs.sh` (SHALL/MUST, WHEN/THEN, removidos, renomeados, 3 adicionados, texto igual ao delta, controle negativo).
+- **Arquivada (01/11/2026, à mão; commitada em `ae1f250` com aprovação do dono):** `enable-titlebar-drag-alpha1` foi movida por `git mv` para `openspec/changes/archive/2026-11-01-enable-titlebar-drag-alpha1/`. Os deltas entraram em `openspec/specs/title-bar/spec.md` e `snap-assist/spec.md` (RENAMED, REMOVED, MODIFIED, ADDED, textos copiados como estão). O `tasks.md` da mudança ganhou a nota de arquivamento: 3.4 não feita como escrita e revisão independente (5.4) não feita. Teste novo, vermelho antes: `tools/test-openspec-specs.sh` (SHALL/MUST, WHEN/THEN, removidos, renomeados, 3 adicionados, texto igual ao delta, controle negativo).
 - **Pendências registradas (fora desta tarefa, não iniciadas):**
   - revisão independente da alpha-1 (opcional);
   - exposição do contador Q1 só por log;
